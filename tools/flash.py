@@ -38,10 +38,12 @@ APP_OFFSET         = 0x10000  # App at 64 KB (first partition)
 
 # ---- Minimal partition table entry --------------------------------------- #
 # Format: magic(2) type(1) subtype(1) offset(4) size(4) name(16) flags(4)
-PARTITION_MAGIC = 0xAA50
+PARTITION_MAGIC = 0x50AA
 
-def make_partition_table(app_size_mb: int = 4) -> bytes:
-    """Generate a minimal single-app partition table (no OTA)."""
+def make_partition_table(flash_size_mb: int = 4) -> bytes:
+    """Generate a minimal single-app partition table sized for the actual flash."""
+    NVS_SIZE = 0x6000  # 24 KB
+    app_size = flash_size_mb * 1024 * 1024 - APP_OFFSET - NVS_SIZE
 
     def entry(name: str, ptype: int, subtype: int, offset: int, size: int) -> bytes:
         name_bytes = name.encode('utf-8', errors='replace')[:15].ljust(16, b'\x00')
@@ -53,11 +55,11 @@ def make_partition_table(app_size_mb: int = 4) -> bytes:
                           0x0)  # flags
 
     # Factory app partition (type=0 APP, subtype=0 FACTORY)
-    app_entry = entry('app', 0x00, 0x00, APP_OFFSET, app_size_mb * 1024 * 1024)
+    app_entry = entry('app', 0x00, 0x00, APP_OFFSET, app_size)
 
     # NVS partition (type=1 DATA, subtype=2 NVS)
-    nvs_start  = APP_OFFSET + app_size_mb * 1024 * 1024
-    nvs_entry  = entry('nvs', 0x01, 0x02, nvs_start, 0x6000)
+    nvs_start  = APP_OFFSET + app_size
+    nvs_entry  = entry('nvs', 0x01, 0x02, nvs_start, NVS_SIZE)
 
     table = app_entry + nvs_entry
     # Pad to 0xC00 bytes (3 KB, standard partition table size)
@@ -190,11 +192,12 @@ def main() -> None:
         elf_to_bin(esptool_cmd, args.elf, bin_path,
                    args.flash_mode, args.flash_freq, args.flash_size)
 
-        # 2. Generate partition table
+        # 2. Generate partition table sized for the target flash
+        flash_size_mb = int(args.flash_size.upper().replace('MB', ''))
         part_path = os.path.join(tmpdir, 'partitions.bin')
         with open(part_path, 'wb') as f:
-            f.write(make_partition_table())
-        print(f'[flash] Partition table written to {part_path}')
+            f.write(make_partition_table(flash_size_mb))
+        print(f'[flash] Partition table written to {part_path} ({flash_size_mb}MB flash)')
 
         # 3. Flash
         port = args.port
