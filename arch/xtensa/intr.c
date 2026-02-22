@@ -1,6 +1,7 @@
 /* =============================================================================
  * intr.c  –  Xtensa LX7 interrupt controller implementation for ESP32-S3
  * ============================================================================= */
+#include "compiler.h"
 #include "intr.h"
 #include "xtensa_ops.h"
 #include "types.h"
@@ -127,7 +128,7 @@ void intr_free(int cpu_intr)
  * ============================================================================ */
 void IRAM_ATTR _xt_isr_handler_level2(void)
 {
-    uint32_t active = RSR(INTSET) & RSR(INTENABLE) & 0x00380000u; /* L2 mask */
+    uint32_t active = RSR(INTERRUPT) & RSR(INTENABLE) & 0x00380000u; /* L2 mask */
     int i;
     for (i = 0; i < 32; i++) {
         if ((active >> i) & 1u) {
@@ -144,7 +145,7 @@ void IRAM_ATTR _xt_isr_handler_level2(void)
 /* Level-3 dispatcher */
 void IRAM_ATTR _xt_isr_handler_level3(void)
 {
-    uint32_t active = RSR(INTSET) & RSR(INTENABLE) & 0x28C08800u; /* L3 mask */
+    uint32_t active = RSR(INTERRUPT) & RSR(INTENABLE) & 0x28C08800u; /* L3 mask */
     int i;
     for (i = 0; i < 32; i++) {
         if ((active >> i) & 1u) {

@@ -1,8 +1,8 @@
 /* =============================================================================
  * uart.c  –  ESP32-S3 UART driver implementation
  * ============================================================================= */
-#include "drivers/uart.h"
-#include "drivers/gpio.h"
+#include "drivers/uart/uart.h"
+#include "drivers/gpio/gpio.h"
 #include "soc/soc.h"
 #include "soc/system_reg.h"
 
@@ -77,7 +77,7 @@ static void uart_set_baud(int port, uint32_t baud)
     /* Set CLK_CONF: enable clock, select APB source */
     uint32_t clk_conf = REG_READ(UART_CLK_CONF(port));
     clk_conf &= ~(0x3u << UART_CLK_SEL_S);
-    clk_conf |=  (UART_CLK_APB << UART_CLK_SEL_S) | (1u << UART_CLK_EN_S);
+    clk_conf |=  (UART_CLK_APB << UART_CLK_SEL_S) | (1u << UART_CLK_CONF_EN_S);
     REG_WRITE(UART_CLK_CONF(port), clk_conf);
 }
 

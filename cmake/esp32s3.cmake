@@ -9,9 +9,9 @@ set(NDF_ARCH  "xtensa"   CACHE STRING "Target architecture")
 set(NDF_BOARD "esp32s3"  CACHE STRING "Target board/SoC")
 set(NDF_CPU   "esp32s3"  CACHE STRING "Target CPU")
 
-# ----- Flash geometry (default: 8MB flash, QIO mode) -----------------------
-set(FLASH_SIZE   "8MB"  CACHE STRING "Flash size")
-set(FLASH_MODE   "qio"  CACHE STRING "Flash mode: qio/qout/dio/dout")
+# ----- Flash geometry (default: 2MB flash, DIO mode) -----------------------
+set(FLASH_SIZE   "2MB"  CACHE STRING "Flash size")
+set(FLASH_MODE   "dio"  CACHE STRING "Flash mode: qio/qout/dio/dout")
 set(FLASH_FREQ   "80m"  CACHE STRING "Flash frequency")
 set(FLASH_OFFSET "0x0"  CACHE STRING "App partition flash offset")
 

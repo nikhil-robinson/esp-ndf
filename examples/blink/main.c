@@ -19,8 +19,8 @@
  *   ...
  * ============================================================================= */
 #include "board.h"          /* board_init, board_delay_ms, board_puts, etc.  */
-#include "drivers/gpio.h"   /* gpio_set_direction, gpio_set_level, etc.      */
-#include "drivers/uart.h"   /* uart_printf                                   */
+#include "drivers/gpio/gpio.h"   /* gpio_set_direction, gpio_set_level, etc.      */
+#include "drivers/uart/uart.h"   /* uart_printf                                   */
 
 /* ---- Configuration ------------------------------------------------------- */
 #define BLINK_GPIO      BOARD_LED_GPIO   /* GPIO48 on most ESP32-S3 DevKits  */

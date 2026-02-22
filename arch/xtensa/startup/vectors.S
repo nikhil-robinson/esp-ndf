@@ -252,11 +252,12 @@ _DoubleExceptionVector:
  * does not lock up if an unexpected interrupt fires during development.
  * In production code every active interrupt source must have a real handler.
  * --------------------------------------------------------------------------- */
-    .section .text, "ax"
+    .section .iram.text, "ax"   /* MUST be in IRAM – within CALL0 range of vectors */
 
 .macro  DEFAULT_ISR  name, level
     .global  \name
     .weak    \name
+    .align 4
 \name:
     /* Acknowledge the interrupt at the intctrl level, then return */
     rfi     \level
@@ -269,20 +270,24 @@ DEFAULT_ISR _xt_isr_handler_level5, 5
 
     .global  _xt_debug_exception
     .weak    _xt_debug_exception
+    .align 4
 _xt_debug_exception:
     rfi     6
 
     .global  _xt_nmi_handler
     .weak    _xt_nmi_handler
+    .align 4
 _xt_nmi_handler:
     rfi     7
 
     .global  _xt_kernel_exception
     .weak    _xt_kernel_exception
+    .align 4
 _xt_kernel_exception:
 1:  j       1b
 
     .global  _xt_user_exception
     .weak    _xt_user_exception
+    .align 4
 _xt_user_exception:
 1:  j       1b

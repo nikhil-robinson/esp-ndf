@@ -31,6 +31,10 @@
  *   IRAM so VECBASE == _iram_start == 0x40370000.
  * ============================================================================= */
 
+/* Force little-endian ELF output.
+ * Without this, binutils defaults to big-endian xtensa (elf32-xtensa-be),
+ * which causes esptool elf2image to reject the ELF (e_machine byte-swap). */
+OUTPUT_FORMAT("elf32-xtensa-le")
 OUTPUT_ARCH(xtensa)
 ENTRY(call_start_cpu0)
 
@@ -109,6 +113,9 @@ SECTIONS
     .vectors ORIGIN(iram0) :
     {
         _vectors_start = .;
+        /* Literal pool for vector code (currently empty; must stay before
+         * any .vectors code that uses L32R to satisfy backward-only rule) */
+        *(.vectors.literal .vectors.literal.*)
         KEEP(*(.vectors))
         . = ALIGN(0x400);
         _vectors_end = .;
@@ -120,6 +127,9 @@ SECTIONS
     .iram.text :
     {
         _iram_text_start = .;
+        /* Literal pools for IRAM code (must be co-located with the code that
+         * uses them so that L32R offsets remain in range) */
+        *(.iram.literal .iram.literal.*)
         *(.iram.text .iram.text.*)
         . = ALIGN(4);
         _iram_text_end = .;
@@ -131,17 +141,17 @@ SECTIONS
     .text :
     {
         _text_start = .;
-        /* Entry point stub needs to be near the section start */
+        /* Literal pools for L32R MUST come before the code that uses them
+         * (L32R is a backward-only load; literal must be at lower address).
+         * .literal.entry holds constants for call_start_cpu0 in .text.entry */
+        *(.literal.entry)
+        *(.literal .literal.*)
+        *(.xt.lit .xt.lit.*)
+        /* Entry point stub */
         KEEP(*(.text.entry))
         *(.text .text.* .gnu.linkonce.t.*)
         . = ALIGN(4);
         _text_end = .;
-    } > irom0
-
-    /* Literals pool for L32R (Xtensa Harvard load-store) */
-    .literal :
-    {
-        *(.literal .literal.*)
     } > irom0
 
     /* ======================================================================
@@ -164,30 +174,41 @@ SECTIONS
      * The symbols _data_lma_start / _data_start / _data_end are exported
      * for start.S to perform the flash-to-DRAM copy.
      * ====================================================================== */
+    /* Workaround: xtensa-esp-elf-ld (ldlang.c:1057) crashes if SIZEOF() is
+     * used on a section with AT > clause, AND if symbols are defined inside
+     * such a section. Define _data_start with safe ADDR() and _data_end at
+     * the top of .bss (which equals end-of-.data after alignment). */
     .data :
     {
-        _data_start = .;
         *(.data .data.* .gnu.linkonce.d.*)
         *(.sdata .sdata.*)
         . = ALIGN(4);
-        _data_end = .;
     } > dram0 AT > drom0
 
-    _data_lma_start = LOADADDR(.data);   /* LMA (flash): source for copy     */
+    /* Workaround for xtensa-esp-elf-ld (ldlang.c:1057) bug:
+     * - SIZEOF() on any output section (AT> or NOLOAD) crashes this ld.
+     * - Symbols defined inside a section with AT > also crash.
+     * Solution: use dot-based assignments and ADDR() outside section braces.
+     * The dot between sections is the VMA end of the preceding output section
+     * in the same region, which is what we want for start/end symbols. */
+    _data_start     = ADDR(.data);          /* VMA start of .data in DRAM    */
+    _data_lma_start = LOADADDR(.data);      /* LMA in flash: source for copy */
+
+    /* _data_end / _bss_start are set right before .bss begins (== after .data) */
+    _data_end  = .;
+    _bss_start = .;
 
     /* ======================================================================
      * Zero-initialised data (.bss) – not stored in flash, zeroed by startup
      * ====================================================================== */
     .bss (NOLOAD) :
     {
-        . = ALIGN(4);
-        _bss_start = .;
         *(.bss .bss.* .gnu.linkonce.b.*)
         *(.sbss .sbss.*)
         *(COMMON)
-        . = ALIGN(4);
-        _bss_end = .;
     } > dram0
+
+    _bss_end = .;   /* dot after .bss is at end of .bss in dram0 */
 
     /* ======================================================================
      * Heap – starts right after .bss, grows upward
@@ -238,6 +259,8 @@ SECTIONS
         *(.eh_frame)
         *(.eh_frame_hdr)
         *(.xtensa.info)
+        *(.xt.prop .xt.prop.*)
+        *(.xt.lit.plt)
     }
 }
 

@@ -180,7 +180,7 @@ extern const uint32_t uart_base[3];
 #define UART_CLK_DIV_S              4   /* [27:4] Integer divider           */
 #define UART_CLK_SEL_S              28  /* [29:28] Clock source:            */
                                         /*   0=disabled 1=APB 2=FOSC 3=XTAL */
-#define UART_CLK_EN_S               31  /* [31]   Module clock enable       */
+#define UART_CLK_CONF_EN_S          31  /* [31]   Module clock enable (CLK_CONF reg) */
 #define UART_CLK_APB                1
 #define UART_CLK_FOSC               2   /* Internal 17.5 MHz RC oscillator  */
 #define UART_CLK_XTAL               3   /* Crystal oscillator (40 MHz)      */

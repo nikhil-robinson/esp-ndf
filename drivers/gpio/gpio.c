@@ -1,7 +1,7 @@
 /* =============================================================================
  * gpio.c  –  ESP32-S3 GPIO driver implementation
  * ============================================================================= */
-#include "drivers/gpio.h"
+#include "drivers/gpio/gpio.h"
 #include "soc/soc.h"
 
 /* ---- Internal ISR dispatch table ---------------------------------------- */

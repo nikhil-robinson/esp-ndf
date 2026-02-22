@@ -45,7 +45,7 @@ def make_partition_table(app_size_mb: int = 4) -> bytes:
 
     def entry(name: str, ptype: int, subtype: int, offset: int, size: int) -> bytes:
         name_bytes = name.encode('utf-8', errors='replace')[:15].ljust(16, b'\x00')
-        return struct.pack('<HBBI16sI',
+        return struct.pack('<HBBII16sI',
                           PARTITION_MAGIC,
                           ptype, subtype,
                           offset, size,

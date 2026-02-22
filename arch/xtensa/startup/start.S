@@ -165,8 +165,10 @@ call_start_cpu0:
      * Step 6: Set the stack pointer.
      *         _stack_top is the top of DRAM (high address → grows down).
      *         Must be 16-byte aligned for the windowed ABI.
+     *         Use plain movi (GAS auto-expands to l32r for 32-bit values
+     *         and places the literal in .literal.entry reliably).
      * ----------------------------------------------------------------- */
-    mowi    a1, _stack_top      /* a1 == SP */
+    movi    a1, _stack_top      /* a1 == SP */
     movi    a0, 0               /* clear return address (we never return) */
 
     /* -----------------------------------------------------------------
@@ -183,12 +185,34 @@ call_start_cpu0:
 
 
 /* ===========================================================================
- * __start_c  –  C-level startup shim (called from above via CALL4)
+ * __start_c  –  C-level startup shim (called from call_start_cpu0 via CALL4)
+ *
+ * Placed in IROM (.text) together with call_start_cpu0 so that CALL4 can
+ * reach it (CALL4 range is ±512 KB; IRAM is ~30 MB away from IROM).
+ * Running from IROM is safe here because the ROM bootloader has already
+ * configured the flash cache before transferring control to us.
  *
  * Copies .data from flash to DRAM, zeroes .bss, calls board_init(), main().
  * Written in assembly to avoid C runtime dependencies.
+ *
+ * Literal pool: placed in .literal section which the linker script puts
+ * BEFORE .text in IROM.  L32R is backward-only, so literals must precede
+ * the instructions that load them.  Using an explicit .literal section
+ * avoids dependence on -mtext-section-literals assembler flag.
  * =========================================================================== */
-    .section .iram.text, "ax"
+    /* -----------------------------------------------------------------------
+     * Explicit literal pool in .literal section (linked before .text in IROM)
+     * L32R from .text can reach these because they are at lower addresses.
+     * ----------------------------------------------------------------------- */
+    .section .literal, "a"
+    .align  4
+.L_data_lma_start_lit:  .word _data_lma_start
+.L_data_start_lit:      .word _data_start
+.L_data_end_lit:        .word _data_end
+.L_bss_start_lit:       .word _bss_start
+.L_bss_end_lit:         .word _bss_end
+
+    .section .text, "ax"
     .global  __start_c
     .type    __start_c, @function
     .align   4
@@ -201,18 +225,18 @@ __start_c:
      *   _data_start      = VMA (DRAM address  = destination)
      *   _data_end        = VMA end
      */
-    movi    a2, _data_lma_start      /* source      (flash)   */
-    movi    a3, _data_start          /* destination (DRAM)    */
-    mowi    a4, _data_end            /* end of destination    */
+    l32r    a2, .L_data_lma_start_lit   /* source      (flash)   */
+    l32r    a3, .L_data_start_lit       /* destination (DRAM)    */
+    l32r    a4, .L_data_end_lit         /* end of destination    */
 
     /* Check if .data is non-empty */
-    beq     a3, a4, .Lbss_clear     /* skip copy if _data_start == _data_end */
+    beq     a3, a4, .Lbss_clear         /* skip copy if empty */
 
 .Ldata_copy_loop:
-    l32i    a5, a2, 0               /* load word from flash (via D-cache)    */
-    s32i    a5, a3, 0               /* store to DRAM                         */
-    addi    a2, a2, 4               /* advance source pointer                */
-    addi    a3, a3, 4               /* advance destination pointer           */
+    l32i    a5, a2, 0                   /* load word from flash (via D-cache)    */
+    s32i    a5, a3, 0                   /* store to DRAM                         */
+    addi    a2, a2, 4                   /* advance source pointer                */
+    addi    a3, a3, 4                   /* advance destination pointer           */
     bltu    a3, a4, .Ldata_copy_loop
 
     /* -- Zero .bss ----------------------------------------------------------
@@ -221,23 +245,20 @@ __start_c:
      *   _bss_end    = end of BSS in DRAM
      */
 .Lbss_clear:
-    mowi    a2, _bss_start
-    mowi    a3, _bss_end
+    l32r    a2, .L_bss_start_lit        /* _bss_start */
+    l32r    a3, .L_bss_end_lit          /* _bss_end   */
     movi    a4, 0
 
-    beq     a2, a3, .Lcall_board   /* skip if .bss is empty */
+    beq     a2, a3, .Lcall_board        /* skip if .bss is empty */
 
 .Lbss_loop:
-    s32i    a4, a2, 0               /* write 0 word          */
+    s32i    a4, a2, 0                   /* write 0 word          */
     addi    a2, a2, 4
     bltu    a2, a3, .Lbss_loop
 
-    /* -- Re-enable interrupts (INTLEVEL=0, WOE still on) --------------------
-     * We keep interrupts off until after board_init().
-     */
-
     /* -- Call board_init() --------------------------------------------------
      * board_init() configures clocks, UART, GPIO pull-ups, etc.
+     * CALL4 works here: both board_init and __start_c are in IROM.
      */
 .Lcall_board:
     call4   board_init

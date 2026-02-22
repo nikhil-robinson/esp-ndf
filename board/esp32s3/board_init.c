@@ -20,8 +20,8 @@
  *   2. Setting CPU divider to /2 (CPUPERIOD_SEL = 2 → 240 MHz)
  * ============================================================================= */
 #include "board.h"
-#include "drivers/uart.h"
-#include "drivers/gpio.h"
+#include "drivers/uart/uart.h"
+#include "drivers/gpio/gpio.h"
 
 /* ---- IO MUX pad table --------------------------------------------------- */
 /*
@@ -66,6 +66,9 @@ const uint32_t uart_base[3] = {
  * Private helpers
  * ============================================================================ */
 
+/* Timer group WDT write-protect magic key (same value used in start.S) */
+#define TIMG_WDT_KEY    0x50D83AA1UL
+
 /**
  * @brief  Disable all hardware watchdog timers inherited from the ROM bootloader.
  *
@@ -75,23 +78,21 @@ const uint32_t uart_base[3] = {
 static void disable_wdts(void)
 {
     /* ---- Timer Group 0 WDT ---- */
-    REG_WRITE(TIMG0_BASE + 0xA4, TIMG0_WDT_KEY);  /* unlock write protect    */
-    REG_WRITE(TIMG0_BASE + 0x8C, 0);               /* disable WDT             */
-    REG_WRITE(TIMG0_BASE + 0xA4, 0);               /* re-lock                 */
+    REG_WRITE(DR_REG_TIMG0_BASE + 0xA4, TIMG_WDT_KEY);  /* unlock write protect    */
+    REG_WRITE(DR_REG_TIMG0_BASE + 0x8C, 0);              /* disable WDT             */
+    REG_WRITE(DR_REG_TIMG0_BASE + 0xA4, 0);              /* re-lock                 */
 
     /* ---- Timer Group 1 WDT ---- */
-    REG_WRITE(TIMG1_BASE + 0xA4, TIMG0_WDT_KEY);
-    REG_WRITE(TIMG1_BASE + 0x8C, 0);
-    REG_WRITE(TIMG1_BASE + 0xA4, 0);
+    REG_WRITE(DR_REG_TIMG1_BASE + 0xA4, TIMG_WDT_KEY);
+    REG_WRITE(DR_REG_TIMG1_BASE + 0x8C, 0);
+    REG_WRITE(DR_REG_TIMG1_BASE + 0xA4, 0);
 
     /* ---- RTC WDT ---- */
     RTC_WDT_DISABLE();
 }
 
-/* Timer group bases (identical to defines in start.S – avoid redefinition via macro) */
-#define TIMG0_BASE      0x6001F000UL
-#define TIMG1_BASE      0x60020000UL
-#define TIMG0_WDT_KEY   0x50D83AA1UL
+/* NOTE: TIMG base addresses come from soc.h (DR_REG_TIMG0_BASE / DR_REG_TIMG1_BASE)
+ * and TIMG_WDT_KEY is defined above.  The old local defines below are removed. */
 
 /**
  * @brief  Configure BBPLL for 480 MHz and switch CPU to 240 MHz.
