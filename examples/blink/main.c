@@ -1,71 +1,73 @@
-/*
- * Blink Example - ESP32-S3 Bare Metal
- * Toggles GPIO (onboard LED) on and off
- * With debug output via USB Serial/JTAG
- */
+/* =============================================================================
+ * examples/blink/main.c  –  Bare-metal LED blink for ESP32-S3
+ *
+ * This is the first application to run on your bare-metal SDK.  It:
+ *   1. Relies on board_init() (called before main by __start_c in start.S)
+ *      to configure clocks at 240 MHz and UART0 at 115200 baud.
+ *   2. Configures the built-in LED GPIO (GPIO48 on most ESP32-S3 DevKits).
+ *   3. Blinks the LED at ~1 Hz while printing tick counts over UART0.
+ *
+ * Verified working on:
+ *   - ESP32-S3-DevKitC-1 (LED on GPIO48)
+ *   - Adjust BLINK_GPIO if your board uses a different pin.
+ *
+ * Expected UART output (115200 8N1):
+ *   esp-ndf: bare-metal blink starting
+ *   tick 0: LED ON
+ *   tick 1: LED OFF
+ *   tick 2: LED ON
+ *   ...
+ * ============================================================================= */
+#include "board.h"          /* board_init, board_delay_ms, board_puts, etc.  */
+#include "drivers/gpio.h"   /* gpio_set_direction, gpio_set_level, etc.      */
+#include "drivers/uart.h"   /* uart_printf                                   */
 
-#include "hal/gpio.h"
-#include "hal/debug.h"
-#include "arch/esp32s3/esp32s3.h"
+/* ---- Configuration ------------------------------------------------------- */
+#define BLINK_GPIO      BOARD_LED_GPIO   /* GPIO48 on most ESP32-S3 DevKits  */
+#define BLINK_PERIOD_MS 500              /* 500 ms on + 500 ms off = 1 Hz     */
 
-/* LED GPIO - adjust for your board */
-#define LED_GPIO    1
-
-/* Simple delay using NOP loop */
-static void delay_ms(uint32_t ms)
+/* ============================================================================
+ * main
+ * ============================================================================ */
+int main(void)
 {
-    /* Approximate delay at 40MHz default clock */
-    volatile uint32_t count = ms * 8000;
-    while (count--) {
-        __asm__ volatile ("nop");
-    }
-}
+    /* board_init() was already called by __start_c before main().
+     * At this point:
+     *   - CPU running at 240 MHz
+     *   - UART0 configured at 115200 8N1 on GPIO43(TX)/GPIO44(RX)
+     *   - Interrupts enabled
+     */
 
-void main(void)
-{
-    /* Initialize debug output via USB Serial/JTAG (CDC on /dev/ttyACM0) */
-    debug_init(DEBUG_USB_SERIAL);
-    
-    /* Delay to let USB CDC enumerate and host terminal connect */
-    delay_ms(500);
-    
-    /* Output test - single characters first */
-    debug_putc('H');
-    debug_putc('E');
-    debug_putc('L');
-    debug_putc('L');
-    debug_putc('O');
-    debug_putc('\r');
-    debug_putc('\n');
-    
-    debug_println("=================================");
-    debug_println("ESP32-S3 Bare Metal Blink Example");
-    debug_println("=================================");
-    debug_printf("LED GPIO: %d\n", LED_GPIO);
-    
-    /* Configure LED GPIO */
-    gpio_config_t led_config = {
-        .dir = GPIO_DIR_OUTPUT,
-        .pull = GPIO_PULL_NONE,
-        .drive = GPIO_DRIVE_2,
-        .intr = GPIO_INTR_DISABLE
-    };
-    
-    gpio_config_pin(LED_GPIO, &led_config);
-    debug_println("GPIO configured as output");
-    
-    uint32_t count = 0;
-    
-    /* Blink loop */
-    while (1) {
-        gpio_set_high(LED_GPIO);
-        debug_printf("[%u] LED ON\n", count);
-        delay_ms(500);
-        
-        gpio_set_low(LED_GPIO);
-        debug_printf("[%u] LED OFF\n", count);
-        delay_ms(500);
-        
-        count++;
+    /* -- Announce startup -------------------------------------------------- */
+    uart_printf(0, "\r\n");
+    uart_printf(0, "========================================\r\n");
+    uart_printf(0, "  esp-ndf bare-metal SDK\r\n");
+    uart_printf(0, "  CPU: ESP32-S3 (Xtensa LX7 @ 240 MHz)\r\n");
+    uart_printf(0, "  Blink example starting...\r\n");
+    uart_printf(0, "========================================\r\n");
+    uart_printf(0, "  LED GPIO: %d\r\n", BLINK_GPIO);
+    uart_printf(0, "  Period:   %d ms\r\n", BLINK_PERIOD_MS * 2);
+    uart_printf(0, "\r\n");
+
+    /* -- Configure LED GPIO as push-pull output with default level LOW ----- */
+    gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_level(BLINK_GPIO, 0);
+
+    /* -- Main loop --------------------------------------------------------- */
+    uint32_t tick = 0;
+
+    for (;;) {
+        /* LED ON */
+        gpio_set_level(BLINK_GPIO, 1);
+        uart_printf(0, "tick %u: LED ON\r\n", tick++);
+        board_delay_ms(BLINK_PERIOD_MS);
+
+        /* LED OFF */
+        gpio_set_level(BLINK_GPIO, 0);
+        uart_printf(0, "tick %u: LED OFF\r\n", tick++);
+        board_delay_ms(BLINK_PERIOD_MS);
     }
+
+    /* Never reached, but the compiler likes a return for int main() */
+    return 0;
 }
