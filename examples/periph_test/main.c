@@ -21,6 +21,7 @@ int main(void)
     run("ledc", test_ledc);
     run("mcpwm", test_mcpwm);
     run("pcnt", test_pcnt);
+    run("rmt", test_rmt);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

@@ -46,3 +46,21 @@ driver APIs, IRAM callbacks, `-O2`). Cycles are CPU cycles (4.17 ns). Lower is b
 | duty, edge & center aligned (captured) | exact to the 12.5 ns tick | same hardware |
 | dead band 1 µs (captured) | 81/81 ticks (±1 capture tick) | same hardware |
 | 3-phase sync, 90° | 1001/1000 ticks | same hardware |
+
+## PCNT (x4 quadrature from MCPWM, pads looped back)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 1 MHz, 100 ms, reading continuously (expect 400000) | 400004, 0 backward steps | 400024, 0 backward steps |
+| 100 kHz, 1 s, wraps counted by IRQ only | exactly 400000 | — |
+| 20 kHz fwd / rev, 10 ms | 800 / −800 | — |
+| read count | **85 cycles** | 331 |
+
+Independently checked with the logic analyzer: A and B at 1.000 MHz, B lags 90°.
+
+## RMT (TX GPIO10 → jumper → RX GPIO11, 100 ns ticks)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 100-item frame (> 48: TX refill + RX drain) | 100 received, 0 tick error | 100 received, 0 tick error |
+| start transmit (100 items) | **1156 cycles** | 7775 |

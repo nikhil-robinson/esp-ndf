@@ -10,5 +10,6 @@ void app_main(void)
     printf("[ledc]\n"); t_ledc();
     printf("[mcpwm]\n"); t_mcpwm();
     printf("[pcnt]\n"); t_pcnt();
+    printf("[rmt]\n"); t_rmt();
     printf("=== done ===\n");
 }
