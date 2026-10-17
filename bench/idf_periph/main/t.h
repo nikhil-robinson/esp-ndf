@@ -25,3 +25,4 @@ void t_i2s(void);
 void t_adc(void);
 void t_twai(void);
 void t_touch(void);
+void t_flash(void);

@@ -31,6 +31,7 @@ int main(void)
     run("adc", test_adc);
     run("twai", test_twai);
     run("touch", test_touch);
+    run("flash", test_flash);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

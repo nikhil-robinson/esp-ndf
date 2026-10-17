@@ -16,6 +16,7 @@
 #define GPIO_PIN(n)        (GPIO_BASE + 0x074 + (n) * 4)   /* b2 PAD_DRIVER b9:7 INT_TYPE b17:13 INT_ENA */
 #define GPIO_FUNC_IN(sig)  (GPIO_BASE + 0x154 + (sig) * 4) /* b5:0 pin b6 inv b7 use-matrix */
 #define SRC_GPIO           16
+#define RTCIO_PAD(n)       (0x60008484 + 4 * (n))         /* GPIO0..21, b19 RTC mux select */
 
 /* IO_MUX pad bits */
 #define MUX_PD     BIT(7)
@@ -37,6 +38,7 @@ static bool pin_ok(int pin, uint32_t flags)
 int gpio_config(int pin, uint32_t f)
 {
     if (!pin_ok(pin, f)) return -1;
+    if (pin <= 21) REG_CLR(RTCIO_PAD(pin), BIT(19));   /* take the pad back from the RTC mux */
     uint32_t mux = 1u << MUX_SEL_S | 2u << MUX_DRV_S;        /* function 1 = GPIO */
     if (f & GPIO_INPUT)    mux |= MUX_IE;
     if (f & GPIO_PULLUP)   mux |= MUX_PU;

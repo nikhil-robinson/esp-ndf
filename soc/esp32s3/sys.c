@@ -53,10 +53,21 @@ void sys_start1(void)
     for (;;) {}
 }
 
+/* RTC-domain state survives chip resets: return pads and the touch scanner
+ * to their power-on state so every boot starts identical. */
+static void rtc_domain_reset(void)
+{
+    for (int n = 0; n <= 21; n++)
+        if (n != 19 && n != 20) REG_CLR(0x60008484 + 4 * n, BIT(19));   /* digital mux (not USB pads) */
+    REG_CLR(0x6000810C, BIT(13));                                         /* touch scan timer off */
+    REG_FIELD(0x60008110, 10, 15, 0);                                     /* touch pad map empty */
+}
+
 void sys_start0(void)
 {
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
     wdt_off();
+    rtc_domain_reset();
     clk_bbpll_init();
     clk_cpu_set_mhz(240);
     periph_enable(PERIPH_SYSTIMER);

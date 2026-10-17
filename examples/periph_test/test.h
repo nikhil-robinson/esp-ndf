@@ -33,3 +33,4 @@ void test_i2s(void);
 void test_adc(void);
 void test_twai(void);
 void test_touch(void);
+void test_flash(void);

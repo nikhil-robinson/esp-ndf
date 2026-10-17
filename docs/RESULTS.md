@@ -165,3 +165,16 @@ The eFuse reader also returns the MAC (checked: 24:58:7C:E2:C9:D0).
 | read | **100 cycles** | 529 |
 
 ¹ IDF's `gpio_reset_pin(11)` leaves a pull-up on the far end of the jumper; ours leaves it floating.
+
+## SPI flash (sector 0xF00000, 4 KB)
+
+| | esp-ndf | ESP-IDF (esp_flash) |
+|---|---|---|
+| erase 4 KB (already blank) | 642 µs | 1041 µs |
+| write 4 KB | **10.8 ms** | 12.4 ms |
+| read 4 KB | **269 µs** (quad output, QE checked) | 462 µs |
+| data check | 0 wrong | 0 wrong |
+
+Incident while developing: an address-encoding bug (left-aligned instead of
+plain) erased and rewrote flash sector 0 (our image) once; recovered by
+reflashing. The driver now refuses addresses beyond 16 MB.
