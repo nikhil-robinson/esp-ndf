@@ -17,3 +17,4 @@ void t_pcnt(void);
 void t_rmt(void);
 void t_sdm(void);
 void t_uart(void);
+void t_i2c(void);

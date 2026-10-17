@@ -82,3 +82,17 @@ Independently checked with the logic analyzer: A and B at 1.000 MHz, B lags 90°
 | write 16 bytes | **279 cycles** | 2464 |
 
 Baud checked with the logic analyzer (UART2 0x55 on GPIO4): 115197 baud measured for 115200.
+
+## I2C (master I2C0 SDA10/SCL12 ↔ jumpers ↔ slave I2C1 SDA11/SCL13, 100 kHz)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| write 16 bytes to slave | 0 wrong, **1551 µs** (≈ wire time) | 0 wrong, 1785 µs |
+| write 100 bytes (FIFO chunking) | 0 wrong | 0 wrong |
+| read 8 bytes from slave | 0 wrong | — |
+| absent address | NACK reported | error reported |
+| SCL frequency (analyzer, 400 kHz request) | 399.0 kHz | — |
+
+400 kHz is skipped on this wiring: measured bus rise time with internal
+pull-ups is SDA 508 ns / SCL 429 ns, above the 300 ns Fast-mode limit for any
+driver. Add 2.2–4.7 kΩ pull-ups to test 400 kHz.
