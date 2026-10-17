@@ -145,3 +145,12 @@ RXEOF_NUM is in bytes.
 Calibration uses this chip's eFuse (BLK_VERSION_MAJOR 1): init code into the
 analog front end over regi2c, then IDF's curve-fitting polynomial in integer math.
 The eFuse reader also returns the MAC (checked: 24:58:7C:E2:C9:D0).
+
+## TWAI / CAN (TX GPIO10 → jumper → RX GPIO11, self-test / no-ACK)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 100 frames std+ext, DLC 0–8 @125k / 500k / 1M | 100 / 100 / 100 identical | 100 / 100 / 100 identical |
+| acceptance filter (0x123 in, 0x124 out) | correct | — |
+| send 8 bytes @1 Mbit/s incl. wire + self-rx | **30330 cycles** | 33108 |
+| bit time by analyzer @500k | 2.000 µs (48 samples @24 MHz) | — |
