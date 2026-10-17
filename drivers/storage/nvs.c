@@ -13,7 +13,7 @@
 
 #define PAGE        4096
 #define ENTRIES     126
-#define MAXPAGES    32
+#define MAXPAGES    16                  /* 64 KB partitions max */
 #define ST_EMPTY    0xFFFFFFFFu
 #define ST_ACTIVE   0xFFFFFFFEu
 #define ST_FULL     0xFFFFFFFCu

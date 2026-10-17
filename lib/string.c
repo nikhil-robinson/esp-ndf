@@ -74,3 +74,29 @@ char *strncpy(char *d, const char *s, size_t n)
     for (; i < n; i++) d[i] = 0;
     return d;
 }
+
+char *strchr(const char *s, int c)
+{
+    for (; *s; s++) if (*s == (char)c) return (char *)s;
+    return c ? 0 : (char *)s;
+}
+
+char *strrchr(const char *s, int c)
+{
+    const char *r = 0;
+    for (; *s; s++) if (*s == (char)c) r = s;
+    return c ? (char *)r : (char *)s;
+}
+
+char *strcpy(char *d, const char *s)
+{
+    char *r = d;
+    while ((*d++ = *s++)) {}
+    return r;
+}
+
+char *strcat(char *d, const char *s)
+{
+    strcpy(d + strlen(d), s);
+    return d;
+}

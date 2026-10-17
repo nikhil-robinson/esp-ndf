@@ -1,4 +1,4 @@
-/* Small printf: %d %i %u %x %X %p %c %s %%, width, '0' and '-' flags,
+/* Small printf: %d %i %u %x %X %p %c %s %%, width (or *), '0' and '-' flags,
  * 'l'/'ll'/'z' accepted (ll prints 64-bit). Buffers a line, then writes. */
 #include "console.h"
 
@@ -27,6 +27,7 @@ int vprintf(const char *f, va_list ap)
             else if (*f == '0') padc = '0';
             else break;
         }
+        if (*f == '*') { width = va_arg(ap, int); f++; if (width < 0) { left = true; width = -width; } }
         while (*f >= '0' && *f <= '9') width = width * 10 + (*f++ - '0');
         while (*f == 'l' || *f == 'z') { if (*f == 'l') lng++; f++; }
 

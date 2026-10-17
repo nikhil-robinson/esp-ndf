@@ -1,0 +1,79 @@
+#include "test.h"
+#include "fat.h"
+#include <string.h>
+#include "crc32.h"
+
+static uint8_t big[20000], back[32768];
+
+static void list(const char *path, int depth)
+{
+    int dd = fat_opendir(path);
+    char name[256]; uint32_t size; bool dir;
+    while (dd >= 0 && fat_readdir(dd, name, &size, &dir) == 1) {
+        printf("      %*s%s%s  %lu\n", depth * 2, "", name, dir ? "/" : "", size);
+        if (dir) {
+            char sub[300]; strcpy(sub, path); if (strcmp(path, "/")) strcat(sub, "/"); strcat(sub, name);
+            list(sub, depth + 1);
+        }
+    }
+    fat_closedir(dd);
+}
+
+void test_fat(void)
+{
+    static bdev_t bd;
+    CHECK(bdev_partition(&bd, partition_find(PART_DATA, PART_SUB_FAT, "fat")) == 0);
+    /* 0) a volume made elsewhere (e.g. IDF fatfsgen.py on the PC), if present */
+    if (fat_mount(&bd) == 0) {
+        int fd0 = fat_open("/config files/deep/calibration table.bin", FAT_RDONLY);
+        if (fd0 >= 0) {
+            int n0 = fat_read(fd0, back, sizeof back); fat_close(fd0);
+            char js[64] = { 0 }; fd0 = fat_open("/config files/robot params.json", FAT_RDONLY);
+            fat_read(fd0, js, sizeof js - 1); fat_close(fd0);
+            printf("    existing volume (fatfsgen): calibration table.bin %d B crc32 %08lx, json: %s", n0, crc32_le(0, back, n0), js);
+            printf("    tree:\n"); list("/", 0);
+        }
+    }
+    uint32_t t = ccount();
+    CHECK(fat_format(&bd) == 0);
+    uint32_t fmt_ms = (ccount() - t) / 240000;
+    uint32_t total, freeb; int bits;
+    fat_info(&total, &freeb, &bits);
+    printf("    formatted FAT%d in %lu ms: %lu KB, %lu KB free\n", bits, fmt_ms, total / 1024, freeb / 1024);
+
+    int fd = fat_open("/HELLO.TXT", FAT_WRONLY | FAT_CREAT);
+    CHECK(fd >= 0 && fat_write(fd, "Hello from esp-ndf\n", 19) == 19 && fat_close(fd) == 0);
+    CHECK(fat_mkdir("/data") == 0);
+    CHECK(fat_mkdir("/data/sub dir") == 0);
+    for (int i = 0; i < (int)sizeof big; i++) big[i] = i * 13 + (i >> 9);
+    t = ccount();
+    fd = fat_open("/data/long file name.bin", FAT_WRONLY | FAT_CREAT | FAT_TRUNC);
+    CHECK(fd >= 0 && fat_write(fd, big, sizeof big) == (int)sizeof big && fat_close(fd) == 0);
+    uint32_t w_ms = (ccount() - t) / 240000;
+    fd = fat_open("/data/sub dir/note.txt", FAT_WRONLY | FAT_CREAT);
+    CHECK(fd >= 0 && fat_write(fd, "nested", 6) == 6 && fat_close(fd) == 0);
+    fd = fat_open("/temp.tmp", FAT_WRONLY | FAT_CREAT);
+    fat_write(fd, big, 9000); fat_close(fd);
+    CHECK(fat_unlink("/temp.tmp") == 0);
+    CHECK(fat_unlink("/data") == FAT_ENOTEMPTY);
+
+    CHECK(fat_mount(&bd) == 0);                                 /* remount: everything from flash */
+    t = ccount();
+    fd = fat_open("/DATA/Long File Name.BIN", FAT_RDONLY);      /* case-insensitive */
+    int n = fat_read(fd, back, sizeof back);
+    uint32_t r_ms = (ccount() - t) / 240000;
+    fat_close(fd);
+    CHECK(n == (int)sizeof big && !memcmp(back, big, sizeof big));
+    char s[32] = { 0 };
+    fd = fat_open("/hello.txt", FAT_RDONLY); fat_read(fd, s, sizeof s - 1); fat_close(fd);
+    CHECK(!strcmp(s, "Hello from esp-ndf\n"));
+    fd = fat_open("/data/long file name.bin", FAT_RDWR);        /* seek + overwrite in place */
+    fat_seek(fd, 15000, FAT_SEEK_SET); fat_write(fd, "XYZ", 3); fat_seek(fd, 14999, FAT_SEEK_SET);
+    uint8_t q[5]; fat_read(fd, q, 5); fat_close(fd);
+    CHECK(q[0] == big[14999] && q[1] == 'X' && q[3] == 'Z' && q[4] == big[15003]);
+    big[15000] = 'X'; big[15001] = 'Y'; big[15002] = 'Z';
+    printf("    20 KB file: write %lu ms, read %lu ms\n", w_ms, r_ms);
+    printf("    tree:\n"); list("/", 0);
+    fat_info(&total, &freeb, &bits);
+    printf("    %lu KB free after files; long file name.bin crc32 %08lx\n", freeb / 1024, crc32_le(0, big, sizeof big));
+}

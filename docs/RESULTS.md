@@ -215,3 +215,16 @@ esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
 | IMU WHO_AM_I (reg 0x75) | 0x60 (ICM-42607-P) |
 | ES8311 chip ID (0xFD/0xFE) | 0x83 0x11 |
 | I2S → ES8311 → speaker, 48 kHz (MCLK 256 fs) | **confirmed audible by user** (1 kHz tone + chime) |
+
+## FAT filesystem (own FAT12/16/32 + long names, raw `fat` partition, 4 KB sectors)
+
+| direction | result |
+|---|---|
+| esp-ndf writes → ESP-IDF FatFs mounts (raw RO, LFN on) and reads | same tree incl. long names; 20 KB file crc32 **018a2379 = 018a2379** |
+| IDF `fatfsgen.py` (PC) builds image → esp-ndf reads | nested LFN dirs, JSON, 30 KB file crc32 **ae065942 = ae065942** (host) |
+| format 1 MB FAT12 | 335 ms |
+| 20 KB write (raw: erase+program per 4 KB) / read | 381 ms / 2 ms |
+
+ESP-IDF's default config has LFN off (it then sees only `DATA~1`-style names).
+Memory: the linker now packs data directly after the code's DRAM alias (no
+fixed IRAM/DRAM split), and refuses images whose RAM use reaches the ROM area.
