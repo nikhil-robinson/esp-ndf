@@ -27,3 +27,5 @@ void test_rmt(void);
 void test_sdm(void);
 void test_uart(void);
 void test_i2c(void);
+void test_gdma(void);
+void test_spi(void);

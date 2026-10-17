@@ -2,6 +2,7 @@
 #include "driver/i2c_master.h"
 #include "driver/i2c_slave.h"
 #include "freertos/FreeRTOS.h"
+#include "driver/gpio.h"
 /* master I2C0 SDA10/SCL12 <-> jumpers <-> slave I2C1 SDA11/SCL13, addr 0x28, 100 kHz */
 static uint8_t srx[128];
 static volatile int s_n;
@@ -38,4 +39,8 @@ void t_i2c(void)
     i2c_master_dev_handle_t nobody; dc.device_address = 0x50; i2c_master_bus_add_device(bus, &dc, &nobody);
     e = i2c_master_transmit(nobody, w, 1, 100);
     printf("    write to 0x50 (absent): err 0x%x (ESP_ERR_INVALID_STATE/NACK expected)\n", e);
+    /* release the pins for the next sibling test */
+    i2c_master_bus_rm_device(nobody); i2c_master_bus_rm_device(dev); i2c_del_master_bus(bus);
+    i2c_del_slave_device(sl);
+    for (int p = 10; p <= 13; p++) gpio_reset_pin(p);
 }

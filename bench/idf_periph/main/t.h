@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "esp_attr.h"
+#include <string.h>
 #include <stdlib.h>
 #include "esp_rom_sys.h"
 static inline uint32_t ccount(void) { uint32_t c; __asm__ volatile("rsr.ccount %0" : "=r"(c)); return c; }
@@ -18,3 +19,5 @@ void t_rmt(void);
 void t_sdm(void);
 void t_uart(void);
 void t_i2c(void);
+void t_spi(void);
+void t_gdma(void);

@@ -96,3 +96,25 @@ Baud checked with the logic analyzer (UART2 0x55 on GPIO4): 115197 baud measured
 400 kHz is skipped on this wiring: measured bus rise time with internal
 pull-ups is SDA 508 ns / SCL 429 ns, above the 300 ns Fast-mode limit for any
 driver. Add 2.2–4.7 kΩ pull-ups to test 400 kHz.
+
+## GDMA (memory to memory, 32 KB)
+
+| | esp-ndf | ESP-IDF (`esp_async_memcpy`) |
+|---|---|---|
+| 32 KB copy | **63 MB/s**, 0 wrong | 43 MB/s, 0 wrong |
+
+M2M must borrow a valid peripheral id (0–9); an invalid one is refused by the
+PMS with a descriptor error (found on hardware).
+
+## SPI (SPI2 master, MOSI GPIO10 → jumper → MISO GPIO11, SCLK GPIO6 on analyzer)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 64 B, 10 / 20 / 40 MHz | 0 wrong, 14649 / 8475 / 5844 cycles | 0 wrong, 17634 / 11469 / 8407 cycles |
+| 4 KB DMA @10 MHz (wire 3276 µs) | 0 wrong, 3281 µs | 3338 µs, **RX open item** ¹ |
+| 4-byte transaction | **724 cycles** | 4756 |
+| SCLK by analyzer (10 MHz) | 10.000 MHz | — |
+| master ↔ slave (SPI3), 32 B, modes 0–3 | 0 wrong both directions | — |
+
+¹ In this loopback IDF's 4 KB DMA transfer receives only the first 64 bytes
+(unresolved: IDF pin setup for an internal pad loopback; IDF's 64-byte path is correct).

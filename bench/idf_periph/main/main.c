@@ -5,6 +5,7 @@ void app_main(void)
 {
     vTaskDelay(10);
     printf("\n=== ESP-IDF peripheral timings ===\n");
+    printf("[spi]\n"); t_spi();
     printf("[gpio]\n"); t_gpio();
     printf("[gptimer]\n"); t_gptimer();
     printf("[ledc]\n"); t_ledc();
@@ -14,5 +15,6 @@ void app_main(void)
     printf("[sdm]\n"); t_sdm();
     printf("[uart]\n"); t_uart();
     printf("[i2c]\n"); t_i2c();
+    printf("[gdma]\n"); t_gdma();
     printf("=== done ===\n");
 }

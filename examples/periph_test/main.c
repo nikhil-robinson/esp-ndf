@@ -25,6 +25,8 @@ int main(void)
     run("sdm", test_sdm);
     run("uart", test_uart);
     run("i2c", test_i2c);
+    run("gdma", test_gdma);
+    run("spi", test_spi);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }
