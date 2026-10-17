@@ -154,3 +154,14 @@ The eFuse reader also returns the MAC (checked: 24:58:7C:E2:C9:D0).
 | acceptance filter (0x123 in, 0x124 out) | correct | — |
 | send 8 bytes @1 Mbit/s incl. wire + self-rx | **30330 cycles** | 33108 |
 | bit time by analyzer @500k | 2.000 µs (48 samples @24 MHz) | — |
+
+## Touch sensor (raw counts, FSM timer scan, IDF defaults)
+
+| pad | esp-ndf | ESP-IDF |
+|---|---|---|
+| 1 (bare) | 14603 | 14477 |
+| 14 (bare) | 19843 | 20150 |
+| 10 (jumper wire + GPIO11 pad) | 49053 | 44495 ¹ |
+| read | **100 cycles** | 529 |
+
+¹ IDF's `gpio_reset_pin(11)` leaves a pull-up on the far end of the jumper; ours leaves it floating.

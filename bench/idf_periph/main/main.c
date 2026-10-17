@@ -5,6 +5,7 @@ void app_main(void)
 {
     vTaskDelay(10);
     printf("\n=== ESP-IDF peripheral timings ===\n");
+    printf("[touch]\n"); t_touch();
     printf("[twai]\n"); t_twai();
     printf("[adc]\n"); t_adc();
     printf("[i2s]\n"); t_i2s();
