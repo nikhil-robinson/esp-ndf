@@ -11,6 +11,10 @@
     (REG(a) = (REG(a) & ~(((1u << (w)) - 1) << (s))) | ((uint32_t)(v) << (s)))
 #define BIT(n)            (1u << (n))
 
+/* Force a fresh load/store each time (shared with ISRs or the other core). */
+#define READ_ONCE(x)      (*(const volatile __typeof__(x) *)&(x))
+#define WRITE_ONCE(x, v)  (*(volatile __typeof__(x) *)&(x) = (v))
+
 #define RAM_FN   __attribute__((section(".iram.text"), noinline))
 #define NORETURN __attribute__((noreturn))
 #define ALWAYS_INLINE static inline __attribute__((always_inline))

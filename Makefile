@@ -1,8 +1,11 @@
-# esp-ndf build.   make [APP=examples/bench] [flash] [monitor]
+# esp-ndf build.   make [APP=examples/bench] [flash] [monitor]  [PORT=$(BOX3)]
 APP  ?= examples/bench
 SOC  ?= esp32s3
 ARCH ?= xtensa
-PORT ?= /dev/ttyACM0
+# Boards by USB id (contains the MAC, stable across replugs).
+DEVKIT = /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_24:58:7C:E2:C9:D0-if00
+BOX3   = /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_30:30:F9:5A:C1:10-if00
+PORT  ?= $(DEVKIT)
 TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-elf
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
 OUT   = build/$(notdir $(APP))

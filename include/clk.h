@@ -1,0 +1,24 @@
+/* Clock tree: CPU frequency, bus clocks, peripheral clock gates/resets. */
+#pragma once
+#include "ndf.h"
+
+/* Peripheral ids: (register index << 8) | bit, see soc/<chip>/clk.c. */
+typedef enum {
+    PERIPH_UART0 = 0x002, PERIPH_I2S0 = 0x004, PERIPH_UART1 = 0x005, PERIPH_SPI2 = 0x006,
+    PERIPH_I2C0 = 0x007, PERIPH_UHCI0 = 0x008, PERIPH_RMT = 0x009, PERIPH_PCNT = 0x00A,
+    PERIPH_LEDC = 0x00B, PERIPH_TIMG0 = 0x00D, PERIPH_TIMG1 = 0x00F, PERIPH_SPI3 = 0x010,
+    PERIPH_MCPWM0 = 0x011, PERIPH_I2C1 = 0x012, PERIPH_TWAI = 0x013, PERIPH_MCPWM1 = 0x014,
+    PERIPH_I2S1 = 0x015, PERIPH_UART_MEM = 0x018, PERIPH_SARADC = 0x01C, PERIPH_SYSTIMER = 0x01D,
+    PERIPH_GDMA = 0x106, PERIPH_SDMMC = 0x107, PERIPH_LCD_CAM = 0x108, PERIPH_UART2 = 0x109,
+    PERIPH_DEDIC_GPIO = 0x207,
+} periph_t;
+
+void     periph_enable(periph_t p);      /* clock on, out of reset */
+void     periph_disable(periph_t p);     /* into reset, clock off  */
+void     periph_reset(periph_t p);       /* pulse reset, keep clock */
+
+/* CPU: 240/160/80 (PLL) or 40 (XTAL). APB stays 80 MHz on PLL, = CPU on XTAL. */
+int      clk_cpu_set_mhz(uint32_t mhz);
+uint32_t clk_cpu_hz(void);
+uint32_t clk_apb_hz(void);
+#define  CLK_XTAL_HZ  40000000u
