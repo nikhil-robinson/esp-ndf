@@ -9,5 +9,6 @@ void app_main(void)
     printf("[gptimer]\n"); t_gptimer();
     printf("[ledc]\n"); t_ledc();
     printf("[mcpwm]\n"); t_mcpwm();
+    printf("[pcnt]\n"); t_pcnt();
     printf("=== done ===\n");
 }

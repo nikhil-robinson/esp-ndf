@@ -120,6 +120,7 @@ void test_mcpwm(void)
     CHECK(mcpwm_on_period(0, 0, on_tez, 0, 1) == 0);
     WAIT_FOR(tez_n >= 5000, 1000);
     METRIC("period IRQ jitter (20 kHz, L1)", "max %lu cycles", tez_jmax);
+    mcpwm_on_period(0, 0, 0, 0, 1);
     mcpwm_stop(0, 0);
     gpio_config(PA, GPIO_OUTPUT | GPIO_INPUT); gpio_config(PB, GPIO_OUTPUT | GPIO_INPUT);
 }

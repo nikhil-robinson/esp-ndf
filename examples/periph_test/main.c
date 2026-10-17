@@ -20,6 +20,7 @@ int main(void)
     run("gptimer", test_gptimer);
     run("ledc", test_ledc);
     run("mcpwm", test_mcpwm);
+    run("pcnt", test_pcnt);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

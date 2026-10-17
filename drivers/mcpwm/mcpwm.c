@@ -92,7 +92,10 @@ uint32_t mcpwm_timer(int u, int t, uint32_t hz, mcpwm_mode_t mode, uint32_t *tic
         if (per > 65535 || per < 2) continue;
         REG(T_CFG1(u, t)) = 0;                                   /* stop */
         uint32_t reg_per = mode == MCPWM_UP ? per - 1 : per;    /* UP counts 0..per-1 */
-        REG(T_CFG0(u, t)) = (p - 1) | reg_per << 8 | 1u << 24;  /* period shadowed at TEZ */
+        /* load period now (a synced timer may never reach zero on its old
+         * period), then shadow later changes to TEZ so they never glitch */
+        REG(T_CFG0(u, t)) = (p - 1) | reg_per << 8;
+        REG_FIELD(T_CFG0(u, t), 24, 2, 1);
         REG(T_CFG1(u, t)) = (uint32_t)mode << 3;
         unit[u].mode[t] = mode;
         if (tick_hz) *tick_hz = 160000000 / p;
@@ -113,7 +116,9 @@ void mcpwm_sync(int u, int t, int master, uint32_t phase)
 
 int mcpwm_on_period(int u, int t, irq_fn_t fn, void *arg, int level)
 {
+    REG_CLR(INT_ENA(u), BIT(3 + t));
     unit[u].tez_fn[t] = fn; unit[u].tez_arg[t] = arg;
+    if (!fn) return 0;                                     /* NULL = off */
     if (unit_irq(u, level) < 0) return -1;
     REG(INT_CLR(u)) = BIT(3 + t);
     REG_SET(INT_ENA(u), BIT(3 + t));

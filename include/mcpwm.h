@@ -17,7 +17,7 @@ void     mcpwm_start(int u, int t);
 void     mcpwm_stop(int u, int t);
 /* Lock timer t to timer `master`'s zero with a phase offset in ticks (3-phase). */
 void     mcpwm_sync(int u, int t, int master, uint32_t phase);
-/* Call fn at every period start (counter zero) of timer t. */
+/* Call fn at every period start (counter zero) of timer t. fn NULL = off. */
 int      mcpwm_on_period(int u, int t, irq_fn_t fn, void *arg, int level);
 
 /* Operator op drives pins from timer t. Output is high while count < compare

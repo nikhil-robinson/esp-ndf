@@ -11,3 +11,4 @@ void t_gpio(void);
 void t_gptimer(void);
 void t_ledc(void);
 void t_mcpwm(void);
+void t_pcnt(void);
