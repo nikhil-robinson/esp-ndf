@@ -1,3 +1,4 @@
+#include "esp_cpu.h"
 #include "t.h"
 #include "esp_vfs_fat.h"
 #include "esp_rom_crc.h"
@@ -32,5 +33,7 @@ void t_fat(void)
     for (int i = 0; i < 200; i++) {             /* IDF moves the dummy sector too */
         f = fopen("/fat/idf.txt", "w"); fprintf(f, "written by IDF WL, pass %d", i); fclose(f);
     }
+    uint32_t t0 = esp_cpu_get_cycle_count(); f = fopen("/fat/hello.txt", "r"); uint32_t oc = esp_cpu_get_cycle_count() - t0; fclose(f);
+    printf("    fopen() via VFS+FatFs+WL %lu cycles\n", oc);
     esp_vfs_fat_spiflash_unmount_rw_wl("/fat", wl);
 }

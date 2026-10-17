@@ -3,6 +3,7 @@
 #include <string.h>
 #include "crc32.h"
 #include "wl.h"
+#include "vfs.h"
 
 static uint8_t big[20000], back[32768];
 
@@ -95,4 +96,20 @@ void test_fat(void)
     fd = fat_open("/data/long file name.bin", FAT_RDONLY); n = fat_read(fd, back, sizeof back); fat_close(fd);
     CHECK(n == (int)sizeof big && !memcmp(back, big, sizeof big));
     printf("    wl: dummy %lu -> %lu after 300 rewrites, remount ok\n", pos0, wl.st.dummy_pos);
+
+    /* VFS: same volume through a "/fat" mount point */
+    CHECK(vfs_register("/fat", &vfs_fat_ops) == 0 && vfs_register("/fat", &vfs_fat_ops) == FAT_EEXIST);
+    fd = vfs_open("/fat/hello.txt", FAT_RDONLY);
+    memset(s, 0, sizeof s);
+    CHECK(fd >= 3 && vfs_read(fd, s, sizeof s - 1) == 19 && !strcmp(s, "Hello from esp-ndf\n"));
+    CHECK(vfs_unregister("/fat") == FAT_EINVAL && vfs_close(fd) == 0 && vfs_read(fd, s, 1) == FAT_EINVAL);
+    CHECK(vfs_open("/nope/x", FAT_RDONLY) == FAT_ENOENT && vfs_open("/fatx/hello.txt", FAT_RDONLY) == FAT_ENOENT);
+    uint32_t sz; bool isd;
+    CHECK(vfs_stat("/fat/data", &sz, &isd) == 0 && isd && vfs_stat("/fat", &sz, &isd) == 0 && isd);
+    int dd = vfs_opendir("/fat/data"), cnt = 0; char nm[256];
+    while (vfs_readdir(dd, nm, &sz, &isd) == 1) cnt++;
+    CHECK(dd >= 3 && cnt == 2 && vfs_closedir(dd) == 0);
+    t = ccount(); fd = vfs_open("/fat/hello.txt", FAT_RDONLY); uint32_t oc = ccount() - t; vfs_close(fd);
+    printf("    vfs_open() incl. FAT lookup %lu cycles; vfs_write(1, ...) -> console\n", oc);
+    CHECK(vfs_write(1, "", 0) == 0 && vfs_unregister("/fat") == 0);
 }

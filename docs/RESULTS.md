@@ -247,3 +247,12 @@ mounts on WL instead of the raw partition.
 Gotcha found: the state CRC covers 60 bytes (8 header words + 7 reserved);
 with a wrong length IDF silently re-initialises the WL state and the volume
 is lost.
+
+## VFS (prefix mount table, FAT registered at /fat)
+
+| | esp-ndf | ESP-IDF (newlib VFS + FatFs + WL) |
+|---|---|---|
+| open "/fat/hello.txt" (cold, path lookup on flash) | 65 882 cycles | 70 187 cycles |
+
+Longest-prefix routing ("/fatx" does not match "/fat"), fd 0..2 = console,
+unregister refused while files are open.
