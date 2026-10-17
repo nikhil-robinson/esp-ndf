@@ -1,6 +1,7 @@
 /* VFS: prefix mount table + global fd table mapping to per-filesystem fds. */
 #include "vfs.h"
 #include "fat.h"
+#include "spiffs.h"
 #include "console.h"
 #include <string.h>
 
@@ -13,6 +14,8 @@ static struct { const vfs_ops_t *ops; int16_t fd; bool used, dir; } fds[MAX_FD];
 
 const vfs_ops_t vfs_fat_ops = { fat_open, fat_read, fat_write, fat_seek, fat_close, fat_unlink,
                                 fat_mkdir, fat_stat, fat_opendir, fat_readdir, fat_closedir };
+const vfs_ops_t vfs_spiffs_ops = { spiffs_open, spiffs_read, spiffs_write, spiffs_seek, spiffs_close, spiffs_unlink,
+                                   NULL, spiffs_stat, spiffs_opendir, spiffs_readdir, spiffs_closedir };
 
 int vfs_register(const char *prefix, const vfs_ops_t *ops)
 {

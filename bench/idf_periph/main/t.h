@@ -29,3 +29,4 @@ void t_flash(void);
 void t_part(void);
 void t_nvs(void);
 void t_fat(void);
+void t_spiffs(void);

@@ -5,7 +5,8 @@
 #include "wl.h"
 #include "vfs.h"
 
-static uint8_t big[20000], back[32768];
+static uint8_t big[20000];
+uint8_t back[32768];               /* shared with test_spiffs */
 
 static void list(const char *path, int depth)
 {

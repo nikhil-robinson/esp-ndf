@@ -35,6 +35,7 @@ int main(void)
     run("partition", test_partition);
     run("nvs", test_nvs);
     run("fat", test_fat);
+    run("spiffs", test_spiffs);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

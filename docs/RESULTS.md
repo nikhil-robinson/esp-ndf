@@ -256,3 +256,27 @@ is lost.
 
 Longest-prefix routing ("/fatx" does not match "/fat"), fd 0..2 = console,
 unregister refused while files are open.
+
+WL after 3 dummy wrap-arounds (move count 3): IDF still reads wl.bin = 299
+and the 20 KB file (crc32 018a2379). A run cut off mid-rewrite (chip reset
+by esptool at rewrite 32) left a mountable volume on both sides holding the
+last completed write (wl.bin = 32): FAT-level loss only, no WL corruption.
+Test hygiene: use `esptool --after no_reset` so an app never re-runs (and
+gets cut off) between steps.
+
+## SPIFFS (IDF default format: 256 B pages, 4 KB blocks, magic + length, `spiffs` partition 1 MB)
+
+| | esp-ndf | ESP-IDF spiffs |
+|---|---|---|
+| read 30 KB file | 4 ms | 28 ms |
+| write 30 KB file | 81 ms | 1541 ms (incl. GC of our deleted pages) |
+| 40 x 30 KB rewrites through 1 MB (GC) | 7392 ms | 10921 ms |
+| format 1 MB + mount | 183 ms | — |
+
+Lookup tables mirrored in RAM (2 B per page, 7.5 KB for 1 MB), so page
+allocation, file and index lookups never rescan flash; GC moves the block with
+the most deleted pages and keeps IDF's 2-free-block reserve.
+
+Interop, both directions: IDF lists ours (`data/big.bin` 30003 B, `hello.txt`
+24 B) with content verified (in-place overwrite across a page boundary +
+append); ours reads IDF's `idf.txt` and `idf_big.bin` (30000 B, pattern ok).
