@@ -29,5 +29,13 @@ bool gdma_out_eof(int ch);                 /* OUT finished its EOF descriptor */
 bool gdma_in_eof(int ch);                  /* IN got a successful EOF */
 void gdma_stop(int ch);
 
+/* Interrupt on every finished OUT descriptor (fn) / IN descriptor with EOF (fn).
+ * fn(arg) runs at `level` on the calling core; NULL disables. */
+int  gdma_on_out_eof(int ch, void (*fn)(void *), void *arg, int level);
+int  gdma_on_in_done(int ch, void (*fn)(void *), void *arg, int level);
+/* address of the descriptor the OUT/IN engine last finished (EOF bookkeeping) */
+gdma_desc_t *gdma_out_eof_desc(int ch);
+gdma_desc_t *gdma_in_eof_desc(int ch);
+
 /* blocking memory copy through DMA channel ch (connected as GDMA_M2M) */
 int  gdma_memcpy(int ch, void *dst, const void *src, size_t len);

@@ -118,3 +118,16 @@ PMS with a descriptor error (found on hardware).
 
 ¹ In this loopback IDF's 4 KB DMA transfer receives only the first 64 bytes
 (unresolved: IDF pin setup for an internal pad loopback; IDF's 64-byte path is correct).
+
+## I2S (I2S0 TX master → jumpers → I2S1 RX slave, 48 kHz 16-bit stereo)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| streaming continuity (counter, ~32k samples) | 0 discontinuities, 0 under/overruns | 0 discontinuities |
+| BCK measured by analyzer (target 1536 kHz) | **1535.949 kHz** | 1535.947 kHz |
+| WS measured by analyzer (target 48 kHz) | 47.998 kHz | — |
+| write 1 KB into the ring | **1202 cycles** | (blocking API, not comparable) |
+
+Found with the analyzer: the fractional MCLK divider only engages when its
+fields are written one at a time in order (whole-word write ran at 48.077 kHz).
+RXEOF_NUM is in bytes.

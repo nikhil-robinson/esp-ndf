@@ -2,6 +2,7 @@
 #include "gdma.h"
 #include "clk.h"
 #include "xtensa.h"
+#include "irq.h"
 
 #define G_BASE           0x6003F000
 #define IN_CONF0(c)      (G_BASE + 0xC0 * (c) + 0x00)   /* b0 rst b2/b3 burst b4 mem_trans */
@@ -17,6 +18,15 @@
 #define OUT_LINK(c)      (G_BASE + 0xC0 * (c) + 0x80)   /* b19:0 addr b20 stop b21 start */
 #define OUT_PERI(c)      (G_BASE + 0xC0 * (c) + 0xA8)
 #define MISC_CONF        (G_BASE + 0x3C8)               /* b0 ahbm rst b4 clk_en */
+#define IN_INT_ST(c)     (G_BASE + 0xC0 * (c) + 0x0C)
+#define IN_INT_ENA(c)    (G_BASE + 0xC0 * (c) + 0x10)
+#define IN_EOF_DES(c)    (G_BASE + 0xC0 * (c) + 0x28)   /* last in descriptor with suc_eof */
+#define IN_DSCR_BF0(c)   (G_BASE + 0xC0 * (c) + 0x30)
+#define OUT_INT_ST(c)    (G_BASE + 0xC0 * (c) + 0x6C)
+#define OUT_INT_ENA(c)   (G_BASE + 0xC0 * (c) + 0x70)
+#define OUT_EOF_DES(c)   (G_BASE + 0xC0 * (c) + 0x88)   /* last out descriptor with eof */
+#define SRC_IN(c)        (66 + (c))
+#define SRC_OUT(c)       (71 + (c))
 
 static uint8_t used;
 
@@ -86,6 +96,51 @@ void gdma_in_start(int c, gdma_desc_t *d)
 
 bool gdma_out_eof(int c) { return REG(OUT_INT_RAW(c)) & BIT(3); }
 bool gdma_in_eof(int c)  { return REG(IN_INT_RAW(c)) & BIT(1); }
+
+typedef struct { void (*fn)(void *); void *arg; } cb_t;
+static cb_t out_cb[5], in_cb[5];
+static int8_t out_int[5] = { -1, -1, -1, -1, -1 }, in_int[5] = { -1, -1, -1, -1, -1 };
+
+RAM_FN static void out_isr(void *a)
+{
+    int c = (int)a;
+    uint32_t st = REG(OUT_INT_ST(c));
+    REG(OUT_INT_CLR(c)) = st;
+    if ((st & BIT(1)) && out_cb[c].fn) out_cb[c].fn(out_cb[c].arg);
+}
+
+RAM_FN static void in_isr(void *a)
+{
+    int c = (int)a;
+    uint32_t st = REG(IN_INT_ST(c));
+    REG(IN_INT_CLR(c)) = st;
+    if ((st & (BIT(0) | BIT(1))) && in_cb[c].fn) in_cb[c].fn(in_cb[c].arg);
+}
+
+int gdma_on_out_eof(int c, void (*fn)(void *), void *arg, int level)
+{
+    REG_CLR(OUT_INT_ENA(c), BIT(1));
+    out_cb[c] = (cb_t){ fn, arg };
+    if (!fn) return 0;
+    if (out_int[c] < 0 && (out_int[c] = irq_attach(SRC_OUT(c), level, out_isr, (void *)c)) < 0) return -1;
+    REG(OUT_INT_CLR(c)) = BIT(1);
+    REG_SET(OUT_INT_ENA(c), BIT(1));                      /* out_eof: each descriptor with eof */
+    return 0;
+}
+
+int gdma_on_in_done(int c, void (*fn)(void *), void *arg, int level)
+{
+    REG_CLR(IN_INT_ENA(c), BIT(0));
+    in_cb[c] = (cb_t){ fn, arg };
+    if (!fn) return 0;
+    if (in_int[c] < 0 && (in_int[c] = irq_attach(SRC_IN(c), level, in_isr, (void *)c)) < 0) return -1;
+    REG(IN_INT_CLR(c)) = BIT(0);
+    REG_SET(IN_INT_ENA(c), BIT(0));                       /* in_done: each descriptor filled */
+    return 0;
+}
+
+gdma_desc_t *gdma_out_eof_desc(int c) { return (gdma_desc_t *)REG(OUT_EOF_DES(c)); }
+gdma_desc_t *gdma_in_eof_desc(int c)  { return (gdma_desc_t *)REG(IN_EOF_DES(c)); }
 
 void gdma_stop(int c)
 {

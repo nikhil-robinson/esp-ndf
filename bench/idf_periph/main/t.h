@@ -21,3 +21,4 @@ void t_uart(void);
 void t_i2c(void);
 void t_spi(void);
 void t_gdma(void);
+void t_i2s(void);
