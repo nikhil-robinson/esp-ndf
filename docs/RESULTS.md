@@ -198,3 +198,11 @@ esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
 | CRC convention, "123456789" | d202d277 | d202d277 |
 | 600 updates on a 6-page partition (GC) | 0 failures, **526 µs** each | 691 µs each |
 | get u32 | **8641 cycles** | 26269 |
+
+## LCD (ESP32-S3-BOX-3, ILI9342C over SPI @40 MHz, 320x240 RGB565)
+
+| | esp-ndf |
+|---|---|
+| full-screen fill (wire time 30.72 ms) | **30.82 ms** |
+| color bars incl. CPU pixel generation | 38.56 ms |
+| visual check | pending user confirmation |
