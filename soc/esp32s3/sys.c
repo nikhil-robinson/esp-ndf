@@ -49,6 +49,7 @@ void cpu1_start(void (*fn)(void))
 
 void sys_start1(void)
 {
+    irq_enable_all();                       /* individual sources stay off until attached */
     cpu1_fn();
     for (;;) {}
 }
@@ -72,6 +73,7 @@ void sys_start0(void)
     clk_cpu_set_mhz(240);
     periph_enable(PERIPH_SYSTIMER);
     console_init();
+    irq_enable_all();                       /* individual sources stay off until attached */
     main();
     for (;;) {}
 }

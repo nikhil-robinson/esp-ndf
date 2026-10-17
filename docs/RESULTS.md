@@ -206,3 +206,12 @@ esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
 | full-screen fill (wire time 30.72 ms) | **30.82 ms** |
 | color bars incl. CPU pixel generation | 38.56 ms |
 | visual check | pending user confirmation |
+
+## ESP32-S3-BOX-3 integration (real devices)
+
+| | result |
+|---|---|
+| I2C scan @100 k and @400 k (board pull-ups) | 0x18 ES8311, 0x40 ES7210, 0x68 IMU at both speeds |
+| IMU WHO_AM_I (reg 0x75) | 0x60 (ICM-42607-P) |
+| ES8311 chip ID (0xFD/0xFE) | 0x83 0x11 |
+| I2S → ES8311 → speaker, 48 kHz (MCLK 256 fs) | plays; audible check pending user |
