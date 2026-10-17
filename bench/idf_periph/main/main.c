@@ -11,5 +11,7 @@ void app_main(void)
     printf("[mcpwm]\n"); t_mcpwm();
     printf("[pcnt]\n"); t_pcnt();
     printf("[rmt]\n"); t_rmt();
+    printf("[sdm]\n"); t_sdm();
+    printf("[uart]\n"); t_uart();
     printf("=== done ===\n");
 }

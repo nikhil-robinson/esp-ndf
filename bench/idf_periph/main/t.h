@@ -15,3 +15,5 @@ void t_ledc(void);
 void t_mcpwm(void);
 void t_pcnt(void);
 void t_rmt(void);
+void t_sdm(void);
+void t_uart(void);

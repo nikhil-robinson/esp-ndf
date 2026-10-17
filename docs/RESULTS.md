@@ -64,3 +64,21 @@ Independently checked with the logic analyzer: A and B at 1.000 MHz, B lags 90°
 |---|---|---|
 | 100-item frame (> 48: TX refill + RX drain) | 100 received, 0 tick error | 100 received, 0 tick error |
 | start transmit (100 items) | **1156 cycles** | 7775 |
+
+## SDM (sigma-delta, 10 MHz, pad sampled 200k times)
+
+| density | esp-ndf | ESP-IDF |
+|---|---|---|
+| −64 / 0 / +64 (expect 25 / 50 / 75 %) | 25.0 / 50.0 / 75.0 % | 25.0 / 50.0 / 74.9 % |
+| density update | **35 cycles** | 318 |
+
+## UART (UART1 TX GPIO12 → jumper → RX GPIO13, 4096 random bytes)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 115200: bytes ok / time (wire 355.6 ms) | 4096, 355.6 ms | 4096, 356.5 ms |
+| 2 Mbaud (wire 20.48 ms) | 4096, 20.50 ms | 4096, 20.58 ms |
+| 5 Mbaud (wire 8.19 ms) | 4096, 8.21 ms | 4096, 8.27 ms |
+| write 16 bytes | **279 cycles** | 2464 |
+
+Baud checked with the logic analyzer (UART2 0x55 on GPIO4): 115197 baud measured for 115200.
