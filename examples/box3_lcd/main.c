@@ -32,6 +32,8 @@ int main(void)
     lcd_init(&c);
     lcd_backlight(100);
 
+    for (int round = 1;; round++) {
+    printf("box3_lcd: round %d\n", round);
     static const uint8_t bars[8][3] = { {255,255,255}, {255,255,0}, {0,255,255}, {0,255,0},
                                         {255,0,255}, {255,0,0}, {0,0,255}, {0,0,0} };
     uint32_t t = ccount();
@@ -60,6 +62,6 @@ int main(void)
         if (y < 0 || y > 240 - 32) { dy = -dy; y += 2 * dy; }
         delay_us(16000);
     }
-    printf("box3_lcd: done\n");
+    }
     return 0;
 }
