@@ -131,3 +131,17 @@ PMS with a descriptor error (found on hardware).
 Found with the analyzer: the fractional MCLK divider only engages when its
 fields are written one at a time in order (whole-word write ran at 48.077 kHz).
 RXEOF_NUM is in bytes.
+
+## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
+
+| | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |
+|---|---|---|
+| 0 V | raw 0 → 0 mV | raw 0 → 0 mV |
+| pull-up/pull-down divider | raw 1859–1870 → 1490–1499 mV | raw 1859 → 1490 mV |
+| 3.3 V (above range) | raw 4095 → 3063 mV | raw 4095 → 3063 mV |
+| calibration math, same raw code | **bit-identical** (1859→1490, 4095→3063) | reference |
+| one read | **1846 cycles** | 6736 |
+
+Calibration uses this chip's eFuse (BLK_VERSION_MAJOR 1): init code into the
+analog front end over regi2c, then IDF's curve-fitting polynomial in integer math.
+The eFuse reader also returns the MAC (checked: 24:58:7C:E2:C9:D0).
