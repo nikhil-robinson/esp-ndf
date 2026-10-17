@@ -20,6 +20,7 @@ FLAGS = -mabi=call0 -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
 
 $(OUT)/app.bin: $(OUT)/app.elf
 	esptool.py --chip $(SOC) elf2image --flash_mode dio --flash_freq 80m -o $@ $< >/dev/null
+	@test $$(stat -c%s $@) -le 524288 || (echo "image > 512 KB: would overwrite the partition table at 0x80000"; rm -f $@; false)
 	@echo "built $@"
 
 $(OUT)/app.elf: $(OBJS) soc/$(SOC)/link.ld
@@ -34,6 +35,11 @@ $(OUT)/%.o: %
 flash: $(OUT)/app.bin
 	esptool.py --chip $(SOC) -p $(PORT) write_flash 0x0 $<
 
+PARTS ?= tools/partitions.csv
+partition:
+	python3 tools/mkpart.py $(PARTS) build/partitions.bin
+	esptool.py --chip $(SOC) -p $(PORT) write_flash 0x80000 build/partitions.bin
+
 monitor:
 	python3 -m serial.tools.miniterm $(PORT) 115200
 
@@ -41,4 +47,4 @@ clean:
 	rm -rf build
 
 -include $(OBJS:.o=.d)
-.PHONY: flash monitor clean
+.PHONY: flash monitor clean partition

@@ -178,3 +178,13 @@ The eFuse reader also returns the MAC (checked: 24:58:7C:E2:C9:D0).
 Incident while developing: an address-encoding bug (left-aligned instead of
 plain) erased and rewrote flash sector 0 (our image) once; recovered by
 reflashing. The driver now refuses addresses beyond 16 MB.
+
+## Partition table
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| CSV → binary generator (`tools/mkpart.py`) | **byte-identical** to `gen_esp32part.py` (3072 bytes, MD5 entry) | reference |
+| parse + MD5 verify on device | 4 entries, MD5 ok | — |
+
+esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
+0x80000. (The test image had grown past 0x8000 and overwrote the IDF-style table.)

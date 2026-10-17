@@ -26,3 +26,4 @@ void t_adc(void);
 void t_twai(void);
 void t_touch(void);
 void t_flash(void);
+void t_part(void);
