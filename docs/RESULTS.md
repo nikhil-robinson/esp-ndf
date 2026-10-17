@@ -228,3 +228,22 @@ esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
 ESP-IDF's default config has LFN off (it then sees only `DATA~1`-style names).
 Memory: the linker now packs data directly after the code's DRAM alias (no
 fixed IRAM/DRAM split), and refuses images whose RAM use reaches the ROM area.
+
+## Wear levelling (IDF WL v2 on-flash format, `fat` partition, 4 KB sectors)
+
+Layout and translation follow IDF's `WL_Flash` (2 state copies + config at
+the partition end, 1 rotating dummy sector, move every 16 erases). FAT now
+mounts on WL instead of the raw partition.
+
+| check | result |
+|---|---|
+| geometry | 250 usable sectors of 256 (same as IDF) |
+| 300 file rewrites | dummy moved 94 sectors, data intact, remount ok |
+| dummy wrap (pos 191 -> 34, state rewrite) | data intact after remount |
+| IDF `esp_vfs_fat_spiflash_mount_rw_wl` reads ours | tree OK, 20 KB file crc32 018a2379, wl.bin = 299 |
+| ours reads IDF's after its 200 rewrites (dummy 188) | idf.txt = "written by IDF WL, pass 199" |
+| ours adopts IDF's state | same device id af0f1e88, no reformat |
+
+Gotcha found: the state CRC covers 60 bytes (8 header words + 7 reserved);
+with a wrong length IDF silently re-initialises the WL state and the volume
+is lost.

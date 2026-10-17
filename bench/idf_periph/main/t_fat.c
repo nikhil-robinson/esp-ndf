@@ -18,13 +18,19 @@ static void list(const char *path, int depth)
 void t_fat(void)
 {
     esp_vfs_fat_mount_config_t cfg = { .max_files = 4 };
-    esp_err_t e = esp_vfs_fat_spiflash_mount_ro("/fat", "fat", &cfg);
-    printf("    mount raw read-only: %s\n    tree:\n", esp_err_to_name(e));
+    wl_handle_t wl;
+    esp_err_t e = esp_vfs_fat_spiflash_mount_rw_wl("/fat", "fat", &cfg, &wl);
+    printf("    mount wear-levelled rw: %s\n    tree:\n", esp_err_to_name(e));
     if (e) return;
     list("/fat", 0);
     FILE *f = fopen("/fat/data/long file name.bin", "rb");
     size_t n = f ? fread(buf, 1, sizeof buf, f) : 0; if (f) fclose(f);
     char s[32] = { 0 }; f = fopen("/fat/hello.txt", "r"); if (f) { fread(s, 1, 31, f); fclose(f); }
     printf("    long file name.bin: %u bytes crc32 %08lx; hello.txt: \"%.18s\"\n", n, esp_rom_crc32_le(0, buf, n), s);
-    esp_vfs_fat_spiflash_unmount_ro("/fat", "fat");
+    int v = -1; f = fopen("/fat/wl.bin", "rb"); if (f) { fread(&v, 4, 1, f); fclose(f); }
+    printf("    wl.bin = %d\n", v);
+    for (int i = 0; i < 200; i++) {             /* IDF moves the dummy sector too */
+        f = fopen("/fat/idf.txt", "w"); fprintf(f, "written by IDF WL, pass %d", i); fclose(f);
+    }
+    esp_vfs_fat_spiflash_unmount_rw_wl("/fat", wl);
 }

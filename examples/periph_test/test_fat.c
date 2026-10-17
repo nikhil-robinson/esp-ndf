@@ -2,6 +2,7 @@
 #include "fat.h"
 #include <string.h>
 #include "crc32.h"
+#include "wl.h"
 
 static uint8_t big[20000], back[32768];
 
@@ -22,9 +23,13 @@ static void list(const char *path, int depth)
 void test_fat(void)
 {
     static bdev_t bd;
-    CHECK(bdev_partition(&bd, partition_find(PART_DATA, PART_SUB_FAT, "fat")) == 0);
+    static wl_t wl;
+    CHECK(wl_mount(&wl, &bd, partition_find(PART_DATA, PART_SUB_FAT, "fat")) == 0);
+    printf("    wl: %lu sectors, dummy at %lu, moves %lu, id %08lx\n", bd.sector_count, wl.st.dummy_pos, wl.st.move_count, wl.st.device_id);
     /* 0) a volume made elsewhere (e.g. IDF fatfsgen.py on the PC), if present */
     if (fat_mount(&bd) == 0) {
+        char it[48] = { 0 }; int fi = fat_open("/idf.txt", FAT_RDONLY);
+        if (fi >= 0) { fat_read(fi, it, sizeof it - 1); fat_close(fi); printf("    existing volume (IDF WL): idf.txt = \"%s\"\n", it); }
         int fd0 = fat_open("/config files/deep/calibration table.bin", FAT_RDONLY);
         if (fd0 >= 0) {
             int n0 = fat_read(fd0, back, sizeof back); fat_close(fd0);
@@ -76,4 +81,18 @@ void test_fat(void)
     printf("    tree:\n"); list("/", 0);
     fat_info(&total, &freeb, &bits);
     printf("    %lu KB free after files; long file name.bin crc32 %08lx\n", freeb / 1024, crc32_le(0, big, sizeof big));
+
+    /* wear levelling: 300 rewrites of one file move the dummy sector ~19 times
+     * (more erases per rewrite from FAT/dir updates); data must survive each move */
+    uint32_t pos0 = wl.st.dummy_pos;
+    for (int i = 0; i < 300; i++) {
+        fd = fat_open("/wl.bin", FAT_WRONLY | FAT_CREAT | FAT_TRUNC);
+        fat_write(fd, &i, 4); fat_close(fd);
+    }
+    int v = -1; fd = fat_open("/wl.bin", FAT_RDONLY); fat_read(fd, &v, 4); fat_close(fd);
+    CHECK(v == 299 && wl.st.dummy_pos != pos0);
+    CHECK(wl_mount(&wl, &bd, partition_find(PART_DATA, PART_SUB_FAT, "fat")) == 0 && fat_mount(&bd) == 0);
+    fd = fat_open("/data/long file name.bin", FAT_RDONLY); n = fat_read(fd, back, sizeof back); fat_close(fd);
+    CHECK(n == (int)sizeof big && !memcmp(back, big, sizeof big));
+    printf("    wl: dummy %lu -> %lu after 300 rewrites, remount ok\n", pos0, wl.st.dummy_pos);
 }
