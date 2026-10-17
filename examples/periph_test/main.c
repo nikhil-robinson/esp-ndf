@@ -33,6 +33,7 @@ int main(void)
     run("touch", test_touch);
     run("flash", test_flash);
     run("partition", test_partition);
+    run("nvs", test_nvs);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

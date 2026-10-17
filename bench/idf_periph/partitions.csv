@@ -1,0 +1,7 @@
+# IDF sibling layout: app below 0x80000 (esp-ndf table lives there), same data partitions as esp-ndf
+# Name,   Type, SubType, Offset,   Size
+factory,  app,  factory, 0x10000,  0x70000
+nvs,      data, nvs,     0x90000,  0x6000
+phy,      data, phy,     0x96000,  0x1000
+fat,      data, fat,     0x100000, 0x100000
+spiffs,   data, spiffs,  0x200000, 0x100000

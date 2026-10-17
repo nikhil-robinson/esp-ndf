@@ -188,3 +188,13 @@ reflashing. The driver now refuses addresses beyond 16 MB.
 
 esp-ndf layout: RAM image in 0x0–0x7FFFF (build fails above 512 KB), table at
 0x80000. (The test image had grown past 0x8000 and overwrote the IDF-style table.)
+
+## NVS (IDF on-flash format v2, partition at 0x90000, 6 pages)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| esp-ndf writes → IDF reads (u8, i32, u64, str, 3 KB blob, 10 KB multi-chunk blob, counter) | — | **7/7 correct** |
+| IDF writes → esp-ndf reads (u32, str, 5000 B blob) | **all correct** | — |
+| CRC convention, "123456789" | d202d277 | d202d277 |
+| 600 updates on a 6-page partition (GC) | 0 failures, **526 µs** each | 691 µs each |
+| get u32 | **8641 cycles** | 26269 |

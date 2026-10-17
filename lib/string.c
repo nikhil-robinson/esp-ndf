@@ -44,3 +44,33 @@ size_t strlen(const char *s)
     while (*p) p++;
     return p - s;
 }
+
+size_t strnlen(const char *s, size_t max)
+{
+    size_t n = 0;
+    while (n < max && s[n]) n++;
+    return n;
+}
+
+int strcmp(const char *a, const char *b)
+{
+    while (*a && *a == *b) { a++; b++; }
+    return (uint8_t)*a - (uint8_t)*b;
+}
+
+int strncmp(const char *a, const char *b, size_t n)
+{
+    for (; n; n--, a++, b++) {
+        if (*a != *b) return (uint8_t)*a - (uint8_t)*b;
+        if (!*a) return 0;
+    }
+    return 0;
+}
+
+char *strncpy(char *d, const char *s, size_t n)
+{
+    size_t i = 0;
+    for (; i < n && s[i]; i++) d[i] = s[i];
+    for (; i < n; i++) d[i] = 0;
+    return d;
+}

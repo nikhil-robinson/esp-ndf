@@ -35,3 +35,4 @@ void test_twai(void);
 void test_touch(void);
 void test_flash(void);
 void test_partition(void);
+void test_nvs(void);
