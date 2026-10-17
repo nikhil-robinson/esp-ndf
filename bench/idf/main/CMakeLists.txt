@@ -1,0 +1,5 @@
+idf_component_register(SRCS "main.c" PRIV_REQUIRES driver)
+# idf.py -DBENCH_IRQ_OFF=1 ... : mask interrupts on core1 (needs CONFIG_ESP_INT_WDT=n)
+if(BENCH_IRQ_OFF)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE BENCH_IRQ_OFF)
+endif()

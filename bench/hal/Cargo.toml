@@ -1,0 +1,17 @@
+[package]
+name = "hal_bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+esp-hal = { version = "1.2.2", features = ["esp32s3", "unstable"] }
+esp-bootloader-esp-idf = { version = "0.6.0", features = ["esp32s3"] }
+esp-println = { version = "0.18.0", features = ["esp32s3", "jtag-serial"], default-features = false }
+esp-backtrace = { version = "0.20.0", features = ["esp32s3", "panic-handler", "println"] }
+critical-section = "1.2"
+
+[profile.release]
+opt-level = 3
+debug = true
+codegen-units = 1
+lto = "thin"
