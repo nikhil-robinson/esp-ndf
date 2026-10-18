@@ -41,6 +41,14 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `STACK0_SIZE`<br>Core 0 stack (bytes) | app.mk | `16384` | 2048 – 131072 | Stack of main() and core 0 interrupt handlers. Reserved after .bss in internal RAM. |
 | `STACK1_SIZE`<br>Core 1 stack (bytes) | app.mk | `16384` | 1024 – 131072 | Stack of the function started with cpu1_start() and core 1 interrupt handlers. |
 
+## Core services
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_SWTIMER_LEVEL`<br>Software timer IRQ level | ndf_config.h | `1` | 1 – 3 | Interrupt level the swtimer callbacks run at. Higher preempts more of the application. |
+| `NDF_LOG_LEVEL`<br>Log level | ndf_config.h | `NDF_LOG_INFO` | `NDF_LOG_NONE` none<br>`NDF_LOG_ERROR` error<br>`NDF_LOG_WARN` warning<br>`NDF_LOG_INFO` info<br>`NDF_LOG_DEBUG` debug | LOGx() calls above this level compile to nothing: no code, no strings in the image. |
+| `NDF_ASSERT_ENABLE`<br>NDF_ASSERT checks | ndf_config.h | `y` | y / n | Off: NDF_ASSERT() compiles to nothing. |
+
 ## Storage
 
 | Option | File | Default | Values | Description |

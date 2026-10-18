@@ -661,3 +661,12 @@ with SOC_HAS_FLASH_CACHE = 0 (NO_ACCEL), the SPI1 path is used. CRC of 4 KB
 = host file; full suite passes. A/B on the same chip (alternating builds):
 SPIFFS 40 x 30 KB rewrites 8 413 / 8 397 ms (cache) vs 8 327 / 8 358 ms (SPI1)
 - the read path is not what limits it; the chip's write time is.
+
+## Core services: time base, software timers, heap, log (2026-10-18)
+
+examples/core_test (DEVKIT) vs bench/idf_periph [core]:
+- time_ticks()/time_us(): 149 cycles (IDF esp_timer_get_time 193). Hi/lo re-read guards the other core latching between the two reads; monotonic over 100k reads.
+- swtimer 1 ms periodic for 1 s: 1000 calls, span exactly 999 x 16000 ticks, deadline->callback 26 ticks fixed (1.6 us). IDF esp_timer: 999 calls, period 981..1000 us, drift -19 us.
+- 32 concurrent timers (100..3200 us) counts within +-1; stop-from-own-callback; start from core 1 (fires on core 0, the ISR owner).
+- heap: 16-byte aligned, boundary tags, whole region merges back; malloc+free 64 B 165 cycles (IDF 1346). 346 688 B free with 16 KB stacks.
+- delay_ms(250) = 250 001 us (was 250 046 when looping delay_us(1000)); delay_us safe beyond 17.9 s (chunked).

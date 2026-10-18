@@ -27,6 +27,8 @@ updated with every measured change.
 | NVS read (plain, repeated key) | **498 cycles** | IDF: 26 269 | **53×** |
 | FAT file open (repeated path) | **814 cycles** | IDF: 70 187 | **86×** |
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
+| Software timer, 1 ms periodic: period spread / drift per 1 s | **0 / 0 µs** | `esp_timer`: 981–1000 µs / −19 µs | exact |
+| `malloc` + `free`, 64 B | **165 cycles** | IDF: 1 346 | **8.2×** |
 
 ## Interrupts
 
@@ -41,6 +43,17 @@ updated with every measured change.
 
 Cortex-M4 for reference: 12 cycles to the first handler instruction. Our naked
 path reaches its first instruction about 11 cycles after the event.
+
+## Core services (time, software timers, heap)
+
+| Measurement | esp-ndf | ESP-IDF | Floor | Status |
+|---|---|---|---|---|
+| 64-bit time read (`time_us` / `esp_timer_get_time`) | 149 cycles | 193 | ~140 (SYSTIMER latch handshake on APB) | at floor |
+| Software timer 1 ms, 1 s: calls / period spread / drift | 1000 / **0 µs** / **0 µs** | 999 / 981–1000 µs / −19 µs (task dispatch) | — | absolute deadlines in hardware |
+| Software timer: deadline → callback | 1.6 µs, fixed (26 ticks of 62.5 ns) | task-dispatched, varies | ISR entry + one time read | near floor |
+| `delay_ms(250)` measured | 250 001 µs | `vTaskDelay`: 249 645 µs (tick-quantised) | — | — |
+| `malloc` + `free`, 64 B | 165 cycles | 1 346 | — | first fit, O(1) merge |
+| Heap available (default stacks) | 346 688 B | 262 804 B internal | — | — |
 
 ## Two cores
 

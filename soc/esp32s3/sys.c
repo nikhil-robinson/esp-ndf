@@ -18,8 +18,19 @@ uint32_t sys_cpu_hz(void) { return clk_cpu_hz(); }
 
 void delay_us(uint32_t us)
 {
-    uint32_t t = ccount(), n = us * (clk_cpu_hz() / 1000000);
+    uint32_t mhz = clk_cpu_hz() / 1000000;
+    for (; us > 1000000; us -= 1000000) {          /* keep us * mhz inside 32 bits */
+        uint32_t t = ccount();
+        while (ccount() - t < 1000000 * mhz) {}
+    }
+    uint32_t t = ccount(), n = us * mhz;
     while (ccount() - t < n) {}
+}
+
+void delay_ms(uint32_t ms)
+{
+    for (; ms > 1000; ms -= 1000) delay_us(1000000);
+    delay_us(ms * 1000);
 }
 
 uint32_t systimer_lo(void)
@@ -93,5 +104,12 @@ NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vad
     static const char *k[] = { "?", "exception", "double exception", "unexpected vector" };
     printf("\n*** FAULT core%d: %s, EXCCAUSE=%lu PC=0x%08lx EXCVADDR=0x%08lx\n",
            core_id(), k[kind & 3], cause, pc, vaddr);
+    for (;;) {}
+}
+
+NORETURN void ndf_assert_fail(const char *file, int line, const char *cond)
+{
+    irq_lock();
+    printf("\n*** ASSERT core%d: %s:%d: %s\n", core_id(), file, line, cond);
     for (;;) {}
 }

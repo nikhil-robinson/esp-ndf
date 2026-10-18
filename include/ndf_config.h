@@ -48,6 +48,22 @@
 #define NDF_BOOT_RTC_RESET      1       /* return RTC pads/touch to power-on state (held pads kept) */
 #endif
 
+/* ---- core services --------------------------------------------------------- */
+#ifndef NDF_SWTIMER_LEVEL
+#define NDF_SWTIMER_LEVEL       1       /* interrupt level of software-timer callbacks (1..3) */
+#endif
+#define NDF_LOG_NONE 0
+#define NDF_LOG_ERROR 1
+#define NDF_LOG_WARN 2
+#define NDF_LOG_INFO 3
+#define NDF_LOG_DEBUG 4
+#ifndef NDF_LOG_LEVEL
+#define NDF_LOG_LEVEL           NDF_LOG_INFO    /* LOGx() above this level compile to nothing */
+#endif
+#ifndef NDF_ASSERT_ENABLE
+#define NDF_ASSERT_ENABLE       1       /* 0: NDF_ASSERT() compiles to nothing */
+#endif
+
 /* ---- storage (RAM reserved statically) ------------------------------------- */
 #ifndef NDF_VFS_MAX_MOUNTS
 #define NDF_VFS_MAX_MOUNTS      4       /* mounted file systems */

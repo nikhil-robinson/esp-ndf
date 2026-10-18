@@ -65,6 +65,15 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
         dict(key='STACK1_SIZE', type='int', default=16384, target='mk', label='Core 1 stack (bytes)', range=(1024, 131072),
              help='Stack of the function started with cpu1_start() and core 1 interrupt handlers.'),
     ]),
+    ('menu', 'Core services', [
+        dict(key='NDF_SWTIMER_LEVEL', type='int', default=1, target='h', label='Software timer IRQ level', range=(1, 3),
+             help='Interrupt level the swtimer callbacks run at. Higher preempts more of the application.'),
+        dict(key='NDF_LOG_LEVEL', type='choice', default='NDF_LOG_INFO', target='h', label='Log level',
+             choices=[('NDF_LOG_NONE', 'none'), ('NDF_LOG_ERROR', 'error'), ('NDF_LOG_WARN', 'warning'), ('NDF_LOG_INFO', 'info'), ('NDF_LOG_DEBUG', 'debug')],
+             help='LOGx() calls above this level compile to nothing: no code, no strings in the image.'),
+        dict(key='NDF_ASSERT_ENABLE', type='bool', default=True, target='h', label='NDF_ASSERT checks',
+             help='Off: NDF_ASSERT() compiles to nothing.'),
+    ]),
     ('menu', 'Storage', [
         dict(key='NDF_VFS_MAX_MOUNTS', type='int', default=4, target='h', label='VFS: mounted file systems', range=(1, 16),
              help='Mount table size.'),

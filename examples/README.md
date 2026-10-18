@@ -10,6 +10,7 @@ Build and flash any of them with `make APP=examples/<name> flash` (add
 | `bench` | devkit | 20 kHz loop on each core + 10 kHz timer ISR + USB telemetry (vs FreeRTOS / esp-hal) |
 | `irq_latency` | any | interrupt entry latency per level, in CPU cycles |
 | `rtc_hold` | devkit, scope on GPIO4 | keep an output driven through a full system reset (pad hold) |
+| `core_test` | any | time base, software timers (drift, latency, 32 timers, cross-core), heap, delays, log |
 | `sysinfo` | any | system API + configuration: banner, reset cause, flash/clock info; app-level `ndf_config.h` / `app.mk` overrides |
 | `storage` | any | NVS boot counter, FAT on wear levelling and SPIFFS through the VFS |
 | `box3_lcd` | ESP32-S3-BOX-3 | ILI9342C display over SPI |

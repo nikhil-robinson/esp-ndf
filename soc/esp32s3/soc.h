@@ -67,3 +67,13 @@
 /* ---- USB-Serial-JTAG (TRM ch. 33) --------------------------------------- */
 #define USJ_EP1            0x60038000
 #define USJ_EP1_CONF       0x60038004              /* b0 WR_DONE  b1 IN_EP_DATA_FREE         */
+#define SYSTIMER_CONF        (SYSTIMER_BASE + 0x00)  /* b31 clk_en b30 unit0 work b24 target0 work */
+#define SYSTIMER_TARGET0_HI  (SYSTIMER_BASE + 0x1C)
+#define SYSTIMER_TARGET0_LO  (SYSTIMER_BASE + 0x20)
+#define SYSTIMER_TARGET0_CONF (SYSTIMER_BASE + 0x34) /* b31 unit sel b30 period mode */
+#define SYSTIMER_UNIT0_HI    (SYSTIMER_BASE + 0x40)
+#define SYSTIMER_COMP0_LOAD  (SYSTIMER_BASE + 0x50)
+#define SYSTIMER_INT_ENA     (SYSTIMER_BASE + 0x64)
+#define SYSTIMER_INT_CLR     (SYSTIMER_BASE + 0x6C)
+#define SYSTIMER_INT_ST      (SYSTIMER_BASE + 0x70)
+#define SRC_SYSTIMER_TARGET0 57

@@ -37,7 +37,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] **PSRAM** quad + octal: MSPI timing tuning, MMU mapping, 2–8 MB heap,
       DMA to PSRAM, cache write-back control
 - [ ] Octal / 120 MHz flash modes (OPI), flash timing tuning
-- [ ] **Heap allocator** (malloc/free) with capabilities: internal/DMA/PSRAM/exec
+- [x] **Heap allocator** internal DRAM (`heap.h`: malloc/calloc/realloc/free, 16 B aligned, min-free stats); [ ] capabilities PSRAM/exec with PSRAM
 - [ ] RTC fast/slow memory (8 KB + 8 KB): data that survives deep sleep
 - [ ] Memory protection (TRM ch. 15 PMS, ch. 16 World Controller): IRAM
       write-protect, stack guards, peripheral access control
@@ -60,8 +60,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] Interrupt matrix extras: per-core routing API, interrupt priorities documented, NMI (level 7) use
 - [~] Dual core: core 1 start done; **todo**: spinlocks, cross-core calls
       (IPC), inter-core FIFO/mailbox, per-core interrupt allocation
-- [ ] System timer API (ch. 11): 64-bit µs time base, alarms, `esp_timer`-like
-      software timers (one-shot/periodic, ISR dispatch)
+- [x] System timer API (ch. 11): 64-bit time base (`time_us/time_ticks/time_ms`), `delay_ms`,
+      software timers (`swtimer.h`: one-shot/periodic, absolute deadlines, ISR dispatch)
 - [ ] System time / RTC time kept across sleep, `gettimeofday`-like
 - [ ] Boot: own 2nd-stage loader option, app partitions, **OTA** (A/B with
       rollback), image header + SHA-256 check (needs SHA)
@@ -136,8 +136,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [ ] libc completeness: `snprintf` with float, `strtol/strtoul/strtof`,
       `qsort`, `memmove` audit, `time` functions
-- [ ] Logging with levels/tags, timestamps, optional compile-out
-- [ ] Ring buffers / queues shared ISR ↔ main and core ↔ core (lock-free SPSC)
+- [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
+- [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [ ] byte ring buffer with variable-length items
 - [ ] Event dispatch (lightweight, no RTOS)
 - [ ] Console input / command line (REPL) over USB serial
 - [ ] Unit test framework on the device (our CHECK/METRIC grown into a runner) + host tests
@@ -147,7 +147,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
 - [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner
 - [x] UART0 console option; storage limits (VFS/FAT/SPIFFS/NVS) configurable; config changes trigger a rebuild
-- [ ] More menuconfig options as features land (log level, watchdogs, PSRAM, ...); IDF option inventory: docs/IDF_CONFIG_INVENTORY.md
+- [ ] More menuconfig options as features land (watchdogs, PSRAM, ...); IDF option inventory: docs/IDF_CONFIG_INVENTORY.md
 
 ## 9. Storage (mostly done)
 
