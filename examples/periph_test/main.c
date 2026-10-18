@@ -30,6 +30,7 @@ int main(void)
     run("spi", test_spi);
     run("i2s", test_i2s);
     run("adc", test_adc);
+    run("adc_cont", test_adc_cont);
     run("twai", test_twai);
     run("touch", test_touch);
     run("flash", test_flash);

@@ -345,3 +345,36 @@ high for 513.1 ms across reset + reboot, zero glitches. Boot code now leaves
 held pads alone. Found on the analyzer: the RTC output latch keeps its last
 value across resets, so enabling the output before writing the level gave a
 1 us glitch - write the level first (documented in rtcio.h).
+
+## ADC continuous (DMA), ADC1, 20 kHz, 1000-sample frames, 4-frame ring
+
+| check | result |
+|---|---|
+| frame interval (ISR timestamps) | 50.0000 ms, jitter 2 CPU cycles |
+| 1 kHz LEDC square on the input | 50 edges/frame, 20.000 samples/period (ideal 20) |
+| static low / high | raw 0 / 4095 |
+| mid level vs one-shot | 1864 vs 1862 raw (1494 vs 1492 mV) |
+| 2-channel pattern | 999/999 neighbours alternate, per-channel values correct |
+| 12 start/stop cycles | all good (overruns 0, sync errors 0) |
+
+Found on hardware: stopping the trigger and handing ADC1 back to the RTC
+controller mid-conversion leaves the SAR stuck - later digital conversions
+are zero words until reset. Stop now drains the conversion in flight and
+leaves the controller; one-shot reads take ADC1 back themselves (as IDF).
+
+## Interrupt line sharing
+
+Level-1 CPU lines run out once ~13 sources are attached (the test suite hit
+it: TWAI's attach failed silently after ADC DMA took the last line). Levels
+1-3 now share the least-used line when none is free; lone sources keep their
+dedicated line (GPIO pin -> ISR still 191 cycles). gptimer ISR now checks its
+status like every other driver.
+
+## NVS fixes found by long runs
+
+- set_prim/set_str erased the old copy by (page, entry); a GC triggered by
+  the write had moved it, so stale copies stayed live: lookups decrypted 37
+  copies (160k cycles) and the partition filled up. Erase now follows the
+  index slot; mount removes duplicates and orphan blob chunks (as IDF).
+- encrypted nvs_get_u32: 4 863 cycles (IDF 82 397); plain: 2 338 (was 8 797, IDF ~26 000).
+- nvstool parse resolves blobs after all pages and reports orphan chunks.

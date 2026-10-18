@@ -105,11 +105,15 @@ void test_nvs_enc(void)
     }
     CHECK(nvs_open("ndf", &h) == 0);
     pattern(big, sizeof big, 7);
-    CHECK(nvs_set_str(h, "secret", "esp-ndf encrypted entry") == 0);
-    CHECK(nvs_set_blob(h, "blob6k", big, 6000) == 0);
+    int r1 = nvs_set_str(h, "secret", "esp-ndf encrypted entry"), r2 = nvs_set_blob(h, "blob6k", big, 6000);
+    int u0, f0; nvs_stats(&u0, &f0);
+    if (r1 || r2) printf("    set_str %d set_blob %d (used %d free %d)\n", r1, r2, u0, f0);
+    CHECK(r1 == 0 && r2 == 0);
     int fails = 0;
     t = ccount();
-    for (uint32_t i = 0; i < 400; i++) fails += nvs_set_u32(h, "ctr", i) != 0;   /* GC re-encrypts moved entries */
+    int lasterr = 0;
+    for (uint32_t i = 0; i < 400; i++) { int e = nvs_set_u32(h, "ctr", i); if (e) { fails++; lasterr = e; } }   /* GC re-encrypts moved entries */
+    if (fails) printf("    ctr updates: %d failed, last err %d\n", fails, lasterr);
     uint32_t us = (ccount() - t) / 240;
     CHECK(fails == 0);
     CHECK(nvs_mount_secure("nvs_enc", key) == 0);

@@ -6,7 +6,7 @@
 #include "vfs.h"
 
 static uint8_t big[20000];
-uint8_t back[32768];               /* shared with test_spiffs */
+uint8_t back[32768] __attribute__((aligned(4)));   /* shared with test_spiffs, test_adc_cont */
 
 static void list(const char *path, int depth)
 {

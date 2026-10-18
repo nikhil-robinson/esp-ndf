@@ -15,6 +15,7 @@
 #define T_LOAD(id)   (T_BASE(id) + 0x20)
 #define G_INT_ENA(id)(TIMG_BASE((id) >> 1) + 0x70)
 #define G_INT_CLR(id)(TIMG_BASE((id) >> 1) + 0x7C)
+#define G_INT_ST(id) (TIMG_BASE((id) >> 1) + 0x78)
 #define G_REGCLK(id) (TIMG_BASE((id) >> 1) + 0xFC)
 
 #define CFG_EN       BIT(31)
@@ -63,6 +64,7 @@ uint64_t gpt_get(int id)
 RAM_FN static void gpt_isr(void *arg)
 {
     int id = (int)arg;
+    if (!(REG(G_INT_ST(id)) & BIT(id & 1))) return;           /* shared CPU line: not ours */
     REG(G_INT_CLR(id)) = BIT(id & 1);
     if (gpt[id].periodic) REG_SET(T_CONFIG(id), CFG_ALARM);   /* hw clears ALARM_EN on fire */
     gpt[id].fn(gpt[id].arg);

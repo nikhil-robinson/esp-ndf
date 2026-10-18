@@ -266,12 +266,6 @@ static int write_item(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, co
     return 0;
 }
 
-/* erase the index entry sitting at (page, entry), if any */
-static int erase_at(int page, int e)
-{
-    for (int i = 0; i < nidx; i++) if (idx[i].page == page && idx[i].idx == e) return erase_ent(i);
-    return 0;
-}
 
 static int set_prim(nvs_handle_t ns, const char *k, uint8_t type, const void *v, int n)
 {
@@ -282,10 +276,9 @@ static int set_prim(nvs_handle_t ns, const char *k, uint8_t type, const void *v,
     item_t old;
     int o = find(ns, type, k, CHUNK_ANY, &old);
     if (o >= 0 && !memcmp(old.data, d, 8)) return 0;          /* unchanged: no flash wear */
-    int op = o >= 0 ? idx[o].page : -1, oe = o >= 0 ? idx[o].idx : -1;
     int r = write_item(ns, type, k, CHUNK_ANY, d, 0, 0);       /* new first, then erase old */
     if (r) return r;
-    return o >= 0 ? erase_at(op, oe) : 0;
+    return o >= 0 ? erase_ent(o) : 0;           /* by index slot: GC may have moved the entry, the slot follows it */
 }
 
 static int get_prim(nvs_handle_t ns, const char *k, uint8_t type, void *v, int n)
@@ -322,10 +315,9 @@ int nvs_set_str(nvs_handle_t ns, const char *k, const char *s)
     int o = find(ns, T_SZ, k, CHUNK_ANY, &old);
     if (o >= 0 && old.var.size == n && old.var.crc == crc32_le(0xFFFFFFFF, s, n)) return 0;
     /* write new, then erase the old instance (identified by position) */
-    int op = o >= 0 ? idx[o].page : -1, oe = o >= 0 ? idx[o].idx : -1;
     int r = write_item(ns, T_SZ, k, CHUNK_ANY, 0, s, n);
     if (r) return r;
-    return o >= 0 ? erase_at(op, oe) : 0;
+    return o >= 0 ? erase_ent(o) : 0;           /* by index slot: GC may have moved the entry, the slot follows it */
 }
 
 int nvs_get_str(nvs_handle_t ns, const char *k, char *s, size_t *len)
@@ -341,6 +333,57 @@ int nvs_get_str(nvs_handle_t ns, const char *k, char *s, size_t *len)
     return 0;
 }
 
+/* data chunks of (ns, k) whose chunk index has the given 0x00/0x80 half */
+static int erase_chunks(uint8_t ns, const char *k, uint8_t half)
+{
+    uint16_t h = khash(k);
+    for (int i = nidx - 1; i >= 0; i--) {
+        if (idx[i].ns != ns || idx[i].hash != h || idx[i].type != T_BLOB_DATA || (idx[i].chunk & 0x80) != half) continue;
+        item_t t;
+        if (ent_rd(addr_of(idx[i].page, idx[i].idx), &t, 32)) return NVS_ERR;
+        if (!strncmp(t.key, k, 16) && erase_ent(i)) return NVS_ERR;
+    }
+    return 0;
+}
+
+/* two live copies of one item (power lost between write-new and
+ * erase-old, or an older bug): keep the newest, erase the rest */
+static void erase_duplicates(void)
+{
+    for (int i = nidx - 1; i >= 0; i--) {
+        if (i >= nidx) continue;
+        item_t a, b;
+        bool loaded = false;
+        for (int j = 0; j < nidx; j++) {
+            if (j == i || idx[j].hash != idx[i].hash || idx[j].ns != idx[i].ns || idx[j].type != idx[i].type ||
+                idx[j].chunk != idx[i].chunk) continue;
+            if (!loaded) { if (ent_rd(addr_of(idx[i].page, idx[i].idx), &a, 32)) break; loaded = true; }
+            if (ent_rd(addr_of(idx[j].page, idx[j].idx), &b, 32) || strncmp(a.key, b.key, 16)) continue;
+            bool j_newer = pg[idx[j].page].seq > pg[idx[i].page].seq ||
+                           (idx[j].page == idx[i].page && idx[j].idx > idx[i].idx);
+            if (j_newer) { erase_ent(i); break; }
+        }
+    }
+}
+
+/* blob data no index refers to (an interrupted or failed nvs_set_blob):
+ * reclaimed at mount, as IDF does */
+static void erase_orphans(void)
+{
+    for (int i = nidx - 1; i >= 0; i--) {
+        if (idx[i].type != T_BLOB_DATA) continue;
+        item_t d, x;
+        if (ent_rd(addr_of(idx[i].page, idx[i].idx), &d, 32)) continue;
+        bool owned = false;
+        for (int j = 0; j < nidx && !owned; j++) {
+            if (idx[j].type != T_BLOB_IDX || idx[j].ns != idx[i].ns || idx[j].hash != idx[i].hash) continue;
+            if (ent_rd(addr_of(idx[j].page, idx[j].idx), &x, 32) || strncmp(x.key, d.key, 16)) continue;
+            owned = d.chunk >= x.blob.start && d.chunk < x.blob.start + x.blob.count;
+        }
+        if (!owned) erase_ent(i);
+    }
+}
+
 /* blob v2: BLOB_DATA chunks (chunk index = start + n) + one BLOB_IDX.
  * start alternates 0x00 / 0x80 between versions so old and new coexist. */
 int nvs_set_blob(nvs_handle_t ns, const char *k, const void *b, size_t n)
@@ -348,21 +391,22 @@ int nvs_set_blob(nvs_handle_t ns, const char *k, const void *b, size_t n)
     item_t old;
     int o = find(ns, T_BLOB_IDX, k, CHUNK_ANY, &old);
     uint8_t start = (o >= 0 && old.blob.start == 0) ? 0x80 : 0;
+    if (erase_chunks(ns, k, start)) return NVS_ERR;           /* stale chunks in the half we are about to use */
     uint8_t count = 0;
     size_t off = 0;
     do {
-        if (room(2)) return NVS_NO_SPACE;
+        if (room(2)) { erase_chunks(ns, k, start); return NVS_NO_SPACE; }   /* leave no orphans behind */
         size_t fit = (size_t)(ENTRIES - pg[active].next - 1) * 32;
         size_t c = n - off < fit ? n - off : fit;
         if (c > 4000) c = 4000;
         int r = write_item(ns, T_BLOB_DATA, k, start + count, 0, (const uint8_t *)b + off, c);
-        if (r) return r;
+        if (r) { erase_chunks(ns, k, start); return r; }
         off += c; count++;
     } while (off < n);
     uint8_t d[8] = { 0 };
     memcpy(d, &n, 4); d[4] = count; d[5] = start; d[6] = d[7] = 0xFF;
     int r = write_item(ns, T_BLOB_IDX, k, CHUNK_ANY, d, 0, 0);
-    if (r) return r;
+    if (r) { erase_chunks(ns, k, start); return r; }
     if (o >= 0) {                                              /* drop the previous version */
         for (int i = nidx - 1; i >= 0; i--) {
             if (idx[i].ns != ns || idx[i].hash != khash(k)) continue;
@@ -478,6 +522,8 @@ static int nvs_mount_(const char *label)
         pg[p].next = last + 1;
         if (pg[p].state == ST_ACTIVE) active = p;
     }
+    erase_duplicates();
+    erase_orphans();
     return 0;
 }
 

@@ -295,7 +295,7 @@ STATE = {0xFFFFFFFF: 'EMPTY', ACTIVE: 'ACTIVE', FULL: 'FULL', 0xFFFFFFF8: 'FREEI
 
 def parse(img, key=None, out=print):
     """Print every page and entry, check CRCs; returns {(ns, key): value}."""
-    names, items, blobs, errors = {0: ''}, {}, {}, 0
+    names, items, blobs, errors, pending = {0: ''}, {}, {}, 0, []
     def seq_of(pn):
         return struct.unpack_from('<I', img, pn * PAGE + 4)[0]
     for pn in sorted(range(len(img) // PAGE), key=seq_of):   # oldest first: blob chunks precede their index
@@ -335,10 +335,7 @@ def parse(img, key=None, out=print):
                     desc = '%d B chunk %d' % (size, chunk)
             elif typ == T_BLOB_IDX:
                 size, cnt, start = struct.unpack_from('<IBB', e, 24)
-                parts = blobs.get((ns, k), {})
-                data = b''.join(parts.get(start + c, b'') for c in range(cnt))
-                ok &= len(data) == size
-                items[(names.get(ns, ns), k)] = data
+                pending.append((ns, k, size, cnt, start))      # resolved after all pages (GC reorders chunks)
                 desc = '%d B in %d chunks' % (size, cnt)
             elif typ in TYPE_NAME:
                 fmt = PRIM[TYPE_NAME[typ]][1]
@@ -355,6 +352,18 @@ def parse(img, key=None, out=print):
             errors += not ok
             out('  [%3d] ns %-3d %-10s %-15s %s%s' % (i, ns, TYPE_NAME.get(typ, '?'), k, desc, '' if ok else '  CRC BAD'))
             i += span
+    for ns, k, size, cnt, start in pending:
+        parts = blobs.get((ns, k), {})
+        data = b''.join(parts.get(start + c, b'') for c in range(cnt))
+        if len(data) != size:
+            errors += 1
+            out('blob %s: index says %d B in %d chunks, found %d B  INCOMPLETE' % (k, size, cnt, len(data)))
+        items[(names.get(ns, ns), k)] = data
+    owned = {(ns, k, start + c) for ns, k, size, cnt, start in pending for c in range(cnt)}
+    for (ns, k), parts in blobs.items():
+        for ch in parts:
+            if (ns, k, ch) not in owned:
+                out('blob %s chunk %d: no index refers to it (orphan)' % (k, ch))
     out('%d errors' % errors)
     return items
 

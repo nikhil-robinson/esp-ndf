@@ -6,7 +6,10 @@
 typedef void (*irq_fn_t)(void *arg);
 
 /* Route peripheral `src` to a free CPU interrupt of `level` on the calling
- * core, install `fn`, enable it. Returns the CPU interrupt number or -1. */
+ * core, install `fn`, enable it. Returns the CPU interrupt number or -1.
+ * When a level 1-3 has no free line left, the source shares the least-used
+ * line of that level; handlers must check their own status (all esp-ndf
+ * drivers do). Levels 4-5 are never shared. */
 int  irq_attach(int src, int level, irq_fn_t fn, void *arg);
 void irq_detach(int src, int cpu_int);
 

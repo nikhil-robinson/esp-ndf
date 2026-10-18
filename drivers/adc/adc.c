@@ -34,7 +34,7 @@ bool adc_calibrated(void)
     return cal_ver == 1;
 }
 
-static void power_up(void)
+void adc_power_up(void)
 {
     if (up) return;
     periph_enable(PERIPH_SARADC);
@@ -67,7 +67,7 @@ static uint32_t init_code(int unit, int atten)
     return c[atten];
 }
 
-static void load_code(int unit, int atten)
+void adc_load_code(int unit, int atten)
 {
     if (code_atten[unit - 1] == atten) return;
     uint32_t code = adc_calibrated() ? init_code(unit, atten) : 0;
@@ -80,7 +80,7 @@ static void load_code(int unit, int atten)
 int adc_channel(int unit, int ch, adc_atten_t atten)
 {
     if (unit < 1 || unit > 2 || ch < 0 || ch > 9 || atten > 3) return -1;
-    power_up();
+    adc_power_up();
     int pin = unit == 1 ? ch + 1 : ch + 11;
     REG(IO_MUX_GPIO(pin)) = 1u << 12;                          /* no IE, no pulls, no output */
     REG(pin < 32 ? GPIO_BASE + 0x28 : GPIO_BASE + 0x34) = BIT(pin & 31);   /* output disable */
@@ -92,8 +92,9 @@ int adc_channel(int unit, int ch, adc_atten_t atten)
 RAM_FN int adc_read_raw(int unit, int ch)
 {
     if (!up || unit < 1 || unit > 2) return -1;
-    load_code(unit, atten_of[unit - 1][ch]);
+    adc_load_code(unit, atten_of[unit - 1][ch]);
     uint32_t meas = unit == 1 ? SENS_MEAS1 : SENS_MEAS2;
+    if (unit == 1) REG_CLR(SENS_MEAS1_MUX, BIT(31));          /* RTC controller (continuous mode may own ADC1) */
     if (unit == 1) while ((REG(SENS_SLAVE1) >> 22) & 0xFF) {}
     REG_FIELD(meas, 19, 12, 1u << ch);
     REG_CLR(meas, BIT(17));
