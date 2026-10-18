@@ -378,3 +378,16 @@ status like every other driver.
   index slot; mount removes duplicates and orphan blob chunks (as IDF).
 - encrypted nvs_get_u32: 4 863 cycles (IDF 82 397); plain: 2 338 (was 8 797, IDF ~26 000).
 - nvstool parse resolves blobs after all pages and reports orphan chunks.
+
+## FAT: survive a power cut during a FAT-sector rewrite
+
+Seen on the board: a reset between WL's erase and program of a FAT1 sector
+left it all 0xFF; FAT12 reads that as "every cluster end-of-chain", so the
+volume looked full (FatFs/IDF read only FAT1 too). FAT2 was intact. Mount now
+rebuilds an erased FAT copy from the other one (copies are written in order,
+so one is always whole). Test: erase FAT1, then FAT2, remount -> repaired,
+free space unchanged, 20 KB file identical.
+Data/directory sectors keep the same erase+program window as IDF's WL.
+
+examples/storage: NVS boot counter + one log appended through the VFS to
+FAT-on-WL and to SPIFFS each boot (verified over several resets).

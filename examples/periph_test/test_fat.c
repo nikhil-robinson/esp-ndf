@@ -99,6 +99,20 @@ void test_fat(void)
     CHECK(n == (int)sizeof big && !memcmp(back, big, sizeof big));
     printf("    wl: dummy %lu -> %lu after 300 rewrites, remount ok\n", pos0, wl.st.dummy_pos);
 
+    /* power cut mid FAT-sector rewrite: one copy erased -> rebuilt from the other */
+    uint32_t free0; fat_info(&total, &free0, &bits);
+    CHECK(fat_sync() == 0);
+    for (int copy = 0; copy < 2; copy++) {
+        memset(back, 0xFF, 4096);
+        CHECK(bd.write(&bd, 1 + copy, back, 1) == 0);         /* FAT1 at sector 1, FAT2 at sector 2 */
+        CHECK(fat_mount(&bd) == 0 && fat_repaired() == 1);
+        uint32_t f1; fat_info(&total, &f1, &bits);
+        fd = fat_open("/data/long file name.bin", FAT_RDONLY); n = fat_read(fd, back, sizeof back); fat_close(fd);
+        CHECK(f1 == free0 && n == (int)sizeof big && !memcmp(back, big, sizeof big));
+        printf("    FAT%d copy erased: repaired from mirror, %lu KB free, 20 KB file intact\n", copy + 1, f1 / 1024);
+    }
+    CHECK(fat_mount(&bd) == 0 && fat_repaired() == 0);
+
     /* VFS: same volume through a "/fat" mount point */
     CHECK(vfs_register("/fat", &vfs_fat_ops) == 0 && vfs_register("/fat", &vfs_fat_ops) == FAT_EEXIST);
     fd = vfs_open("/fat/hello.txt", FAT_RDONLY);

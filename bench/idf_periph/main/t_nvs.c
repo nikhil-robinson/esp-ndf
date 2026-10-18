@@ -28,7 +28,8 @@ void t_nvs(void)
     pattern(big, 5000, 3);
     nvs_set_u32(h, "from_idf", 0xC0FFEE);
     nvs_set_str(h, "idf_str", "hello from idf");
-    nvs_set_blob(h, "idf_blob", big, 5000);
+    esp_err_t be = nvs_set_blob(h, "idf_blob", big, 5000);
+    if (be) printf("    idf_blob write: %s\n", esp_err_to_name(be));
     nvs_commit(h); nvs_close(h);
     printf("    wrote from_idf / idf_str / idf_blob for esp-ndf\n");
 }

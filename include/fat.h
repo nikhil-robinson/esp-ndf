@@ -10,7 +10,8 @@ enum { FAT_OK = 0, FAT_ENOENT = -2, FAT_EIO = -5, FAT_EEXIST = -17, FAT_ENOTDIR 
        FAT_EISDIR = -21, FAT_EINVAL = -22, FAT_EMFILE = -24, FAT_ENOSPC = -28, FAT_ENOTEMPTY = -39 };
 
 int  fat_format(bdev_t *b);                 /* new empty volume */
-int  fat_mount(bdev_t *b);
+int  fat_mount(bdev_t *b);                   /* repairs an erased FAT copy from its mirror */
+uint32_t fat_repaired(void);                /* FAT sectors repaired by the last mount */
 int  fat_unmount(void);
 int  fat_sync(void);
 

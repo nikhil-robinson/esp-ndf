@@ -18,6 +18,7 @@ static struct {
     bdev_t *bd;
     uint32_t bps, spc, rsvd, nfats, root_ents, fatsz, totsec;
     uint32_t fat_start, root_start, root_secs, data_start, nclus, root_clus, hint;
+    uint32_t repaired;                                  /* FAT sectors rebuilt from the mirror at mount */
     int bits;
     bool mounted;
 } v;
@@ -575,7 +576,7 @@ int fat_sync(void)
 
 int fat_mount(bdev_t *b)
 {
-    v.bd = b; v.mounted = false;
+    v.bd = b; v.mounted = false; v.repaired = 0;
     cfat.valid = cdat.valid = false;
     if (b->sector_size > MAXSS) return FAT_EINVAL;
     uint8_t *s = get(&cdat, 0);
@@ -593,7 +594,18 @@ int fat_mount(bdev_t *b)
     v.bits = v.nclus < 4085 ? 12 : v.nclus < 65525 ? 16 : 32;
     v.root_clus = v.bits == 32 ? rd32(s + 44) : 0;
     v.hint = 2;
-    cdat.valid = false;
+    /* power lost between a sector's erase and program (WL rewrites by erase
+     * + write) leaves it all 0xFF; a FAT copy like that is rebuilt from the
+     * other copy, which is written second, so one of them is always whole */
+    for (uint32_t k = 0; v.nfats >= 2 && k < v.fatsz; k++) {
+        uint8_t *a = cdat.buf, *m = cfat.buf;
+        if (b->read(b, v.fat_start + k, a, 1) || b->read(b, v.fat_start + v.fatsz + k, m, 1)) return FAT_EIO;
+        bool ea = true, em = true;
+        for (uint32_t i = 0; i < v.bps && (ea || em); i++) { ea &= a[i] == 0xFF; em &= m[i] == 0xFF; }
+        if (ea != em && b->write(b, ea ? v.fat_start + k : v.fat_start + v.fatsz + k, ea ? m : a, 1)) return FAT_EIO;
+        if (ea != em) v.repaired++;
+    }
+    cdat.valid = cfat.valid = false;
     memset(files, 0, sizeof files);
     memset(dirs, 0, sizeof dirs);
     v.mounted = true;
@@ -601,6 +613,8 @@ int fat_mount(bdev_t *b)
 }
 
 int fat_unmount(void) { int r = fat_sync(); v.mounted = false; return r; }
+
+uint32_t fat_repaired(void) { return v.repaired; }
 
 void fat_info(uint32_t *total, uint32_t *freeb, int *bits)
 {
