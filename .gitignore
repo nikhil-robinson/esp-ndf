@@ -4,3 +4,4 @@ build/
 *.elf
 *.bin
 hal_bench/target/
+__pycache__/
