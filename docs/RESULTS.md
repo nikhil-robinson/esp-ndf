@@ -609,3 +609,13 @@ nvs_get_u32 1 747 -> **498** cycles (IDF 26 269), encrypted 4 711 -> **435**
 GPTimer read profiled (examples/gpt_probe): latch write 6, latch wait ~50
 (one extra poll), LO+HI reads 47 -> gpt_get 110-124 is the hardware floor.
 Added gpt_get32 (low word only): 100 cycles.
+
+## FAT path cache
+
+4-entry cache of path -> (parent, directory entry) in resolve(), flushed by
+create, entry update, unlink, mkdir, format and mount. fat_open no longer reads
+the directory sector just to learn which sector holds the entry (dent_sec()
+computes it from the FAT chain). Repeated open of the same path: 51 206 ->
+**814** cycles (IDF 70 187). First open of a path still costs one directory
+sector read (~51 000). Full suite passes (create/overwrite/truncate/unlink/
+mkdir/remount/IDF volumes/FAT-mirror repair).

@@ -25,6 +25,7 @@ static struct {
 
 typedef struct { uint8_t buf[MAXSS] __attribute__((aligned(4))); uint32_t sec; bool valid, dirty, is_fat; } cache_t;
 static cache_t cfat, cdat;
+static void pcache_clear(void);
 
 static int flush(cache_t *c)
 {
@@ -131,6 +132,20 @@ static int free_chain(uint32_t c)
 /* ---- directories ------------------------------------------------------------ */
 /* entry `i` of the directory starting at cluster `dc` (0 = FAT12/16 fixed root).
  * Returns a pointer into the data cache, NULL past the end (extends if grow). */
+/* sector holding entry i of directory dc, without reading it (0 = none) */
+static uint32_t dent_sec(uint32_t dc, uint32_t i)
+{
+    uint32_t eps = v.bps / 32;
+    if (dc == 0) return i < v.root_ents ? v.root_start + i / eps : 0;
+    uint32_t per = eps * v.spc, c = dc, k = i / per;
+    while (k--) {
+        uint32_t n = fat_get(c);
+        if (is_eoc(n) || n < 2) return 0;
+        c = n;
+    }
+    return clus_sec(c) + (i % per) / eps;
+}
+
 static uint8_t *dent(uint32_t dc, uint32_t i, bool grow, uint32_t *sec_out)
 {
     uint32_t eps = v.bps / 32, s;
@@ -227,7 +242,43 @@ static int find_cb(const char *name, uint8_t *e, uint32_t idx, uint32_t ls, void
 static uint32_t root_dc(void) { return v.bits == 32 ? v.root_clus : 0; }
 
 /* resolve path: parent dir cluster + last component; optionally the entry */
+/* Path lookup cache: repeated opens/stats of the same path skip the
+ * directory walk (one 4 KB sector read per directory level). Any directory
+ * change (create, entry update, unlink, mkdir, format, mount) empties it. */
+#define PCACHE 4
+static struct { char path[64]; uint32_t parent; uint16_t last_off; find_t f; bool valid; } pcache[PCACHE];
+static uint8_t pcache_next;
+static void pcache_clear(void) { for (int i = 0; i < PCACHE; i++) pcache[i].valid = false; }
+
+static int resolve_walk(const char *path, uint32_t *parent, const char **last, find_t *f);
+
 static int resolve(const char *path, uint32_t *parent, const char **last, find_t *f)
+{
+    size_t len = strnlen(path, sizeof pcache[0].path);
+    if (f && len < sizeof pcache[0].path) {
+        for (int i = 0; i < PCACHE; i++)
+            if (pcache[i].valid && !strcmp(pcache[i].path, path)) {
+                *parent = pcache[i].parent;
+                *last = path + pcache[i].last_off;
+                *f = pcache[i].f;
+                f->want = *last;
+                return 0;
+            }
+    }
+    int r = resolve_walk(path, parent, last, f);
+    if (!r && f && len < sizeof pcache[0].path) {
+        int i = pcache_next;
+        memcpy(pcache[i].path, path, len + 1);
+        pcache[i].parent = *parent;
+        pcache[i].last_off = *last - path;
+        pcache[i].f = *f;
+        pcache[i].valid = true;
+        pcache_next = (i + 1) % PCACHE;
+    }
+    return r;
+}
+
+static int resolve_walk(const char *path, uint32_t *parent, const char **last, find_t *f)
 {
     uint32_t dc = root_dc();
     while (*path == '/') path++;
@@ -291,6 +342,7 @@ static int sfn_cb(const char *name, uint8_t *e, uint32_t idx, uint32_t ls, void 
 /* create a directory entry (LFN + SFN) for name in dc; returns SFN index */
 static int create_entry(uint32_t dc, const char *name, uint8_t attr, uint32_t first, uint32_t *idx_out)
 {
+    pcache_clear();
     size_t len = strlen(name);
     if (!len || len > 255) return FAT_EINVAL;
     uint8_t sfn[11];
@@ -350,6 +402,7 @@ static file_t files[MAXFILES];
 
 static int sync_entry(file_t *f)
 {
+    pcache_clear();
     uint8_t *b = get(&cdat, f->dir_sec);
     if (!b) return FAT_EIO;
     wr32(b + f->dir_off + 28, f->size);
@@ -374,9 +427,8 @@ int fat_open(const char *path, int flags)
     if (f.ent[11] & A_DIR) return FAT_EISDIR;
     file_t *h = &files[fd];
     *h = (file_t){ .used = true, .first = first_clus(f.ent), .size = rd32(f.ent + 28), .flags = flags };
-    uint32_t sec;
-    dent(dc, f.idx, false, &sec);
-    h->dir_sec = sec; h->dir_off = (f.idx % (v.bps / 32)) * 32;
+    h->dir_sec = dent_sec(dc, f.idx);            /* no directory read: the path cache already had the entry */
+    h->dir_off = (f.idx % (v.bps / 32)) * 32;
     if ((flags & FAT_TRUNC) && (flags & 3)) {
         free_chain(h->first);
         h->first = 0; h->size = 0;
@@ -483,6 +535,7 @@ static int count_cb(const char *name, uint8_t *e, uint32_t i, uint32_t l, void *
 
 int fat_unlink(const char *path)
 {
+    pcache_clear();
     uint32_t dc; const char *last; find_t f;
     int r = resolve(path, &dc, &last, &f);
     if (r) return r;
@@ -502,6 +555,7 @@ int fat_unlink(const char *path)
 
 int fat_mkdir(const char *path)
 {
+    pcache_clear();
     uint32_t dc; const char *last; find_t f;
     int r = resolve(path, &dc, &last, &f);
     if (!r) return FAT_EEXIST;
@@ -576,6 +630,7 @@ int fat_sync(void)
 
 int fat_mount(bdev_t *b)
 {
+    pcache_clear();
     v.bd = b; v.mounted = false; v.repaired = 0;
     cfat.valid = cdat.valid = false;
     if (b->sector_size > MAXSS) return FAT_EINVAL;
@@ -627,6 +682,7 @@ void fat_info(uint32_t *total, uint32_t *freeb, int *bits)
 
 int fat_format(bdev_t *b)
 {
+    pcache_clear();
     uint32_t bps = b->sector_size, tot = b->sector_count, spc = 1, rsvd = 1, nf = 2, rootents = 512, fatsz = 1, nclus = 0;
     int bits = 12;
     if (bps > MAXSS || tot < 16) return FAT_EINVAL;

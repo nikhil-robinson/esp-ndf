@@ -25,6 +25,7 @@ updated with every measured change.
 | `memcpy` 8 KB, aligned | **1 738 MB/s** | IDF ROM `memcpy`: 382 MB/s | **4.5×** |
 | NVS read (encrypted, repeated key) | **435 cycles** | IDF: 82 455 | **190×** |
 | NVS read (plain, repeated key) | **498 cycles** | IDF: 26 269 | **53×** |
+| FAT file open (repeated path) | **814 cycles** | IDF: 70 187 | **86×** |
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
 
 ## Interrupts
@@ -143,7 +144,8 @@ vector unit is off there).
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
 | SPIFFS 40 × 30 KB rewrites | **7.4 s** | 10.9 s | 1.5× | — |
-| FAT open (path lookup) | **51 489** (was 65 882) | 70 187 | 1.36× | room (directory cache) |
+| FAT open, repeated path (path cache) | **814** (was 65 882) | 70 187 | **86×** | — |
+| FAT open, first time (one directory sector read) | ~51 000 | 70 187 | 1.37× | flash-read bound |
 | NVS boot reader, 8 keys | **456 µs** (was 618) | not in IDF 5.3 | — | — |
 
 ## Whole system: dual-core control loops (bench/)
@@ -157,7 +159,7 @@ vector unit is off there).
 1. Flash read: now 19.6 MB/s (QIO + overlapped buffer halves). The SPI1 register path costs ~47 clocks per 32 B; cache/XIP burst reads are the next step.
 2. SPI small transfers: overhead cut from ~530 to ~350 cycles (no read-modify-write, word packing); the rest is ~20-cycle peripheral register accesses.
 3. GPTimer read: measured at the floor (the latch alone is ~50 cycles); `gpt_get32` added. `ccount()` is the 1-cycle CPU-local clock.
-4. NVS: done (8-entry recent-item cache). FAT path lookups: directory cache next.
+4. NVS: done (8-entry recent-item cache). FAT: done (4-entry path cache; open no longer re-reads the directory sector).
 5. int16 vector kernels: deeper unrolling to hide load latency.
 6. `memcpy` with different alignments: a fused shift-and-load variant.
 7. C interrupt path: about 10 % left.
