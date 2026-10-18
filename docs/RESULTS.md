@@ -328,3 +328,20 @@ does not have it, so it is checked against our IDF-verified NVS instead).
 | IDF-written `from_idf` (u32) and `idf_str` (string) | read correctly |
 | 8 keys incl. u8/i32/u64/str, 600-version counter (newest wins), missing key, missing namespace, wrong type | all as expected (NOT_FOUND / NOT_FOUND / ERR) |
 | time, 6-page partition, 8 keys | 618 us |
+
+## RTC GPIO (GPIO0-21 through the RTC domain) + pad hold
+
+| | esp-ndf | ESP-IDF rtc_gpio |
+|---|---|---|
+| set level | 21 cycles | 301 cycles |
+| get level | 98 cycles | 333 cycles |
+
+Loopback 100/100, pull-up/down, open drain, hold (level frozen while the
+register changes) all verified on the jumpers (10<->11, 12<->13).
+
+Hold through a full system reset (`RTC_SW_SYS_RST`), logic analyzer on GPIO4
+(examples/rtc_hold, 2 MHz sampling): exactly one rising and one falling edge,
+high for 513.1 ms across reset + reboot, zero glitches. Boot code now leaves
+held pads alone. Found on the analyzer: the RTC output latch keeps its last
+value across resets, so enabling the output before writing the level gave a
+1 us glitch - write the level first (documented in rtcio.h).

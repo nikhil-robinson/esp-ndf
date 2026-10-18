@@ -58,8 +58,10 @@ void sys_start1(void)
  * to their power-on state so every boot starts identical. */
 static void rtc_domain_reset(void)
 {
+    uint32_t held = REG(0x600080D8);                                      /* RTC pad hold survives reset */
     for (int n = 0; n <= 21; n++)
-        if (n != 19 && n != 20) REG_CLR(0x60008484 + 4 * n, BIT(19));   /* digital mux (not USB pads) */
+        if (n != 19 && n != 20 && !(held >> n & 1))
+            REG_CLR(0x60008484 + 4 * n, BIT(19));                         /* digital mux (not USB, not held) */
     REG_CLR(0x6000810C, BIT(13));                                         /* touch scan timer off */
     REG_FIELD(0x60008110, 10, 15, 0);                                     /* touch pad map empty */
 }

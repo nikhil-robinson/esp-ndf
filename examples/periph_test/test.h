@@ -37,5 +37,6 @@ void test_flash(void);
 void test_partition(void);
 void test_nvs(void);
 void test_fat(void);
+void test_rtcio(void);
 void test_nvs_enc(void);
 void test_spiffs(void);

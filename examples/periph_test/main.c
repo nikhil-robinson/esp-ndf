@@ -16,6 +16,7 @@ static void run(const char *name, void (*fn)(void))
 int main(void)
 {
     printf("\n=== esp-ndf peripheral tests ===\n");
+    run("rtcio", test_rtcio);
     run("gpio", test_gpio);
     run("gptimer", test_gptimer);
     run("ledc", test_ledc);
