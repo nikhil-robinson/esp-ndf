@@ -45,6 +45,7 @@ static inline bool xc_seq_read_retry(const xc_seq_t *s, uint32_t v) { xc_barrier
         if (_ok) { *(out) = (f)->buf[_t & (xc_fifo_size(f) - 1)]; xc_barrier(); (f)->tail = _t + 1; } _ok; })
 
 /* ---- spinlock ------------------------------------------------------------- */
+#if SOC_CPU_HAS_S32C1I
 typedef struct { volatile uint32_t owner; } xc_spin_t;   /* 0 = free, else core + 1 */
 
 static inline bool xc_spin_try(xc_spin_t *l)
@@ -56,9 +57,35 @@ static inline bool xc_spin_try(xc_spin_t *l)
 }
 static inline void xc_spin_lock(xc_spin_t *l)   { while (!xc_spin_try(l)) ; }
 static inline void xc_spin_unlock(xc_spin_t *l) { xc_barrier(); l->owner = 0; }
+#else
+/* No compare-and-swap: Peterson's algorithm for two cores (plain loads and
+ * stores + barriers; correct because each core only writes its own flag). */
+typedef struct { volatile uint32_t want[2], turn, owner; } xc_spin_t;
+
+static inline bool xc_spin_try(xc_spin_t *l)
+{
+    int me = core_id(), other = !me;
+    l->want[me] = 1; xc_barrier();
+    l->turn = other; xc_barrier();
+    if (l->want[other] && l->turn == (uint32_t)other) { l->want[me] = 0; return false; }
+    l->owner = me + 1;
+    return true;
+}
+static inline void xc_spin_lock(xc_spin_t *l)
+{
+    int me = core_id(), other = !me;
+    l->want[me] = 1; xc_barrier();
+    l->turn = other; xc_barrier();
+    while (l->want[other] && l->turn == (uint32_t)other) ;
+    l->owner = me + 1;
+}
+static inline void xc_spin_unlock(xc_spin_t *l) { l->owner = 0; xc_barrier(); l->want[core_id()] = 0; }
+#endif
 
 /* ---- cross-core interrupt --------------------------------------------- */
+#if SOC_HAS_CROSS_CORE_INT
 /* Install fn on the calling core for notifications sent to it (level 1-3). */
 int  xc_notify_init(void (*fn)(void *), void *arg, int level);
 /* Interrupt the other core (core = target). */
 static inline void xc_notify(int core) { REG(0x600C0030 + 4 * core) = 1; }
+#endif /* SOC_HAS_CROSS_CORE_INT */

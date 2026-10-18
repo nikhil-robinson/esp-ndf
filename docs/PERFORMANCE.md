@@ -76,9 +76,33 @@ path reaches its first instruction about 11 cycles after the event.
 | `memset` | — | **3 249 MB/s** | — | ~3 800 | near floor |
 | GDMA memory → memory | — | 63 MB/s | 43 MB/s | — | the CPU copy wins |
 
+`memcpy` uses the vector path from the measured crossover: aligned ≥ 64 B,
+same misalignment ≥ 512 B, different alignment ≥ 128 B. Below that, the
+scalar word path is faster.
+
 Hardware quirk found and fixed: re-entering a hardware loop while `LBEG`
 still points at it runs at half speed. The fix is one instruction per loop
 entry, applied to all code, including every loop GCC generates.
+
+## Portable builds (no hardware acceleration)
+
+Every accelerated path is selected by a capability flag in
+`soc/<chip>/soc_caps.h` (`SOC_CPU_HAS_PIE`, `SOC_CPU_HAS_S32C1I`,
+`SOC_CPU_HWLOOP_LBEG_QUIRK`, ...). Each one has a portable fallback, so a
+chip without the feature still builds and works. `make NO_ACCEL=1` forces all
+fallbacks on the S3, and that build passes the full test suite too.
+
+| Function | Accelerated (S3) | Portable fallback (`NO_ACCEL=1`) |
+|---|---|---|
+| `memcpy` 8 KB aligned | 1 703 MB/s | 378 MB/s (= IDF ROM 382) |
+| `memcpy` 8 KB same misalignment | 1 331 cycles | 5 250 (byte loop was 65 564) |
+| `memcpy` 8 KB different alignment | 2 440 cycles | 20 606 (shift-merge; byte loop was 65 564) |
+| `memset` 8 KB | 3 249 MB/s | 474 MB/s |
+| int16 dot product ×1024 | 405 | 13 868 (C, 64-bit accumulator) |
+| Cross-core lock + unlock | 38 (`S32C1I`) | 69 (Peterson's algorithm), 40 000 / 40 000 updates ok |
+
+The portable `memcpy` is also what interrupt handlers use on the S3 (the
+vector unit is off there).
 
 ## Peripherals
 

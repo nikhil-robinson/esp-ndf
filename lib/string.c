@@ -2,6 +2,7 @@
  * Word-at-a-time when both pointers are aligned, bytes otherwise. */
 #include <stddef.h>
 #include <stdint.h>
+#include "soc_caps.h"
 
 void dsp_copy128(void *dst, const void *src, size_t n);
 void dsp_set128(void *dst, const void *pattern16, size_t n);
@@ -9,32 +10,50 @@ void dsp_copy128u(void *dst, const void *src, size_t n);
 
 /* 128-bit vector path: internal DRAM only, and only when the PIE unit is on
  * (it is off inside interrupt handlers, which may also call memcpy) */
-static inline int vec_ok(uintptr_t a, uintptr_t b, size_t n)
+static inline int vec_ok(uintptr_t a, uintptr_t b, size_t n, size_t min)
 {
+#if !SOC_CPU_HAS_PIE
+    (void)a; (void)b; (void)n; (void)min;
+    return 0;                                     /* portable build: word/byte paths only */
+#else
     uint32_t cp;
     __asm__ volatile("rsr.cpenable %0" : "=r"(cp));
-    return n >= 64 && (cp & 8) && a >= 0x3FC88000u && a + n <= 0x3FD00000u &&
+    return n >= min && (cp & 8) && a >= 0x3FC88000u && a + n <= 0x3FD00000u &&
            b >= 0x3FC88000u && b + n + 16 <= 0x3FD00000u;          /* +16: unaligned copy over-reads one block */
+#endif
 }
 
 void *memcpy(void *d, const void *s, size_t n)
 {
     uint8_t *dp = d; const uint8_t *sp = s;
-    if (((uintptr_t)dp & 15) == ((uintptr_t)sp & 15) && vec_ok((uintptr_t)dp, (uintptr_t)sp, n)) {
+    /* vector path from the measured crossover: aligned 64 B, same misalignment 512 B, mixed 128 B */
+    if (((uintptr_t)dp & 15) == ((uintptr_t)sp & 15) &&
+        vec_ok((uintptr_t)dp, (uintptr_t)sp, n, ((uintptr_t)dp & 15) ? 512 : 64)) {
         while ((uintptr_t)dp & 15) { *dp++ = *sp++; n--; }      /* both reach 16-byte alignment together */
         size_t v = n & ~(size_t)31;
         dsp_copy128(dp, sp, v);
         dp += v; sp += v; n -= v;
-    } else if (vec_ok((uintptr_t)dp, (uintptr_t)sp, n)) {           /* different alignments */
+    } else if (((uintptr_t)dp & 15) != ((uintptr_t)sp & 15) && vec_ok((uintptr_t)dp, (uintptr_t)sp, n, 128)) {  /* different alignments */
         while ((uintptr_t)dp & 15) { *dp++ = *sp++; n--; }
         size_t v = n & ~(size_t)31;
         dsp_copy128u(dp, sp, v);
         dp += v; sp += v; n -= v;
-    } else if ((((uintptr_t)dp | (uintptr_t)sp) & 3) == 0) {
+    } else if (n >= 16 && (((uintptr_t)dp ^ (uintptr_t)sp) & 3) == 0) {  /* same misalignment: align, words */
+        while ((uintptr_t)dp & 3) { *dp++ = *sp++; n--; }
         for (; n >= 16; n -= 16, dp += 16, sp += 16) {
             uint32_t a = ((const uint32_t *)sp)[0], b = ((const uint32_t *)sp)[1];
             uint32_t c = ((const uint32_t *)sp)[2], e = ((const uint32_t *)sp)[3];
             ((uint32_t *)dp)[0] = a; ((uint32_t *)dp)[1] = b; ((uint32_t *)dp)[2] = c; ((uint32_t *)dp)[3] = e;
+        }
+    } else if (n >= 16) {                                         /* different alignments: shift-merge words */
+        while ((uintptr_t)dp & 3) { *dp++ = *sp++; n--; }
+        unsigned o = (uintptr_t)sp & 3, sh = o * 8;                /* o != 0 here */
+        const uint32_t *ws = (const uint32_t *)(sp - o);
+        uint32_t cur = *ws++;
+        for (; n >= 8; n -= 4, dp += 4, sp += 4) {                 /* n >= 8: the next aligned word stays inside src */
+            uint32_t next = *ws++;
+            *(uint32_t *)dp = (cur >> sh) | (next << (32 - sh));   /* little endian */
+            cur = next;
         }
     }
     if ((((uintptr_t)dp | (uintptr_t)sp) & 3) == 0)
@@ -56,7 +75,7 @@ void *memset(void *d, int c, size_t n)
     uint8_t *dp = d;
     uint32_t w = (uint8_t)c * 0x01010101u;
     while (n && ((uintptr_t)dp & 15)) { *dp++ = c; n--; }
-    if (vec_ok((uintptr_t)dp, (uintptr_t)dp, n)) {
+    if (vec_ok((uintptr_t)dp, (uintptr_t)dp, n, 64)) {
         uint32_t pat[4] __attribute__((aligned(16))) = { w, w, w, w };
         size_t v = n & ~(size_t)31;
         dsp_set128(dp, pat, v);

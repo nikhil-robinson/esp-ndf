@@ -561,3 +561,19 @@ next transfer runs.
 
 Knock-on (full suite, all pass): nvs_get_u32 2 338 -> 1 747 cycles, encrypted
 4 863 -> 4 711, boot reader 618 -> 456 µs, FAT open 65 882 -> 51 489 cycles.
+
+## SoC capability flags + portable fallbacks
+
+`soc/esp32s3/soc_caps.h` (C and assembly) and `soc/esp32s3/soc.mk` (make)
+describe the chip: cores, cross-core interrupt, FPU, PIE vector unit,
+S32C1I, hardware-loop LBEG quirk, and the CPENABLE value at boot. Gated:
+lib/dsp.S (PIE) with lib/dsp.c as the portable twin, the vector memcpy/memset
+paths, xc_spin (S32C1I, else Peterson), xc_notify (cross-core interrupt), the
+LOOPFIX build step and the coprocessor enable at boot.
+
+`make NO_ACCEL=1` builds with every accelerated path off (into
+build/<app>-noaccel): periph_test all pass; dsp_bench results equal; mem_bench
+exhaustive 0 wrong + ISR ok; xcore_bench2 Peterson lock 40 000 / 40 000.
+The portable memcpy was also rewritten (align + 16-byte word unroll, and
+shift-merge for different alignments): 8 KB same misalignment 65 564 -> 5 250
+cycles, different alignment 65 564 -> 20 606.

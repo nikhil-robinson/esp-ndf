@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include "soc_caps.h"
 
 #define REG(a)            (*(volatile uint32_t *)(uintptr_t)(a))
 #define REG_SET(a, m)     (REG(a) |= (m))

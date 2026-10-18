@@ -8,7 +8,14 @@ BOX3   = /dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_30:30:F9:5A:
 PORT  ?= $(DEVKIT)
 TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-elf
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
-OUT   = build/$(notdir $(APP))
+include soc/$(SOC)/soc.mk
+ifeq ($(NO_ACCEL),1)
+  ACCEL_FLAGS = -DNDF_NO_ACCEL       # every accelerated path off: tests the portable fallbacks
+  SOC_LOOPFIX := 0
+  OUT   = build/$(notdir $(APP))-noaccel
+else
+  OUT   = build/$(notdir $(APP))
+endif
 
 SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S $(APP)/*.c $(APP)/*.S)
 OBJS  = $(patsubst %,$(OUT)/%.o,$(SRCS))
@@ -16,7 +23,7 @@ INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
 
 # CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
 FLAGS = -mabi=call0 -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
-        -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(INCS)
+        -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(INCS)
 
 $(OUT)/app.bin: $(OUT)/app.elf
 	esptool.py --chip $(SOC) elf2image --flash_mode dio --flash_freq 80m -o $@ $< >/dev/null
@@ -31,7 +38,11 @@ $(OUT)/app.elf: $(OBJS) soc/$(SOC)/link.ld
 # while LBEG still points at it runs the loop at reduced speed (vector copy:
 # 2x slower, C loop: ~5%). Every C loop gets "wsr <count reg>, lbeg" before
 # its LOOP instruction so LBEG always changes; LOOP then sets it properly.
+ifeq ($(strip $(SOC_LOOPFIX)),1)
 LOOPFIX = sed -E 's/^([[:space:]]+)(loop|loopnez|loopgtz)([[:space:]]+)(a[0-9]+),/\1wsr\t\4, lbeg\n\1\2\3\4,/'
+else
+LOOPFIX = cat
+endif
 
 $(OUT)/%.c.o: %.c
 	@mkdir -p $(dir $@)

@@ -1,3 +1,4 @@
+#include "soc_caps.h"
 /* Reset entry for both cores. The ROM loader jumps here (core0), and the
  * ROM's core1 boot stub jumps to the address in SYSTEM_CORE1_CTRL1 (core1).
  * We discard the ROM's windowed state and switch to CALL0: WOE = 0. */
@@ -20,7 +21,7 @@
     wsr     a0, intenable
     movi    a0, \vec
     wsr     a0, vecbase
-    movi    a0, 0x09             /* FPU (cp0) + PIE vector unit (cp3) on */
+    movi    a0, SOC_CPENABLE_BOOT   /* FPU (cp0) + PIE vector unit (cp3), per soc_caps.h */
     wsr     a0, cpenable
     rsync
     movi    a1, \stack

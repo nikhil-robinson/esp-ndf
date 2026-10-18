@@ -8,13 +8,6 @@
 
 static uint8_t A[8192 + 64] __attribute__((aligned(16))), B[8192 + 64] __attribute__((aligned(16)));
 static volatile int isr_ok;
-/* a plain C loop; GCC turns it into a zero-overhead LOOP (checked in the disassembly) */
-__attribute__((noinline)) static uint32_t c_sum(const uint32_t *p, int n)
-{
-    uint32_t s = 0;
-    for (int i = 0; i < n; i++) s += p[i] ^ (s >> 3);
-    return s;
-}
 
 static void isr(void *arg)
 {
@@ -38,33 +31,6 @@ int main(void)
         t = ccount(); memset(B, 0x33, n); uint32_t ts = ccount() - t;
         printf("  %5d B: memcpy aligned %5lu (%4lu MB/s)  same-offset %5lu  mixed %5lu  memset %5lu (%4lu MB/s)\n",
                n, ta, (uint32_t)n * 240 / ta, tm, tx, ts, (uint32_t)n * 240 / ts);
-    }
-    {   void dsp_copy128(void *, const void *, size_t);
-        uint32_t d[4];
-        for (int k = 0; k < 4; k++) { uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe back-to-back: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { delay_us(50); uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe with 50 us gaps: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; delay_us(50); }
-        printf("  probe gap after: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { memset(B, k, 8192); uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe dst cleared first: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { A[k * 100] ^= 0xFF; uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe src changed a byte: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { uint32_t t = ccount(); dsp_copy128(B, B + 16, 4080); d[k] = ccount() - t; }
-        printf("  probe 4 KB within B: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { __asm__ volatile("ee.zero.q q0; ee.zero.q q1"); uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe q0/q1 zeroed first: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { memset(B + 8192 - 64, 0, 64); uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; }
-        printf("  probe small memset (no vector) first: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { uint32_t t = ccount(); dsp_copy128(B, A, 8160); d[k] = ccount() - t; dsp_copy128(B + 4096, A, 32); }
-        printf("  probe after a tiny copy: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        volatile uint32_t sink;
-        for (int k = 0; k < 4; k++) { uint32_t t = ccount(); sink = c_sum((const uint32_t *)A, 2000); d[k] = ccount() - t; }
-        printf("  probe C loop (GCC LOOP) back-to-back: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        for (int k = 0; k < 4; k++) { __asm__ volatile("movi a8, 0; wsr a8, lbeg" ::: "a8"); uint32_t t = ccount(); sink = c_sum((const uint32_t *)A, 2000); d[k] = ccount() - t; }
-        printf("  probe C loop, LBEG perturbed before: %lu %lu %lu %lu\n", d[0], d[1], d[2], d[3]);
-        (void)sink;
     }
     /* exhaustive: every size 0..300 x src/dst offsets 0..17 */
     int bad = 0;

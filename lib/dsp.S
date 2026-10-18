@@ -1,3 +1,5 @@
+#include "soc_caps.h"
+#if SOC_CPU_HAS_PIE
 /* Vector (PIE, coprocessor 3) and FPU kernels. CALL0 ABI: args a2..a7,
  * result a2, a2-a11 scratch. Vector loads/stores need 16-byte aligned
  * pointers (the low 4 address bits are ignored by EE.VLD/VST.128).
@@ -122,4 +124,4 @@ dsp_copy128u:
     ee.vst.128.ip q2, a2, 16
 1:
 2:  ret
-
+#endif /* SOC_CPU_HAS_PIE */
