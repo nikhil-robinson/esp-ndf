@@ -80,9 +80,12 @@ int main(void)
             uint32_t prev = ccount(), now;
             for (;;) { now = ccount(); if (p->done) break; prev = now; }
             uint32_t e = p->t_in - p->target, x = now - p->t_out, s = now - prev;
-            if (e < emin) emin = e; if (e > emax) emax = e;
-            if (x < xmin) xmin = x; if (x > xmax) xmax = x;
-            if (s < smin) smin = s; if (s > smax) smax = s;
+            if (e < emin) emin = e;
+            if (e > emax) emax = e;
+            if (x < xmin) xmin = x;
+            if (x > xmax) xmax = x;
+            if (s < smin) smin = s;
+            if (s > smax) smax = s;
         }
         printf("  level %d: entry %3lu..%3lu  exit %3lu..%3lu  loop lost %3lu..%3lu\n", level[k], emin, emax, xmin, xmax, smin, smax);
         /* torture: interrupt storm at this level while the main loop uses LOOP */

@@ -21,7 +21,10 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
-| `NDF_CONSOLE`<br>printf output | ndf_config.h | `NDF_CONSOLE_USJ` | `NDF_CONSOLE_USJ` USB Serial/JTAG<br>`NDF_CONSOLE_NONE` none (dropped) | Where printf() goes. "none" removes all console traffic (printf returns immediately). |
+| `NDF_CONSOLE`<br>printf output | ndf_config.h | `NDF_CONSOLE_USJ` | `NDF_CONSOLE_USJ` USB Serial/JTAG<br>`NDF_CONSOLE_UART0` UART0<br>`NDF_CONSOLE_NONE` none (dropped) | Where printf() goes. UART0 writes the hardware FIFO directly (safe from ISRs). "none" removes all console traffic. |
+| `NDF_CONSOLE_BAUD`<br>UART0 baud | ndf_config.h | `115200` | 1200 – 5000000 | Achieved rate is within 0.1% (fractional divider). |
+| `NDF_CONSOLE_TX_PIN`<br>UART0 TX pin | ndf_config.h | `43` | 0 – 48 | 43 = the ROM log pin. |
+| `NDF_CONSOLE_RX_PIN`<br>UART0 RX pin | ndf_config.h | `44` | -1 – 48 | -1: no input. |
 
 ## Boot
 
@@ -37,6 +40,20 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 |---|---|---|---|---|
 | `STACK0_SIZE`<br>Core 0 stack (bytes) | app.mk | `16384` | 2048 – 131072 | Stack of main() and core 0 interrupt handlers. Reserved after .bss in internal RAM. |
 | `STACK1_SIZE`<br>Core 1 stack (bytes) | app.mk | `16384` | 1024 – 131072 | Stack of the function started with cpu1_start() and core 1 interrupt handlers. |
+
+## Storage
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_VFS_MAX_MOUNTS`<br>VFS: mounted file systems | ndf_config.h | `4` | 1 – 16 | Mount table size. |
+| `NDF_VFS_MAX_FILES`<br>VFS: open files + directories | ndf_config.h | `16` | 1 – 64 | Shared descriptor table for all file systems. |
+| `NDF_FAT_MAX_FILES`<br>FAT: open files | ndf_config.h | `8` | 1 – 32 | Per-file state is reserved statically. |
+| `NDF_FAT_MAX_DIRS`<br>FAT: open directories | ndf_config.h | `4` | 1 – 16 | Open opendir() handles. |
+| `NDF_FAT_PATH_CACHE`<br>FAT: path cache entries | ndf_config.h | `4` | 1 – 32 | Recently resolved paths; makes repeated open() ~cheap. |
+| `NDF_SPIFFS_MAX_FILES`<br>SPIFFS: open files | ndf_config.h | `4` | 1 – 32 | Open file handles. |
+| `NDF_SPIFFS_MAX_DIRS`<br>SPIFFS: open directories | ndf_config.h | `2` | 1 – 16 | Open directory handles. |
+| `NDF_SPIFFS_MAX_BLOCKS`<br>SPIFFS: max volume (4 KB blocks) | ndf_config.h | `256` | 16 – 4096 | Largest mountable volume; costs ~30 bytes of RAM per block for the lookup mirror. |
+| `NDF_NVS_CACHE`<br>NVS: item cache entries | ndf_config.h | `8` | 1 – 64 | Recently read items; repeated nvs_get hits skip the page scan. |
 
 ## Partitions
 

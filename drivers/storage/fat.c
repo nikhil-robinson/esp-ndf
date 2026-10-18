@@ -1,11 +1,12 @@
 /* FAT12/16/32 + VFAT long names. Two one-sector caches (FAT, data/dir) with
  * write-back; FAT sectors are mirrored to every FAT copy when flushed. */
 #include "fat.h"
+#include "ndf_config.h"
 #include <string.h>
 
 #define MAXSS    4096
-#define MAXFILES 8
-#define MAXDIRS  4
+#define MAXFILES NDF_FAT_MAX_FILES
+#define MAXDIRS  NDF_FAT_MAX_DIRS
 #define DELETED  0xE5
 #define A_RO     0x01
 #define A_VOL    0x08
@@ -245,7 +246,7 @@ static uint32_t root_dc(void) { return v.bits == 32 ? v.root_clus : 0; }
 /* Path lookup cache: repeated opens/stats of the same path skip the
  * directory walk (one 4 KB sector read per directory level). Any directory
  * change (create, entry update, unlink, mkdir, format, mount) empties it. */
-#define PCACHE 4
+#define PCACHE NDF_FAT_PATH_CACHE
 static struct { char path[64]; uint32_t parent; uint16_t last_off; find_t f; bool valid; } pcache[PCACHE];
 static uint8_t pcache_next;
 static void pcache_clear(void) { for (int i = 0; i < PCACHE; i++) pcache[i].valid = false; }

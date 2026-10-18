@@ -34,6 +34,13 @@ INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
 FLAGS = -mabi=call0 -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
         -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(CFG_FLAGS) $(INCS)
 
+# Rebuild everything when the effective configuration changes (app.mk, command
+# line, adding/removing <app>/ndf_config.h); its contents are tracked by .d files.
+CFG_SIG := $(FLAGS) $(STACK0_SIZE) $(STACK1_SIZE) $(FLASH_MODE) $(FLASH_FREQ)
+$(shell mkdir -p $(OUT); echo '$(CFG_SIG)' | cmp -s - $(OUT)/config.stamp || echo '$(CFG_SIG)' > $(OUT)/config.stamp)
+.DEFAULT_GOAL := $(OUT)/app.bin
+$(OBJS) $(OUT)/app.elf $(OUT)/app.bin: $(OUT)/config.stamp $(wildcard $(APP)/ndf_config.h)
+
 $(OUT)/app.bin: $(OUT)/app.elf
 	esptool.py --chip $(SOC) elf2image --flash_mode $(strip $(FLASH_MODE)) --flash_freq $(strip $(FLASH_FREQ)) -o $@ $< >/dev/null
 	@test $$(stat -c%s $@) -le $$(( $(strip $(PART_TABLE_ADDR)) )) || (echo "image larger than PART_TABLE_ADDR ($(strip $(PART_TABLE_ADDR))): would overwrite the partition table"; rm -f $@; false)

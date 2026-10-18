@@ -9,6 +9,7 @@
  * encrypted with its partition-relative address as tweak; page headers and
  * bitmaps stay plain. */
 #include "nvs.h"
+#include "ndf_config.h"
 #include "partition.h"
 #include "flash.h"
 #include "crc32.h"
@@ -213,7 +214,7 @@ static int find_flash(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, it
 /* Recently found items, so repeated reads (parameters read every control
  * period) skip the flash. Any change to the index (write, erase, GC, mount)
  * empties it, so a hit is always the current newest copy. */
-#define NCACHE 8
+#define NCACHE NDF_NVS_CACHE
 static struct { int16_t slot; uint8_t ns, type, chunk; item_t it; } ncache[NCACHE];
 static uint8_t ncache_next;
 static void ncache_clear(void) { for (int i = 0; i < NCACHE; i++) ncache[i].slot = -1; }

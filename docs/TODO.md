@@ -146,7 +146,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] gdbstub / JTAG debugging guide, app trace (fast logging over JTAG)
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
 - [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner
-- [ ] More menuconfig options as features land (UART console, log level, watchdogs, PSRAM, ...); IDF option inventory: docs/IDF_CONFIG_INVENTORY.md
+- [x] UART0 console option; storage limits (VFS/FAT/SPIFFS/NVS) configurable; config changes trigger a rebuild
+- [ ] More menuconfig options as features land (log level, watchdogs, PSRAM, ...); IDF option inventory: docs/IDF_CONFIG_INVENTORY.md
 
 ## 9. Storage (mostly done)
 

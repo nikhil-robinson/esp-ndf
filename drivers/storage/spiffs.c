@@ -12,6 +12,7 @@
  * Speed over IDF: the lookup pages live in RAM (2 B per page), so finding
  * free pages, files and index pages never re-reads the flash lookup tables. */
 #include "spiffs.h"
+#include "ndf_config.h"
 #include "flash.h"
 #include <string.h>
 
@@ -33,9 +34,9 @@
 #define F_DELET     0x80
 #define FL_INDEX    0xF8                /* used + final + index */
 #define FL_DATA     0xFC                /* used + final */
-#define MAX_BLOCKS  256                 /* ponytail: 1 MB volume max (7.5 KB lookup mirror); raise for bigger */
-#define MAX_FD      4
-#define MAX_DIR     2
+#define MAX_BLOCKS  NDF_SPIFFS_MAX_BLOCKS /* 4 KB blocks; 30 B of lookup mirror RAM each */
+#define MAX_FD      NDF_SPIFFS_MAX_FILES
+#define MAX_DIR     NDF_SPIFFS_MAX_DIRS
 
 static const partition_t *part;
 static uint32_t nblk, cur_blk;

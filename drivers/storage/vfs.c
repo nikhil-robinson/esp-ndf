@@ -1,12 +1,13 @@
 /* VFS: prefix mount table + global fd table mapping to per-filesystem fds. */
 #include "vfs.h"
+#include "ndf_config.h"
 #include "fat.h"
 #include "spiffs.h"
 #include "console.h"
 #include <string.h>
 
-#define MAX_FS 4
-#define MAX_FD 16           /* files and directories share the table */
+#define MAX_FS NDF_VFS_MAX_MOUNTS
+#define MAX_FD NDF_VFS_MAX_FILES           /* files and directories share the table */
 #define FD0    3            /* 0..2 = console */
 
 static struct { char prefix[16]; size_t len; const vfs_ops_t *ops; } fs[MAX_FS];
