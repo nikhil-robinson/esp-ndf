@@ -12,3 +12,4 @@ int      flash_read(uint32_t addr, void *buf, size_t len);
 int      flash_erase_sector(uint32_t addr);           /* addr rounded down to 4 KB */
 int      flash_write(uint32_t addr, const void *buf, size_t len);   /* area must be erased */
 int      flash_read_lines(void);                       /* 2 = dual, 4 = quad (after first read) */
+bool     flash_cached(void);                           /* reads go through the data cache (fast path) */

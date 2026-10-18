@@ -33,8 +33,8 @@ SECTIONS
         *(.bss .bss.* .sbss .sbss.* COMMON)
         . = ALIGN(4);
         _bss_end = .;                     /* stacks stay outside the zeroed range */
-        . = ALIGN(16); . += 16K; _stack0_top = .;
-        . = ALIGN(16); . += 16K; _stack1_top = .;
+        . = ALIGN(16); . += NDF_STACK0_SIZE; _stack0_top = .;   /* sizes from app.mk (--defsym) */
+        . = ALIGN(16); . += NDF_STACK1_SIZE; _stack1_top = .;
     } > dram
 
     /DISCARD/ : { *(.comment .note.* .eh_frame .xt.prop .xt.prop.* .xtensa.info) }

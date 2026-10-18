@@ -4,7 +4,7 @@
 #include "flash.h"
 #include "md5.h"
 
-#define TABLE_ADDR 0x80000                                 /* esp-ndf layout: image below, table here */
+#define TABLE_ADDR NDF_PART_TABLE_ADDR                     /* from app.mk (default 0x80000) */
 #define TABLE_MAX  95
 
 static partition_t parts[TABLE_MAX];

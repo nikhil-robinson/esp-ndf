@@ -1,6 +1,7 @@
 /* ESP32-S3 bring-up: watchdogs, core 1, delays, faults. Clocks: clk.c.
  * No ROM calls: everything is direct register access. */
 #include "sys.h"
+#include "system.h"
 #include "soc.h"
 #include "clk.h"
 #include "xtensa.h"
@@ -69,13 +70,20 @@ static void rtc_domain_reset(void)
 void sys_start0(void)
 {
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
+#if NDF_BOOT_WDT_OFF
     wdt_off();
+#endif
+#if NDF_BOOT_RTC_RESET
     rtc_domain_reset();
+#endif
     clk_bbpll_init();
-    clk_cpu_set_mhz(240);
+    clk_cpu_set_mhz(NDF_CPU_MHZ);
     periph_enable(PERIPH_SYSTIMER);
     console_init();
     irq_enable_all();                       /* individual sources stay off until attached */
+#if NDF_BOOT_BANNER
+    sys_print_info();
+#endif
     main();
     for (;;) {}
 }

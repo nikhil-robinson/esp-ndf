@@ -9,6 +9,15 @@ PORT  ?= $(DEVKIT)
 TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-elf
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
 include soc/$(SOC)/soc.mk
+
+# ---- build-side configuration (override in $(APP)/app.mk or on the command line)
+-include $(APP)/app.mk
+FLASH_MODE      ?= dio        # image header: mode the ROM loader uses (the driver switches to QIO itself)
+FLASH_FREQ      ?= 80m        # image header: SPI clock for the ROM loader
+STACK0_SIZE     ?= 16384      # core 0 stack, bytes
+STACK1_SIZE     ?= 16384      # core 1 stack, bytes
+PART_TABLE_ADDR ?= 0x80000    # partition table offset; the image must end below it
+CFG_FLAGS = -DNDF_PART_TABLE_ADDR=$(strip $(PART_TABLE_ADDR)) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h)
 ifeq ($(NO_ACCEL),1)
   ACCEL_FLAGS = -DNDF_NO_ACCEL       # every accelerated path off: tests the portable fallbacks
   SOC_LOOPFIX := 0
@@ -23,15 +32,16 @@ INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
 
 # CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
 FLAGS = -mabi=call0 -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
-        -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(INCS)
+        -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(CFG_FLAGS) $(INCS)
 
 $(OUT)/app.bin: $(OUT)/app.elf
-	esptool.py --chip $(SOC) elf2image --flash_mode dio --flash_freq 80m -o $@ $< >/dev/null
-	@test $$(stat -c%s $@) -le 524288 || (echo "image > 512 KB: would overwrite the partition table at 0x80000"; rm -f $@; false)
+	esptool.py --chip $(SOC) elf2image --flash_mode $(strip $(FLASH_MODE)) --flash_freq $(strip $(FLASH_FREQ)) -o $@ $< >/dev/null
+	@test $$(stat -c%s $@) -le $$(( $(strip $(PART_TABLE_ADDR)) )) || (echo "image larger than PART_TABLE_ADDR ($(strip $(PART_TABLE_ADDR))): would overwrite the partition table"; rm -f $@; false)
 	@echo "built $@"
 
 $(OUT)/app.elf: $(OBJS) soc/$(SOC)/link.ld
-	@$(PFX)gcc $(FLAGS) -nostdlib -T soc/$(SOC)/link.ld -Wl,--gc-sections -o $@ $(OBJS)
+	@$(PFX)gcc $(FLAGS) -nostdlib -T soc/$(SOC)/link.ld -Wl,--gc-sections \
+	    -Wl,--defsym=NDF_STACK0_SIZE=$(strip $(STACK0_SIZE)) -Wl,--defsym=NDF_STACK1_SIZE=$(strip $(STACK1_SIZE)) -o $@ $(OBJS)
 	$(PFX)size $@
 
 # ESP32-S3 core quirk (measured): re-entering the same zero-overhead loop
@@ -61,7 +71,7 @@ flash: $(OUT)/app.bin
 PARTS ?= tools/partitions.csv
 partition:
 	python3 tools/mkpart.py $(PARTS) build/partitions.bin
-	esptool.py --chip $(SOC) -p $(PORT) write_flash 0x80000 build/partitions.bin
+	esptool.py --chip $(SOC) -p $(PORT) write_flash $(strip $(PART_TABLE_ADDR)) build/partitions.bin
 
 monitor:
 	python3 -m serial.tools.miniterm $(PORT) 115200

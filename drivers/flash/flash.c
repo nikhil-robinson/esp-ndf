@@ -130,7 +130,7 @@ static void mm_init(void)
 {
     detect_lines();
 #if SOC_HAS_FLASH_CACHE
-    if (read_lines == 4) {
+    if (read_lines == 4 && NDF_FLASH_READ == NDF_FLASH_READ_AUTO) {
         REG(S0 + 0x08) = (REG(S0 + 0x08) & ~(BIT(14) | BIT(20) | BIT(23))) | BIT(13) | BIT(24);   /* QIO */
         REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;                                         /* 6 dummy clocks */
         REG(S0 + 0x20) = 7u << 28 | 0xEB;                                                       /* cache command */
@@ -234,3 +234,4 @@ int flash_write(uint32_t addr, const void *buf, size_t len)
     return 0;
 }
 int flash_read_lines(void) { return read_lines; }
+bool flash_cached(void) { if (!mm) mm_init(); return mm > 0; }
