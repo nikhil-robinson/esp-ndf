@@ -60,6 +60,9 @@
 #ifndef NDF_LOG_LEVEL
 #define NDF_LOG_LEVEL           NDF_LOG_INFO    /* LOGx() above this level compile to nothing */
 #endif
+#ifndef NDF_PANIC_RESTART
+#define NDF_PANIC_RESTART       0       /* after a fault/assert/watchdog report: 0 halt (debugger), 1 restart */
+#endif
 #ifndef NDF_ASSERT_ENABLE
 #define NDF_ASSERT_ENABLE       1       /* 0: NDF_ASSERT() compiles to nothing */
 #endif

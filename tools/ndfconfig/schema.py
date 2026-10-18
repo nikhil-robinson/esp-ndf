@@ -71,6 +71,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
         dict(key='NDF_LOG_LEVEL', type='choice', default='NDF_LOG_INFO', target='h', label='Log level',
              choices=[('NDF_LOG_NONE', 'none'), ('NDF_LOG_ERROR', 'error'), ('NDF_LOG_WARN', 'warning'), ('NDF_LOG_INFO', 'info'), ('NDF_LOG_DEBUG', 'debug')],
              help='LOGx() calls above this level compile to nothing: no code, no strings in the image.'),
+        dict(key='NDF_PANIC_RESTART', type='bool', default=False, target='h', label='Restart after a panic',
+             help='After a fault, failed NDF_ASSERT or watchdog report (registers + backtrace) the chip halts so a '
+                  'debugger can attach. On: it restarts instead (field devices).'),
         dict(key='NDF_ASSERT_ENABLE', type='bool', default=True, target='h', label='NDF_ASSERT checks',
              help='Off: NDF_ASSERT() compiles to nothing.'),
     ]),

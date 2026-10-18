@@ -98,7 +98,8 @@ bool gdma_out_eof(int c) { return REG(OUT_INT_RAW(c)) & BIT(3); }
 bool gdma_in_eof(int c)  { return REG(IN_INT_RAW(c)) & BIT(1); }
 
 typedef struct { void (*fn)(void *); void *arg; } cb_t;
-static cb_t out_cb[5], in_cb[5];
+static cb_t out_cb[5], in_cb[5], m2m_cb[5];
+static volatile uint8_t m2m_active;                  /* bit per channel: async copy in flight */
 static int8_t out_int[5] = { -1, -1, -1, -1, -1 }, in_int[5] = { -1, -1, -1, -1, -1 };
 
 RAM_FN static void out_isr(void *a)
@@ -115,6 +116,13 @@ RAM_FN static void in_isr(void *a)
     uint32_t st = REG(IN_INT_ST(c));
     REG(IN_INT_CLR(c)) = st;
     if ((st & (BIT(0) | BIT(1))) && in_cb[c].fn) in_cb[c].fn(in_cb[c].arg);
+    if ((st & BIT(1)) && m2m_cb[c].fn) {                  /* async memcpy finished: one shot */
+        cb_t cb = m2m_cb[c];
+        m2m_cb[c].fn = 0;
+        m2m_active &= ~BIT(c);
+        REG_CLR(IN_INT_ENA(c), BIT(1));
+        cb.fn(cb.arg);
+    }
 }
 
 int gdma_on_out_eof(int c, void (*fn)(void *), void *arg, int level)
@@ -148,22 +156,50 @@ void gdma_stop(int c)
     REG_SET(IN_LINK(c), BIT(21));
 }
 
-/* up to 16 descriptors -> 65 KB per call; larger copies loop */
-static gdma_desc_t m2m_out[16], m2m_in[16];
+/* per channel: 16 descriptors each way -> 65 KB per transfer */
+#define M2M_MAX (16 * GDMA_DESC_MAX)
+static gdma_desc_t m2m_out[5][16], m2m_in[5][16];
+
+static int m2m_start(int c, void *dst, const void *src, size_t len)
+{
+    if (gdma_chain(m2m_in[c], 16, dst, len, false) < 0) return -1;
+    if (gdma_chain(m2m_out[c], 16, (void *)src, len, true) < 0) return -1;
+    gdma_in_start(c, m2m_in[c]);
+    gdma_out_start(c, m2m_out[c]);
+    return 0;
+}
 
 int gdma_memcpy(int c, void *dst, const void *src, size_t len)
 {
     uint8_t *d = dst; const uint8_t *s = src;
     while (len) {
-        size_t k = len > 16 * GDMA_DESC_MAX ? 16 * GDMA_DESC_MAX : len;
-        if (gdma_chain(m2m_in, 16, d, k, false) < 0) return -1;
-        if (gdma_chain(m2m_out, 16, (void *)s, k, true) < 0) return -1;
-        gdma_in_start(c, m2m_in);
-        gdma_out_start(c, m2m_out);
+        size_t k = len > M2M_MAX ? M2M_MAX : len;
+        if (m2m_start(c, d, s, k) < 0) return -1;
         uint32_t t = ccount();
         while (!gdma_in_eof(c))                            /* ~20 MB/s floor: 1 ms per 16 KB */
             if (ccount() - t > 240000u * (1 + k / 16384)) { gdma_stop(c); return -2; }
         d += k; s += k; len -= k;
     }
     return 0;
+}
+
+int gdma_memcpy_async(int c, void *dst, const void *src, size_t len, void (*done)(void *), void *arg, int level)
+{
+    if (!len || len > M2M_MAX) return -1;
+    if (done) {
+        if (in_int[c] < 0 && (in_int[c] = irq_attach(SRC_IN(c), level, in_isr, (void *)c)) < 0) return -1;
+        m2m_cb[c] = (cb_t){ done, arg };
+        REG(IN_INT_CLR(c)) = BIT(1);
+        REG_SET(IN_INT_ENA(c), BIT(1));
+    }
+    uint32_t ps = irq_lock(); m2m_active |= BIT(c); irq_unlock(ps);
+    int r = m2m_start(c, dst, src, len);
+    if (r < 0) { m2m_cb[c].fn = 0; ps = irq_lock(); m2m_active &= ~BIT(c); irq_unlock(ps); }
+    return r;
+}
+
+bool gdma_busy(int c)
+{
+    if ((m2m_active & BIT(c)) && gdma_in_eof(c)) { uint32_t ps = irq_lock(); m2m_active &= ~BIT(c); irq_unlock(ps); }
+    return m2m_active & BIT(c);
 }

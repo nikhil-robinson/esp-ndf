@@ -31,3 +31,54 @@ void t_core(void)
     METRIC("malloc+free 64 B", "%lu cycles", cy);
     METRIC("heap free (internal)", "%u bytes", heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
 }
+
+#include <math.h>
+#include "freertos/ringbuf.h"
+#include "esp_async_memcpy.h"
+#include "esp_task_wdt.h"
+#include "esp_private/esp_clk.h"
+
+static int cmp_int(const void *a, const void *b) { int x = *(const int *)a, y = *(const int *)b; return (x > y) - (x < y); }
+static volatile int am_done; static volatile uint32_t am_t;
+static bool IRAM_ATTR am_cb(async_memcpy_handle_t h, async_memcpy_event_t *e, void *a) { am_t = ccount(); am_done = 1; return false; }
+
+void t_core2(void)
+{
+    volatile float fa = 1.2345f, fb = 6.789f; float r = 0;
+    uint32_t c0 = ccount(); for (int i = 0; i < 100; i++) r += fa / fb; METRIC("float divide", "%lu cycles", (ccount() - c0) / 100);
+    c0 = ccount(); for (int i = 0; i < 100; i++) r += sqrtf(fb); METRIC("sqrtf", "%lu cycles", (ccount() - c0) / 100);
+    char buf[64];
+    c0 = ccount(); for (int i = 0; i < 10; i++) snprintf(buf, sizeof buf, "%.3f", 3.14159); METRIC("snprintf %.3f", "%lu cycles", (ccount() - c0) / 10);
+    c0 = ccount(); for (int i = 0; i < 10; i++) snprintf(buf, sizeof buf, "%d", 123456); METRIC("snprintf %d", "%lu cycles", (ccount() - c0) / 10);
+    c0 = ccount(); for (int i = 0; i < 10; i++) (void)strtof("3.14159", 0); METRIC("strtof", "%lu cycles (r=%d)", (ccount() - c0) / 10, (int)r);
+    static int arr[2000]; uint32_t x = 1;
+    for (int i = 0; i < 2000; i++) { x ^= x << 13; x ^= x >> 17; x ^= x << 5; arr[i] = (int)(x % 100000) - 50000; }
+    c0 = ccount(); qsort(arr, 2000, sizeof(int), cmp_int); METRIC("qsort 2000 ints", "%lu cycles", ccount() - c0);
+
+    RingbufHandle_t rb = xRingbufferCreate(1024, RINGBUF_TYPE_NOSPLIT);
+    uint8_t m16[16] = { 1 }; size_t len;
+    c0 = ccount();
+    for (int i = 0; i < 100; i++) { xRingbufferSend(rb, m16, 16, 0); void *p = xRingbufferReceive(rb, &len, 0); vRingbufferReturnItem(rb, p); }
+    METRIC("ringbuf 16 B send+receive+return", "%lu cycles", (ccount() - c0) / 100);
+    c0 = ccount();
+    for (int i = 0; i < 100; i++) { void *w; xRingbufferSendAcquire(rb, &w, 16, 0); ((uint8_t *)w)[0] = 1; xRingbufferSendComplete(rb, w); void *p = xRingbufferReceive(rb, &len, 0); vRingbufferReturnItem(rb, p); }
+    METRIC("ringbuf zero-copy acquire+complete+recv+return", "%lu cycles", (ccount() - c0) / 100);
+
+    async_memcpy_config_t cfg = ASYNC_MEMCPY_DEFAULT_CONFIG();
+    async_memcpy_handle_t am; esp_async_memcpy_install(&cfg, &am);
+    uint8_t *src = heap_caps_malloc(65472, MALLOC_CAP_DMA), *dst = heap_caps_malloc(65472, MALLOC_CAP_DMA);
+    for (int i = 0; i < 65472; i++) src[i] = (uint8_t)(i * 13 + 7);
+    c0 = ccount();
+    esp_err_t e = esp_async_memcpy(am, dst, src, 65472, am_cb, 0);
+    uint32_t st = ccount() - c0;
+    while (!am_done) {}
+    uint32_t tot = am_t - c0;
+    METRIC("async memcpy 65472 B: start", "%lu cycles (%s, data %s)", st, esp_err_to_name(e), memcmp(src, dst, 65472) ? "BAD" : "ok");
+    METRIC("async memcpy done after", "%lu cycles = %lu MB/s", tot, (uint32_t)(65472ull * 240 / tot));
+
+    esp_task_wdt_config_t wc = { .timeout_ms = 1000, .idle_core_mask = 0, .trigger_panic = false };
+    if (esp_task_wdt_init(&wc) != ESP_OK) esp_task_wdt_reconfigure(&wc);
+    esp_task_wdt_add(NULL);
+    METRIC("esp_task_wdt_reset()", "%lu cycles", CYCLES(esp_task_wdt_reset()));
+    esp_task_wdt_delete(NULL);
+}

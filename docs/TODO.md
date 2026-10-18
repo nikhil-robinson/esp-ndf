@@ -49,12 +49,11 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [~] Clocks: CPU 240/160/80/40 done; **todo**: RTC slow clock source
       (RC 136 kHz / 32 kHz crystal / 8MD256), calibration, clock output on pins (CLK_OUT)
 - [ ] XTAL 32 kHz support + **XTAL32K watchdog** (ch. 14)
-- [ ] **Watchdogs** (ch. 13): MWDT (timer groups), RTC WDT, interrupt-watchdog
-      and loop-watchdog equivalents; today all are off at boot
+- [x] **Watchdog** MWDT (`wdt.h`): report stage (stalled PC + backtrace) then system reset; [ ] RTC WDT (boot hang), interrupt-watchdog equivalent
 - [x] **Reset reason** per core (`sys_reset_cause`); [ ] wake cause (with sleep)
 - [ ] **Brownout detector**, with an ISR so motors can be cut before the reset
 - [ ] **Clock glitch detection** (ch. 24)
-- [ ] **Fault handling**: backtrace, register dump, reset-safe crash record
+- [x] **Fault handling**: register dump, stack-scan backtrace, `make backtrace`, halt/restart option; [ ] reset-safe crash record (RTC memory)
       (core dump to flash), assert
 - [ ] Software restart API, controlled reset of a single core
 - [ ] Interrupt matrix extras: per-core routing API, interrupt priorities documented, NMI (level 7) use
@@ -134,10 +133,10 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 8. Runtime and libraries (IDF: esp_system, newlib, log, ringbuf, console, cxx...)
 
-- [ ] libc completeness: `snprintf` with float, `strtol/strtoul/strtof`,
-      `qsort`, `memmove` audit, `time` functions
+- [x] libc: `snprintf` family with %f/%e/%g, `strtol/ul/ll/ull`, `strtof/strtod` (float precision), `qsort`, `bsearch`, `atoi`;
+      float runtime (`__divsf3`, `sqrtf`, conversions) IEEE-exact; [ ] correctly rounded `strtod`, double arithmetic, `time` functions
 - [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
-- [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [ ] byte ring buffer with variable-length items
+- [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
 - [ ] Event dispatch (lightweight, no RTOS)
 - [ ] Console input / command line (REPL) over USB serial
 - [ ] Unit test framework on the device (our CHECK/METRIC grown into a runner) + host tests

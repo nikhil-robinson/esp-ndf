@@ -47,6 +47,7 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 |---|---|---|---|---|
 | `NDF_SWTIMER_LEVEL`<br>Software timer IRQ level | ndf_config.h | `1` | 1 – 3 | Interrupt level the swtimer callbacks run at. Higher preempts more of the application. |
 | `NDF_LOG_LEVEL`<br>Log level | ndf_config.h | `NDF_LOG_INFO` | `NDF_LOG_NONE` none<br>`NDF_LOG_ERROR` error<br>`NDF_LOG_WARN` warning<br>`NDF_LOG_INFO` info<br>`NDF_LOG_DEBUG` debug | LOGx() calls above this level compile to nothing: no code, no strings in the image. |
+| `NDF_PANIC_RESTART`<br>Restart after a panic | ndf_config.h | `n` | y / n | After a fault, failed NDF_ASSERT or watchdog report (registers + backtrace) the chip halts so a debugger can attach. On: it restarts instead (field devices). |
 | `NDF_ASSERT_ENABLE`<br>NDF_ASSERT checks | ndf_config.h | `y` | y / n | Off: NDF_ASSERT() compiles to nothing. |
 
 ## Storage

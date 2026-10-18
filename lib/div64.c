@@ -35,3 +35,26 @@ int64_t __moddi3(int64_t n, int64_t d)
     uint64_t r = __umoddi3(n < 0 ? -(uint64_t)n : (uint64_t)n, d < 0 ? -(uint64_t)d : (uint64_t)d);
     return n < 0 ? -(int64_t)r : (int64_t)r;
 }
+
+/* 64-bit shifts by a variable count */
+uint64_t __ashldi3(uint64_t a, int b)
+{
+    uint32_t lo = (uint32_t)a, hi = (uint32_t)(a >> 32);
+    if (b & 32) { hi = lo << (b & 31); lo = 0; }
+    else if (b) { hi = hi << b | lo >> (32 - b); lo <<= b; }
+    return (uint64_t)hi << 32 | lo;
+}
+uint64_t __lshrdi3(uint64_t a, int b)
+{
+    uint32_t lo = (uint32_t)a, hi = (uint32_t)(a >> 32);
+    if (b & 32) { lo = hi >> (b & 31); hi = 0; }
+    else if (b) { lo = lo >> b | hi << (32 - b); hi >>= b; }
+    return (uint64_t)hi << 32 | lo;
+}
+int64_t __ashrdi3(int64_t a, int b)
+{
+    int32_t hi = (int32_t)(a >> 32); uint32_t lo = (uint32_t)a;
+    if (b & 32) { lo = (uint32_t)(hi >> (b & 31)); hi >>= 31; }
+    else if (b) { lo = lo >> b | (uint32_t)hi << (32 - b); hi >>= b; }
+    return (int64_t)((uint64_t)(uint32_t)hi << 32 | lo);
+}

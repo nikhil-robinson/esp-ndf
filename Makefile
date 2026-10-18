@@ -80,6 +80,10 @@ partition:
 	python3 tools/mkpart.py $(PARTS) build/partitions.bin
 	esptool.py --chip $(SOC) -p $(PORT) write_flash $(strip $(PART_TABLE_ADDR)) build/partitions.bin
 
+# decode a panic backtrace: make backtrace APP=examples/x ADDR="0x4037.. 0x4037.."
+backtrace:
+	@$(PFX)addr2line -pfiaC -e $(OUT)/app.elf $(ADDR)
+
 menuconfig:
 	python3 tools/ndfconfig/ndfconfig.py $(APP)
 
@@ -93,4 +97,4 @@ clean:
 	rm -rf build
 
 -include $(OBJS:.o=.d)
-.PHONY: flash monitor clean partition
+.PHONY: flash monitor clean partition backtrace

@@ -39,3 +39,8 @@ gdma_desc_t *gdma_in_eof_desc(int ch);
 
 /* blocking memory copy through DMA channel ch (connected as GDMA_M2M) */
 int  gdma_memcpy(int ch, void *dst, const void *src, size_t len);
+/* Start a copy (<= 65 472 B) and return at once; the CPU keeps running.
+ * done(arg) runs once in the channel's IN interrupt at `level` on the calling
+ * core when the last byte is in dst (NULL: poll gdma_busy()). */
+int  gdma_memcpy_async(int ch, void *dst, const void *src, size_t len, void (*done)(void *), void *arg, int level);
+bool gdma_busy(int ch);

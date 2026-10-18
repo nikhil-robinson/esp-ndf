@@ -13,4 +13,11 @@ uint32_t systimer_lo(void);                 /* free-running 16 MHz counter */
 /* Run fn on core 1 (once). Core 1 starts with interrupts masked. */
 void     cpu1_start(void (*fn)(void));
 
-NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr);
+NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint32_t *frame, uint32_t sp);
+/* Fatal-error report: reason, PC, registers (if frame), backtrace from a
+ * stack scan (CALL0 has no frame chain: every word on the stack that is a
+ * return address right after a call0/callx0 is listed; decode with
+ * "make backtrace APP=... ADDR='0x... 0x...'"). Then halts or restarts
+ * (NDF_PANIC_RESTART). */
+NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp);
+void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp);   /* print only, interrupts left masked */

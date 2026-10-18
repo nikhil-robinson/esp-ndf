@@ -670,3 +670,17 @@ examples/core_test (DEVKIT) vs bench/idf_periph [core]:
 - 32 concurrent timers (100..3200 us) counts within +-1; stop-from-own-callback; start from core 1 (fires on core 0, the ISR owner).
 - heap: 16-byte aligned, boundary tags, whole region merges back; malloc+free 64 B 165 cycles (IDF 1346). 346 688 B free with 16 KB stacks.
 - delay_ms(250) = 250 001 us (was 250 046 when looping delay_us(1000)); delay_us safe beyond 17.9 s (chunked).
+
+## Runtime library round: float, libc, ring buffer, async DMA, watchdog, panic (2026-10-18)
+
+- Float helpers (libgcc is windowed, unusable): `__divsf3`/`sqrtf` on the FPU helper instructions (same sequence as the ROM, CALL0): 56 / 58 cycles vs IDF 75 / 118. Portable versions (integer long division; Newton + residual choice) kept and tested. Conversions float<->double, int64<->float, 64-bit shifts. examples/libc_test: 1 725 numpy IEEE vectors bit-exact for divide and sqrt (both implementations), 1 500 each for double->float and int64->float.
+  - First divide (Newton in float) missed 6/1725 by 1 ulp at the normal/denormal edge -> replaced.
+- printf family: snprintf/vsnprintf/sprintf/puts/putchar, %f %e %g (+ precision, + and space flags, %.Ns), round-half-even on exact ties like glibc; 39 reference formats match C. %.3f 4 575 -> 1 577 cycles by generating only prec+1 digits (IDF 11 862).
+  - Zero hung the tiny-value scaling loop (mantissa 0) -> early return.
+- stdlib: strtol/ul/ll/ull (saturating, base 0/2..36), atoi/atol/atoll, strtof/strtod (float precision), qsort (316 cycles/element on 2 000 ints vs IDF 415), bsearch, abs.
+- ringbuf.h: SPSC byte ring, contiguous items, zero-copy both sides. 16 B put+get 303 cycles, zero-copy 105 (IDF xRingbuffer 1 102 / 1 237). Core1->core0 20 000 variable items through 1 KB: intact, 1 107 cycles/item.
+- gdma_memcpy_async: start 1 404 cycles, 65 472 B done in 247 975 cycles (63 MB/s), CPU free meanwhile (IDF esp_async_memcpy: start 56 756, 51 MB/s). Per-channel descriptor sets (the blocking copy shared one set across channels).
+- Watchdog (TIMG0 MWDT): feed 27 cycles (IDF esp_task_wdt_reset 362). Report stage: level-3 interrupt prints the stalled PC + backtrace, stage 1 resets; next boot reads "TG0 watchdog (system)".
+- Panic: registers a0-a15 (a12-a15 saved into the free frame words), SAR/loop regs, stack-scan backtrace (return addresses that follow call0/callx0), `make backtrace`, NDF_PANIC_RESTART. examples/sys_test runs 3 boots: watchdog report -> TG0WDT reset -> fault report -> software restart; traces decode to the exact source lines.
+- BUG FIXED: level 2-5 interrupts (and exceptions) run with PS.EXCM = 1, which disables zero-overhead loop-back: every C loop in a level 2-5 handler executed its body once (printf in a level-3 ISR printed 1 char, stack buffers not zeroed). Entry now writes PS = UM | level early in the register save (no rsync needed); fault paths clear EXCM before C. Level 3 entry 66 (was 63-67), level 5 C 53 / lost 115 (was 46-49 / 109).
+- periph_test: RAM 5 KB over after this round -> its core-1 stack set to 8 KB via app.mk (menuconfig).

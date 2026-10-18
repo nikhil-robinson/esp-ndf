@@ -10,7 +10,9 @@
  * Level 1 arrives with PS.EXCM = 1, which also masks levels 2-3. We drop to
  * PS.INTLEVEL = 1 / EXCM = 0 so levels 2..5 preempt level-1 handlers
  * (NVIC-style nesting) and exceptions inside handlers report as faults.
- * Levels 2..5 arrive with INTLEVEL = n set by hardware; nothing to change.
+ * Levels 2..5 arrive with INTLEVEL = n and EXCM = 1; we clear EXCM (keeping
+ * INTLEVEL = n), because with EXCM set the core never loops back in a
+ * zero-overhead LOOP: every C loop in a handler would run its body once.
  *
  * FPU is disabled (CPENABLE = 0) inside handlers: an ISR touching floats
  * traps into ndf_fault() instead of corrupting the interrupted FP state. */
@@ -79,12 +81,16 @@ _vector_table:
     .section .iram.text, "ax"
     .literal_position
 
-.macro SAVE excsave
+.macro SAVE excsave, ps=0
     addi    a1, a1, -FRAME
     s32i    a2, a1, 4
     rsr     a2, \excsave
     s32i    a2, a1, 0           /* original a0 */
     s32i    a3, a1, 8
+.if \ps
+    movi    a3, \ps             /* new PS early: the 15 instructions below cover */
+    wsr     a3, ps              /* the pipeline delay, so no rsync is needed */
+.endif
     s32i    a4, a1, 12
     s32i    a5, a1, 16
     s32i    a6, a1, 20
@@ -183,18 +189,27 @@ _l1_entry:
     RESTORE
     rfe
 
-_l1_exception:                       /* frame holds the regs */
+_l1_exception:                       /* frame holds a0..a11; add a12..a15 for the dump */
+    s32i    a12, a1, 64
+    s32i    a13, a1, 68
+    s32i    a14, a1, 72
+    s32i    a15, a1, 76
     movi    a2, 1                   /* kind 1 = synchronous exception */
     rsr     a3, exccause
     rsr     a4, epc1
     rsr     a5, excvaddr
-    call0   ndf_fault                /* never returns */
+    mov     a6, a1                   /* saved registers */
+    addi    a7, a1, FRAME            /* stack pointer of the faulting code */
+    movi    a8, PS_UM | 5            /* EXCM = 0 so C loops work in the report; levels <= 5 masked */
+    wsr     a8, ps
+    rsync
+    call0   ndf_fault
 
 /* ---- levels 2..5 -------------------------------------------------------- */
 .macro HL_ENTRY lvl, mask
     .align 4
 _l\lvl\()_entry:
-    SAVE    excsave\lvl
+    SAVE    excsave\lvl, PS_UM | \lvl   /* EXCM = 0: zero-overhead loops only loop back with it clear; rfi restores PS from EPSn */
     DISPATCH \mask
     RESTORE
     rfi     \lvl
@@ -204,7 +219,7 @@ _l\lvl\()_entry:
 .macro FAST_ENTRY lvl, slot
     .align 4
 _l\lvl\()_entry:
-    SAVE    excsave\lvl
+    SAVE    excsave\lvl, PS_UM | \lvl   /* EXCM = 0: zero-overhead loops only loop back with it clear; rfi restores PS from EPSn */
     rsr     a2, prid
     movi    a3, irq_fast + \slot * 8
     extui   a2, a2, 13, 1
@@ -246,6 +261,11 @@ _double:
     rsr     a3, exccause
     rsr     a4, depc
     rsr     a5, excvaddr
+    movi    a6, 0                    /* no saved frame */
+    mov     a7, a1
+    movi    a8, PS_UM | 5            /* EXCM = 0 so C loops work in the report; levels <= 5 masked */
+    wsr     a8, ps
+    rsync
     call0   ndf_fault
 
     .align 4
@@ -254,4 +274,9 @@ _unexpected:
     rsr     a3, exccause
     rsr     a4, epc1
     rsr     a5, excvaddr
+    movi    a6, 0
+    mov     a7, a1
+    movi    a8, PS_UM | 5            /* EXCM = 0 so C loops work in the report; levels <= 5 masked */
+    wsr     a8, ps
+    rsync
     call0   ndf_fault

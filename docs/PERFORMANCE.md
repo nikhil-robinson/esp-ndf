@@ -29,16 +29,23 @@ updated with every measured change.
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
 | Software timer, 1 ms periodic: period spread / drift per 1 s | **0 / 0 µs** | `esp_timer`: 981–1000 µs / −19 µs | exact |
 | `malloc` + `free`, 64 B | **165 cycles** | IDF: 1 346 | **8.2×** |
+| Float divide / `sqrtf` | **56 / 58 cycles** | IDF: 75 / 118 | **1.3× / 2×** |
+| `snprintf("%.3f")` | **1 577 cycles** | IDF newlib: 11 862 | **7.5×** |
+| Ring buffer, 16 B item, zero-copy | **105 cycles** | IDF `xRingbuffer`: 1 237 | **11.8×** |
+| Async DMA copy 64 KB: start cost | **1 404 cycles** | `esp_async_memcpy`: 56 756 | **40×** |
+| Watchdog feed | **27 cycles** | `esp_task_wdt_reset`: 362 | **13×** |
 
 ## Interrupts
 
 | Measurement | esp-ndf | ESP-IDF | Floor | Status |
 |---|---|---|---|---|
 | Timer → first C line, level 1 | 76–81, 0 jitter | 219–405 | ~70 | near floor |
-| Level 3 | 63–67, 0 jitter | 214–274 | ~60 | near floor |
-| Level 5, C handler | 46–49 | assembly only | ~45 | at floor for C |
+| Level 3 | 66, 0 jitter | 214–274 | ~60 | near floor |
+| Level 5, C handler | 53 | assembly only | ~50 | at floor for C (includes clearing PS.EXCM, see note) |
 | **Level 5, naked handler (entry / exit / lost)** | **14 / 12 / 36** | — | ~10 / ~10 / ~30 | at floor |
-| C handler, total lost, level 1 / 3 / 5 | 160 / 138 / 109 | — | — | at floor (tried variants measured slower) |
+| C handler, total lost, level 1 / 3 / 5 | 160 / 141 / 115 | — | — | at floor (tried variants measured slower) |
+
+Note (2026-10-18): level 2–5 C handlers now clear PS.EXCM on entry. With EXCM set, the core never loops back in a zero-overhead `LOOP`, so any C loop in such a handler ran its body once (found when `printf` in a level-3 handler printed one character). The PS write sits at the start of the register save, so it needs no `rsync`: level 3 is unchanged, level 5 C pays 6 cycles. Naked level 4/5 handlers are not affected (14 cycles).
 | GPIO edge → ISR | 191 | 356–393 | — | — |
 
 Cortex-M4 for reference: 12 cycles to the first handler instruction. Our naked
@@ -54,6 +61,21 @@ path reaches its first instruction about 11 cycles after the event.
 | `delay_ms(250)` measured | 250 001 µs | `vTaskDelay`: 249 645 µs (tick-quantised) | — | — |
 | `malloc` + `free`, 64 B | 165 cycles | 1 346 | — | first fit, O(1) merge |
 | Heap available (default stacks) | 346 688 B | 262 804 B internal | — | — |
+
+## Runtime library (libc, float, ring buffer, async DMA, watchdog)
+
+| Measurement | esp-ndf | ESP-IDF | Status |
+|---|---|---|---|
+| Float divide | 56 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
+| `sqrtf` | 58, IEEE-exact | 118 (newlib wrapper + errno) | — |
+| `snprintf` `%.3f` / `%d` | 1 577 / 972 | 11 862 / 2 957 | floats from the double's bits, integer only |
+| `strtof("3.14159")` | 383 | 2 797 | exact for short inputs |
+| `qsort` 2 000 ints | 632 809 (316 per element) | 830 658 | word-swap fast path |
+| Ring buffer 16 B put + get (copy) | 303 | 1 102 | lock-free SPSC |
+| Ring buffer zero-copy reserve/commit/peek/release | 105 | 1 237 | — |
+| Ring buffer core 1 → core 0, 20 000 items of 1–200 B | 1 107 cycles/item, all intact | — | — |
+| Async DMA memcpy 64 KB: start / throughput | 1 404 cycles / 63 MB/s | 56 756 / 51 MB/s | per-channel descriptors, one-shot callback |
+| Watchdog feed | 27 | 362 (`esp_task_wdt_reset`) | 3 register writes |
 
 ## Two cores
 

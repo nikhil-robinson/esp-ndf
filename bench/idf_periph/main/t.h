@@ -33,3 +33,4 @@ void t_spiffs(void);
 void t_nvs_enc(void);
 void t_rtcio(void);
 void t_core(void);
+void t_core2(void);

@@ -11,6 +11,8 @@ Build and flash any of them with `make APP=examples/<name> flash` (add
 | `irq_latency` | any | interrupt entry latency per level, in CPU cycles |
 | `rtc_hold` | devkit, scope on GPIO4 | keep an output driven through a full system reset (pad hold) |
 | `core_test` | any | time base, software timers (drift, latency, 32 timers, cross-core), heap, delays, log |
+| `libc_test` | any | float divide/sqrt/conversions bit-exact vs host IEEE vectors, printf/snprintf formats, strto*, qsort |
+| `sys_test` | DEVKIT | ring buffer (incl. core1->core0), async DMA copy, watchdog report + reset, fault panic + restart (3 boots) |
 | `sysinfo` | any | system API + configuration: banner, reset cause, flash/clock info; app-level `ndf_config.h` / `app.mk` overrides |
 | `storage` | any | NVS boot counter, FAT on wear levelling and SPIFFS through the VFS |
 | `box3_lcd` | ESP32-S3-BOX-3 | ILI9342C display over SPI |
