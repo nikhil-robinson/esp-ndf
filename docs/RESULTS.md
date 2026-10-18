@@ -545,3 +545,19 @@ completely (1 053 / 10 017 on every call). Applied everywhere:
   instruction before each GCC-generated loop (Makefile LOOPFIX), one
   instruction per loop entry, nothing per iteration
 Full peripheral suite: all pass after the change.
+
+## Flash read: QIO + overlapped buffer halves (examples/flash_speed)
+
+SPI1 data registers cost 18–24 CPU cycles per read, so draining 64 bytes
+left the bus idle ~1.2 µs per transaction. Now: QIO fast read (0xEB, address
+on 4 lines, 6 dummy clocks) in 32-byte transactions alternating between the
+low (W0-7) and high (W8-15) buffer halves; the CPU drains one half while the
+next transfer runs.
+
+| 4 KB read | before | now |
+|---|---|---|
+| time | 269 µs | **209 µs** (IDF esp_flash: 462 µs) |
+| data check | — | sizes 1-600 x 4 offsets 0 wrong; crc32 of 4 KB = host file (ecfd9371) |
+
+Knock-on (full suite, all pass): nvs_get_u32 2 338 -> 1 747 cycles, encrypted
+4 863 -> 4 711, boot reader 618 -> 456 µs, FAT open 65 882 -> 51 489 cycles.

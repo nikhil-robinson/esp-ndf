@@ -86,27 +86,44 @@ int flash_read(uint32_t addr, void *buf, size_t len)
             REG(0x60009004 + 4 * 28) = BIT(9) | 3u << 10;   /* SPIWP */
         }
     }
-    /* configure once, then per 64-byte chunk only address + start + copy out */
+    /* Quad: QIO read (0xEB, address on 4 lines, 6 dummy clocks). 32-byte
+     * transactions alternate between the low (W0-7) and high (W8-15) data
+     * buffer halves, so draining one half overlaps the next transfer. */
     uint32_t ctrl = REG(CTRL);
-    REG(CTRL) = (ctrl & ~MODE_MASK) | BIT(13) | (read_lines == 4 ? BIT(20) : BIT(14));
-    REG(USER) = BIT(31) | BIT(30) | BIT(29) | BIT(28) | BIT(6) | BIT(7);
-    REG(USER1) = 23u << 26 | 7;                              /* 24-bit address, 8 dummy clocks */
-    REG(USER2) = (read_lines == 4 ? 0x6B : 0x3B) | 7u << 28;
+    bool q = read_lines == 4;
+    REG(CTRL) = (ctrl & ~MODE_MASK) | BIT(13) | (q ? BIT(24) : BIT(14));
+    REG(USER1) = 23u << 26 | (q ? 5 : 7);                    /* 24-bit address; 6 (QIO) or 8 dummy clocks */
+    REG(USER2) = (q ? 0xEB : 0x3B) | 7u << 28;
+    const uint32_t user = BIT(31) | BIT(30) | BIT(29) | BIT(28) | BIT(6) | BIT(7);
     uint8_t *b = buf;
     int rc = 0;
+    size_t n = len > 32 ? 32 : len;
+    int half = 0;                                            /* 0: W0-7, 1: W8-15 */
+    REG(USER) = user;
+    REG(ADDR) = addr;                                        /* plain address (24-bit field); QIO mode bits ride in the dummy clocks */
+    REG(MISO_DLEN) = n * 8 - 1;
+    REG(CMD) = BIT(18);
     while (len) {
-        size_t n = len > 64 ? 64 : len;
-        REG(ADDR) = addr;
-        REG(MISO_DLEN) = n * 8 - 1;
-        REG(CMD) = BIT(18);
         uint32_t t = ccount();
         while (REG(CMD) & BIT(18)) if (ccount() - t > 2400000) { rc = -1; goto out; }
-        if (!((uintptr_t)b & 3) && n == 64) {
-            for (int i = 0; i < 16; i++) ((uint32_t *)b)[i] = REG(W(i));
-        } else {
-            for (size_t i = 0; i < n; i++) b[i] = REG(W(i / 4)) >> (8 * (i & 3));
+        size_t done_n = n;
+        int done_half = half;
+        addr += n; len -= n;
+        if (len) {                                           /* next transfer into the other half */
+            n = len > 32 ? 32 : len;
+            half ^= 1;
+            REG(USER) = user | (half ? BIT(24) : 0);
+            REG(ADDR) = addr;
+            REG(MISO_DLEN) = n * 8 - 1;
+            REG(CMD) = BIT(18);
         }
-        addr += n; b += n; len -= n;
+        uint32_t w0 = done_half * 8;                         /* drain the finished half meanwhile */
+        if (!((uintptr_t)b & 3) && done_n == 32) {
+            for (int i = 0; i < 8; i++) ((uint32_t *)b)[i] = REG(W(w0 + i));
+        } else {
+            for (size_t i = 0; i < done_n; i++) b[i] = REG(W(w0 + i / 4)) >> (8 * (i & 3));
+        }
+        b += done_n;
     }
 out:
     REG(CTRL) = ctrl;

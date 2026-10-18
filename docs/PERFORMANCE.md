@@ -23,7 +23,8 @@ updated with every measured change.
 | Core → core stream, per item | **18 cycles** push | FreeRTOS queue: 384 | **21×** |
 | int16 dot product, 1024 elements | **405 cycles** | ESP-DSP: 1 073 | **2.6×** |
 | `memcpy` 8 KB, aligned | **1 738 MB/s** | IDF ROM `memcpy`: 382 MB/s | **4.5×** |
-| NVS read (encrypted) | **4 863 cycles** | IDF: 82 455 | **17×** |
+| NVS read (encrypted) | **4 711 cycles** | IDF: 82 455 | **17×** |
+| NVS read (plain) | **1 747 cycles** | IDF: 26 269 | **15×** |
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
 
 ## Interrupts
@@ -108,16 +109,17 @@ entry, applied to all code, including every loop GCC generates.
 
 | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|
-| Flash read 4 KB | **269 µs** | 462 µs | 1.7× | **room ~2.5×** (quad 80 MHz) |
+| Flash read 4 KB | **209 µs** (was 269) | 462 µs | 2.2× | room ~1.6× (SPI1 register path; XIP cache next) |
 | Flash erase 4 KB | **642 µs** | 1 041 µs | 1.6× | chip-bound |
 | Flash write 4 KB | **10.8 ms** | 12.4 ms | 1.15× | chip-bound |
-| NVS read u32 | **2 338** | 26 269 | 11× | **room** (RAM cache) |
+| NVS read u32 | **1 747** (was 2 338) | 26 269 | 15× | room (RAM cache) |
 | NVS update u32 | **552 µs** | 757 µs | 1.4× | flash-bound |
-| NVS read u32, encrypted | **4 863** | 82 455 | 17× | room |
+| NVS read u32, encrypted | **4 711** | 82 455 | 17× | room |
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
 | SPIFFS 40 × 30 KB rewrites | **7.4 s** | 10.9 s | 1.5× | — |
-| FAT open (path lookup) | **65 882** | 70 187 | 1.07× | **room** (directory cache) |
+| FAT open (path lookup) | **51 489** (was 65 882) | 70 187 | 1.36× | room (directory cache) |
+| NVS boot reader, 8 keys | **456 µs** (was 618) | not in IDF 5.3 | — | — |
 
 ## Whole system: dual-core control loops (bench/)
 
@@ -127,7 +129,7 @@ entry, applied to all code, including every loop GCC generates.
 
 ## Where there is still room (work queue)
 
-1. Flash read: our ~16 MB/s against ~40 MB/s possible with quad SPI at 80 MHz.
+1. Flash read: now 19.6 MB/s (QIO + overlapped buffer halves). The SPI1 register path costs ~47 clocks per 32 B; cache/XIP burst reads are the next step.
 2. SPI small transfers: setup overhead, not wire time.
 3. GPTimer read: a read through the timer's latch path; a CPU cycle-counter base would be near-zero cost.
 4. NVS and FAT lookups: in-RAM caches of entries and directory blocks.
