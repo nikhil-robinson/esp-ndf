@@ -391,3 +391,27 @@ Data/directory sectors keep the same erase+program window as IDF's WL.
 
 examples/storage: NVS boot counter + one log appended through the VFS to
 FAT-on-WL and to SPIFFS each boot (verified over several resets).
+
+## Sharing data between the cores (examples/xcore_bench vs bench/idf_xcore)
+
+Round trip = core 0 sends, core 1 answers, core 0 sees the answer (one way is about half). 10 000 runs each, in CPU cycles (240 = 1 µs).
+
+| Method | esp-ndf | ESP-IDF (FreeRTOS) |
+|---|---|---|
+| plain 32-bit word | min 30, avg 42, max 49 | min 26, avg 27, **max 1991** (tick interrupts) |
+| 16-byte struct with sequence counter | min 37, avg 74, max 78 | — (no IDF equivalent) |
+| lock-protected word | min 47, avg 67, max 68 (`xc_spin`) | min 219, avg 222, max 2241 (`portMUX`) |
+| lock + unlock, uncontended | 19–23 | 405 |
+| cross-core interrupt / call | **143, fixed** (`xc_notify`) | 363 178 – 479 979 (`esp_ipc_call_blocking`, 1.5–2 ms) |
+| queue between cores | — | min 2897, avg 3587, max 6224 (FreeRTOS queue) |
+
+Correctness, measured on the board:
+- spinlock with both cores incrementing one counter 100 000 times each:
+  200 000 exactly (49–53 cycles per lock + increment + unlock while contended)
+- 16-byte struct rewritten back to back by core 0 for 100 ms while core 1
+  reads: with the sequence counter 0 torn of 201 681 reads; without any
+  protection **every read was torn** (201 681 of 201 681)
+- writer at 1 MHz: 0 torn with the sequence counter (188 237 reads)
+
+Internal SRAM is uncached on the S3, so no cache maintenance is needed; a
+`memw` barrier costs 2–3 cycles.
