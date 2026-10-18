@@ -1,5 +1,6 @@
 #include "test.h"
 #include "nvs.h"
+#include "partition.h"
 #include "crc32.h"
 #include <string.h>
 
@@ -54,4 +55,57 @@ void test_nvs(void)
     CHECK(nvs_get_u32(h, "counter", &ctr) == 0 && ctr == 599);
     bl = sizeof back; CHECK(nvs_get_blob(h, "big10k", back, &bl) == 0 && bl == 10000 && !memcmp(back, big, 10000));
     METRIC("nvs_get_u32()", "%lu cycles", CYCLES(nvs_get_u32(h, "counter", &ctr)));
+}
+
+/* Encrypted NVS on "nvs_enc" with keys from "nvs_keys" (both made on the
+ * host by tools/nvstool.py: keygen + gen --keyfile). */
+void test_nvs_enc(void)
+{
+    uint8_t key[64];
+    if (nvs_read_keys("nvs_keys", key)) { printf("    (no nvs_keys partition content: skipped)\n"); return; }
+    uint32_t t = ccount();
+    CHECK(nvs_mount_secure("nvs_enc", key) == 0);
+    printf("    secure mount %lu us\n", (ccount() - t) / 240);
+    nvs_handle_t h;
+    uint32_t u; char s[48]; size_t sl = sizeof s, bl;
+    if (nvs_open("gen", &h) == 0 && nvs_get_u32(h, "u32", &u) == 0) {      /* host-generated image */
+        bl = sizeof back;
+        CHECK(nvs_get_str(h, "str", s, &sl) == 0 && nvs_get_blob(h, "blob", back, &bl) == 0);
+        printf("    host image: u32 %lu, str \"%s\", blob %u B crc32 %08lx\n", u, s, bl, crc32_le(0, back, bl));
+    }
+    if (nvs_open("idf", &h) == 0) {
+        sl = sizeof s;
+        if (nvs_get_str(h, "from_idf", s, &sl) == 0 && nvs_get_u32(h, "ctr", &u) == 0)
+            printf("    written by IDF: from_idf \"%s\", ctr %lu\n", s, u);
+    }
+    CHECK(nvs_open("ndf", &h) == 0);
+    pattern(big, sizeof big, 7);
+    CHECK(nvs_set_str(h, "secret", "esp-ndf encrypted entry") == 0);
+    CHECK(nvs_set_blob(h, "blob6k", big, 6000) == 0);
+    int fails = 0;
+    t = ccount();
+    for (uint32_t i = 0; i < 400; i++) fails += nvs_set_u32(h, "ctr", i) != 0;   /* GC re-encrypts moved entries */
+    uint32_t us = (ccount() - t) / 240;
+    CHECK(fails == 0);
+    CHECK(nvs_mount_secure("nvs_enc", key) == 0);
+    sl = sizeof s; bl = sizeof back;
+    CHECK(nvs_get_str(h, "secret", s, &sl) == 0 && !strcmp(s, "esp-ndf encrypted entry"));
+    CHECK(nvs_get_blob(h, "blob6k", back, &bl) == 0 && bl == 6000 && !memcmp(back, big, 6000));
+    CHECK(nvs_get_u32(h, "ctr", &u) == 0 && u == 399);
+    /* ciphertext on flash: the plaintext must not appear anywhere */
+    const partition_t *p = partition_find(PART_DATA, PART_SUB_NVS, "nvs_enc");
+    int plain = 0;
+    for (uint32_t off = 0; off < p->size; off += 4096) {
+        partition_read(p, off, back, 4096);
+        for (int i = 0; i + 8 <= 4096; i++) plain += !memcmp(back + i, "esp-ndf ", 8);
+    }
+    CHECK(plain == 0);
+    /* wrong key: entries fail their CRC, nothing readable */
+    key[0] ^= 1;
+    CHECK(nvs_mount_secure("nvs_enc", key) == 0 && nvs_get_u32(h, "ctr", &u) == NVS_NOT_FOUND);   /* read-only probe */
+    key[0] ^= 1;
+    CHECK(nvs_mount_secure("nvs_enc", key) == 0);
+    METRIC("nvs_get_u32() encrypted", "%lu cycles", CYCLES(nvs_get_u32(h, "ctr", &u)));
+    printf("    400 encrypted updates: %lu us each\n", us / 400);
+    CHECK(nvs_mount("nvs") == 0);
 }

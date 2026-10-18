@@ -30,3 +30,4 @@ void t_part(void);
 void t_nvs(void);
 void t_fat(void);
 void t_spiffs(void);
+void t_nvs_enc(void);

@@ -8,7 +8,11 @@ typedef enum { NVS_OK = 0, NVS_NOT_FOUND = -1, NVS_NO_SPACE = -2, NVS_ERR = -3, 
 typedef uint8_t nvs_handle_t;                 /* namespace index */
 
 int  nvs_mount(const char *partition_label);  /* scan + index; formats blank pages */
-int  nvs_open(const char *ns, nvs_handle_t *h);   /* creates the namespace on first use */
+int  nvs_open(const char *ns, nvs_handle_t *h);
+/* Encrypted NVS (IDF NVS encryption): XTS-AES-256, key = eky[32] | tky[32]. */
+int  nvs_mount_secure(const char *partition_label, const uint8_t key[64]);
+/* keys from an nvs_keys partition (as written by tools/nvstool.py keygen) */
+int  nvs_read_keys(const char *keys_partition_label, uint8_t key[64]);   /* creates the namespace on first use */
 
 int  nvs_set_u8(nvs_handle_t, const char *k, uint8_t v);
 int  nvs_set_i8(nvs_handle_t, const char *k, int8_t v);

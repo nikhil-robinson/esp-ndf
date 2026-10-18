@@ -4,11 +4,15 @@
  *       [64 + 32 i] 126 entries.
  * Item: ns, type, span, chunk, crc32, key[16], data[8]; strings/blob data
  * continue in the following span-1 entries.
- * A RAM index of written items makes lookups flash-free. */
+ * A RAM index of written items makes lookups flash-free.
+ * Encryption (optional, IDF-compatible): every 32 B entry is XTS-AES-256
+ * encrypted with its partition-relative address as tweak; page headers and
+ * bitmaps stay plain. */
 #include "nvs.h"
 #include "partition.h"
 #include "flash.h"
 #include "crc32.h"
+#include "aes.h"
 #include <string.h>
 
 #define PAGE        4096
@@ -44,6 +48,7 @@ static page_t pg[MAXPAGES];
 static ent_t idx[MAXPAGES * ENTRIES];
 static int nidx;
 static uint32_t max_seq;
+static const uint8_t *xkey;             /* 64 B XTS key, NULL = plain */
 
 static uint32_t addr_of(int p, int e) { return p * PAGE + 64 + 32 * e; }
 static int  est(int p, int e)         { return pg[p].bitmap[e / 16] >> (2 * (e % 16)) & 3; }
@@ -55,6 +60,30 @@ static uint32_t item_crc(const item_t *it)
     uint32_t c = crc32_le(0xFFFFFFFF, p, 4);
     c = crc32_le(c, p + 8, 16);
     return crc32_le(c, p + 24, 8);
+}
+
+/* entry area I/O: addr is entry-aligned; reads may stop mid-entry */
+static int ent_rd(uint32_t addr, void *buf, size_t len)
+{
+    if (!xkey) return partition_read(part, addr, buf, len);
+    uint8_t t[32];
+    for (size_t off = 0; off < len; off += 32) {
+        if (partition_read(part, addr + off, t, 32)) return -1;
+        aes_xts(xkey, addr + off, false, t, t, 32);
+        memcpy((uint8_t *)buf + off, t, len - off < 32 ? len - off : 32);
+    }
+    return 0;
+}
+
+static int ent_wr(uint32_t addr, const void *buf, size_t len)      /* len: whole entries */
+{
+    if (!xkey) return partition_write(part, addr, buf, len);
+    uint8_t t[32];
+    for (size_t off = 0; off < len; off += 32) {
+        aes_xts(xkey, addr + off, true, (const uint8_t *)buf + off, t, 32);
+        if (partition_write(part, addr + off, t, 32)) return -1;
+    }
+    return 0;
 }
 
 /* ---- page level ---------------------------------------------------------- */
@@ -115,7 +144,7 @@ static int index_page(int p)                                  /* add page p's wr
     for (int e = 0; e < ENTRIES; ) {
         if (est(p, e) != 2) { e++; continue; }
         item_t it;
-        if (partition_read(part, addr_of(p, e), &it, 32)) return -1;
+        if (ent_rd(addr_of(p, e), &it, 32)) return -1;
         int span = it.span ? it.span : 1;
         if (it.crc == item_crc(&it) && span <= ENTRIES - e) {
             idx[nidx++] = (ent_t){ p, e, it.ns, it.type, span, it.chunk, khash(it.key) };
@@ -145,8 +174,8 @@ static int gc(void)
         if (idx[i].page != victim) continue;
         int e = pg[dst].next;
         for (int s = 0; s < idx[i].span; s++) {
-            if (partition_read(part, addr_of(victim, idx[i].idx + s), buf, 32) ||
-                partition_write(part, addr_of(dst, e + s), buf, 32)) return NVS_ERR;
+            if (ent_rd(addr_of(victim, idx[i].idx + s), buf, 32) ||
+                ent_wr(addr_of(dst, e + s), buf, 32)) return NVS_ERR;
         }
         if (set_state(dst, 0, e, e + idx[i].span, 2)) return NVS_ERR;
         pg[dst].next += idx[i].span;
@@ -175,6 +204,8 @@ static int room(int span)
     return NVS_NO_SPACE;
 }
 
+static int nvs_mount_(const char *label);
+
 /* ---- items --------------------------------------------------------------- */
 static int find(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *out)
 {
@@ -184,7 +215,7 @@ static int find(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *
         ent_t *x = &idx[i];
         if (x->hash != h || x->ns != ns || (type != 0xFF && x->type != type) || (chunk != CHUNK_ANY && x->chunk != chunk)) continue;
         item_t it;
-        if (partition_read(part, addr_of(x->page, x->idx), &it, 32) || strncmp(it.key, k, 16)) continue;
+        if (ent_rd(addr_of(x->page, x->idx), &it, 32) || strncmp(it.key, k, 16)) continue;
         /* duplicates (crash between write-new and erase-old): newest wins */
         if (hit < 0 || pg[x->page].seq > pg[idx[hit].page].seq ||
             (x->page == idx[hit].page && x->idx > idx[hit].idx)) { hit = i; if (out) *out = it; }
@@ -225,10 +256,10 @@ static int write_item(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, co
             size_t n = len - off < 32 ? len - off : 32;
             memset(tmp, 0xFF, 32);
             memcpy(tmp, (const uint8_t *)payload + off, n);
-            if (partition_write(part, addr_of(active, e + 1 + off / 32), tmp, 32)) return NVS_ERR;
+            if (ent_wr(addr_of(active, e + 1 + off / 32), tmp, 32)) return NVS_ERR;
         }
     }
-    if (partition_write(part, addr_of(active, e), &it, 32)) return NVS_ERR;
+    if (ent_wr(addr_of(active, e), &it, 32)) return NVS_ERR;
     if (set_state(active, 0, e, e + span, 2)) return NVS_ERR;
     pg[active].next += span;
     idx[nidx++] = (ent_t){ active, e, ns, type, span, chunk, khash(k) };
@@ -277,7 +308,7 @@ static int erase_all_of(uint8_t ns, const char *k, uint8_t type)
     for (int i = nidx - 1; i >= 0; i--) {
         if (idx[i].ns != ns || idx[i].hash != h || (type != 0xFF && idx[i].type != type)) continue;
         item_t t;
-        partition_read(part, addr_of(idx[i].page, idx[i].idx), &t, 32);
+        ent_rd(addr_of(idx[i].page, idx[i].idx), &t, 32);
         if (!strncmp(t.key, k, 16) && erase_ent(i)) return NVS_ERR;
     }
     return 0;
@@ -304,7 +335,7 @@ int nvs_get_str(nvs_handle_t ns, const char *k, char *s, size_t *len)
     if (i < 0) return NVS_NOT_FOUND;
     if (!s) { *len = it.var.size; return 0; }
     if (*len < it.var.size) { *len = it.var.size; return NVS_TOO_BIG; }
-    if (partition_read(part, addr_of(idx[i].page, idx[i].idx + 1), s, it.var.size)) return NVS_ERR;
+    if (ent_rd(addr_of(idx[i].page, idx[i].idx + 1), s, it.var.size)) return NVS_ERR;
     if (crc32_le(0xFFFFFFFF, s, it.var.size) != it.var.crc) return NVS_ERR;
     *len = it.var.size;
     return 0;
@@ -337,7 +368,7 @@ int nvs_set_blob(nvs_handle_t ns, const char *k, const void *b, size_t n)
             if (idx[i].ns != ns || idx[i].hash != khash(k)) continue;
             bool old_data = idx[i].type == T_BLOB_DATA && (idx[i].chunk & 0x80) == (old.blob.start & 0x80);
             bool old_idx = idx[i].type == T_BLOB_IDX && idx[i].page == idx[o].page && idx[i].idx == idx[o].idx;
-            if (old_data || old_idx) { item_t t; partition_read(part, addr_of(idx[i].page, idx[i].idx), &t, 32);
+            if (old_data || old_idx) { item_t t; ent_rd(addr_of(idx[i].page, idx[i].idx), &t, 32);
                 if (!strncmp(t.key, k, 16)) erase_ent(i); }
         }
     }
@@ -355,7 +386,7 @@ int nvs_get_blob(nvs_handle_t ns, const char *k, void *b, size_t *len)
         item_t d;
         int i = find(ns, T_BLOB_DATA, k, ix.blob.start + c, &d);
         if (i < 0 || off + d.var.size > ix.blob.size) return NVS_ERR;
-        if (partition_read(part, addr_of(idx[i].page, idx[i].idx + 1), (uint8_t *)b + off, d.var.size)) return NVS_ERR;
+        if (ent_rd(addr_of(idx[i].page, idx[i].idx + 1), (uint8_t *)b + off, d.var.size)) return NVS_ERR;
         if (crc32_le(0xFFFFFFFF, (uint8_t *)b + off, d.var.size) != d.var.crc) return NVS_ERR;
         off += d.var.size;
     }
@@ -377,7 +408,7 @@ int nvs_open(const char *name, nvs_handle_t *h)
     uint8_t used[32] = { 0 };                                  /* bitmap of taken indexes */
     for (int i = 0; i < nidx; i++)
         if (idx[i].ns == 0 && idx[i].type == T_U8) {
-            item_t t; partition_read(part, addr_of(idx[i].page, idx[i].idx), &t, 32);
+            item_t t; ent_rd(addr_of(idx[i].page, idx[i].idx), &t, 32);
             used[t.data[0] / 8] |= 1 << (t.data[0] % 8);
         }
     for (int n = 1; n < 255; n++)
@@ -391,7 +422,35 @@ int nvs_open(const char *name, nvs_handle_t *h)
     return NVS_NO_SPACE;
 }
 
+int nvs_mount_secure(const char *label, const uint8_t key[64])
+{
+    static uint8_t k[64];
+    memcpy(k, key, 64);
+    aes_init();
+    xkey = k;
+    int r = nvs_mount_(label);
+    if (r) xkey = NULL;
+    return r;
+}
+
+int nvs_read_keys(const char *label, uint8_t key[64])
+{
+    const partition_t *kp = partition_find(PART_DATA, PART_SUB_NVS_KEYS, label);
+    uint8_t b[68];
+    if (!kp || partition_read(kp, 0, b, 68)) return NVS_NOT_FOUND;
+    uint32_t c; memcpy(&c, b + 64, 4);
+    if (c != crc32_le(0xFFFFFFFF, b, 64)) return NVS_ERR;     /* blank or damaged keys partition */
+    memcpy(key, b, 64);
+    return 0;
+}
+
 int nvs_mount(const char *label)
+{
+    xkey = NULL;
+    return nvs_mount_(label);
+}
+
+static int nvs_mount_(const char *label)
 {
     part = partition_find(PART_DATA, PART_SUB_NVS, label);
     if (!part) return NVS_ERR;
@@ -426,7 +485,7 @@ int nvs_erase_all(void)
 {
     if (!part) return NVS_ERR;
     if (partition_erase(part, 0, npages * PAGE)) return NVS_ERR;
-    return nvs_mount(part->label);
+    return nvs_mount_(part->label);
 }
 
 void nvs_stats(int *used, int *free_)

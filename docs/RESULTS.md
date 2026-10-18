@@ -280,3 +280,35 @@ the most deleted pages and keeps IDF's 2-free-block reserve.
 Interop, both directions: IDF lists ours (`data/big.bin` 30003 B, `hello.txt`
 24 B) with content verified (in-place overwrite across a page boundary +
 append); ours reads IDF's `idf.txt` and `idf_big.bin` (30000 B, pattern ok).
+
+## NVS encryption (XTS-AES-256, IDF scheme; keys in `nvs_keys`, data in `nvs_enc`)
+
+AES accelerator driver (`drivers/crypto/aes.c`, block mode) + XTS; NVS routes
+every entry read/write through it (tweak = partition-relative entry address),
+so GC re-encrypts moved entries for their new address.
+
+| | esp-ndf | ESP-IDF (mbedtls XTS) |
+|---|---|---|
+| nvs_get_u32() on encrypted partition | 4 834 – 13 600 cycles | 82 397 cycles |
+| u32 update, encrypted | 467 – 584 us | 1 519 us |
+
+Interop, all directions verified on the board:
+- host `nvstool.py gen --keyfile` image -> esp-ndf and IDF both read it (blob crc32 a9bb2442)
+- esp-ndf writes (string, 6 KB multi-chunk blob, 400 updates through GC) -> IDF reads all
+- IDF writes -> esp-ndf reads; `nvstool.py parse --keyfile` decodes a raw dump, 0 errors
+- plaintext never appears on flash; a wrong key reads nothing (CRC mismatch), no writes
+
+Not done: IDF's HMAC key-protection scheme needs an HMAC key burnt into eFuse
+(irreversible) - the key derivation is in `nvstool.py keygen --hmac-key`, the
+device side takes the derived 64-byte key via `nvs_mount_secure()`.
+
+## Host tools
+
+| tool | check |
+|---|---|
+| `tools/nvstool.py gen` | byte-identical to IDF nvs_partition_gen.py: single-page, multi-page blob, and encrypted images |
+| `tools/nvstool.py parse` | decodes plain/encrypted images and raw dumps, verifies all CRCs |
+| `tools/nvstool.py keygen` | IDF keys-partition format (eky, tky, crc32) |
+
+IDF sibling app moved to 0x300000 (it outgrew 0x10000-0x7FFFF and was
+overwriting the esp-ndf partition table at 0x80000).
