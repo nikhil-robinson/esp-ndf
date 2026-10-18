@@ -53,7 +53,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **Reset reason** per core (`sys_reset_cause`); [ ] wake cause (with sleep)
 - [ ] **Brownout detector**, with an ISR so motors can be cut before the reset
 - [ ] **Clock glitch detection** (ch. 24)
-- [x] **Fault handling**: register dump, stack-scan backtrace, `make backtrace`, halt/restart option; [ ] reset-safe crash record (RTC memory)
+- [x] **Fault handling**: register dump, exact DWARF-table backtrace (table in flash, crosses interrupt frames), `make backtrace`, halt/restart option; [ ] reset-safe crash record (RTC memory)
       (core dump to flash), assert
 - [ ] Software restart API, controlled reset of a single core
 - [ ] Interrupt matrix extras: per-core routing API, interrupt priorities documented, NMI (level 7) use
@@ -134,7 +134,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 ## 8. Runtime and libraries (IDF: esp_system, newlib, log, ringbuf, console, cxx...)
 
 - [x] libc: `snprintf` family with %f/%e/%g, `strtol/ul/ll/ull`, `strtof/strtod` (float precision), `qsort`, `bsearch`, `atoi`;
-      float runtime (`__divsf3`, `sqrtf`, conversions) IEEE-exact; [ ] correctly rounded `strtod`, double arithmetic, `time` functions
+      float runtime (`__divsf3`, `sqrtf`, conversions) IEEE-exact; double arithmetic (asm fast paths, faster than IDF ROM);
+      correctly rounded `strtod`/`strtof`; exact `printf` (any precision, %a); [ ] `time()`/`gmtime` functions, libm (sinf, expf, ...)
 - [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
 - [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
 - [ ] Event dispatch (lightweight, no RTOS)

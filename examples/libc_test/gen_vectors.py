@@ -46,7 +46,13 @@ fcases = [("%f", 3.14159265358979), ("%.2f", 2.675), ("%.0f", 0.5), ("%.0f", 1.5
           ("%e", 0.0), ("%.0e", 9.5), ("%e", 1e-300), ("%g", 100000.0), ("%g", 1000000.0), ("%g", 0.0001),
           ("%g", 0.00001), ("%g", 3.14159265), ("%.3g", 0.0009995), ("%.10g", 1.0/3), ("%g", 0.0), ("%G", 1e-20),
           ("%f", float('inf')), ("%f", float('-inf')), ("%f", float('nan')), ("%.1f", 0.05), ("%.1f", 0.25),
-          ("%.2f", 1e15 + 0.3), ("%g", 1e300), ("%.17g", 0.1), ("%.6f", 2.0**-20), ("%5.1f%%", 99.95)]
+          ("%.2f", 1e15 + 0.3), ("%g", 1e300), ("%.17g", 0.1), ("%.6f", 2.0**-20), ("%5.1f%%", 99.95),
+          ("%f", 1e300), ("%.0f", 1.7976931348623157e308), ("%.17g", 1.2345678901234567e300), ("%.17g", 4.9406564584124654e-324),
+          ("%.30e", 4.9406564584124654e-324), ("%.20e", 2.2250738585072014e-308), ("%.60f", 0.1), ("%.70f", 1e-60),
+          ("%.3e", 9.9995e-300), ("%e", 1.7976931348623157e308), ("%.25g", 2.0**70), ("%.0e", 0.5), ("%.0e", 1.5), ("%.0e", 2.5),
+          ("%.1f", 0.95), ("%.1f", 0.05), ("%.2e", 9.995), ("%.15g", 0.30000000000000004), ("%.16g", 0.30000000000000004),
+          ("%.40f", 2.0**-60), ("%.5f", 1e-320), ("%g", 1e-320), ("%.3g", 99950.0), ("%.3g", 9.9949e-5), ("%G", 1e100),
+          ("%.1074f", 4.9406564584124654e-324), ("%.20f", 123456789012345678.0), ("%#.3g", 1.0), ("%.120e", 1.0/3)]
 print("static const struct { const char *fmt; double v; const char *want; } fcase[] = {")
 for f, v in fcases:
     w = f % v
@@ -54,3 +60,104 @@ for f, v in fcases:
     bits = struct.unpack('<Q', struct.pack('<d', v))[0]
     print('  { "%s", %s, "%s" },' % (f.replace('%', '%'), "__builtin_inf()" if v == float('inf') else "-__builtin_inf()" if v == float('-inf') else "__builtin_nan(\"\")" if v != v else repr(v), w))
 print("};")
+
+# ---- double arithmetic ----
+M = 700
+def rand_d(n):
+    b = rng.integers(0, 2**63, n, dtype=np.uint64) | (rng.integers(0, 2, n, dtype=np.uint64) << np.uint64(63))
+    kind = rng.integers(0, 4, n)
+    near = (b & np.uint64(0x800FFFFFFFFFFFFF)) | (rng.integers(1000, 1050, n, dtype=np.uint64) << np.uint64(52))
+    edge = (b & np.uint64(0x800FFFFFFFFFFFFF)) | (rng.choice([0, 1, 2, 2045, 2046], n).astype(np.uint64) << np.uint64(52))
+    same = (b & np.uint64(0x800FFFFFFFFFFFFF)) | (np.uint64(1023) << np.uint64(52))
+    return np.where(kind == 0, near, np.where(kind == 1, edge, np.where(kind == 2, same, b))).astype(np.uint64)
+dspec = np.array([0, 1 << 63, 0x7FF0000000000000, 0xFFF0000000000000, 0x7FF8000000000000, 1, 0x000FFFFFFFFFFFFF,
+                  0x0010000000000000, 0x7FEFFFFFFFFFFFFF, 0x3FF0000000000000, 0xBFF0000000000000, 0x3FF0000000000001], dtype=np.uint64)
+xa = np.concatenate([dspec.repeat(len(dspec)), rand_d(M)])
+xb = np.concatenate([np.tile(dspec, len(dspec)), rand_d(M)])
+# a few exact-cancellation / near-equal pairs
+xb[-40:] = xa[-40:] ^ rng.integers(0, 4, 40, dtype=np.uint64) ^ np.uint64(1 << 63)
+fa, fb = xa.view(np.float64), xb.view(np.float64)
+with np.errstate(all='ignore'):
+    r_add = (fa + fb).view(np.uint64); r_sub = (fa - fb).view(np.uint64)
+    r_mul = (fa * fb).view(np.uint64); r_div = (fa / fb).view(np.uint64)
+cmpc = np.where(np.isnan(fa) | np.isnan(fb), 2, np.where(fa < fb, -1, np.where(fa > fb, 1, 0))).astype(np.int8)
+print("#define NDV %d" % len(xa))
+arr("xa", "uint64_t", xa, H); arr("xb", "uint64_t", xb, H)
+arr("r_add", "uint64_t", r_add, H); arr("r_sub", "uint64_t", r_sub, H); arr("r_mul", "uint64_t", r_mul, H); arr("r_div", "uint64_t", r_div, H)
+arr("r_cmp", "int8_t", cmpc, lambda x: "%d" % x)
+il = rng.integers(-2**63, 2**63 - 1, 400, dtype=np.int64) >> rng.integers(0, 63, 400)
+arr("il", "int64_t", il, lambda x: "%dll" % x if x != -2**63 else "(-9223372036854775807ll - 1)")
+arr("il_d", "uint64_t", il.astype(np.float64).view(np.uint64), H)
+
+# ---- strtod / strtof: decimal strings with correctly rounded results ----
+from fractions import Fraction
+import struct, math
+def f32_round(fr):
+    """correctly round a Fraction to float32 bits (RNE, denormals, overflow)"""
+    if fr == 0: return 0
+    s = 0x80000000 if fr < 0 else 0
+    a = abs(fr)
+    e = a.numerator.bit_length() - a.denominator.bit_length()
+    while a >= Fraction(2) ** (e + 1): e += 1
+    while a < Fraction(2) ** e: e -= 1
+    if e < -126: e = -126                       # denormal grid
+    q = a / Fraction(2) ** (e - 23)             # 24-bit significand units
+    m = q.numerator // q.denominator; rem = q - m
+    if rem > Fraction(1, 2) or (rem == Fraction(1, 2) and m & 1): m += 1
+    if m == 1 << 24: m >>= 1; e += 1
+    if e > 127: return s | 0x7F800000
+    if m < (1 << 23): return s | m              # denormal
+    return s | ((e + 127) << 23) | (m - (1 << 23))
+dstr = ["2.2250738585072011e-308", "2.2250738585072012e-308", "9007199254740993", "1e23", "8.98846567431158e307",
+        "4.9406564584124654e-324", "2.4703282292062327e-324", "2.4703282292062328e-324", "1.7976931348623157e308",
+        "1.7976931348623158e308", "1.7976931348623159e308", "0.1", "3.141592653589793", "123456789012345678901234567890",
+        "1e-400", "1e400", "0x1.8p3", "-0x1.fffffffffffffp1023", "0x1p-1074", "0x1.0000000000000801p0", "inf", "-Infinity",
+        "  +.5e1", "1.e2", "000000000000000000000000.000000000000000000001", "7.0e-10", "5e-324", "1.5e-323",
+        "4.940656458412465441765687928682213723651e-324", "6.103515625e-05", "1.1754943508222875e-38", "1.401298464324817e-45",
+        "3.4028234663852886e38", "3.4028235677973366e38", "16777217", "33554435", "1.00000005960464477539062500001", "1.0000000596046447753906250"]
+# exact halfway points between doubles, written out in full, then nudged
+for k in range(20):
+    b = int(rng.integers(1, 2046)) << 52 | int(rng.integers(0, 2**52))
+    lo = Fraction(struct.unpack('<d', struct.pack('<Q', b))[0])
+    hi = Fraction(struct.unpack('<d', struct.pack('<Q', b + 1))[0])
+    mid = (lo + hi) / 2
+    # mid has a finite decimal expansion: print it exactly
+    n, d = mid.numerator, mid.denominator
+    t = 0
+    while d % 10 and d != 1: n *= 10; d = Fraction(n, d).denominator if False else d; break
+    import decimal
+    decimal.getcontext().prec = 1200
+    txt = format(decimal.Decimal(mid.numerator) / decimal.Decimal(mid.denominator), 'e')
+    if k % 3 == 1: txt = txt.replace('e', '0000000000000000000001e', 1) if 'e' in txt else txt + '1'
+    if k % 3 == 2 and len(txt) < 900: txt = txt.split('e')[0] + '0' * (805 - len(txt)) + '1' + 'e' + txt.split('e')[1]
+    dstr.append(txt)
+for k in range(150):
+    v = struct.unpack('<d', struct.pack('<Q', int(rng.integers(0, 2**63 - 2**52))))[0]
+    dstr.append(repr(v) if k % 2 else "%.25e" % v)
+for k in range(150):
+    dg = ''.join(str(int(x)) for x in rng.integers(0, 10, int(rng.integers(1, 40))))
+    dstr.append(dg[:1] + '.' + dg[1:] + 'e%d' % int(rng.integers(-330, 320)))
+for k in range(80):
+    dg = ''.join(str(int(x)) for x in rng.integers(0, 10, int(rng.integers(1, 12))))
+    dstr.append(dg + 'e%d' % int(rng.integers(-50, 40)))
+def dbits(t):
+    v = float.fromhex(t) if 'x' in t.lower() else float(t)
+    return struct.unpack('<Q', struct.pack('<d', v))[0]
+def fbits(t):
+    tt = t.strip().lower()
+    if 'inf' in tt: return (0x80000000 if tt.startswith('-') else 0) | 0x7F800000
+    if 'x' in tt:
+        v = float.fromhex(t)    # hex: compute float32 rounding from the exact value of the hex text
+        sgn = -1 if tt.startswith('-') else 1
+        body = tt.lstrip('+-')[2:]
+        mant, _, ex = body.partition('p')
+        ip, _, fp = mant.partition('.')
+        fr = Fraction(int((ip or '0') + fp, 16), 16 ** len(fp)) * Fraction(2) ** int(ex or '0')
+        return f32_round(sgn * fr)
+    return f32_round(Fraction(tt.replace(' ', '')) if 'e' not in tt else Fraction(tt.replace(' ', '')))
+print("#define NSTR %d" % len(dstr))
+print("static const char *const sv[NSTR] = {")
+for t in dstr: print('    "%s",' % t)
+print("};")
+arr("sv_d", "uint64_t", np.array([dbits(t) for t in dstr], dtype=np.uint64), H)
+arr("sv_f", "uint32_t", np.array([fbits(t) for t in dstr], dtype=np.uint32), h)

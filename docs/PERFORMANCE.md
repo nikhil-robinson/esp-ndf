@@ -30,6 +30,9 @@ updated with every measured change.
 | Software timer, 1 ms periodic: period spread / drift per 1 s | **0 / 0 µs** | `esp_timer`: 981–1000 µs / −19 µs | exact |
 | `malloc` + `free`, 64 B | **165 cycles** | IDF: 1 346 | **8.2×** |
 | Float divide / `sqrtf` | **56 / 58 cycles** | IDF: 75 / 118 | **1.3× / 2×** |
+| Double add / mul / div (per call) | **48–50 / 77 / 271 cycles** | IDF ROM: 51–52 / 83 / 526 | **1.04–1.08× / 1.08× / 1.9×** |
+| `strtod`, 16 digits / hard case | **1 419 / 1 532 cycles** | IDF newlib: 8 230 / 13 197 | **5.8× / 8.6×** |
+| `printf("%.17g")` 1.23e300 / denormal | **30 348 / 14 238** | IDF: 40 354 / 31 326 | **1.3× / 2.2×** |
 | `snprintf("%.3f")` | **1 577 cycles** | IDF newlib: 11 862 | **7.5×** |
 | Ring buffer, 16 B item, zero-copy | **105 cycles** | IDF `xRingbuffer`: 1 237 | **11.8×** |
 | Async DMA copy 64 KB: start cost | **1 404 cycles** | `esp_async_memcpy`: 56 756 | **40×** |
@@ -69,7 +72,11 @@ path reaches its first instruction about 11 cycles after the event.
 | Float divide | 56 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
 | `sqrtf` | 58, IEEE-exact | 118 (newlib wrapper + errno) | — |
 | `snprintf` `%.3f` / `%d` | 1 577 / 972 | 11 862 / 2 957 | floats from the double's bits, integer only |
-| `strtof("3.14159")` | 383 | 2 797 | exact for short inputs |
+| `strtof("3.14159")` | 613 | 2 797 | correctly rounded for every input |
+| Double add, same sign / different sign / exponent gap 33 / cancellation | 50 / 48 / 39 / 68 | 51 / 52 / 45 / 74 | assembly fast paths, IEEE-exact |
+| Double mul / div | 77 / 271 | 83 / 526 | mul: 4 × `mull`/`muluh`; div: 11 bits per step on the 32-bit divider |
+| `strtod` 16 digits / `2.2250738585072011e-308` | 1 419 / 1 532 | 8 230 / 13 197 | Clinger fast path; table approximation; big-integer check only near a halfway point |
+| `snprintf("%.17g")` 1.23e300 / 4.9e-324 | 30 348 / 14 238 | 40 354 / 31 326 | exact digits at any precision (`%.1074f` included) |
 | `qsort` 2 000 ints | 632 809 (316 per element) | 830 658 | word-swap fast path |
 | Ring buffer 16 B put + get (copy) | 303 | 1 102 | lock-free SPSC |
 | Ring buffer zero-copy reserve/commit/peek/release | 105 | 1 237 | — |

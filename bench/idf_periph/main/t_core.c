@@ -82,3 +82,21 @@ void t_core2(void)
     METRIC("esp_task_wdt_reset()", "%lu cycles", CYCLES(esp_task_wdt_reset()));
     esp_task_wdt_delete(NULL);
 }
+
+static inline uint32_t dcc(void) { return ccount(); }
+#include "dbench.inc"
+
+void t_core3(void)
+{
+    dbench();
+    volatile double x = 1.2345678901234, y = 6.789012345678; double r = 0;
+    uint32_t c0 = ccount(); for (int i = 0; i < 100; i++) r += x * y; uint32_t cm = (ccount() - c0) / 100;
+    c0 = ccount(); for (int i = 0; i < 100; i++) r += x / y; uint32_t cd = (ccount() - c0) / 100;
+    c0 = ccount(); for (int i = 0; i < 100; i++) r = r + x; uint32_t ca = (ccount() - c0) / 100;
+    METRIC("double add / mul / div", "%lu / %lu / %lu cycles (r=%d)", ca, cm - ca, cd - ca, (int)r);
+    char buf[64];
+    c0 = ccount(); for (int i = 0; i < 10; i++) snprintf(buf, sizeof buf, "%.17g", 1.2345678901234567e300); METRIC("snprintf %.17g 1.23e300", "%lu cycles", (ccount() - c0) / 10);
+    c0 = ccount(); for (int i = 0; i < 10; i++) snprintf(buf, sizeof buf, "%.17g", 4.9406564584124654e-324); METRIC("snprintf %.17g denormal", "%lu cycles", (ccount() - c0) / 10);
+    c0 = ccount(); for (int i = 0; i < 10; i++) (void)strtod("3.141592653589793", 0); METRIC("strtod 16 digits", "%lu cycles", (ccount() - c0) / 10);
+    c0 = ccount(); for (int i = 0; i < 10; i++) (void)strtod("2.2250738585072011e-308", 0); METRIC("strtod hard case", "%lu cycles", (ccount() - c0) / 10);
+}

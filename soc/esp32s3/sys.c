@@ -6,6 +6,7 @@
 #include "clk.h"
 #include "xtensa.h"
 #include "console.h"
+#include "unwind.h"
 
 extern uint32_t _bss_start[], _bss_end[];
 extern void _start1(void);
@@ -110,6 +111,8 @@ static bool is_ret_addr(uint32_t w)                 /* w follows a call0 / callx
     return (i[0] & 0x3F) == 0x05 || (i[0] == 0xC0 && !(i[1] & 0xF0) && !i[2]);
 }
 
+static void emit_pc(uint32_t pc) { printf(" 0x%08lx", (unsigned long)pc); }
+
 void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)
 {
     irq_lock();
@@ -124,14 +127,26 @@ void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint3
         printf("    SAR 0x%08lx LBEG 0x%08lx LEND 0x%08lx LCOUNT 0x%08lx\n",
                (unsigned long)frame[11], (unsigned long)frame[12], (unsigned long)frame[13], (unsigned long)frame[14]);
     }
-    uint32_t top = core ? (uint32_t)_stack1_top : (uint32_t)_stack0_top;
-    if (sp >= top || top - sp > 0x20000) top = sp + 1024;                   /* sp outside our stacks: scan 1 KB */
-    printf("    Backtrace: 0x%08lx", (unsigned long)pc);
-    if (frame && is_ret_addr(frame[0])) printf(" 0x%08lx", (unsigned long)frame[0]);
-    int n = 0;
-    for (uint32_t a = sp & ~3u; a < top && n < 24; a += 4) {
-        uint32_t w = *(const volatile uint32_t *)a;
-        if (is_ret_addr(w)) { printf(" 0x%08lx", (unsigned long)w); n++; }
+    printf("    Backtrace:");
+    bool ok;
+    if (frame) ok = ndf_unwind(pc, sp, frame[0], frame[19], emit_pc);   /* from the faulting instruction */
+    else {                                                              /* from here: through the caller(s) */
+        uint32_t here_sp, here_a15;
+        __asm__ volatile("mov %0, a1\n\tmov %1, a15" : "=r"(here_sp), "=r"(here_a15));
+        ok = ndf_unwind((uint32_t)&&here, here_sp, 0, here_a15, emit_pc);
+    here:;
+    }
+    if (!ok) {                       /* no unwind table in this image: stack scan (may list stale entries) */
+        uint32_t top = core ? (uint32_t)_stack1_top : (uint32_t)_stack0_top;
+        if (sp >= top || top - sp > 0x20000) top = sp + 1024;
+        emit_pc(pc);
+        if (frame && is_ret_addr(frame[0])) emit_pc(frame[0]);
+        int n = 0;
+        for (uint32_t a = sp & ~3u; a < top && n < 24; a += 4) {
+            uint32_t w = *(const volatile uint32_t *)a;
+            if (is_ret_addr(w)) { emit_pc(w); n++; }
+        }
+        printf(" (scan)");
     }
     printf("\n");
 }

@@ -1,8 +1,5 @@
-/* stdlib subset: strtol family, atoi/atol, strtof/strtod, qsort, bsearch, abs.
- * strtof: exact when the digits fit 24 bits and |exp10| <= 10 (the common
- * case), else within 1 ulp. strtod: float precision.
- * ponytail: correctly rounded strtod needs big-integer scaling; add if
- * double parsing of long literals matters. */
+/* stdlib subset: strtol family, atoi/atol, qsort, bsearch, abs.
+ * strtod/strtof/atof (correctly rounded): lib/strtod.c. */
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -66,41 +63,6 @@ long long atoll(const char *s) { return strtoll(s, 0, 10); }
 int abs(int x) { return x < 0 ? -x : x; }
 long labs(long x) { return x < 0 ? -x : x; }
 long long llabs(long long x) { return x < 0 ? -x : x; }
-
-static const float p10[] = { 1e0f, 1e1f, 1e2f, 1e3f, 1e4f, 1e5f, 1e6f, 1e7f, 1e8f, 1e9f, 1e10f };
-
-float strtof(const char *s, char **end)
-{
-    const char *p = s;
-    while (isspace_(*p)) p++;
-    bool neg = false;
-    if (*p == '+' || *p == '-') neg = *p++ == '-';
-    union { float f; uint32_t u; } r;
-    if ((p[0] | 32) == 'i' && (p[1] | 32) == 'n' && (p[2] | 32) == 'f') {
-        p += 3; if (!strncmp(p, "inity", 5) || !strncmp(p, "INITY", 5)) p += 5;
-        r.u = 0x7F800000u | (neg ? 0x80000000u : 0); if (end) *end = (char *)p; return r.f;
-    }
-    if ((p[0] | 32) == 'n' && (p[1] | 32) == 'a' && (p[2] | 32) == 'n') { r.u = 0x7FC00000u; if (end) *end = (char *)p + 3; return r.f; }
-    uint64_t m = 0; int e10 = 0, nd = 0; bool any = false;
-    for (; *p >= '0' && *p <= '9'; p++) { any = true; if (nd < 19) { m = m * 10 + (uint64_t)(*p - '0'); if (m) nd++; } else e10++; }
-    if (*p == '.') for (p++; *p >= '0' && *p <= '9'; p++) { any = true; if (nd < 19) { m = m * 10 + (uint64_t)(*p - '0'); if (m) nd++; e10--; } }
-    if (!any) { if (end) *end = (char *)s; return 0.0f; }
-    if ((*p | 32) == 'e') {
-        const char *q = p + 1; bool en = false; int ev = 0;
-        if (*q == '+' || *q == '-') en = *q++ == '-';
-        if (*q >= '0' && *q <= '9') { for (; *q >= '0' && *q <= '9'; q++) if (ev < 10000) ev = ev * 10 + (*q - '0'); p = q; e10 += en ? -ev : ev; }
-    }
-    if (end) *end = (char *)p;
-    float f = (float)m;                                          /* one rounding (exact below 2^24) */
-    if (m && e10 > 0) { while (e10 > 10) { f *= 1e10f; e10 -= 10; } f *= p10[e10]; }
-    else if (m && e10 < 0) {
-        while (e10 < -10) { f /= 1e10f; e10 += 10; if (f == 0.0f) break; }
-        f /= p10[-e10];
-    }
-    return neg ? -f : f;
-}
-double strtod(const char *s, char **end) { return strtof(s, end); }
-double atof(const char *s) { return strtof(s, 0); }
 
 /* qsort: median-of-3 quicksort, insertion sort below 12 elements, recursion
  * on the smaller side only (stack depth O(log n)), word-swap fast path.
