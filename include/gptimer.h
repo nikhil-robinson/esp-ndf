@@ -12,7 +12,8 @@ uint32_t gpt_init(int id, uint32_t resolution_hz);
 void     gpt_start(int id);
 void     gpt_stop(int id);
 void     gpt_set(int id, uint64_t count);
-uint64_t gpt_get(int id);
+uint64_t gpt_get(int id);      /* ~110 cycles: hardware latch (~50) + two reads; at the floor */
+uint32_t gpt_get32(int id);    /* low 32 bits, one read less. For CPU-local timing use ccount() (1 cycle) */
 
 /* Alarm at `alarm` ticks; periodic: reload to 0 and re-arm in hardware path.
  * fn runs in the timer ISR at `level` on the calling core (NULL: no IRQ). */

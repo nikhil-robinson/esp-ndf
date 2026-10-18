@@ -61,6 +61,13 @@ uint64_t gpt_get(int id)
     return (uint64_t)REG(T_HI(id)) << 32 | REG(T_LO(id));
 }
 
+uint32_t gpt_get32(int id)                          /* low word only: one register read less */
+{
+    REG(T_UPDATE(id)) = BIT(31);
+    while (REG(T_UPDATE(id)) & BIT(31)) {}
+    return REG(T_LO(id));
+}
+
 RAM_FN static void gpt_isr(void *arg)
 {
     int id = (int)arg;

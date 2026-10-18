@@ -156,8 +156,10 @@ static int index_page(int p)                                  /* add page p's wr
 
 /* Garbage collection: move live items of the FULL page with most erased
  * entries into a fresh page, then erase it (it becomes the spare). */
+static void ncache_clear(void);
 static int gc(void)
 {
+    ncache_clear();
     int victim = -1, best = 0;
     for (int p = 0; p < npages; p++) {
         if (pg[p].state != ST_FULL) continue;
@@ -205,9 +207,36 @@ static int room(int span)
 }
 
 static int nvs_mount_(const char *label);
+static int find_flash(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *out);
 
 /* ---- items --------------------------------------------------------------- */
+/* Recently found items, so repeated reads (parameters read every control
+ * period) skip the flash. Any change to the index (write, erase, GC, mount)
+ * empties it, so a hit is always the current newest copy. */
+#define NCACHE 8
+static struct { int16_t slot; uint8_t ns, type, chunk; item_t it; } ncache[NCACHE];
+static uint8_t ncache_next;
+static void ncache_clear(void) { for (int i = 0; i < NCACHE; i++) ncache[i].slot = -1; }
+
 static int find(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *out)
+{
+    for (int c = 0; c < NCACHE; c++)
+        if (ncache[c].slot >= 0 && ncache[c].ns == ns && ncache[c].type == type && ncache[c].chunk == chunk &&
+            !strncmp(ncache[c].it.key, k, 16)) {
+            if (out) *out = ncache[c].it;
+            return ncache[c].slot;
+        }
+    int hit = find_flash(ns, type, k, chunk, out ? out : &ncache[ncache_next].it);
+    if (hit >= 0 && type != 0xFF) {
+        int c = ncache_next;
+        if (out) ncache[c].it = *out;
+        ncache[c].slot = hit; ncache[c].ns = ns; ncache[c].type = type; ncache[c].chunk = chunk;
+        ncache_next = (c + 1) % NCACHE;
+    }
+    return hit;
+}
+
+static int find_flash(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *out)
 {
     uint16_t h = khash(k);
     int hit = -1;
@@ -225,6 +254,7 @@ static int find(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, item_t *
 
 static int erase_ent(int i)
 {
+    ncache_clear();
     ent_t *x = &idx[i];
     if (set_state(x->page, 0, x->idx, x->idx + x->span, 0)) return NVS_ERR;
     idx[i] = idx[--nidx];
@@ -234,6 +264,7 @@ static int erase_ent(int i)
 static int write_item(uint8_t ns, uint8_t type, const char *k, uint8_t chunk, const uint8_t data8[8],
                       const void *payload, size_t len)
 {
+    ncache_clear();
     int span = 1 + (int)((len + 31) / 32);
     int r = room(span);
     if (r) return r;
@@ -501,6 +532,7 @@ static int nvs_mount_(const char *label)
     npages = part->size / PAGE;
     if (npages > MAXPAGES) npages = MAXPAGES;
     nidx = 0; active = -1; max_seq = 0;
+    ncache_clear();
     for (int p = 0; p < npages; p++) {
         uint8_t h[64];
         if (partition_read(part, p * PAGE, h, 64)) return NVS_ERR;

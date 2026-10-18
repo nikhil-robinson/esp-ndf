@@ -597,3 +597,15 @@ bit (the old periph_test metric "725 cycles at 10 MHz" was shorter than the
 768-cycle wire time - that was the symptom). The start now waits for DONE to
 read back cleared: 32-byte back-to-back min 6 805 cycles at 10 MHz (wire
 6 144), 400 varied echo transfers 0 bytes wrong, master<->slave modes 0-3 ok.
+
+## NVS recent-item cache, gpt_get32
+
+NVS keeps the last 8 found items in RAM (flushed on any write, erase, GC or
+mount, so a hit is always the newest copy). Full suite passes (600 updates
+through GC, remounts, encrypted, wrong key, IDF data):
+nvs_get_u32 1 747 -> **498** cycles (IDF 26 269), encrypted 4 711 -> **435**
+(IDF 82 455).
+
+GPTimer read profiled (examples/gpt_probe): latch write 6, latch wait ~50
+(one extra poll), LO+HI reads 47 -> gpt_get 110-124 is the hardware floor.
+Added gpt_get32 (low word only): 100 cycles.

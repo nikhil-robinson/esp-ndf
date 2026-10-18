@@ -23,8 +23,8 @@ updated with every measured change.
 | Core → core stream, per item | **18 cycles** push | FreeRTOS queue: 384 | **21×** |
 | int16 dot product, 1024 elements | **405 cycles** | ESP-DSP: 1 073 | **2.6×** |
 | `memcpy` 8 KB, aligned | **1 738 MB/s** | IDF ROM `memcpy`: 382 MB/s | **4.5×** |
-| NVS read (encrypted) | **4 711 cycles** | IDF: 82 455 | **17×** |
-| NVS read (plain) | **1 747 cycles** | IDF: 26 269 | **15×** |
+| NVS read (encrypted, repeated key) | **435 cycles** | IDF: 82 455 | **190×** |
+| NVS read (plain, repeated key) | **498 cycles** | IDF: 26 269 | **53×** |
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
 
 ## Interrupts
@@ -111,7 +111,8 @@ vector unit is off there).
 | GPIO | set + clear | **10** | 95 | 9.5× | at floor (bus writes) |
 | Dedicated GPIO | set + clear | **3** | 45 | 15× | at floor |
 | RTC GPIO | set / get | **21 / 98** | 301 / 333 | 14× / 3.4× | — |
-| GPTimer | read counter | **110** | 407 | 3.7× | **room** (CPU cycle counter path) |
+| GPTimer | read counter, 64-bit | **110–124** | 407 | 3.7× | at floor (hardware latch ~50 + 2 reads) |
+| GPTimer | read counter, 32-bit (`gpt_get32`) | **100** | — | — | at floor |
 | GPTimer | alarm → callback | **800 ns fixed** | 2.8–6.8 µs | 3.5–8× | — |
 | LEDC | duty update | **35** | 763 | 22× | — |
 | MCPWM | compare update | **3** | 75 | 25× | at floor |
@@ -136,9 +137,9 @@ vector unit is off there).
 | Flash read 4 KB | **209 µs** (was 269) | 462 µs | 2.2× | room ~1.6× (SPI1 register path; XIP cache next) |
 | Flash erase 4 KB | **642 µs** | 1 041 µs | 1.6× | chip-bound |
 | Flash write 4 KB | **10.8 ms** | 12.4 ms | 1.15× | chip-bound |
-| NVS read u32 | **1 747** (was 2 338) | 26 269 | 15× | room (RAM cache) |
+| NVS read u32 (repeated key, cached) | **498** (was 2 338) | 26 269 | **53×** | — |
 | NVS update u32 | **552 µs** | 757 µs | 1.4× | flash-bound |
-| NVS read u32, encrypted | **4 711** | 82 455 | 17× | room |
+| NVS read u32, encrypted (cached) | **435** (was 4 863) | 82 455 | **190×** | — |
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
 | SPIFFS 40 × 30 KB rewrites | **7.4 s** | 10.9 s | 1.5× | — |
@@ -155,8 +156,8 @@ vector unit is off there).
 
 1. Flash read: now 19.6 MB/s (QIO + overlapped buffer halves). The SPI1 register path costs ~47 clocks per 32 B; cache/XIP burst reads are the next step.
 2. SPI small transfers: overhead cut from ~530 to ~350 cycles (no read-modify-write, word packing); the rest is ~20-cycle peripheral register accesses.
-3. GPTimer read: a read through the timer's latch path; a CPU cycle-counter base would be near-zero cost.
-4. NVS and FAT lookups: in-RAM caches of entries and directory blocks.
+3. GPTimer read: measured at the floor (the latch alone is ~50 cycles); `gpt_get32` added. `ccount()` is the 1-cycle CPU-local clock.
+4. NVS: done (8-entry recent-item cache). FAT path lookups: directory cache next.
 5. int16 vector kernels: deeper unrolling to hide load latency.
 6. `memcpy` with different alignments: a fused shift-and-load variant.
 7. C interrupt path: about 10 % left.
