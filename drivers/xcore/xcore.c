@@ -12,7 +12,8 @@ static void *arg_of[2];
 RAM_FN static void notify_isr(void *a)
 {
     int c = (int)a;
-    REG(FROM_CPU_REG(c)) = 0;                      /* level: clear before running the handler */
+    REG(FROM_CPU_REG(c)) = 0;                      /* level: clear before running the handler, */
+    (void)REG(FROM_CPU_REG(c));                    /* and read back so the clear has landed (no double call) */
     fn_of[c](arg_of[c]);
 }
 

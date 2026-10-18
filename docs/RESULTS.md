@@ -470,3 +470,36 @@ back-to-back test only because the next request is caught by the still
 running dispatcher; it can also lose a notification, so it is not used.
 Polling a shared word stays the lowest-latency path (30–49 round trip); the
 interrupt is for waking a core that is busy with something else.
+
+## Interrupt cost: naked level-4/5 handlers + per-core vector tables
+
+Each core now has its own vector table (VECBASE), so a naked assembly
+handler (`irq_naked()`) is patched into that core's level-4/5 vector as a
+direct jump: no register frame, no C, the handler saves only what it uses.
+
+| Empty handler, CCOMPARE timer | entry | exit | time the interrupted loop loses |
+|---|---|---|---|
+| C handler, level 1 | 77–81 | 62–66 | 160 |
+| C handler, level 3 | 64–67 | 58–60 | 138–144 |
+| C handler, level 5 | 47–49 | 45–48 | 109–113 |
+| **naked, level 5** | **14** | **12** | **36** |
+| (ESP-IDF, C handler level 1, earlier measurement) | 219–405 | — | — |
+
+Entry 14 = first handler instruction ~11 cycles after the match (Cortex-M4: 12).
+Loop-register torture (assembly LOOP checksum under ~39 000 interrupts per
+level): 0 wrong at levels 1, 3 and 5. Tried and rejected: conditional
+LBEG/LEND save and fewer rsyncs in the C path (slower: branches cost more
+than the 1-cycle special-register moves they skip).
+
+| Cross-core notify round trip | cycles |
+|---|---|
+| polling a shared word | 30–49 |
+| **naked level-5 handler on the receiving core** | **62, fixed** |
+| C handler, level 5 | 96–104 |
+| ESP-IDF esp_ipc_call_blocking | 363 178–479 979 |
+
+Found on hardware: clearing the cross-core request is a posted write to a
+slow bus; returning before it lands re-fires the interrupt (looked like a
+14-cycle round trip - it was the handler re-entering continuously). A read
+back of the register after the clear (13 cycles) makes it exact: 10 000
+notifications -> 10 000 handler runs. Same read-back added to the C path.

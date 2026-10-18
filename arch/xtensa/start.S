@@ -7,7 +7,7 @@
     .section .iram.text, "ax"
     .literal_position
 
-.macro CORE_START stack, cfn
+.macro CORE_START stack, cfn, vec
     movi    a0, PS_INIT
     wsr     a0, ps
     rsync
@@ -18,7 +18,7 @@
     wsr     a0, windowstart
     movi    a0, 0
     wsr     a0, intenable
-    movi    a0, _vector_table
+    movi    a0, \vec
     wsr     a0, vecbase
     movi    a0, 1                /* FPU on */
     wsr     a0, cpenable
@@ -32,9 +32,9 @@
     .global _start0
     .align 4
 _start0:
-    CORE_START _stack0_top, sys_start0
+    CORE_START _stack0_top, sys_start0, _vector_table0
 
     .global _start1
     .align 4
 _start1:
-    CORE_START _stack1_top, sys_start1
+    CORE_START _stack1_top, sys_start1, _vector_table1

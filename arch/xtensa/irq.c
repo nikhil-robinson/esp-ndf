@@ -36,7 +36,7 @@ static bool slot_set(int core, int n, irq_fn_t fn, void *arg)
     int lvl = soc_intr_level(n);
     if (lvl >= 4 && lvl <= 5) {
         irq_slot_t *f = &irq_fast[core][lvl - 4];
-        if (fn && f->fn) return false;
+        if (fn && f->fn && !irq_tab[core][n].fn) return false;   /* taken by another line; same line = replace */
         *f = (irq_slot_t){ fn, arg };
     }
     irq_tab[core][n] = (irq_slot_t){ fn, arg };   /* also marks n as used */
@@ -118,4 +118,61 @@ void irq_detach(int src, int n)
     }
     intenable_set(n, false);
     slot_set(core, n, 0, 0);
+}
+
+/* ---- naked level 4/5 handlers ---------------------------------------------
+ * Patch the vector's jump (a 3-byte J instruction, written through the IRAM
+ * data alias) to the naked redirect, which jumps to irq_naked_fn[level][core].
+ * The C dispatch path is untouched while no naked handler is installed. */
+uint32_t irq_naked_fn[2][SOC_CORES];           /* used by vectors.S: [level-4][core] */
+extern char _vec_l4_jump0[], _vec_l5_jump0[], _vec_l4_jump1[], _vec_l5_jump1[];
+extern char _l4_naked_0[], _l4_naked_1[], _l5_naked_0[], _l5_naked_1[];
+
+static void patch_j(char *at, char *to)
+{
+    int32_t off = (int32_t)(to - at - 4);               /* J: target = PC + 4 + offset (18-bit) */
+    uint32_t insn = 0x06 | ((uint32_t)off & 0x3FFFF) << 6;
+    volatile uint8_t *d = (volatile uint8_t *)((uint32_t)at - 0x6F0000);   /* DRAM alias of IRAM */
+    uint32_t ps = irq_lock();
+    d[0] = insn; d[1] = insn >> 8; d[2] = insn >> 16;
+    __asm__ volatile("memw; isync");
+    irq_unlock(ps);
+}
+
+/* point this core's level-4/5 vector at handler: direct J if in range, else via the redirect */
+static void naked_vector(int core, int level, void (*handler)(void))
+{
+    char *at = level == 4 ? (core ? _vec_l4_jump1 : _vec_l4_jump0) : (core ? _vec_l5_jump1 : _vec_l5_jump0);
+    int32_t off = (int32_t)((char *)handler - at - 4);
+    irq_naked_fn[level - 4][core] = (uint32_t)handler;
+    if (off >= -131072 && off < 131072) patch_j(at, (char *)handler);
+    else patch_j(at, level == 4 ? (core ? _l4_naked_1 : _l4_naked_0) : (core ? _l5_naked_1 : _l5_naked_0));
+}
+
+int irq_naked(int src, int level, void (*handler)(void))
+{
+    if (level < 4 || level > 5) return -1;
+    int core = core_id(), n = -1;
+    uint32_t ps = irq_lock();
+    for (uint32_t m = soc_intr_level_mask[level] & SOC_INTR_PERIPH_LEVEL_MASK; m; m &= m - 1) {
+        int c = __builtin_ctz(m);
+        if (!irq_tab[core][c].fn) { n = c; break; }
+    }
+    if (n < 0) { irq_unlock(ps); return -1; }
+    irq_tab[core][n] = (irq_slot_t){ (irq_fn_t)handler, 0 };   /* marks the line used */
+    if (src >= 0) soc_intr_route(core, src, n);
+    irq_unlock(ps);
+    naked_vector(core, level, handler);
+    intenable_set(n, true);
+    return n;
+}
+
+/* naked handler on an internal CPU interrupt (CCOMPARE, software) */
+void irq_naked_install(int n, void (*handler)(void))
+{
+    int lvl = soc_intr_level(n), core = core_id();
+    if (lvl < 4 || lvl > 5) return;
+    irq_tab[core][n] = (irq_slot_t){ (irq_fn_t)handler, 0 };
+    naked_vector(core, lvl, handler);
+    intenable_set(n, true);
 }

@@ -10,7 +10,7 @@ TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-e
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
 OUT   = build/$(notdir $(APP))
 
-SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c lib/*.c $(APP)/*.c)
+SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c $(APP)/*.c $(APP)/*.S)
 OBJS  = $(patsubst %,$(OUT)/%.o,$(SRCS))
 INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
 

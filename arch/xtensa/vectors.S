@@ -21,47 +21,59 @@
 #define PS_EXCM     0x10
 #define FRAME       80     /* 16 saved words + PS (level 1) + pad, 16-aligned */
 
-/* ---- vector table (VECBASE, 1 KB aligned) ------------------------------- */
-    .section .vectors, "ax"
-    .global _vector_table
+/* ---- vector tables (VECBASE, 1 KB aligned), one per core --------------
+ * Same content; separate copies so a naked level-4/5 handler can be patched
+ * in as a direct jump for one core (irq_naked()). */
+.macro VECTOR_TABLE c
     .align  1024
-_vector_table:
-    .org 0x000                  /* window over/underflow: impossible with WOE=0 */
+_vector_table\c:
+    .org _vector_table\c + 0x000   /* window over/underflow: impossible with WOE=0 */
     j   _unexpected
-    .org 0x040
+    .org _vector_table\c + 0x040
     j   _unexpected
-    .org 0x080
+    .org _vector_table\c + 0x080
     j   _unexpected
-    .org 0x0C0
+    .org _vector_table\c + 0x0C0
     j   _unexpected
-    .org 0x100
+    .org _vector_table\c + 0x100
     j   _unexpected
-    .org 0x140
+    .org _vector_table\c + 0x140
     j   _unexpected
-    .org 0x180                  /* level 2 */
+    .org _vector_table\c + 0x180   /* level 2 */
     wsr a0, excsave2
     j   _l2_entry
-    .org 0x1C0                  /* level 3 */
+    .org _vector_table\c + 0x1C0   /* level 3 */
     wsr a0, excsave3
     j   _l3_entry
-    .org 0x200                  /* level 4 */
+    .org _vector_table\c + 0x200   /* level 4 */
     wsr a0, excsave4
-    j   _l4_entry
-    .org 0x240                  /* level 5 */
+    .global _vec_l4_jump\c
+_vec_l4_jump\c:
+    j   _l4_entry                   /* patched by irq_naked() */
+    .org _vector_table\c + 0x240   /* level 5 */
     wsr a0, excsave5
+    .global _vec_l5_jump\c
+_vec_l5_jump\c:
     j   _l5_entry
-    .org 0x280                  /* level 6 = debug */
+    .org _vector_table\c + 0x280   /* level 6 = debug */
     j   _unexpected
-    .org 0x2C0                  /* level 7 = NMI */
+    .org _vector_table\c + 0x2C0   /* level 7 = NMI */
     j   _unexpected
-    .org 0x300                  /* kernel exception: impossible, PS.UM = 1 */
+    .org _vector_table\c + 0x300   /* kernel exception: impossible, PS.UM = 1 */
     j   _unexpected
-    .org 0x340                  /* user exception + level-1 interrupt */
+    .org _vector_table\c + 0x340   /* user exception + level-1 interrupt */
     wsr a0, excsave1
     j   _l1_entry
-    .org 0x3C0                  /* double exception: fault inside EXCM window */
+    .org _vector_table\c + 0x3C0   /* double exception: fault inside EXCM window */
     j   _double
-    .org 0x400
+    .org _vector_table\c + 0x400
+.endm
+
+    .section .vectors, "ax"
+    .global _vector_table, _vector_table0, _vector_table1
+_vector_table:
+    VECTOR_TABLE 0
+    VECTOR_TABLE 1
 
 /* ---- shared save / restore ---------------------------------------------- */
     .section .iram.text, "ax"
@@ -209,6 +221,23 @@ _l\lvl\()_entry:
     HL_ENTRY 3, SOC_INTR_L3_MASK
     FAST_ENTRY 4, 0
     FAST_ENTRY 5, 1
+
+/* Naked level 4/5, for handlers out of J range (+-128 KB) of the vector:
+ * core c's vector jumps to _lN_naked_c, which jumps to irq_naked_fn[N-4][c].
+ * Only a0 is free (original in EXCSAVEn); the handler saves what it uses
+ * and returns with "rsr a0, excsaveN; rfi N". */
+.macro NAKED_REDIRECT lvl, slot, c
+    .align 4
+    .global _l\lvl\()_naked_\c
+_l\lvl\()_naked_\c:
+    movi    a0, irq_naked_fn + \slot * 8 + \c * 4
+    l32i    a0, a0, 0
+    jx      a0
+.endm
+    NAKED_REDIRECT 4, 0, 0
+    NAKED_REDIRECT 4, 0, 1
+    NAKED_REDIRECT 5, 1, 0
+    NAKED_REDIRECT 5, 1, 1
 
 /* ---- faults ------------------------------------------------------------- */
     .align 4
