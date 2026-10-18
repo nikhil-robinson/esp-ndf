@@ -313,3 +313,5 @@ device side takes the derived 64-byte key via `nvs_mount_secure()`.
 IDF sibling app moved to 0x300000 (it outgrew 0x10000-0x7FFFF and was
 overwriting the esp-ndf partition table at 0x80000).
 | `tools/mfgtool.py` | per-device images byte-identical to IDF mfg_gen.py (sample config, single- and multi-page blob value sets, 3 devices each, `--fileid id`) |
+| `tools/fattool.py mkfat [--wl]` | IDF `fatfsparse.py` extracts our raw and WL images identical to the source tree (`diff -r`); board: esp-ndf (WL+FAT) and IDF (`mount_rw_wl`) both mount the host-built WL image, 20 KB file crc32 af841263 = host |
+| `tools/fattool.py parse [--wl] -x` | extracts IDF `fatfsgen.py` and `wl_fatfsgen.py` images identical to the source (IDF marks every 8.3-fitting name lowercase, NTRes 0x18, so README.TXT reads back as readme.txt on both FatFs and ours) |

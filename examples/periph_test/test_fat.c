@@ -32,6 +32,7 @@ void test_fat(void)
     if (fat_mount(&bd) == 0) {
         char it[48] = { 0 }; int fi = fat_open("/idf.txt", FAT_RDONLY);
         if (fi >= 0) { fat_read(fi, it, sizeof it - 1); fat_close(fi); printf("    existing volume (IDF WL): idf.txt = \"%s\"\n", it); }
+        printf("    existing volume tree:\n"); list("/", 0);
         int fd0 = fat_open("/config files/deep/calibration table.bin", FAT_RDONLY);
         if (fd0 >= 0) {
             int n0 = fat_read(fd0, back, sizeof back); fat_close(fd0);
