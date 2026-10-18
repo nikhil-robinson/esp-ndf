@@ -51,7 +51,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] XTAL 32 kHz support + **XTAL32K watchdog** (ch. 14)
 - [ ] **Watchdogs** (ch. 13): MWDT (timer groups), RTC WDT, interrupt-watchdog
       and loop-watchdog equivalents; today all are off at boot
-- [ ] **Reset reason** + wake cause, per core
+- [x] **Reset reason** per core (`sys_reset_cause`); [ ] wake cause (with sleep)
 - [ ] **Brownout detector**, with an ISR so motors can be cut before the reset
 - [ ] **Clock glitch detection** (ch. 24)
 - [ ] **Fault handling**: backtrace, register dump, reset-safe crash record
@@ -65,7 +65,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] System time / RTC time kept across sleep, `gettimeofday`-like
 - [ ] Boot: own 2nd-stage loader option, app partitions, **OTA** (A/B with
       rollback), image header + SHA-256 check (needs SHA)
-- [ ] Chip info: revision, MAC addresses, flash/PSRAM size/ID, chip ID API
+- [x] Chip info: revision, package, MAC, flash id/size (`sys_info`); [ ] PSRAM size (with PSRAM)
 - [ ] ROM-free: confirm nothing still depends on ROM functions after the above
 
 ## 4. Power management (TRM ch. 10 RTC_CNTL, ch. 2 ULP)
@@ -144,7 +144,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] C++ support: global constructors, `new/delete`, no exceptions/RTTI option
 - [ ] Optional cooperative scheduler / task API for apps that want one (still no RTOS in the hot path)
 - [ ] gdbstub / JTAG debugging guide, app trace (fast logging over JTAG)
-- [ ] Build system: per-app config (sizes, pins, features) instead of editing sources; `make menuconfig`-like defaults file
+- [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
+- [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner
+- [ ] More menuconfig options as features land (UART console, log level, watchdogs, PSRAM, ...); IDF option inventory: docs/IDF_CONFIG_INVENTORY.md
 
 ## 9. Storage (mostly done)
 

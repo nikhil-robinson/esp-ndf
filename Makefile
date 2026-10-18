@@ -73,6 +73,12 @@ partition:
 	python3 tools/mkpart.py $(PARTS) build/partitions.bin
 	esptool.py --chip $(SOC) -p $(PORT) write_flash $(strip $(PART_TABLE_ADDR)) build/partitions.bin
 
+menuconfig:
+	python3 tools/ndfconfig/ndfconfig.py $(APP)
+
+config-doc:
+	python3 tools/ndfconfig/ndfconfig.py --doc docs/CONFIG.md
+
 monitor:
 	python3 -m serial.tools.miniterm $(PORT) 115200
 
