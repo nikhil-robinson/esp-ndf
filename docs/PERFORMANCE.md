@@ -62,7 +62,7 @@ path reaches its first instruction about 11 cycles after the event.
 
 | Kernel | Plain C | esp-ndf | ESP-DSP | Floor | Status |
 |---|---|---|---|---|---|
-| int16 dot product | 5 139 | **280** (was 405) | 1 073 | ~260 | near floor; **3.8× ESP-DSP** |
+| int16 dot product | 5 139 | **280** (was 405) | 1 073 | 256 + call | at floor (the ~24-cycle difference is fixed per call); **3.8× ESP-DSP** |
 | int16 saturating add | 9 237 | **409** (was 535) | 554 | ~390 | near floor; 1.35× ESP-DSP |
 | float dot product | 5 141 | **1 570** | 1 587 | ~1 536 | at floor |
 | copy 16 KB | 16 427 | **2 067** | 2 088 | ~2 050 | at floor |
@@ -71,7 +71,7 @@ path reaches its first instruction about 11 cycles after the event.
 
 | 8 KB | Before | esp-ndf now | IDF | Floor | Status |
 |---|---|---|---|---|---|
-| `memcpy`, aligned | 239 MB/s | **1 738 MB/s** | 382 MB/s | ~1 900 MB/s | near floor |
+| `memcpy`, aligned | 239 MB/s | **1 703–1 738 MB/s** | 382 MB/s | ~1 900 MB/s | at floor per byte (fixed ~100-cycle call/setup cost; 16 KB copy is within 1 %) |
 | `memcpy`, same misalignment | 239 MB/s | **1 497 MB/s** | — | ~1 800 | small room |
 | `memcpy`, different alignment | 60 MB/s | **1 362 MB/s** (fused shift+load) | — | ~1 450 | near floor |
 | `memset` | — | **3 249 MB/s** | — | ~3 800 | near floor |
