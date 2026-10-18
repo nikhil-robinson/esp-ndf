@@ -114,21 +114,25 @@ dsp_set128:
 1:  ret
 
 /* void dsp_copy128u(void *dst, const void *src, size_t n)
- * dst 16-byte aligned, src any alignment, n multiple of 32. Reads up to 15
- * bytes beyond src + n (the caller keeps that inside RAM). */
+ * dst 16-byte aligned, src any alignment, n multiple of 48. One unaligned load
+ * sets SAR_BYTE, then fused shift+load (EE.SRC.Q.LD.IP) with three rotating
+ * registers: 2 instructions per 16 bytes. Reads up to 32 bytes beyond
+ * src + n (the caller keeps that inside RAM). */
     .global dsp_copy128u
     .align 4
 dsp_copy128u:
-    srli        a5, a4, 5
+    movi        a6, 48
+    quou        a5, a4, a6
     beqz        a5, 2f
-    ee.ld.128.usar.ip q0, a3, 16      /* block holding src; SAR_BYTE = src & 15 */
-    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    ee.ld.128.usar.ip q0, a3, 16          /* block 0, SAR_BYTE = src & 15 */
+    ee.vld.128.ip q1, a3, 16              /* block 1 */
+    wsr         a5, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
     loopnez     a5, 1f
-    ee.ld.128.usar.ip q1, a3, 16
-    ee.src.q    q2, q0, q1            /* 16 bytes starting at the unaligned src */
-    ee.vst.128.ip q2, a2, 16
-    ee.ld.128.usar.ip q0, a3, 16
-    ee.src.q    q2, q1, q0
+    ee.src.q.ld.ip q2, a3, 16, q0, q1     /* q0 = out k,   q2 = block k+2 */
+    ee.vst.128.ip q0, a2, 16
+    ee.src.q.ld.ip q0, a3, 16, q1, q2     /* q1 = out k+1, q0 = block k+3 */
+    ee.vst.128.ip q1, a2, 16
+    ee.src.q.ld.ip q1, a3, 16, q2, q0     /* q2 = out k+2, q1 = block k+4 */
     ee.vst.128.ip q2, a2, 16
 1:
 2:  ret

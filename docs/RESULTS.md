@@ -632,3 +632,10 @@ by 2, register rotation, prologue/epilogue without over-read).
 
 All lengths 16..512 (step 16) equal to C including saturation and a guard
 word after the output: 0 mismatches (accelerated and NO_ACCEL builds).
+
+## memcpy, different alignments: fused shift+load
+
+dsp_copy128u now sets SAR_BYTE once (EE.LD.128.USAR.IP) and then runs
+EE.SRC.Q.LD.IP (shift + load next block) with three rotating registers: 2
+instructions per 16 bytes. 8 KB different alignment: 2 440 -> **1 443** cycles
+(1 362 MB/s). Exhaustive sizes 0-300 x offsets 0 wrong; ISR path ok.

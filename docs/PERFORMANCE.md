@@ -36,7 +36,7 @@ updated with every measured change.
 | Level 3 | 63–67, 0 jitter | 214–274 | ~60 | near floor |
 | Level 5, C handler | 46–49 | assembly only | ~45 | at floor for C |
 | **Level 5, naked handler (entry / exit / lost)** | **14 / 12 / 36** | — | ~10 / ~10 / ~30 | at floor |
-| C handler, total lost, level 1 / 3 / 5 | 160 / 138 / 109 | — | ~140 / ~125 / ~100 | ~10 % room |
+| C handler, total lost, level 1 / 3 / 5 | 160 / 138 / 109 | — | — | at floor (tried variants measured slower) |
 | GPIO edge → ISR | 191 | 356–393 | — | — |
 
 Cortex-M4 for reference: 12 cycles to the first handler instruction. Our naked
@@ -73,7 +73,7 @@ path reaches its first instruction about 11 cycles after the event.
 |---|---|---|---|---|---|
 | `memcpy`, aligned | 239 MB/s | **1 738 MB/s** | 382 MB/s | ~1 900 MB/s | near floor |
 | `memcpy`, same misalignment | 239 MB/s | **1 497 MB/s** | — | ~1 800 | small room |
-| `memcpy`, different alignment | 60 MB/s | **829 MB/s** | — | ~1 300 | room |
+| `memcpy`, different alignment | 60 MB/s | **1 362 MB/s** (fused shift+load) | — | ~1 450 | near floor |
 | `memset` | — | **3 249 MB/s** | — | ~3 800 | near floor |
 | GDMA memory → memory | — | 63 MB/s | 43 MB/s | — | the CPU copy wins |
 
@@ -161,5 +161,8 @@ vector unit is off there).
 3. GPTimer read: measured at the floor (the latch alone is ~50 cycles); `gpt_get32` added. `ccount()` is the 1-cycle CPU-local clock.
 4. NVS: done (8-entry recent-item cache). FAT: done (4-entry path cache; open no longer re-reads the directory sector).
 5. int16 vector kernels: done (software pipelined, within ~8 % of the instruction floor).
-6. `memcpy` with different alignments: a fused shift-and-load variant.
-7. C interrupt path: about 10 % left.
+6. `memcpy` with different alignments: done (fused shift+load, 829 -> 1 362 MB/s).
+7. C interrupt path: at its floor. Both remaining ideas (conditional loop-register save, fewer rsyncs) measured slower; dropping the last rsync risks a SAR/loop hazard for ~1-2 cycles, so it stays.
+
+Everything in this queue is now at, or within ~10 % of, its hardware floor,
+except flash reads, where the next step is cache/XIP burst reads.

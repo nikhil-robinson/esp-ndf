@@ -19,7 +19,7 @@ static inline int vec_ok(uintptr_t a, uintptr_t b, size_t n, size_t min)
     uint32_t cp;
     __asm__ volatile("rsr.cpenable %0" : "=r"(cp));
     return n >= min && (cp & 8) && a >= 0x3FC88000u && a + n <= 0x3FD00000u &&
-           b >= 0x3FC88000u && b + n + 16 <= 0x3FD00000u;          /* +16: unaligned copy over-reads one block */
+           b >= 0x3FC88000u && b + n + 32 <= 0x3FD00000u;          /* +32: unaligned copy reads ahead up to two blocks */
 #endif
 }
 
@@ -35,7 +35,7 @@ void *memcpy(void *d, const void *s, size_t n)
         dp += v; sp += v; n -= v;
     } else if (((uintptr_t)dp & 15) != ((uintptr_t)sp & 15) && vec_ok((uintptr_t)dp, (uintptr_t)sp, n, 128)) {  /* different alignments */
         while ((uintptr_t)dp & 15) { *dp++ = *sp++; n--; }
-        size_t v = n & ~(size_t)31;
+        size_t v = n / 48 * 48;                                   /* the kernel moves 48-byte steps */
         dsp_copy128u(dp, sp, v);
         dp += v; sp += v; n -= v;
     } else if (n >= 16 && (((uintptr_t)dp ^ (uintptr_t)sp) & 3) == 0) {  /* same misalignment: align, words */
