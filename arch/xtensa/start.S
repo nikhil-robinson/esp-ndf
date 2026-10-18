@@ -20,7 +20,7 @@
     wsr     a0, intenable
     movi    a0, \vec
     wsr     a0, vecbase
-    movi    a0, 1                /* FPU on */
+    movi    a0, 0x09             /* FPU (cp0) + PIE vector unit (cp3) on */
     wsr     a0, cpenable
     rsync
     movi    a1, \stack

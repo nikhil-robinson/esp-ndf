@@ -10,7 +10,7 @@ TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-e
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
 OUT   = build/$(notdir $(APP))
 
-SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c $(APP)/*.c $(APP)/*.S)
+SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S $(APP)/*.c $(APP)/*.S)
 OBJS  = $(patsubst %,$(OUT)/%.o,$(SRCS))
 INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
 
@@ -27,9 +27,21 @@ $(OUT)/app.elf: $(OBJS) soc/$(SOC)/link.ld
 	@$(PFX)gcc $(FLAGS) -nostdlib -T soc/$(SOC)/link.ld -Wl,--gc-sections -o $@ $(OBJS)
 	$(PFX)size $@
 
-$(OUT)/%.o: %
+# ESP32-S3 core quirk (measured): re-entering the same zero-overhead loop
+# while LBEG still points at it runs the loop at reduced speed (vector copy:
+# 2x slower, C loop: ~5%). Every C loop gets "wsr <count reg>, lbeg" before
+# its LOOP instruction so LBEG always changes; LOOP then sets it properly.
+LOOPFIX = sed -E 's/^([[:space:]]+)(loop|loopnez|loopgtz)([[:space:]]+)(a[0-9]+),/\1wsr\t\4, lbeg\n\1\2\3\4,/'
+
+$(OUT)/%.c.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "  CC $<"
+	@$(PFX)gcc $(FLAGS) -MMD -MF $(@:.o=.d) -MT $@ -S $< -o - | $(LOOPFIX) > $(@:.o=.s)
+	@$(PFX)gcc $(FLAGS) -c $(@:.o=.s) -o $@
+
+$(OUT)/%.S.o: %.S
+	@mkdir -p $(dir $@)
+	@echo "  AS $<"
 	@$(PFX)gcc $(FLAGS) -MMD -c $< -o $@
 
 flash: $(OUT)/app.bin

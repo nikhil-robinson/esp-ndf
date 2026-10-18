@@ -503,3 +503,45 @@ slow bus; returning before it lands re-fires the interrupt (looked like a
 14-cycle round trip - it was the handler re-entering continuously). A read
 back of the register after the clear (13 cycles) makes it exact: 10 000
 notifications -> 10 000 handler runs. Same read-back added to the C path.
+
+## SIMD (PIE vector unit) kernels vs C and vs Espressif ESP-DSP (bench/idf_dsp)
+
+PIE = coprocessor 3, enabled at boot on both cores (off inside interrupt
+handlers, like the FPU). Kernels in lib/dsp.S, our own code. 1024 elements,
+16-byte aligned, cycles per call:
+
+| Kernel | C -O2 | esp-ndf | ESP-DSP (S3 build) | vs ESP-DSP |
+|---|---|---|---|---|
+| int16 dot product | 5 139 | **405** | 1 073 | **2.6x faster** |
+| int16 saturating add | 9 237 | **535** | 554 | 3.5 % faster |
+| float dot product | 5 141 | **1 570** | 1 587 | 1 % faster (single-issue floor) |
+| copy 16 KB | 16 427 | **2 067** (1 902 MB/s) | 2 088 (1 883 MB/s) | equal |
+
+All results equal to the C reference (float: within rounding).
+
+## memcpy / memset (lib/string.c): vector path when safe
+
+128-bit path only for internal DRAM and only when the vector unit is on
+(it is off in interrupt handlers - checked with CPENABLE, 1 cycle).
+
+| 8 KB | before | now |
+|---|---|---|
+| memcpy, both 16-byte aligned | 239 MB/s | **1 738 MB/s** (IDF ROM memcpy: 382) |
+| memcpy, same misalignment | 239 MB/s | 1 497 MB/s |
+| memcpy, different alignment (unaligned loads + shift-merge) | 60 MB/s | 829 MB/s |
+| memset | ~ | **3 249 MB/s** |
+
+Exhaustive check: sizes 0-300 x every source/destination offset 0-17, 0 wrong;
+memcpy/memset inside an interrupt handler (scalar path) ok.
+
+## ESP32-S3 core quirk found: re-entered zero-overhead loops run slow
+
+Re-entering the same hardware loop while LBEG still points at it runs at
+reduced speed: vector copy 2 055 vs 1 049 cycles (2x), a compiled C loop
+10 515 vs 10 016 (+5 %). Changing LBEG before the LOOP instruction removes it
+completely (1 053 / 10 017 on every call). Applied everywhere:
+- lib/dsp.S: `wsr <count>, lbeg` before each loop
+- every C file: the build compiles to assembly and inserts the same
+  instruction before each GCC-generated loop (Makefile LOOPFIX), one
+  instruction per loop entry, nothing per iteration
+Full peripheral suite: all pass after the change.

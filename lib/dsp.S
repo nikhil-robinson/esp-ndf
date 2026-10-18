@@ -1,0 +1,125 @@
+/* Vector (PIE, coprocessor 3) and FPU kernels. CALL0 ABI: args a2..a7,
+ * result a2, a2-a11 scratch. Vector loads/stores need 16-byte aligned
+ * pointers (the low 4 address bits are ignored by EE.VLD/VST.128).
+ * Every loop is preceded by "wsr <count>, lbeg": the S3 runs a re-entered
+ * zero-overhead loop at half speed if LBEG still points at it (measured). */
+    .section .iram.text, "ax"
+    .literal_position
+
+/* int32 dsp_dot_s16(const int16_t *a, const int16_t *b, int n)
+ * n: multiple of 8. 40-bit accumulator, result saturated to 32 bits. */
+    .global dsp_dot_s16
+    .align 4
+dsp_dot_s16:
+    ee.zero.accx
+    srli        a5, a4, 3
+    beqz        a5, 2f
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q1, a3, 16
+    addi        a5, a5, -1
+    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q0, q1     /* acc += q0*q1, load next a */
+    ee.vld.128.ip q1, a3, 16
+1:  ee.vmulas.s16.accx q0, q1
+2:  movi        a6, 0
+    ee.srs.accx a2, a6, 0
+    ret
+
+/* void dsp_add_s16_sat(int16_t *dst, const int16_t *a, const int16_t *b, int n)
+ * dst = sat16(a + b); n multiple of 16. Unrolled by 2: each EE.VADDS.S16.ST.INCP
+ * adds the current pair and stores the previous result (q4 / q5 alternate). */
+    .global dsp_add_s16_sat
+    .align 4
+dsp_add_s16_sat:
+    srli        a6, a5, 4
+    beqz        a6, 2f
+    ee.vld.128.ip q0, a3, 16          /* prime: first result in q5 */
+    ee.vld.128.ip q1, a4, 16
+    ee.vadds.s16 q5, q0, q1
+    ee.vld.128.ip q2, a3, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vadds.s16.st.incp q5, a2, q4, q2, q3   /* store #0, q4 = #1 */
+    addi        a6, a6, -1
+    wsr         a6, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a6, 1f
+    ee.vld.128.ip q0, a3, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vadds.s16.st.incp q4, a2, q5, q0, q1   /* store previous, compute next */
+    ee.vld.128.ip q2, a3, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vadds.s16.st.incp q5, a2, q4, q2, q3
+1:  ee.vst.128.ip q4, a2, 16          /* last result */
+2:  ret
+
+/* void dsp_copy128(void *dst, const void *src, size_t n)   n multiple of 32 */
+    .global dsp_copy128
+    .align 4
+dsp_copy128:
+    srli        a5, a4, 5
+    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.vld.128.ip q0, a3, 16
+    ee.vld.128.ip q1, a3, 16
+    ee.vst.128.ip q0, a2, 16
+    ee.vst.128.ip q1, a2, 16
+1:  ret
+
+/* float dsp_dot_f32(const float *a, const float *b, int n)   n multiple of 4
+ * 128-bit loads straight into FPU registers (EE.LDF.128.IP), 4 independent
+ * fused multiply-add chains. a, b 16-byte aligned. */
+    .global dsp_dot_f32
+    .align 4
+dsp_dot_f32:
+    movi        a5, 0
+    wfr         f8, a5
+    mov.s       f9, f8
+    mov.s       f10, f8
+    mov.s       f11, f8
+    srli        a5, a4, 2
+    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.ldf.128.ip f3, f2, f1, f0, a2, 16
+    ee.ldf.128.ip f7, f6, f5, f4, a3, 16
+    madd.s      f8, f0, f4
+    madd.s      f9, f1, f5
+    madd.s      f10, f2, f6
+    madd.s      f11, f3, f7
+1:  add.s       f8, f8, f9
+    add.s       f10, f10, f11
+    add.s       f8, f8, f10
+    rfr         a2, f8
+    ret
+
+/* void dsp_set128(void *dst, const void *pattern16, size_t n)   n multiple of 32 */
+    .global dsp_set128
+    .align 4
+dsp_set128:
+    ee.vld.128.ip q0, a3, 0
+    srli        a5, a4, 5
+    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.vst.128.ip q0, a2, 16
+    ee.vst.128.ip q0, a2, 16
+1:  ret
+
+/* void dsp_copy128u(void *dst, const void *src, size_t n)
+ * dst 16-byte aligned, src any alignment, n multiple of 32. Reads up to 15
+ * bytes beyond src + n (the caller keeps that inside RAM). */
+    .global dsp_copy128u
+    .align 4
+dsp_copy128u:
+    srli        a5, a4, 5
+    beqz        a5, 2f
+    ee.ld.128.usar.ip q0, a3, 16      /* block holding src; SAR_BYTE = src & 15 */
+    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.ld.128.usar.ip q1, a3, 16
+    ee.src.q    q2, q0, q1            /* 16 bytes starting at the unaligned src */
+    ee.vst.128.ip q2, a2, 16
+    ee.ld.128.usar.ip q0, a3, 16
+    ee.src.q    q2, q1, q0
+    ee.vst.128.ip q2, a2, 16
+1:
+2:  ret
+
