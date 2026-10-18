@@ -13,11 +13,13 @@
 #define SOC_CPU_HAS_PIE             1   /* 128-bit vector unit (EE.*), coprocessor 3 */
 #define SOC_CPU_HAS_S32C1I          1   /* compare-and-swap */
 #define SOC_CPU_HWLOOP_LBEG_QUIRK   1   /* re-entered LOOP runs slow unless LBEG changes */
+#define SOC_HAS_FLASH_CACHE         1   /* SPI0 + MMU + data cache: flash reads via 0x3C000000 */
 #else
 #define SOC_CPU_HAS_FPU             1   /* kept: the C ABI of this build uses the FPU */
 #define SOC_CPU_HAS_PIE             0
 #define SOC_CPU_HAS_S32C1I          0
 #define SOC_CPU_HWLOOP_LBEG_QUIRK   0
+#define SOC_HAS_FLASH_CACHE         0
 #endif
 
 /* coprocessor enable mask written at boot (CPENABLE); no ?: so the assembler can use it */

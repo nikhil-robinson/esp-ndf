@@ -135,7 +135,8 @@ vector unit is off there).
 
 | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|
-| Flash read 4 KB | **209 µs** (was 269) | 462 µs | 2.2× | room ~1.6× (SPI1 register path; XIP cache next) |
+| Flash read 4 KB, cold (cache line bursts) | **134 µs** (was 269) | 462 µs | **3.4×** | within ~11 % of the per-line floor (~118 µs) |
+| Flash read 4 KB, repeated (cache hit) | **13 µs** | — | — | memory speed |
 | Flash erase 4 KB | **642 µs** | 1 041 µs | 1.6× | chip-bound |
 | Flash write 4 KB | **10.8 ms** | 12.4 ms | 1.15× | chip-bound |
 | NVS read u32 (repeated key, cached) | **498** (was 2 338) | 26 269 | **53×** | — |
@@ -143,7 +144,7 @@ vector unit is off there).
 | NVS read u32, encrypted (cached) | **435** (was 4 863) | 82 455 | **190×** | — |
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
-| SPIFFS 40 × 30 KB rewrites | **7.4 s** | 10.9 s | 1.5× | — |
+| SPIFFS 40 × 30 KB rewrites | **7.4–8.4 s** | 10.9 s | 1.3–1.5× | flash-chip bound (write time drifts run to run; A/B cache vs SPI1 read path: <1 % apart) |
 | FAT open, repeated path (path cache) | **814** (was 65 882) | 70 187 | **86×** | — |
 | FAT open, first time (one directory sector read) | ~51 000 | 70 187 | 1.37× | flash-read bound |
 | NVS boot reader, 8 keys | **456 µs** (was 618) | not in IDF 5.3 | — | — |
@@ -156,7 +157,7 @@ vector unit is off there).
 
 ## Where there is still room (work queue)
 
-1. Flash read: now 19.6 MB/s (QIO + overlapped buffer halves). The SPI1 register path costs ~47 clocks per 32 B; cache/XIP burst reads are the next step.
+1. Flash read: done. Reads now go through the data cache (SPI0 in QIO, 64-byte lines, whole flash mapped by the MMU): 4 KB cold 134 µs, hits 13 µs. Cache preload/autoload were measured and did not help.
 2. SPI small transfers: overhead cut from ~530 to ~350 cycles (no read-modify-write, word packing); the rest is ~20-cycle peripheral register accesses.
 3. GPTimer read: measured at the floor (the latch alone is ~50 cycles); `gpt_get32` added. `ccount()` is the 1-cycle CPU-local clock.
 4. NVS: done (8-entry recent-item cache). FAT: done (4-entry path cache; open no longer re-reads the directory sector).
@@ -164,5 +165,4 @@ vector unit is off there).
 6. `memcpy` with different alignments: done (fused shift+load, 829 -> 1 362 MB/s).
 7. C interrupt path: at its floor. Both remaining ideas (conditional loop-register save, fewer rsyncs) measured slower; dropping the last rsync risks a SAR/loop hazard for ~1-2 cycles, so it stays.
 
-Everything in this queue is now at, or within ~10 % of, its hardware floor,
-except flash reads, where the next step is cache/XIP burst reads.
+Everything in this queue is now at, or within ~10 % of, its hardware floor.

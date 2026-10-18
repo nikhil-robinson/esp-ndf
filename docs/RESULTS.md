@@ -639,3 +639,25 @@ dsp_copy128u now sets SAR_BYTE once (EE.LD.128.USAR.IP) and then runs
 EE.SRC.Q.LD.IP (shift + load next block) with three rotating registers: 2
 instructions per 16 bytes. 8 KB different alignment: 2 440 -> **1 443** cycles
 (1 362 MB/s). Exhaustive sizes 0-300 x offsets 0 wrong; ISR path ok.
+
+## Flash reads through the data cache (examples/flash_mmap)
+
+Steps measured, 4 KB cold read, data checked against the SPI1 read each time:
+
+| configuration | time |
+|---|---|
+| SPI1 register path (previous best) | 209 µs |
+| cache as the ROM leaves it (SPI0 DIO, 16-byte lines) | 336 µs |
+| SPI0 switched to QIO (cmd 0xEB, 6 dummy) - with the old 0xBB command the data was wrong | 220 µs |
+| + 32-byte lines | 161 µs |
+| + 64-byte lines | **132 µs** |
+| + cache preload engine | 2 218 µs (not used) |
+| + autoload (sequential prefetch), sizes 0-3 | 130-134 µs (no gain, not used) |
+
+flash_read() now copies from 0x3C000000 + addr (whole 16 MB mapped, 64 KB
+MMU pages); repeated reads hit the cache (4 KB in 13 µs). Writes/erases stay
+on SPI1 and invalidate the written range in the cache. Without quad mode, or
+with SOC_HAS_FLASH_CACHE = 0 (NO_ACCEL), the SPI1 path is used. CRC of 4 KB
+= host file; full suite passes. A/B on the same chip (alternating builds):
+SPIFFS 40 x 30 KB rewrites 8 413 / 8 397 ms (cache) vs 8 327 / 8 358 ms (SPI1)
+- the read path is not what limits it; the chip's write time is.

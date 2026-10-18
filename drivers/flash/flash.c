@@ -3,6 +3,7 @@
 #include "flash.h"
 #include "xtensa.h"
 #include "sys.h"
+#include <string.h>
 
 #define S1         0x60002000
 #define CMD        (S1 + 0x00)   /* b18 usr start */
@@ -75,17 +76,94 @@ uint32_t flash_size(void)
     return c >= 0x10 && c <= 0x20 ? 1u << c : 0;
 }
 
+static void detect_lines(void)
+{
+    if (read_lines) return;                     /* quad only if the flash has QE set */
+    uint8_t sr2 = 0;
+    op(0x35, 0, 0, 0, 0, &sr2, 1);
+    read_lines = (sr2 & 0x02) ? 4 : 2;
+    if (read_lines == 4) {                       /* WP/HD pads to their SPI function (IO_MUX func 0) */
+        REG(0x60009004 + 4 * 27) = BIT(9) | 3u << 10;   /* SPIHD: input on, drive 3 */
+        REG(0x60009004 + 4 * 28) = BIT(9) | 3u << 10;   /* SPIWP */
+    }
+}
+
+/* ---- reads through the data cache (SPI0 + MMU), the fast path ----------------
+ * The whole flash is mapped once at 0x3C000000 (64 KB MMU pages). SPI0, the
+ * cache's flash controller, is switched from the ROM's DIO to QIO (0xEB, 6
+ * dummy clocks) and the cache to 64-byte lines: 4 KB cold in ~131 us
+ * (SPI1 register path: 209 us), repeated reads are cache hits. Writes and
+ * erases go through SPI1 and invalidate the cache afterwards. */
+#define DCACHE_CTRL   0x600C4000      /* b0 enable b3..4 block size (2 = 64 B) */
+#define DCACHE_CTRL1  0x600C4004      /* b0/b1 shut dbus core0/core1 */
+#define DCACHE_SYNC   0x600C4028      /* b0 invalidate b3 done */
+#define MMU(i)        (0x600C5000 + 4 * (i))
+#define S0            0x60003000
+#define FLASH_VADDR   0x3C000000u
+static int mm;                                  /* 0 unknown, 1 ready, -1 not available */
+
+#define DCACHE_SYNC_ADDR  0x600C402C
+#define DCACHE_SYNC_SIZE  0x600C4030
+
+static void dcache_sync(void)
+{
+    REG(DCACHE_SYNC) = BIT(0);
+    uint32_t t = ccount();
+    while (!(REG(DCACHE_SYNC) & BIT(3)) && ccount() - t < 2400000) {}
+}
+
+static void dcache_invalidate(void)                  /* everything */
+{
+    REG(DCACHE_SYNC_ADDR) = 0; REG(DCACHE_SYNC_SIZE) = 0;
+    dcache_sync();
+}
+
+static void dcache_invalidate_range(uint32_t addr, size_t len)   /* only lines covering flash [addr, addr+len) */
+{
+    uint32_t a = (FLASH_VADDR + addr) & ~63u;
+    REG(DCACHE_SYNC_ADDR) = a;
+    REG(DCACHE_SYNC_SIZE) = ((FLASH_VADDR + addr + len + 63) & ~63u) - a;
+    dcache_sync();
+}
+
+static void mm_init(void)
+{
+    detect_lines();
+#if SOC_HAS_FLASH_CACHE
+    if (read_lines == 4) {
+        REG(S0 + 0x08) = (REG(S0 + 0x08) & ~(BIT(14) | BIT(20) | BIT(23))) | BIT(13) | BIT(24);   /* QIO */
+        REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;                                         /* 6 dummy clocks */
+        REG(S0 + 0x20) = 7u << 28 | 0xEB;                                                       /* cache command */
+        REG_CLR(DCACHE_CTRL, BIT(0));
+        REG(DCACHE_CTRL) = (REG(DCACHE_CTRL) & ~(3u << 3)) | 2u << 3;                           /* 64-byte lines */
+        uint32_t pages = flash_size() >> 16;
+        if (pages > 256) pages = 256;
+        for (uint32_t i = 0; i < pages; i++) REG(MMU(i)) = i;                                  /* flash page i, valid */
+        dcache_invalidate();
+        REG_CLR(DCACHE_CTRL1, BIT(0) | BIT(1));
+        REG_SET(DCACHE_CTRL, BIT(0));
+        mm = 1;
+        return;
+    }
+#endif
+    mm = -1;
+}
+
+static int spi1_read(uint32_t addr, void *buf, size_t len);
+
 int flash_read(uint32_t addr, void *buf, size_t len)
 {
-    if (!read_lines) {                          /* quad only if the flash has QE set */
-        uint8_t sr2 = 0;
-        op(0x35, 0, 0, 0, 0, &sr2, 1);
-        read_lines = (sr2 & 0x02) ? 4 : 2;
-        if (read_lines == 4) {                   /* WP/HD pads to their SPI function (IO_MUX func 0) */
-            REG(0x60009004 + 4 * 27) = BIT(9) | 3u << 10;   /* SPIHD: input on, drive 3 */
-            REG(0x60009004 + 4 * 28) = BIT(9) | 3u << 10;   /* SPIWP */
-        }
+    if (!mm) mm_init();
+    if (mm > 0 && addr + len <= flash_size() && addr + len <= 16u << 20) {
+        memcpy(buf, (const void *)(FLASH_VADDR + addr), len);   /* cache-line bursts, hits on repeats */
+        return 0;
     }
+    return spi1_read(addr, buf, len);
+}
+
+static int spi1_read(uint32_t addr, void *buf, size_t len)
+{
+    detect_lines();
     /* Quad: QIO read (0xEB, address on 4 lines, 6 dummy clocks). 32-byte
      * transactions alternate between the low (W0-7) and high (W8-15) data
      * buffer halves, so draining one half overlaps the next transfer. */
@@ -134,21 +212,25 @@ int flash_erase_sector(uint32_t addr)
 {
     if (addr >= 16u << 20) return -1;
     if (wait_ready(10) || op(0x06, 0, 0, 0, 0, 0, 0) || op(0x20, 24, addr & ~(FLASH_SECTOR - 1), 0, 0, 0, 0)) return -1;
-    return wait_ready(500);                                   /* datasheet max ~400 ms */
+    int r = wait_ready(500);                                  /* datasheet max ~400 ms */
+    if (mm > 0) dcache_invalidate_range(addr & ~(FLASH_SECTOR - 1), FLASH_SECTOR);   /* cached old contents */
+    return r;
 }
 
 int flash_write(uint32_t addr, const void *buf, size_t len)
 {
     if (addr + len > 16u << 20) return -1;
+    uint32_t a0 = addr; size_t l0 = len;
     const uint8_t *b = buf;
     while (len) {
         /* stay inside one 256-byte page and one 64-byte transaction */
         size_t n = FLASH_PAGE - (addr & (FLASH_PAGE - 1));
         if (n > 64) n = 64;
         if (n > len) n = len;
-        if (op(0x06, 0, 0, 0, 0, 0, 0) || op(0x02, 24, addr, b, n, 0, 0) || wait_ready(10)) return -1;
+        if (op(0x06, 0, 0, 0, 0, 0, 0) || op(0x02, 24, addr, b, n, 0, 0) || wait_ready(10)) { if (mm > 0) dcache_invalidate_range(a0, l0); return -1; }
         addr += n; b += n; len -= n;
     }
+    if (mm > 0) dcache_invalidate_range(a0, l0);
     return 0;
 }
 int flash_read_lines(void) { return read_lines; }
