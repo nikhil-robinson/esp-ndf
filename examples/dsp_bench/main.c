@@ -57,6 +57,17 @@ int main(void)
     printf("  copy 16 KB: memcpy %lu (%lu MB/s)  SIMD %lu (%lu MB/s)  GDMA %lu (%lu MB/s)  %s\n",
            tc, 16384u * 240 / tc, ts, 16384u * 240 / ts, tg, 16384u * 240 / tg,
            memcmp(src, dst, sizeof src) || memcmp(src, dst2, sizeof src) ? "MISMATCH" : "equal");
+    /* every length 16..512 (step 16): pipelined prologue/epilogue, saturation */
+    int bad = 0;
+    for (int n = 16; n <= 512; n += 16) {
+        if (c_dot_s16(a16, b16, n) != dsp_dot_s16(a16, b16, n)) bad++;
+        for (int i = 0; i < n; i++) r16[i] = a16[i] * 6;               /* overflows: exercises saturation */
+        static int16_t x1[N] DSP_ALIGN, x2[N] DSP_ALIGN;
+        x1[n] = x2[n] = 0x7777;                                         /* guard: nothing written past n */
+        c_add_s16_sat(x1, r16, b16, n); dsp_add_s16_sat(x2, r16, b16, n);
+        if (memcmp(x1, x2, n * 2) || x2[n] != 0x7777) bad++;
+    }
+    printf("  lengths 16..512: %d mismatches\n", bad);
     printf("=== done ===\n");
     for (;;) ;
 }

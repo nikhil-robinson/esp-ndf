@@ -21,7 +21,7 @@ updated with every measured change.
 | Wake the other core (cross-core interrupt, round trip) | **62 cycles** | IDF `esp_ipc`: 363 000–480 000 | **>5 800×** |
 | Lock + unlock, both cores | **19–23 cycles** | IDF `portMUX`: 405 | **18×** |
 | Core → core stream, per item | **18 cycles** push | FreeRTOS queue: 384 | **21×** |
-| int16 dot product, 1024 elements | **405 cycles** | ESP-DSP: 1 073 | **2.6×** |
+| int16 dot product, 1024 elements | **280 cycles** | ESP-DSP: 1 073 | **3.8×** |
 | `memcpy` 8 KB, aligned | **1 738 MB/s** | IDF ROM `memcpy`: 382 MB/s | **4.5×** |
 | NVS read (encrypted, repeated key) | **435 cycles** | IDF: 82 455 | **190×** |
 | NVS read (plain, repeated key) | **498 cycles** | IDF: 26 269 | **53×** |
@@ -62,8 +62,8 @@ path reaches its first instruction about 11 cycles after the event.
 
 | Kernel | Plain C | esp-ndf | ESP-DSP | Floor | Status |
 |---|---|---|---|---|---|
-| int16 dot product | 5 139 | **405** | 1 073 | ~260 | **room ~1.5×** |
-| int16 saturating add | 9 237 | **535** | 554 | ~390 | **room ~1.4×** |
+| int16 dot product | 5 139 | **280** (was 405) | 1 073 | ~260 | near floor; **3.8× ESP-DSP** |
+| int16 saturating add | 9 237 | **409** (was 535) | 554 | ~390 | near floor; 1.35× ESP-DSP |
 | float dot product | 5 141 | **1 570** | 1 587 | ~1 536 | at floor |
 | copy 16 KB | 16 427 | **2 067** | 2 088 | ~2 050 | at floor |
 
@@ -160,6 +160,6 @@ vector unit is off there).
 2. SPI small transfers: overhead cut from ~530 to ~350 cycles (no read-modify-write, word packing); the rest is ~20-cycle peripheral register accesses.
 3. GPTimer read: measured at the floor (the latch alone is ~50 cycles); `gpt_get32` added. `ccount()` is the 1-cycle CPU-local clock.
 4. NVS: done (8-entry recent-item cache). FAT: done (4-entry path cache; open no longer re-reads the directory sector).
-5. int16 vector kernels: deeper unrolling to hide load latency.
+5. int16 vector kernels: done (software pipelined, within ~8 % of the instruction floor).
 6. `memcpy` with different alignments: a fused shift-and-load variant.
 7. C interrupt path: about 10 % left.

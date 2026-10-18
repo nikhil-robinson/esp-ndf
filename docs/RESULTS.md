@@ -619,3 +619,16 @@ computes it from the FAT chain). Repeated open of the same path: 51 206 ->
 **814** cycles (IDF 70 187). First open of a path still costs one directory
 sector read (~51 000). Full suite passes (create/overwrite/truncate/unlink/
 mkdir/remount/IDF volumes/FAT-mirror repair).
+
+## int16 vector kernels, software pipelined
+
+Every vector operand is now loaded two instructions before its use (unroll
+by 2, register rotation, prologue/epilogue without over-read).
+
+| 1024 elements | before | now | instruction floor | ESP-DSP |
+|---|---|---|---|---|
+| int16 dot product | 405 | **280** | ~260 | 1 073 |
+| int16 saturating add | 535 | **409** | ~390 | 554 |
+
+All lengths 16..512 (step 16) equal to C including saturation and a guard
+word after the output: 0 mismatches (accelerated and NO_ACCEL builds).

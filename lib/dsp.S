@@ -9,49 +9,57 @@
     .literal_position
 
 /* int32 dsp_dot_s16(const int16_t *a, const int16_t *b, int n)
- * n: multiple of 8. 40-bit accumulator, result saturated to 32 bits. */
+ * n: multiple of 16, >= 16. 40-bit accumulator, result saturated to 32 bits.
+ * Software pipelined: every operand is loaded two instructions before the
+ * multiply that uses it (no load-use stall); prologue/epilogue keep all
+ * loads inside the buffers. */
     .global dsp_dot_s16
     .align 4
 dsp_dot_s16:
     ee.zero.accx
-    srli        a5, a4, 3
+    srli        a5, a4, 4                 /* pairs of 8-element blocks */
     beqz        a5, 2f
-    ee.vld.128.ip q0, a2, 16
-    ee.vld.128.ip q1, a3, 16
+    ee.vld.128.ip q0, a2, 16              /* a0 */
+    ee.vld.128.ip q2, a3, 16              /* b0 */
     addi        a5, a5, -1
-    wsr         a5, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    wsr         a5, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
     loopnez     a5, 1f
-    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q0, q1     /* acc += q0*q1, load next a */
-    ee.vld.128.ip q1, a3, 16
-1:  ee.vmulas.s16.accx q0, q1
+    ee.vld.128.ip q3, a3, 16                          /* b(k+1) */
+    ee.vmulas.s16.accx.ld.ip q1, a2, 16, q0, q2       /* acc += a(k)*b(k); a(k+1) */
+    ee.vld.128.ip q2, a3, 16                          /* b(k+2) */
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q1, q3       /* acc += a(k+1)*b(k+1); a(k+2) */
+1:  ee.vld.128.ip q3, a3, 16                          /* last pair, no further loads */
+    ee.vmulas.s16.accx.ld.ip q1, a2, 16, q0, q2
+    ee.vmulas.s16.accx q1, q3
 2:  movi        a6, 0
     ee.srs.accx a2, a6, 0
     ret
 
 /* void dsp_add_s16_sat(int16_t *dst, const int16_t *a, const int16_t *b, int n)
- * dst = sat16(a + b); n multiple of 16. Unrolled by 2: each EE.VADDS.S16.ST.INCP
- * adds the current pair and stores the previous result (q4 / q5 alternate). */
+ * dst = sat16(a + b); n multiple of 16, >= 16. Software pipelined: one load
+ * folds into each add (EE.VADDS.S16.LD.INCP), operands are loaded well
+ * before use, results are stored one step later. No over-read. */
     .global dsp_add_s16_sat
     .align 4
 dsp_add_s16_sat:
     srli        a6, a5, 4
     beqz        a6, 2f
-    ee.vld.128.ip q0, a3, 16          /* prime: first result in q5 */
-    ee.vld.128.ip q1, a4, 16
-    ee.vadds.s16 q5, q0, q1
-    ee.vld.128.ip q2, a3, 16
-    ee.vld.128.ip q3, a4, 16
-    ee.vadds.s16.st.incp q5, a2, q4, q2, q3   /* store #0, q4 = #1 */
+    ee.vld.128.ip q0, a3, 16              /* a0 */
+    ee.vld.128.ip q1, a4, 16              /* b0 */
     addi        a6, a6, -1
-    wsr         a6, lbeg            /* S3 quirk: LBEG must change (see Makefile) */
+    wsr         a6, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
     loopnez     a6, 1f
-    ee.vld.128.ip q0, a3, 16
-    ee.vld.128.ip q1, a4, 16
-    ee.vadds.s16.st.incp q4, a2, q5, q0, q1   /* store previous, compute next */
-    ee.vld.128.ip q2, a3, 16
-    ee.vld.128.ip q3, a4, 16
-    ee.vadds.s16.st.incp q5, a2, q4, q2, q3
-1:  ee.vst.128.ip q4, a2, 16          /* last result */
+    ee.vld.128.ip q3, a4, 16                          /* b(k+1) */
+    ee.vadds.s16.ld.incp q2, a3, q4, q0, q1           /* r(k) = a(k)+b(k); a(k+1) */
+    ee.vld.128.ip q1, a4, 16                          /* b(k+2) */
+    ee.vst.128.ip q4, a2, 16                          /* store r(k) */
+    ee.vadds.s16.ld.incp q0, a3, q5, q2, q3           /* r(k+1); a(k+2) */
+    ee.vst.128.ip q5, a2, 16
+1:  ee.vld.128.ip q3, a4, 16                          /* last pair */
+    ee.vadds.s16.ld.incp q2, a3, q4, q0, q1
+    ee.vst.128.ip q4, a2, 16
+    ee.vadds.s16 q5, q2, q3
+    ee.vst.128.ip q5, a2, 16
 2:  ret
 
 /* void dsp_copy128(void *dst, const void *src, size_t n)   n multiple of 32 */
