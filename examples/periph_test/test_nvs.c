@@ -20,9 +20,14 @@ void test_nvs(void)
         char s[32]; size_t sl = sizeof s, bl = sizeof back;
         int r1 = nvs_get_str(h, "idf_str", s, &sl), r2 = nvs_get_blob(h, "idf_blob", back, &bl);
         pattern(big, 5000, 3);
-        printf("    ESP-IDF wrote: from_idf=%lx, idf_str=\"%s\", idf_blob %u B %s\n", mark, r1 ? "?" : s, bl,
+        printf("    ESP-IDF wrote: from_idf=%lx, idf_str=\"%s\", idf_blob %u B (r=%d) %s\n", mark, r1 ? "?" : s, bl, r2,
                !r2 && bl == 5000 && !memcmp(back, big, 5000) ? "matches" : "MISMATCH");
         CHECK(mark == 0xC0FFEE && !r1 && !strcmp(s, "hello from idf") && !r2 && bl == 5000 && !memcmp(back, big, 5000));
+        char bs[32];
+        nvs_boot_item_t bi[2] = { { .ns = "robot", .key = "from_idf", .type = NVS_TYPE_U32 },
+                                  { .ns = "robot", .key = "idf_str", .type = NVS_TYPE_STR, .str = bs, .len = sizeof bs } };
+        CHECK(nvs_boot_read("nvs", bi, 2) == 0 && bi[0].result == 0 && bi[0].u32 == 0xC0FFEE &&
+              bi[1].result == 0 && !strcmp(bs, "hello from idf"));
     } else {
         printf("    (no ESP-IDF data on flash yet)\n");
     }
@@ -49,6 +54,26 @@ void test_nvs(void)
     bl = sizeof back; CHECK(nvs_get_blob(h, "cal3k", back, &bl) == 0 && bl == 3000 && !memcmp(back, big, 3000));
     bl = sizeof back; CHECK(nvs_get_blob(h, "big10k", back, &bl) == 0 && bl == 10000 && !memcmp(back, big, 10000));
     CHECK(fails == 0 && nvs_get_u32(h, "counter", &ctr) == 0 && ctr == 599);
+    /* boot-time reader: same answers without mount or index */
+    char bs[32];
+    nvs_boot_item_t bi[] = {
+        { .ns = "robot", .key = "u8", .type = NVS_TYPE_U8 },
+        { .ns = "robot", .key = "i32", .type = NVS_TYPE_I32 },
+        { .ns = "robot", .key = "u64", .type = NVS_TYPE_U64 },
+        { .ns = "robot", .key = "counter", .type = NVS_TYPE_U32 },         /* 600 versions, newest wins */
+        { .ns = "robot", .key = "name", .type = NVS_TYPE_STR, .str = bs, .len = sizeof bs },
+        { .ns = "robot", .key = "nokey", .type = NVS_TYPE_U8 },
+        { .ns = "nons", .key = "u8", .type = NVS_TYPE_U8 },
+        { .ns = "robot", .key = "u8", .type = NVS_TYPE_U16 },             /* wrong type */
+    };
+    t = ccount();
+    CHECK(nvs_boot_read("nvs", bi, 8) == 0);
+    uint32_t bt = ccount() - t;
+    CHECK(bi[0].result == 0 && bi[0].u8 == 0xAB && bi[1].result == 0 && bi[1].i32 == -123456);
+    CHECK(bi[2].result == 0 && bi[2].u64 == 0x1122334455667788ull && bi[3].result == 0 && bi[3].u32 == 599);
+    CHECK(bi[4].result == 0 && !strcmp(bs, "esp-ndf robot v1") && bi[4].len == 17);
+    CHECK(bi[5].result == NVS_NOT_FOUND && bi[6].result == NVS_NOT_FOUND && bi[7].result == NVS_ERR);
+    printf("    nvs_boot_read() 8 keys, %d pages, no mount: %lu us\n", 6, bt / 240);
     int used, freee; nvs_stats(&used, &freee);
     printf("    600 updates: %d failures, %lu us each; entries used %d free %d\n", fails, us / 600, used, freee);
     CHECK(nvs_mount("nvs") == 0);                              /* remount: rebuild from flash */

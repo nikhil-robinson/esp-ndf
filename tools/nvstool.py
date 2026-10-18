@@ -296,7 +296,9 @@ STATE = {0xFFFFFFFF: 'EMPTY', ACTIVE: 'ACTIVE', FULL: 'FULL', 0xFFFFFFF8: 'FREEI
 def parse(img, key=None, out=print):
     """Print every page and entry, check CRCs; returns {(ns, key): value}."""
     names, items, blobs, errors = {0: ''}, {}, {}, 0
-    for pn in range(len(img) // PAGE):
+    def seq_of(pn):
+        return struct.unpack_from('<I', img, pn * PAGE + 4)[0]
+    for pn in sorted(range(len(img) // PAGE), key=seq_of):   # oldest first: blob chunks precede their index
         p = img[pn * PAGE:(pn + 1) * PAGE]
         state, seq, ver = struct.unpack_from('<IIB', p, 0)
         if state == 0xFFFFFFFF:

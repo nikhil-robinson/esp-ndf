@@ -35,7 +35,7 @@ void test_fat(void)
         printf("    existing volume tree:\n"); list("/", 0);
         int fd0 = fat_open("/config files/deep/calibration table.bin", FAT_RDONLY);
         if (fd0 >= 0) {
-            int n0 = fat_read(fd0, back, sizeof back); fat_close(fd0);
+            int n0 = fat_read(fd0, back, sizeof back); fat_close(fd0); if (n0 < 0) n0 = 0;
             char js[64] = { 0 }; fd0 = fat_open("/config files/robot params.json", FAT_RDONLY);
             fat_read(fd0, js, sizeof js - 1); fat_close(fd0);
             printf("    existing volume (fatfsgen): calibration table.bin %d B crc32 %08lx, json: %s", n0, crc32_le(0, back, n0), js);

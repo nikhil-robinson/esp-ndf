@@ -315,3 +315,16 @@ overwriting the esp-ndf partition table at 0x80000).
 | `tools/mfgtool.py` | per-device images byte-identical to IDF mfg_gen.py (sample config, single- and multi-page blob value sets, 3 devices each, `--fileid id`) |
 | `tools/fattool.py mkfat [--wl]` | IDF `fatfsparse.py` extracts our raw and WL images identical to the source tree (`diff -r`); board: esp-ndf (WL+FAT) and IDF (`mount_rw_wl`) both mount the host-built WL image, 20 KB file crc32 af841263 = host |
 | `tools/fattool.py parse [--wl] -x` | extracts IDF `fatfsgen.py` and `wl_fatfsgen.py` images identical to the source (IDF marks every 8.3-fitting name lowercase, NTRes 0x18, so README.TXT reads back as readme.txt on both FatFs and ours) |
+
+## NVS boot-time reader (`nvs_boot_read`, the "NVS bootloader" role)
+
+Read-only lookup of a list of keys straight from flash: no mount, no RAM
+index, no static state, stack only - usable first thing after reset. Same
+contract as IDF 5.4's `nvs_bootloader_read` (IDF 5.3 used for the siblings
+does not have it, so it is checked against our IDF-verified NVS instead).
+
+| check | result |
+|---|---|
+| IDF-written `from_idf` (u32) and `idf_str` (string) | read correctly |
+| 8 keys incl. u8/i32/u64/str, 600-version counter (newest wins), missing key, missing namespace, wrong type | all as expected (NOT_FOUND / NOT_FOUND / ERR) |
+| time, 6-page partition, 8 keys | 618 us |

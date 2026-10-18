@@ -496,3 +496,56 @@ void nvs_stats(int *used, int *free_)
     if (used) *used = u;
     if (free_) *free_ = f;
 }
+
+/* ---- boot-time reader -------------------------------------------------------
+ * No RAM index, no static state, ~200 B of stack: usable first thing after
+ * reset, before nvs_mount(). One scan resolves namespaces, a second the keys;
+ * duplicates resolve to the newest copy (higher page seq, then later entry). */
+int nvs_boot_read(const char *label, nvs_boot_item_t *items, int n)
+{
+    const partition_t *p = partition_find(PART_DATA, PART_SUB_NVS, label);
+    if (!p) return NVS_ERR;
+    int pages = p->size / PAGE;
+    uint32_t best_seq[n];                               /* per item: seq/index of the copy we hold */
+    for (int i = 0; i < n; i++) { items[i].result = NVS_NOT_FOUND; items[i].ns_index = 0; best_seq[i] = 0; }
+    for (int pass = 0; pass < 2; pass++)
+        for (int pn = 0; pn < pages; pn++) {
+            uint8_t h[64];
+            if (partition_read(p, pn * PAGE, h, 64)) return NVS_ERR;
+            uint32_t st, seq, c;
+            memcpy(&st, h, 4); memcpy(&seq, h + 4, 4); memcpy(&c, h + 28, 4);
+            if ((st != ST_ACTIVE && st != ST_FULL) || h[8] != VERSION || c != crc32_le(0xFFFFFFFF, h + 4, 24)) continue;
+            for (int e = 0; e < ENTRIES; ) {
+                if ((h[32 + e / 4] >> (2 * (e % 4)) & 3) != 2) { e++; continue; }
+                item_t it;
+                if (partition_read(p, addr_of(pn, e), &it, 32)) return NVS_ERR;
+                int span = it.span ? it.span : 1;
+                if (it.crc != item_crc(&it)) { e++; continue; }
+                uint32_t rank = (seq + 1) * 128 + e;     /* newest wins */
+                for (int i = 0; i < n; i++) {
+                    nvs_boot_item_t *x = &items[i];
+                    const char *want = pass ? x->key : x->ns;
+                    if (strncmp(it.key, want, 16) || rank < best_seq[i]) continue;
+                    if (!pass) {
+                        if (it.ns == 0 && it.type == T_U8) { x->ns_index = it.data[0]; best_seq[i] = rank; }
+                        continue;
+                    }
+                    if (!x->ns_index || it.ns != x->ns_index) continue;
+                    if (it.type != x->type) { x->result = NVS_ERR; continue; }     /* key exists, other type */
+                    if (it.type == T_SZ) {
+                        if (it.var.size > x->len) { x->result = NVS_TOO_BIG; x->len = it.var.size; continue; }
+                        if (partition_read(p, addr_of(pn, e + 1), x->str, it.var.size) ||
+                            crc32_le(0xFFFFFFFF, x->str, it.var.size) != it.var.crc) { x->result = NVS_ERR; continue; }
+                        x->len = it.var.size;
+                    } else {
+                        memcpy(&x->u64, it.data, 8);
+                    }
+                    x->result = NVS_OK;
+                    best_seq[i] = rank;
+                }
+                e += span;
+            }
+            if (!pass && pn == pages - 1) for (int i = 0; i < n; i++) best_seq[i] = 0;   /* ranks restart for keys */
+        }
+    return 0;
+}
