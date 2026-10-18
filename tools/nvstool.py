@@ -259,28 +259,33 @@ def value_bytes(row, base):
 
 
 def generate(csv_path, size, key=None):
+    with open(csv_path, encoding='utf8') as f:
+        return generate_rows(list(csv.DictReader((l for l in f if not l.startswith('#')), delimiter=',')), size, key)
+
+
+def generate_rows(rows, size, key=None):
+    """rows: dicts with key/type/encoding/value (file paths relative to cwd)"""
     g = Gen(size, key)
     ns = None
-    with open(csv_path, encoding='utf8') as f:
-        for row in csv.DictReader((l for l in f if not l.startswith('#')), delimiter=','):
-            k = row['key']
-            if len(k) > 15:
-                sys.exit('key %s longer than 15 characters' % k)
-            if row['type'] == 'namespace':
-                ns = g.namespace(k)
-                continue
-            if ns is None:
-                sys.exit('entry %s before any namespace' % k)
-            enc = row['encoding'].lower()
-            v = value_bytes(row, os.getcwd())
-            if enc in PRIM:
-                g.primitive(ns, k, enc, v)
-            elif enc == 'string':
-                g.string(ns, k, v.encode())
-            elif enc in ('hex2bin', 'base64', 'binary'):
-                g.blob(ns, k, v)
-            else:
-                sys.exit('%s: unsupported encoding %s' % (k, enc))
+    for row in rows:
+        k = row['key']
+        if len(k) > 15:
+            sys.exit('key %s longer than 15 characters' % k)
+        if row['type'] == 'namespace':
+            ns = g.namespace(k)
+            continue
+        if ns is None:
+            sys.exit('entry %s before any namespace' % k)
+        enc = row['encoding'].lower()
+        v = value_bytes(row, os.getcwd())
+        if enc in PRIM:
+            g.primitive(ns, k, enc, v)
+        elif enc == 'string':
+            g.string(ns, k, v.encode())
+        elif enc in ('hex2bin', 'base64', 'binary'):
+            g.blob(ns, k, v)
+        else:
+            sys.exit('%s: unsupported encoding %s' % (k, enc))
     return g.image()
 
 

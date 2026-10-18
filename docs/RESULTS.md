@@ -312,3 +312,4 @@ device side takes the derived 64-byte key via `nvs_mount_secure()`.
 
 IDF sibling app moved to 0x300000 (it outgrew 0x10000-0x7FFFF and was
 overwriting the esp-ndf partition table at 0x80000).
+| `tools/mfgtool.py` | per-device images byte-identical to IDF mfg_gen.py (sample config, single- and multi-page blob value sets, 3 devices each, `--fileid id`) |
