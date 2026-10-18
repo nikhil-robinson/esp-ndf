@@ -30,11 +30,13 @@ static const sig_t sig[2] = { { 101, 103, 102, 110 }, { 66, 68, 67, 71 } };   /*
 #define S(h) sig[(h) - 2]
 
 static int dma_ch[2] = { -1, -1 };
+static uint32_t user_base[2];                     /* USER value set at init (mode, edges, cs timing) */
+static bool dma_used[2];                          /* last transfer left DMA_CONF set */
 static gdma_desc_t tx_d[8][2], rx_d[8][2];      /* per host: up to 8 x 4092 = 32 KB per call */
 
 static void sync_cfg(int h)                     /* push config into the SPI clock domain */
 {
-    REG_SET(CMD(h), BIT(23));
+    REG(CMD(h)) = BIT(23);                      /* CMD holds only update/usr: write, no read-modify-write */
     while (REG(CMD(h)) & BIT(23)) {}
 }
 
@@ -53,6 +55,7 @@ uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t h
     uint32_t user = BIT(0) | BIT(6) | BIT(7);                     /* full duplex, cs setup/hold */
     if (mode == 1 || mode == 2) user |= BIT(9);                    /* CPHA via output edge */
     REG(USER(h)) = user;
+    user_base[h - 2] = user & ~(BIT(24) | BIT(25) | BIT(27) | BIT(28));
     REG(USER1(h)) = 0; REG(USER2(h)) = 0; REG(CTRL(h)) = 0;
     REG(MISC(h)) = (mode >= 2 ? BIT(29) : 0);                      /* CPOL */
     REG(DMA_CONF(h)) = FIFO_RST; REG(DMA_CONF(h)) = 0;
@@ -67,25 +70,31 @@ uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t h
 static void start_and_wait(int h)
 {
     REG(INT_CLR(h)) = DONE;
+    while (REG(INT_RAW(h)) & DONE) {}           /* the clear is a posted write: a stale DONE would end the wait early */
     sync_cfg(h);
-    REG_SET(CMD(h), BIT(24));
+    REG(CMD(h)) = BIT(24);
     while (!(REG(INT_RAW(h)) & DONE)) {}
 }
 
 RAM_FN static void xfer_pio(int h, const uint8_t *tx, uint8_t *rx, size_t len)
 {
     uint32_t words = (len + 3) / 4;
-    for (uint32_t i = 0; i < words; i++) {
-        uint32_t v = 0;
-        if (tx) for (int b = 0; b < 4 && i * 4 + b < len; b++) v |= (uint32_t)tx[i * 4 + b] << (8 * b);
-        REG(W(h, i)) = v;
+    if (tx && !((uintptr_t)tx & 3) && !(len & 3)) {
+        for (uint32_t i = 0; i < words; i++) REG(W(h, i)) = ((const uint32_t *)tx)[i];
+    } else {
+        for (uint32_t i = 0; i < words; i++) {
+            uint32_t v = 0;
+            if (tx) for (int b = 0; b < 4 && i * 4 + b < len; b++) v |= (uint32_t)tx[i * 4 + b] << (8 * b);
+            REG(W(h, i)) = v;
+        }
     }
     REG(MS_DLEN(h)) = len * 8 - 1;
-    REG_CLR(USER(h), BIT(24) | BIT(25));
-    REG_SET(USER(h), BIT(27) | BIT(28));
-    REG_CLR(DMA_CONF(h), BIT(27) | BIT(28));
+    REG(USER(h)) = user_base[h - 2] | BIT(27) | BIT(28);   /* absolute write, no read-modify-write */
+    if (dma_used[h - 2]) { REG(DMA_CONF(h)) = 0; dma_used[h - 2] = false; }
     start_and_wait(h);
-    if (rx) for (uint32_t i = 0; i < words; i++) {
+    if (rx && !((uintptr_t)rx & 3) && !(len & 3)) {
+        for (uint32_t i = 0; i < words; i++) ((uint32_t *)rx)[i] = REG(W(h, i));
+    } else if (rx) for (uint32_t i = 0; i < words; i++) {
         uint32_t v = REG(W(h, i));
         for (int b = 0; b < 4 && i * 4 + b < len; b++) rx[i * 4 + b] = v >> (8 * b);
     }
@@ -110,8 +119,7 @@ static int xfer_dma(int h, const void *tx, void *rx, size_t len)
         gdma_in_start(c, rx_d[0]);
     }
     REG(MS_DLEN(h)) = len * 8 - 1;
-    REG_SET(USER(h), BIT(27) | (rx ? BIT(28) : 0));
-    if (!rx) REG_CLR(USER(h), BIT(28));
+    REG(USER(h)) = user_base[h - 2] | BIT(27) | (rx ? BIT(28) : 0);
     REG(DMA_CONF(h)) = BIT(28) | (rx ? BIT(27) : 0);
     start_and_wait(h);
     REG(DMA_CONF(h)) = 0;

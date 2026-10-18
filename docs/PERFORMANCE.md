@@ -121,8 +121,8 @@ vector unit is off there).
 | SDM | density update | **35** | 318 | 9.1× | — |
 | UART | write 16 bytes | **280** | 2 464 | 8.8× | small room |
 | I2C | 16-byte write @100 kHz | **1 551 µs** | 1 785 µs | 1.15× | bus-bound |
-| SPI master | 4-byte transaction | **725** | 4 756 | 6.6× | **room ~2.5×** |
-| SPI master | 64 B @40 MHz | **5 844** | 8 407 | 1.4× | — |
+| SPI master | 4-byte transaction @40 MHz | **549** (was 730) | 4 756 | 8.7× | wire 192 + ~350 register path |
+| SPI master | 64 B @40 MHz | **3 939** (was 5 844) | 8 407 | 2.1× | wire 3 072 |
 | ADC | one-shot read | **1 846** | 6 736 | 3.6× | conversion-bound |
 | ADC continuous | frame interval jitter | **2 cycles** | not measured | — | — |
 | TWAI (CAN) | send 8 B @1 Mbit/s | **30 330** | 33 108 | 1.1× | bus-bound |
@@ -154,7 +154,7 @@ vector unit is off there).
 ## Where there is still room (work queue)
 
 1. Flash read: now 19.6 MB/s (QIO + overlapped buffer halves). The SPI1 register path costs ~47 clocks per 32 B; cache/XIP burst reads are the next step.
-2. SPI small transfers: setup overhead, not wire time.
+2. SPI small transfers: overhead cut from ~530 to ~350 cycles (no read-modify-write, word packing); the rest is ~20-cycle peripheral register accesses.
 3. GPTimer read: a read through the timer's latch path; a CPU cycle-counter base would be near-zero cost.
 4. NVS and FAT lookups: in-RAM caches of entries and directory blocks.
 5. int16 vector kernels: deeper unrolling to hide load latency.

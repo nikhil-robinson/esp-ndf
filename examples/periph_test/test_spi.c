@@ -30,6 +30,10 @@ void test_spi(void)
         CHECK(act == f[k] && b64 == 0 && b4k == 0);
     }
     METRIC("spi_xfer() 4 bytes", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 4)));
+    spi_master_init(2, 6, 10, 11, 4, 40000000, 0);
+    METRIC("spi_xfer() 4 bytes @40 MHz (wire 192)", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 4)));
+    METRIC("spi_xfer() 32 bytes @40 MHz (wire 1536)", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 32)));
+    spi_master_init(2, 6, 10, 11, 4, 10000000, 0);
     printf("    analyzer: SPI 10 MHz burst\n");
     spi_master_init(2, 6, 10, 11, 4, 10000000, 0);
     for (int i = 0; i < 2000; i++) spi_xfer(2, tx, rx, 64);

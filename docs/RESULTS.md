@@ -577,3 +577,23 @@ exhaustive 0 wrong + ISR ok; xcore_bench2 Peterson lock 40 000 / 40 000.
 The portable memcpy was also rewritten (align + 16-byte word unroll, and
 shift-merge for different alignments): 8 KB same misalignment 65 564 -> 5 250
 cycles, different alignment 65 564 -> 20 606.
+
+## SPI master: register-path overhead (examples/spi_probe, analyzer on CS/SCLK)
+
+Analyzer: 10 MHz -> CS low 3.3 µs with 32 clocks; 40 MHz -> CS low 0.83 µs;
+the clocks are right. Software overhead per transfer was ~530 cycles of
+peripheral register traffic (~20 cycles per access, read-modify-writes).
+Now absolute writes (USER cached per host, CMD written, DMA_CONF untouched
+in PIO) and word packing for aligned buffers.
+
+| | before | now | IDF |
+|---|---|---|---|
+| 4-byte transfer @40 MHz (wire 192) | 730 | **549** | 4 756 (10 MHz) |
+| 64 B PIO @40 MHz (wire 3 072) | 5 844 | **3 939** | 8 407 |
+
+Bug found while measuring: the DONE-flag clear is a posted write, so a back-
+to-back transfer could see the previous DONE and return before its own last
+bit (the old periph_test metric "725 cycles at 10 MHz" was shorter than the
+768-cycle wire time - that was the symptom). The start now waits for DONE to
+read back cleared: 32-byte back-to-back min 6 805 cycles at 10 MHz (wire
+6 144), 400 varied echo transfers 0 bytes wrong, master<->slave modes 0-3 ok.
