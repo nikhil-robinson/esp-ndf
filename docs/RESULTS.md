@@ -454,3 +454,19 @@ Decision: plain words and sequence counters for loop-to-loop state, SPSC
 FIFO for streams, spinlock for rare multi-writer state, cross-core
 interrupt (143 cycles) to wake the other core. Remote Core Locking is 2x
 slower than the spinlock on this chip and is not used.
+
+## Cross-core interrupt by priority level (examples/xcore_notify)
+
+Core 0 writes SYSTEM_CPU_INTR_FROM_CPU_1; core 1's handler answers. Round trip, 10 000 runs:
+
+| Level | min | avg | max |
+|---|---|---|---|
+| 1 | 139 | 152 | 153 |
+| 3 | 119 | 127 | 128 |
+| 5 (fast path) | 103 | **104** | 105 |
+
+Clearing the request after the handler instead of before looks faster in a
+back-to-back test only because the next request is caught by the still
+running dispatcher; it can also lose a notification, so it is not used.
+Polling a shared word stays the lowest-latency path (30–49 round trip); the
+interrupt is for waking a core that is busy with something else.

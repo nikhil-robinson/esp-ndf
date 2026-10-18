@@ -10,7 +10,10 @@
  *    looping back to back starves the reader. Any loop under ~3 MHz is fine.
  * 2b. A stream of words: xc_fifo (single producer, single consumer ring).
  * 3. Rare shared state with several writers: xc_spin (S32C1I compare-and-swap).
- * 4. "Act now" on the other core: xc_notify (cross-core interrupt). */
+ * 4. "Act now" on the other core: xc_notify (cross-core interrupt through
+ *    the interrupt matrix). Round trip 152 / 127 / 104 cycles at level
+ *    1 / 3 / 5: use level 5 when latency matters. Polling a word is faster
+ *    (30-49 cycles) but needs the receiver to check; the interrupt does not. */
 #pragma once
 #include "ndf.h"
 #include "xtensa.h"
