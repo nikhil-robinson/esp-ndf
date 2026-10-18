@@ -415,3 +415,42 @@ Correctness, measured on the board:
 
 Internal SRAM is uncached on the S3, so no cache maintenance is needed; a
 `memw` barrier costs 2–3 cycles.
+
+## Cross-core design decision (examples/xcore_bench2, xcore_bench3, bench/idf_xcore)
+
+Loop = 320-cycle fixed body on each core, both cores running; numbers are
+cycles added per iteration.
+
+| Method | added per loop iteration | worst iteration |
+|---|---|---|
+| plain 32-bit word | +0 | +2 |
+| sequence counter, 16 B struct | writer +29..48, reader +28..56 | reader +125 (a retry) |
+| sequence counter, 64 B struct | writer +65..71, reader +110..113 | reader +250 |
+| spinlock, 16 B struct | +31 | +40 |
+
+| Critical section (5-field update) | per op | contended (both cores) | lost updates |
+|---|---|---|---|
+| spinlock (S32C1I) | 38 | 36 avg, 78 max | none (40 000 / 400 000 ok) |
+| Remote Core Locking (core 1 server) | 74 | 76 avg, 91 max | none |
+| IDF portMUX | 406 | 209 / op | none |
+
+| Stream core 0 -> core 1 | per item | round trip |
+|---|---|---|
+| esp-ndf SPSC FIFO, one at a time | push 18, 51 end to end | 74 |
+| esp-ndf SPSC FIFO, batches of 16 | 30 end to end | — |
+| FreeRTOS queue | 384 end to end | 2891–6344 |
+
+Memory ordering: memw, acquire/release (L32AI/S32RI) and compiler-only
+barriers all cost the same and all pass: 0 torn 64 B reads in ~1.2 M paced
+reads, lock torture 400 000 / 400 000. The cost is the SRAM accesses, not the
+barrier, so the documented memw stays. A writer rewriting a 64 B struct back
+to back (every ~70 cycles) starves the reader; at 300+ cycles per write the
+reader keeps up 1:1.
+
+SRAM bank contention (both cores loading at once, same / +32 KB / +64 KB
+block): none measurable (24 584 vs 24 585 cycles).
+
+Decision: plain words and sequence counters for loop-to-loop state, SPSC
+FIFO for streams, spinlock for rare multi-writer state, cross-core
+interrupt (143 cycles) to wake the other core. Remote Core Locking is 2x
+slower than the spinlock on this chip and is not used.

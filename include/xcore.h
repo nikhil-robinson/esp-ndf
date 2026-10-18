@@ -5,7 +5,10 @@
  *
  * 1. One aligned 32-bit value: plain volatile load/store, never torn.
  * 2. A struct: xc_seq (sequence counter), writer never waits, reader retries
- *    only if it overlapped a write. Exactly one writer.
+ *    only if it overlapped a write. Exactly one writer. The writer must not
+ *    rewrite faster than the reader can copy (64 B copy ~70 cycles): a writer
+ *    looping back to back starves the reader. Any loop under ~3 MHz is fine.
+ * 2b. A stream of words: xc_fifo (single producer, single consumer ring).
  * 3. Rare shared state with several writers: xc_spin (S32C1I compare-and-swap).
  * 4. "Act now" on the other core: xc_notify (cross-core interrupt). */
 #pragma once
@@ -28,6 +31,15 @@ static inline uint32_t xc_seq_read_begin(const xc_seq_t *s)
     return v;
 }
 static inline bool xc_seq_read_retry(const xc_seq_t *s, uint32_t v) { xc_barrier(); return s->seq != v; }
+
+/* ---- SPSC FIFO: one producer core, one consumer core ------------------ */
+#define XC_FIFO(name, size_pow2) struct { volatile uint32_t head; uint32_t _p0[7]; \
+                                           volatile uint32_t tail; uint32_t _p1[7]; uint32_t buf[size_pow2]; } name
+#define xc_fifo_size(f) (sizeof((f)->buf) / 4)
+#define xc_fifo_push(f, v) ({ uint32_t _h = (f)->head; bool _ok = _h - (f)->tail < xc_fifo_size(f); \
+        if (_ok) { (f)->buf[_h & (xc_fifo_size(f) - 1)] = (v); xc_barrier(); (f)->head = _h + 1; } _ok; })
+#define xc_fifo_pop(f, out) ({ uint32_t _t = (f)->tail; bool _ok = _t != (f)->head; \
+        if (_ok) { *(out) = (f)->buf[_t & (xc_fifo_size(f) - 1)]; xc_barrier(); (f)->tail = _t + 1; } _ok; })
 
 /* ---- spinlock ------------------------------------------------------------- */
 typedef struct { volatile uint32_t owner; } xc_spin_t;   /* 0 = free, else core + 1 */
