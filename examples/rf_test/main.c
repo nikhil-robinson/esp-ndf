@@ -31,7 +31,7 @@ static void capture(int gain)
            sqrt(si2 / n - mi * mi), sqrt(sq2 / n - mq * mq), pk, (unsigned long)w[0]);
 }
 
-static double bin_power(uint32_t n, double f)
+static __attribute__((unused)) double bin_power(uint32_t n, double f)
 {
     const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
     double c = cos(2 * M_PI * f / 80e6), s = sin(2 * M_PI * f / 80e6), re = 0, im = 0, cr = 1, ci = 0;
@@ -43,27 +43,37 @@ static double bin_power(uint32_t n, double f)
     return (re * re + im * im) / ((double)n * n);
 }
 
+/* DAC playback with capture alongside: the two engines share one address
+ * counter, so the capture holds exactly the DAC's n words (bank 2 while the
+ * DAC reads bank 1). With TX forced on the receive samples freeze (bit 29
+ * still set, value constant); in loopback with the TX force released the
+ * stream stays live and its DC moves with the PA step (LO leakage). */
 static void tx_test(void)
 {
     const uint32_t n = 2000;
-    volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
-    for (uint32_t k = 0; k < n; k++)
-        b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
-    for (int on = 0; on < 2; on++) {
-        if (on) {
-            rf_tx_on(127, 0);
-            rf_dac_play(1, n, 0, 1);
+    volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1), *c = (volatile uint32_t *)RF_DUMP_BANK(2);
+    for (int mode = 0; mode < 5; mode++) {
+        for (uint32_t k = 0; k < n; k++)
+            b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
+        rf_tx_on(127, 0);
+        int pa = (mode - 1) * 5;
+        if (mode) { rf_txon(0); rf_pbus_force_mode(1); rf_loopback(1, (uint16_t)pa, 0x80); rf_rx_gain(20); }
+        rf_dac_play(1, n, 0, 1);
+        delay_us(100);
+        rf_dump_burst(RF_DUMP_80M, n);
+        rf_dac_stop();
+        double si = 0, sq = 0, pp = 0; unsigned moving = 0;
+        for (uint32_t k = 0; k < n; k++) {
+            int i = rf_iq_i(c[k]), q = rf_iq_q(c[k]);
+            si += i; sq += q; pp += (double)i * i + (double)q * q;
+            if (k && c[k] != c[k - 1]) moving++;
         }
-        for (int g = 0; g <= 60; g += 20) {
-            rf_rx_gain(g);
-            delay_us(200);
-            rf_dump_burst(RF_DUMP_80M, RF_DUMP_MAX);
-            printf("tx %s gain %2d: +2MHz %10.1f  -2MHz %10.1f  +5MHz %8.1f\n", on ? "on " : "off", g,
-                   bin_power(RF_DUMP_MAX, 2e6), bin_power(RF_DUMP_MAX, -2e6), bin_power(RF_DUMP_MAX, 5e6));
-        }
+        double mi = si / n, mq = sq / n;
+        if (mode) printf("loopback pa %2d: ", pa); else printf("TX forced on:   ");
+        printf("words changing %4u/%lu  mean %7.1f %7.1f  rms %6.1f\n", moving, (unsigned long)n, mi, mq, sqrt(pp / n - mi * mi - mq * mq));
+        if (mode) { rf_loopback(0, 0, 0); rf_pbus_force_mode(0); }
+        rf_tx_off();
     }
-    rf_dac_stop();
-    rf_tx_off();
 }
 
 static uint32_t cb_cycles;
@@ -75,6 +85,7 @@ static int32_t sum_i(const uint32_t *a, uint32_t n)
     if (k < n) s0 += rf_iq_i(a[k]);
     return s0 + s1;
 }
+
 static int sum_cb(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx)
 {
     uint32_t t = ccount();

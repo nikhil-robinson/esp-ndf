@@ -19,7 +19,10 @@ static inline uint32_t rf_iq_word(int i, int q) { return ((uint32_t)i & 0x3FF) |
 void rf_dac_play(unsigned bank, uint32_t n, int rate80, int loop);
 void rf_dac_stop(void);
 
-/* One-shot capture of n words at RF_DUMP_BURST_ADDR; 0 on success, -1 on timeout. */
+/* One-shot capture of n words at RF_DUMP_BURST_ADDR; 0 on success, -1 on timeout.
+ * While the DAC plays, capture and playback share one address counter: the
+ * capture writes the DAC's word count into bank 2, sample for sample. The
+ * CPU reads garbage from a bank the engine owns. */
 int rf_dump_burst(uint32_t rate, uint32_t n);
 
 /* Continuous gapless capture: up to `units` units of ~12288 pairs, each passed

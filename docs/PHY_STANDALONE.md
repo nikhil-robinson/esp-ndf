@@ -364,7 +364,10 @@ C9:48. Runs the same on IDF (`bench/idf_rfrx OURS=1`) and on esp-ndf
     - bit 31 marks some words.
   - **Playback (0x60033D64):** bit 31 run, bit 19 trigger (held = gapless loop), bit 18 done, bit 15 = 80 MS/s (else 40), bits 13:0 count.
   - **Bank select 0x600C101C [3:0]:** one-hot bank owner, 0 = CPU. Banks 0–2 are at 0x3FCB0000 + 64 KB·n; bank 3 holds ROM data.
-  - **Simultaneous use:** playback (bank 1) and capture (bank 2) run together when both bits are set.
+  - **Playback and capture together:** they share one address counter. While the DAC plays n words from bank 1, a capture writes exactly n words into bank 2, sample for sample, whatever its own count.
+  - The CPU reads garbage from a bank the engine owns.
+  - With TX forced on (0x60006110 bits 11:8), the receive samples freeze (constant value, bit 29 still set).
+  - In loopback with the TX force released, the stream stays live and its DC moves with the PA step (I −10 → −40 for PA 0 → 10): TX LO leakage. The TX gain rows are not applied in that state.
 - **TX gain memory** (`rom_set_tx_gain_mem`). Each of the 14 Wi-Fi rows (and the 16 BT rows) is `write_gain_mem(lo, hi, base + i)` with:
   - `lo = w0<<12 | w1<<3 | w2>>6 | cal2<<21`
   - `hi = w2<<26 | w3<<17 | gain<<10 | (bb&63)<<3 | bb>>6`
@@ -373,7 +376,21 @@ C9:48. Runs the same on IDF (`bench/idf_rfrx OURS=1`) and on esp-ndf
   - Digital TX gain bytes are at 0x60006014..0x60006030.
 - **Q8:** not needed. No vendor code runs.
 
-**Transmit (`rf_tx_on`, `rf_dac_play`):** after TX-on, the whole FE block 0x60006000..0x600061FC (including the pbus readbacks at 0x60006118..24) equals the vendor's, except the live 0x6000607C. The loopback seen in our own capture is about 0.3 LSB at ±2 MHz on both paths (probably on-chip crosstalk). An over-the-air check needs a second board.
+**Transmit (`rf_tx_on`, `rf_dac_play`):** after TX-on, the whole FE block 0x60006000..0x600061FC (including the pbus readbacks at 0x60006118..24) equals the vendor's, except the live 0x6000607C. An over-the-air check needs a second board.
+
+**Correction:** an earlier "±2 MHz loopback of about 0.3 LSB" was an artefact. Those captures were mostly unwritten words: the capture length follows the DAC count.
+
+**Internal loopback (`rf_loopback`, from `rom_loopback_mode_en` / `rom_set_loopback_gain`):**
+- analog 67.00[6] on;
+- TX and RX clocks on (0x60006110 bits 17:16, 15:14);
+- pbus (4,1,127), (5,1,pa), (0,1,0x104), (1,1,0x1F9), (1,2,rxg).
+
+**Baseband estimator (`rf_bb_est`, from `rom_iq_est_enable` / `rom_dc_iq_est`):**
+- **Start:** 0x60006140 bits 27:26 = 01; in 0x60006144, bits 20:19 = 10, n in [16:2], bit 0, then bit 1.
+- **Done:** poll 0x60006174 bit 16.
+- **Results:** ΣI, ΣQ, power at 0x6000615C / 60 / 64, each >>6 and /(n+1).
+- It agrees with the capture's DC, with I and Q swapped and sign-inverted relative to the capture word fields.
+- With TX forced on in loopback, it still reads only the receive-side DC: the vendor's TX-cal sequence (`txcal_debuge_mode`, tone generator) is needed to get TX into the loopback. That is the next step for TX DC/IQ calibration.
 
 **Streaming (`rf_stream`, drivers/rf/rf_stream.c).** Circular mode (0x60033D5C = 0x24000 | rate | run) writes at the ring index 0x60033D60 (mod 16384) into the selected bank:
 - Switching banks every 12288 pairs splits the stream into units.
@@ -398,6 +415,7 @@ The measured rates include the start. The consumer's budget per unit is about 12
 - Chip-specific (but boot-stable) analog values come from the init's searches: PLL cap, block 0x6B TX caps against the SAR power detector, block 0x67.
 
 **Still open:**
-- our own calibrations instead of the replayed results (order: RX DCO, TX DC/IQ, 0x6B caps);
+- **Regression to chase first:** after the loopback / estimator probes, `rf_pll_set_khz(2437000)` on esp-ndf reports `locked=0`. It ends at the same cap (0x0C8) in 169 µs instead of ~400 µs, and the window comparator 62.0C reads out of window at the hardware pick. Clearing 67.00[6] at init did not help. Next: check whether the vendor init clears it (analog state that survives a chip reset); then the board dropped off USB.
+- TX DC/IQ calibration (needs the vendor TX-cal mode to get TX into the loopback); 0x6B caps;
 - the LO divider below about 2.2 GHz;
 - TX checked over the air.

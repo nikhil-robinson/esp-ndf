@@ -35,3 +35,5 @@ void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig);   /* fills the Wi-Fi and
 void rf_txon(int on);                           /* force the transmitter on without a frame */
 void rf_tx_on(uint8_t gain, uint16_t bb);       /* tone off, TX front end on, gain, forced on */
 void rf_tx_off(void);
+void rf_loopback(int on, uint16_t pa, uint16_t rxg);
+void rf_bb_est(uint16_t n, int32_t *i, int32_t *q, int32_t *pwr);   /* hardware DC / power estimate over n+1 samples */   /* internal TX -> RX path, for TX measurement */

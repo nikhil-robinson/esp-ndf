@@ -31,7 +31,7 @@ int rf_dump_burst(uint32_t rate, uint32_t n)
     uint32_t owner = REG(BANK_SEL), ctrl = 1u << 31 | rate | n;
     REG(CTRL) = 0;
     REG(CONFIG) = 0x000C2040u;
-    REG(BANK_SEL) = owner | 4u;                 /* keep a playing DAC's bank */
+    REG(BANK_SEL) = owner | 4u;                 /* keep a playing DAC's bank (shared counter: n = DAC count) */
     REG(CTRL) = ctrl;
     REG(CTRL) = ctrl | 1u << 19;
     REG(CTRL) = ctrl;

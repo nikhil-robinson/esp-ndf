@@ -91,6 +91,7 @@ static void apply_digital(void)
 void rf_init_replay(void)
 {
     rf_power_on();
+    rf_regi2c_write_bits(0x67, 0x00, 6, 6, 0);  /* loopback off: analog state survives a chip reset */
     apply_digital();
     for (unsigned i = 0; i < sizeof rf_init_ops / sizeof rf_init_ops[0]; i++) {
         const rf_op_t *o = &rf_init_ops[i];
@@ -195,4 +196,36 @@ void rf_tx_off(void)
 {
     rf_txon(0);
     rf_rx_on();
+}
+
+/* internal TX -> RX loopback (rom_loopback_mode_en + rom_set_loopback_gain):
+ * analog 67.00[6], TX and RX clocks, then PA step pa (0..15) and RX gain word
+ * rxg (0x80 / 0xA0 in the vendor TX calibration) */
+void rf_loopback(int on, uint16_t pa, uint16_t rxg)
+{
+    rf_regi2c_write_bits(0x67, 0x00, 6, 6, on ? 1 : 0);
+    REG(PBUS_STAT) = (REG(PBUS_STAT) & ~(3u << 16)) | (on ? 3u << 16 : 0);
+    REG(PBUS_STAT) = (REG(PBUS_STAT) & ~(3u << 14)) | (on ? 3u << 14 : 0);
+    if (!on) return;
+    rf_pbus_write(4, 1, 127); rf_pbus_write(5, 1, pa); rf_pbus_write(0, 1, 0x104);
+    rf_pbus_write(1, 1, 0x1F9); rf_pbus_write(1, 2, rxg);
+}
+
+/* baseband DC / power estimator (rom_iq_est_enable / rom_dc_iq_est / rom_iq_est_disable):
+ * averages n+1 samples in hardware; works where the dump engine cannot (TX forced on) */
+void rf_bb_est(uint16_t n, int32_t *i, int32_t *q, int32_t *pwr)
+{
+    REG(0x60006140) = (REG(0x60006140) & 0xF3FFFFFFu) | 1u << 26;
+    REG(0x60006144) = (REG(0x60006144) & 0xFFE7FFFFu) | 1u << 20;
+    REG(0x60006144) = (REG(0x60006144) & 0xFFFE0003u) | (uint32_t)(n & 0x7FFF) << 2;
+    REG(0x60006144) |= 1;
+    rf_delay_us(1);
+    REG(0x60006144) |= 2;
+    for (uint32_t t = 0; t < 1000000 && !(REG(0x60006174) & 1u << 16); t++) {}
+    int32_t si = (int32_t)REG(0x6000615C) >> 6, sq = (int32_t)REG(0x60006160) >> 6;
+    *i = si / (n + 1); *q = sq / (n + 1);
+    *pwr = (int32_t)REG(0x60006164) / (n + 1) - (*i * *i + *q * *q);
+    REG(0x60006144) &= ~2u;
+    rf_delay_us(1);
+    REG(0x60006144) &= ~1u;
 }
