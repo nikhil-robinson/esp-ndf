@@ -30,9 +30,17 @@ int main(void)
     int tx = (mac0 & 0xFF) == 0xD0 || (mac0 >> 24) == 0xD0;
     printf("=== rf_ota mac0 %08lx role %s\n", (unsigned long)mac0, tx ? "TX" : "RX");
     rf_init_replay();
-    rf_pll_result_t r;
-    rf_pll_set_khz(2437000, &r);
+#ifndef RX_KHZ
+#define RX_KHZ OTA_KHZ
+#endif
+#ifndef OTA_KHZ
+#define OTA_KHZ 2437000
+#endif
     rf_rx_on();
+    int trc;
+    if (tx) { rf_pll_result_t r; trc = rf_pll_set_khz(OTA_KHZ, &r); if (!trc && !r.locked) trc = -3; }
+    else trc = rf_tune_rx_khz(RX_KHZ);
+    printf("tune rc %d\n", trc);
     rf_rx_dc_cal(128);
     if (tx) {
         const uint32_t n = 2000;

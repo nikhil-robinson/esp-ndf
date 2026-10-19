@@ -26,6 +26,10 @@ extern uint32_t rf_gain_shadow[256][2];         /* [row] = { lo, hi } as last wr
 int rf_rx_dc_cal(unsigned rows);
 void rf_init_replay(void);                      /* this board's vendor init, as data */
 void rf_rx_on(void);                            /* receive front end and RX clock on */
+#ifndef RF_LO_DIRECT_MIN_KHZ
+#define RF_LO_DIRECT_MIN_KHZ 2240000u          /* below: receive through the 6/5 LO divider */
+#endif
+int  rf_tune_rx_khz(uint32_t khz);              /* receive LO 1.85..2.76 GHz; 0, or -3 if out of the VCO window */
 void rf_rx_gain(int gain);                      /* <0: AGC; else forced index (0..127) */
 
 /* transmit */

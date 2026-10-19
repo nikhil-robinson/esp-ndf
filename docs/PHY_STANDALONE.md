@@ -431,5 +431,5 @@ The measured rates include the start. The consumer's budget per unit is about 12
 **Still open:**
 - **Second chip (D0) with C9:48's replay plus our RX DC calibration:** PLL locked; RX DC within ±2.4 LSB up to gain 60; transmits.
 - TX DC/IQ calibration (needs the vendor TX-cal mode to get TX into the loopback); 0x6B caps;
-- the LO divider below about 2.2 GHz;
+- ~~LO divider~~ done: `rf_tune_rx_khz()` runs the PLL at 6/5 of the LO with 65.00[4] set below 2240 MHz. The VCO locks directly from about 2230 to 2760 MHz (`examples/rf_range`), so receive covers about 1.85–2.76 GHz and transmit about 2.23–2.76 GHz. Checked over the air: receiver on the 6/5 path at 2280 MHz (PLL 2736), transmitter direct at 2280: tone +43.9 dB on, −32.1 dB off. Sub-GHz is out of reach: the divider register cannot go below 960 MHz, and the front end is matched for 2.4 GHz.
 - TX checked over the air.

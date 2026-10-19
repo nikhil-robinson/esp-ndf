@@ -2,6 +2,7 @@
 #include "rf_init_replay_c948.h"
 #include "rf_txcal_c948.h"
 #include "rf_regi2c.h"
+#include "rf_pll.h"
 
 #define REG(a) (*(volatile uint32_t *)(a))
 void rf_delay_us(uint32_t us);                  /* platform hook */
@@ -232,4 +233,17 @@ void rf_bb_est(uint16_t n, int32_t *i, int32_t *q, int32_t *pwr)
     REG(0x60006144) &= ~2u;
     rf_delay_us(1);
     REG(0x60006144) &= ~1u;
+}
+
+/* Receive LO plan (after esp_sdr lo_plan.h): the VCO locks from ~2230 to
+ * ~2760 MHz (measured, examples/rf_range). Below RF_LO_DIRECT_MIN_KHZ the PLL
+ * runs at 6/5 of the wanted LO and analog 65.00[4] selects the 6/5 divider
+ * path of the receive LO (transmit always uses the direct path). */
+int rf_tune_rx_khz(uint32_t khz)
+{
+    int alt = khz < RF_LO_DIRECT_MIN_KHZ;
+    rf_pll_result_t r;
+    int rc = rf_pll_set_khz(alt ? khz / 5 * 6 + (khz % 5) * 6 / 5 : khz, &r);
+    rf_regi2c_write_bits(0x65, 0x00, 4, 4, alt ? 1 : 0);
+    return rc ? rc : (r.locked ? 0 : -3);
 }
