@@ -21,12 +21,11 @@ static const blk_t blks[] = {
     { "SYSCON",    0x60026000, 0x100, 0 },
     { "RTC_CNTL",  0x60008000, 0x140, 0 },
     { "SENSITIVE", 0x600C1000, 0x40,  0 },
-    { "FE",        0x60006000, 0x200, 1 },
-    { "FE2",       0x60005000, 0x200, 1 },
-    { "AGC",       0x6001C000, 0x200, 1 },
-    { "NRX",       0x6001CC00, 0x200, 1 },
-    { "BB",        0x6001D000, 0x200, 1 },
-    { "MAC",       0x60033000, 0x1000, 1 },
+    { "FE2",       0x60005000, 0x1000, 1 },
+    { "FE",        0x60006000, 0x1000, 1 },
+    { "AGC_NRX_BB",0x6001C000, 0x2000, 1 },
+    { "MAC",       0x60033000, 0x3000, 1 },
+    { "I2C_MST",   0x6000E000, 0x200, 1 },
 };
 
 static void dump(const char *stage, int modem)
@@ -47,9 +46,30 @@ void app_main(void)
     nvs_flash_init();
 #if PHY_ONLY
     esp_wifi_bt_power_domain_on();
+    *(volatile uint32_t *)0x60026014 |= 0x0078078F | 0x00400000;   /* modem clocks on, as esp_phy_enable does first */
+    dump("pre_init", 1);
     esp_phy_enable(PHY_MODEM_WIFI);
     vTaskDelay(pdMS_TO_TICKS(100));
     dump("phy_only", 1);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    dump("phy_only2", 1);
+    /* the vendor receive preparation, as esp_sdr does it */
+    {
+        extern void stop_tx_tone(uint32_t), rom_pbus_workmode(void), rom_pbus_xpd_tx_off(void);
+        extern void rom_pbus_xpd_rx_on(uint32_t), rom_set_rxclk_en(uint32_t);
+        extern void set_chanfreq(uint32_t, uint32_t), force_rx_gain(uint32_t, uint32_t, uint32_t);
+        *(volatile uint32_t *)0x60026014 |= 0x00400000;
+        set_chanfreq(2437, 0);
+        stop_tx_tone(1);
+        dump("after_stop_tone", 1);
+        rom_pbus_workmode();
+        rom_pbus_xpd_tx_off();
+        rom_pbus_xpd_rx_on(1);
+        rom_set_rxclk_en(1);
+        force_rx_gain(1, 40, 0);
+        vTaskDelay(1);
+        dump("rx_ready", 1);
+    }
     printf("=== done\n");
     return;
 #endif
@@ -65,3 +85,5 @@ void app_main(void)
     dump("after_start", 1);
     printf("=== done\n");
 }
+/* librftest's test shell hook (unused here) */
+int cmd_parse(char *cmd, char *name, int *argc, char **argv) { (void)cmd; (void)name; (void)argc; (void)argv; return -1; }
