@@ -49,7 +49,7 @@ for idx, depth, done, ret, a in recs:
 d = json.load(open(regs_json))
 post = {int(k, 16): v for k, v in d['post'].items()}
 EXCLUDE = [(0x600060C8, 0x600060CC), (0x60006104, 0x60006104), (0x60006114, 0x60006124),
-           (0x60008044, 0x60008044), (0x60033C0C, 0x60033C0C), (0x60033D40, 0x60033DFC)]
+           (0x60008044, 0x60008044), (0x6000E000, 0x6000E1FC), (0x60033C0C, 0x60033C0C), (0x60033D40, 0x60033DFC)]
 digital = []
 for addr in d['init']:
     if 0x60006200 <= addr < 0x60007000:      # FE aliases (0x200 repeat)
