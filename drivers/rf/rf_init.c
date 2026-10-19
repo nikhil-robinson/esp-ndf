@@ -1,5 +1,6 @@
 #include "rf_init.h"
 #include "rf_init_replay_c948.h"
+#include "rf_txcal_c948.h"
 #include "rf_regi2c.h"
 
 #define REG(a) (*(volatile uint32_t *)(a))
@@ -117,4 +118,78 @@ void rf_rx_gain(int gain)
 {
     if (gain < 0) { REG(AGC_GAIN) &= ~(1u << 23); return; }
     REG(AGC_GAIN) = (REG(AGC_GAIN) & 0x007FFFFFu) | (uint32_t)gain << 24 | 1u << 23;
+}
+
+#define FE_CTRL   0x60006000u                   /* 1 TX forced on, 17:10 forced TX row, 25:18 TX row base, 26 tone path off */
+#define TONE1     0x60006040u                   /* bit 18 tone on */
+
+void rf_tone_off(void)
+{
+    REG(TONE1) &= ~(1u << 18);
+    REG(FE_CTRL) |= 1u << 26;
+    REG(0x600061E4u) &= ~(1u << 10);
+}
+
+void rf_pbus_xpd_tx_on(uint16_t pa, uint16_t mix)
+{
+    rf_pbus_write(2, 1, 0x100); rf_pbus_write(3, 1, 0x100);   /* DCO words */
+    rf_pbus_write(2, 2, 0x100); rf_pbus_write(3, 2, 0x100);
+    rf_pbus_write(0, 1, 1); rf_pbus_write(1, 1, 124); rf_pbus_write(1, 2, mix);
+    rf_pbus_write(4, 1, 127); rf_pbus_write(5, 1, pa); rf_pbus_write(4, 2, 0);
+}
+
+/* rom_set_tx_gain_mem for n rows all = (gain, bb): row words from the per-chip
+ * TX calibration (cal[class][4], cal2) where class comes from the bb code. */
+static void tx_rows(unsigned base, unsigned n, uint8_t gain, uint16_t bb, const uint16_t (*cal)[4], uint16_t cal2, unsigned cls)
+{
+    const uint16_t *w = cal[cls];
+    uint32_t lo = (uint32_t)w[0] << 12 | (uint32_t)w[1] << 3 | w[2] >> 6 | (uint32_t)cal2 << 21;
+    uint32_t hi = (uint32_t)w[2] << 26 | (uint32_t)w[3] << 17 | (uint32_t)gain << 10 | (uint32_t)(bb & 0x3F) << 3 | (bb >> 6 & 0xFF);
+    for (unsigned i = 0; i < n; i++) rf_gain_mem_write((uint8_t)(base + i), lo, hi);
+}
+
+void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig)
+{
+    unsigned base = REG(FE_CTRL) >> 18 & 0xFF;
+    unsigned wcls = bb == 128 ? 1 : bb == 32 ? 3 : bb == 160 ? 4 : bb == 256 ? 2 : 0;   /* rom_txbbgain_to_index */
+    unsigned bcls = bb == 128 ? 1 : bb == 256 ? 2 : 0;                                  /* rom_bt_bb_to_index */
+    tx_rows(base, 14, gain, bb, rf_txcal_wifi, rf_txcal_wifi2, wcls);
+    tx_rows(base + 16, 16, gain, bb, rf_txcal_bt, rf_txcal_bt2, bcls);
+    uint32_t d = (uint8_t)dig * 0x01010101u;
+    for (uint32_t a = 0x60006014u; a <= 0x60006030u; a += 4) REG(a) = d;           /* BT 14..20, Wi-Fi 24..30 */
+}
+
+/* force_txon_mode(on, 0, 0) then rom_force_txon(on): 0x60006110 bits 9:8 = 2
+ * and 11:10 = 3 force the TX enables, both cleared to release */
+void rf_txon(int on)
+{
+    uint32_t base = REG(FE_CTRL) >> 18 & 0xFF;
+    REG(PBUS_STAT) &= ~(3u << 12);
+    REG(FE_CTRL) = (REG(FE_CTRL) & ~2u) | (on ? 2u : 0);
+    REG(FE_CTRL) = (REG(FE_CTRL) & 0xFFFC03FFu) | base << 10;
+    if (on) {
+        REG(PBUS_STAT) = (REG(PBUS_STAT) & ~(3u << 8)) | 2u << 8;
+        REG(PBUS_STAT) |= 3u << 10;
+    } else {
+        REG(PBUS_STAT) &= ~(3u << 10);
+        REG(PBUS_STAT) &= ~(3u << 8);
+    }
+}
+
+void rf_tx_on(uint8_t gain, uint16_t bb)
+{
+    REG(WIFI_BB_CFG) |= 2;
+    rf_tone_off();
+    rf_pbus_force_mode(0);
+    rf_pbus_xpd_rx_on(0);
+    rf_pbus_xpd_tx_on(1, 0);
+    rf_tx_gain(gain, bb, 0);
+    rf_txon(1);
+    rf_delay_us(50);
+}
+
+void rf_tx_off(void)
+{
+    rf_txon(0);
+    rf_rx_on();
 }

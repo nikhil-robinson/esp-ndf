@@ -19,3 +19,11 @@ void rf_gain_mem_write(uint8_t index, uint32_t lo, uint32_t hi);
 void rf_init_replay(void);                      /* this board's vendor init, as data */
 void rf_rx_on(void);                            /* receive front end and RX clock on */
 void rf_rx_gain(int gain);                      /* <0: AGC; else forced index (0..127) */
+
+/* transmit */
+void rf_tone_off(void);                         /* tone generator off: DAC data path */
+void rf_pbus_xpd_tx_on(uint16_t pa, uint16_t mix);
+void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig);   /* fills the Wi-Fi and BT TX gain rows */
+void rf_txon(int on);                           /* force the transmitter on without a frame */
+void rf_tx_on(uint8_t gain, uint16_t bb);       /* tone off, TX front end on, gain, forced on */
+void rf_tx_off(void);

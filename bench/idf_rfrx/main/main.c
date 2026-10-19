@@ -30,6 +30,8 @@ void esp_wifi_bt_power_domain_on(void);
 extern void stop_tx_tone(uint32_t), rom_pbus_workmode(void), rom_pbus_xpd_tx_off(void);
 extern void rom_pbus_xpd_rx_on(uint32_t), rom_set_rxclk_en(uint32_t);
 extern void set_chanfreq(uint32_t, uint32_t), force_rx_gain(uint32_t, uint32_t, uint32_t);
+extern void rom_pbus_xpd_tx_on(uint32_t, uint32_t), force_tx_gain(uint32_t, uint32_t, uint32_t), force_txon_mode(uint32_t, uint32_t, uint32_t);
+extern uint8_t phy_param[];
 int cmd_parse(char *c, char *n, int *a, char **v) { (void)c; (void)n; (void)a; (void)v; return -1; }
 #endif
 
@@ -60,6 +62,53 @@ static void wide(const char *tag)
     printf("@%s\n", tag);
     for (unsigned b = 0; b < sizeof r / sizeof r[0]; b++)
         for (uint32_t a = r[b][0]; a < r[b][0] + r[b][1]; a += 4) printf("%08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a);
+}
+
+/* power at f (Hz) in the last capture, Goertzel over n words at 80 MS/s */
+static double bin_power(uint32_t n, double f)
+{
+    const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
+    double c = cos(2 * M_PI * f / 80e6), s = sin(2 * M_PI * f / 80e6), re = 0, im = 0, cr = 1, ci = 0;
+    for (uint32_t k = 0; k < n; k++) {
+        double i = rf_iq_i(w[k]), q = rf_iq_q(w[k]);
+        re += i * cr + q * ci; im += q * cr - i * ci;    /* (i + jq) e^{-j w k} */
+        double t = cr * c - ci * s; ci = ci * c + cr * s; cr = t;
+    }
+    return (re * re + im * im) / ((double)n * n);
+}
+
+static void tx_test(void)
+{
+    const uint32_t n = 2000;                           /* 2 MHz at 40 MS/s: 20 words a period */
+    volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
+    for (uint32_t k = 0; k < n; k++)
+        b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
+    for (int on = 0; on < 2; on++) {
+        if (on) {
+#if OURS
+            rf_tx_on(127, 0);
+#else
+            stop_tx_tone(1); rom_pbus_workmode(); rom_pbus_xpd_rx_on(0); rom_pbus_xpd_tx_on(1, 0);
+            force_tx_gain(127, 0, 0); force_txon_mode(1, 0, 0); esp_rom_delay_us(50);
+#endif
+            rf_dac_play(1, n, 0, 1);
+            printf("@tx\n");
+            for (uint32_t a = 0x60006000; a < 0x60006200; a += 4) printf("%08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a);
+        }
+        for (int g = 0; g <= 60; g += 20) {
+            rf_rx_gain(g);
+            esp_rom_delay_us(200);
+            rf_dump_burst(RF_DUMP_80M, RF_DUMP_MAX);
+            printf("tx %s gain %2d: +2MHz %10.1f  -2MHz %10.1f  +5MHz %8.1f\n", on ? "on " : "off", g,
+                   bin_power(RF_DUMP_MAX, 2e6), bin_power(RF_DUMP_MAX, -2e6), bin_power(RF_DUMP_MAX, 5e6));
+        }
+    }
+    rf_dac_stop();
+#if OURS
+    rf_tx_off();
+#else
+    force_txon_mode(0, 0, 0);
+#endif
 }
 
 static void capture(int gain)
@@ -141,6 +190,17 @@ void app_main(void)
 #endif
     static const int gains[] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, -1 };
     for (unsigned g = 0; g < sizeof gains / sizeof gains[0]; g++) capture(gains[g]);
+#if !OURS
+    printf("/* per-chip TX calibration (phy_param +0x124/+0x14C Wi-Fi, +0x182/+0x180 BT) */\n#pragma once\n#include <stdint.h>\n");
+    const uint16_t *pw = (const uint16_t *)(phy_param + 0x124), *pb = (const uint16_t *)(phy_param + 0x182);
+    printf("static const uint16_t rf_txcal_wifi[5][4] = {");
+    for (int r = 0; r < 5; r++) printf(" { 0x%03X, 0x%03X, 0x%03X, 0x%03X },", pw[4 * r], pw[4 * r + 1], pw[4 * r + 2], pw[4 * r + 3]);
+    printf(" }, rf_txcal_wifi2 = 0x%03X;\n", *(const uint16_t *)(phy_param + 0x14C));
+    printf("static const uint16_t rf_txcal_bt[3][4] = {");
+    for (int r = 0; r < 3; r++) printf(" { 0x%03X, 0x%03X, 0x%03X, 0x%03X },", pb[4 * r], pb[4 * r + 1], pb[4 * r + 2], pb[4 * r + 3]);
+    printf(" }, rf_txcal_bt2 = 0x%03X;\n", *(const uint16_t *)(phy_param + 0x180));
+#endif
+    tx_test();
     rf_rx_gain(40);
     vTaskDelay(2);
     dump_regs();
