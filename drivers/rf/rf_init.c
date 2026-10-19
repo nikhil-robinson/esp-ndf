@@ -156,12 +156,17 @@ static void tx_rows(unsigned base, unsigned n, uint8_t gain, uint16_t bb, const 
     for (unsigned i = 0; i < n; i++) rf_gain_mem_write((uint8_t)(base + i), lo, hi);
 }
 
+static uint16_t txcal[5][4];                   /* RAM copy of rf_txcal_wifi: rf_tx_dc_cal rewrites w0/w2 */
+static int txcal_init;
+static unsigned wifi_class(uint16_t bb) { return bb == 128 ? 1 : bb == 32 ? 3 : bb == 160 ? 4 : bb == 256 ? 2 : 0; }   /* rom_txbbgain_to_index */
+
 void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig)
 {
     unsigned base = REG(FE_CTRL) >> 18 & 0xFF;
-    unsigned wcls = bb == 128 ? 1 : bb == 32 ? 3 : bb == 160 ? 4 : bb == 256 ? 2 : 0;   /* rom_txbbgain_to_index */
+    unsigned wcls = wifi_class(bb);
     unsigned bcls = bb == 128 ? 1 : bb == 256 ? 2 : 0;                                  /* rom_bt_bb_to_index */
-    tx_rows(base, 14, gain, bb, rf_txcal_wifi, rf_txcal_wifi2, wcls);
+    if (!txcal_init) { for (int r = 0; r < 5; r++) for (int k = 0; k < 4; k++) txcal[r][k] = rf_txcal_wifi[r][k]; txcal_init = 1; }
+    tx_rows(base, 14, gain, bb, (const uint16_t (*)[4])txcal, rf_txcal_wifi2, wcls);
     tx_rows(base + 16, 16, gain, bb, rf_txcal_bt, rf_txcal_bt2, bcls);
     uint32_t d = (uint8_t)dig * 0x01010101u;
     for (uint32_t a = 0x60006014u; a <= 0x60006030u; a += 4) REG(a) = d;           /* BT 14..20, Wi-Fi 24..30 */
@@ -246,4 +251,84 @@ int rf_tune_rx_khz(uint32_t khz)
     int rc = rf_pll_set_khz(alt ? khz / 5 * 6 + (khz % 5) * 6 / 5 : khz, &r);
     rf_regi2c_write_bits(0x65, 0x00, 4, 4, alt ? 1 : 0);
     return rc ? rc : (r.locked ? 0 : -3);
+}
+
+/* TX power detector through SAR2 (rom_en_pwdet + rom_pwdet_sar2_init);
+ * rf_pwdet_read() sums the 8 results at 0x6000E080..9C (rom_read_sar_dout) */
+void rf_pwdet_on(void)
+{
+    REG(0x6000E05C) &= ~(1u << 23);
+    REG(0x6000E05C) &= ~(1u << 21);
+    REG(0x6000E050) &= ~1u;
+    REG(0x60006048) |= 0x80;
+    REG(0x6000E050) |= 0xC0;
+    REG(0x60008834) &= 0x7FFFFFFFu;
+    REG(0x60008830) |= 0x80000000u;
+    REG(0x60008830) &= 0x8007FFFFu;
+    REG(0x6000E060) |= 0x18;
+    REG(0x6000E060) &= ~0x20u;
+    REG(0x6000E05C) = (REG(0x6000E05C) & 0xFFFF0000u) | 0x16A;
+    REG(0x60008834) = (REG(0x60008834) & 0x8FFFFFFFu) | 0x40000000u;
+}
+
+uint32_t rf_pwdet_read(void)                   /* rom_pkdet_vol_start + rom_read_sar_dout */
+{
+    REG(0x6000E05C) |= 1u << 23;
+    REG(0x6000E05C) |= 1u << 19;
+    for (uint32_t t = 0; t < 100000 && (REG(0x6000E050) >> 24 & 7) != 7; t++) {}
+    REG(0x6000E050) &= ~2u;
+    REG(0x6000E050) |= 2u;
+    rf_delay_us(10);
+    for (uint32_t t = 0; t < 100000 && (REG(0x6000E050) >> 24 & 7) != 7; t++) {}
+    REG(0x6000E05C) &= ~(1u << 23);
+    REG(0x6000E05C) &= ~(1u << 19);
+    uint32_t s = 0;
+    for (unsigned k = 0; k < 8; k++) s += REG(0x6000E080u + 4 * k) & 0x1FFF;
+    return s;
+}
+
+/* TX LO-leakage (DC) calibration with our own power detector: transmitting
+ * with no DAC data, the detector output is the leakage; minimise it over the
+ * two DC words of the TX row (w0 = lo[20:12], w2 = hi[31:26] + lo[2:0]),
+ * coarse to fine, twice. Call after rf_tx_on(gain, bb). */
+static uint32_t pwdet_avg(void) { uint32_t a = 0; for (int k = 0; k < 16; k++) a += rf_pwdet_read(); return a; }
+
+static uint32_t try_dc(uint8_t gain, uint16_t bb, int w, int v)
+{
+    txcal[wifi_class(bb)][w] = (uint16_t)v;
+    rf_tx_gain(gain, bb, 0);
+    rf_txon(0); rf_txon(1);
+    rf_delay_us(50);
+    return pwdet_avg();
+}
+
+void rf_tx_dc_reset(void)                      /* neutral DC words (a chip without copied calibration) */
+{
+    rf_tx_gain(0, 0, 0);                        /* make sure the RAM table exists */
+    for (int r = 0; r < 5; r++) { txcal[r][0] = 0x100; txcal[r][2] = 0x100; }
+}
+
+void rf_tx_dc_cal(uint8_t gain, uint16_t bb)
+{
+    rf_tx_gain(gain, bb, 0);                    /* initialises the RAM table */
+    rf_pwdet_on();
+    unsigned c = wifi_class(bb);
+    for (int pass = 0; pass < 2; pass++)
+        for (int w = 0; w <= 2; w += 2) {
+            int best = txcal[c][w];
+            uint32_t bp = try_dc(gain, bb, w, best);
+            for (int step = pass ? 8 : 32; step >= 1; step /= 2) {
+                int moved = 1;
+                while (moved) {
+                    moved = 0;
+                    for (int dir = -1; dir <= 1; dir += 2) {
+                        int v = best + dir * step;
+                        if (v < 0 || v > 511) continue;
+                        uint32_t p = try_dc(gain, bb, w, v);
+                        if (p < bp) { bp = p; best = v; moved = 1; }
+                    }
+                }
+            }
+            try_dc(gain, bb, w, best);
+        }
 }

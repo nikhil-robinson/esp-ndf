@@ -430,6 +430,20 @@ The measured rates include the start. The consumer's budget per unit is about 12
 
 **Still open:**
 - **Second chip (D0) with C9:48's replay plus our RX DC calibration:** PLL locked; RX DC within ±2.4 LSB up to gain 60; transmits.
-- TX DC/IQ calibration (needs the vendor TX-cal mode to get TX into the loopback); 0x6B caps;
+- **TX DC (LO leakage) calibration, done, our own: `rf_tx_dc_cal()`.**
+  - The vendor measures leakage with the TX power detector through SAR2, not with an IQ estimator:
+    - `en_pwdet` + `pwdet_sar2_init`: RTC 0x60008830/34, 0x6000E050/5C/60, 0x60006048 bit 7;
+    - `pkdet_vol_start`: 0x6000E05C bits 23/19, pulse 0x6000E050 bit 1, wait for [26:24] == 7;
+    - results: 8 × 13 bits at 0x6000E080..9C.
+  - Transmitting with no DAC data, that reading is a smooth V in each TX-row DC word (w0 = lo[20:12], w2 = hi[31:26]+lo[2:0]); `rf_tx_dc_cal` searches it coarse to fine.
+  - Over the air on D0 (receiver offset 1 MHz so its own DC is out of the way; tone +36 dB):
+
+    | D0 TX DC words | LO leakage |
+    |---|---|
+    | copied from C9:48 | −21 dBc |
+    | neutral 0x100 | −31 dBc |
+    | **ours, from neutral, 28 ms** | **−33 dBc** |
+
+- TX IQ (image) calibration: image at −34 dBc against the vendor's −46; the IQ fields are cal2 lo[31:21] and w3 hi[25:17]. 0x6B caps.
 - ~~LO divider~~ done: `rf_tune_rx_khz()` runs the PLL at 6/5 of the LO with 65.00[4] set below 2240 MHz. The VCO locks directly from about 2230 to 2760 MHz (`examples/rf_range`), so receive covers about 1.85–2.76 GHz and transmit about 2.23–2.76 GHz. Checked over the air: receiver on the 6/5 path at 2280 MHz (PLL 2736), transmitter direct at 2280: tone +43.9 dB on, −32.1 dB off. Sub-GHz is out of reach: the divider register cannot go below 960 MHz, and the front end is matched for 2.4 GHz.
 - TX checked over the air.
