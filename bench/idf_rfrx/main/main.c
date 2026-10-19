@@ -197,6 +197,33 @@ void app_main(void)
 
     }
 #endif
+#if TXLOOP > 9
+    {   /* vendor transmit reference: +2 MHz DAC tone, 1 s on / 1 s off, forever */
+        const uint32_t n = 2000;
+        volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
+        for (uint32_t k = 0; k < n; k++)
+            b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
+        for (;;) {
+#if OURS
+            rf_tx_on(127, 0);
+#else
+            stop_tx_tone(1); rom_pbus_workmode(); rom_pbus_xpd_rx_on(0); rom_pbus_xpd_tx_on(1, 0);
+            force_tx_gain(127, 0, 0); force_txon_mode(1, 0, 0); esp_rom_delay_us(50);
+#endif
+            rf_dac_play(1, n, 0, 1);
+            printf("tx on\n");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+            rf_dac_stop();
+#if OURS
+            rf_tx_off();
+#else
+            force_txon_mode(0, 0, 0);
+#endif
+            printf("tx off\n");
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
+#endif
     static const int gains[] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, -1 };
     for (unsigned g = 0; g < sizeof gains / sizeof gains[0]; g++) capture(gains[g]);
 #if !OURS

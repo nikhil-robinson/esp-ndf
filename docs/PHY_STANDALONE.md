@@ -376,7 +376,21 @@ C9:48. Runs the same on IDF (`bench/idf_rfrx OURS=1`) and on esp-ndf
   - Digital TX gain bytes are at 0x60006014..0x60006030.
 - **Q8:** not needed. No vendor code runs.
 
-**Transmit (`rf_tx_on`, `rf_dac_play`):** after TX-on, the whole FE block 0x60006000..0x600061FC (including the pbus readbacks at 0x60006118..24) equals the vendor's, except the live 0x6000607C. An over-the-air check needs a second board.
+**Transmit (`rf_tx_on`, `rf_dac_play`):** after TX-on, the whole FE block 0x60006000..0x600061FC (including the pbus readbacks at 0x60006118..24) equals the vendor's, except the live 0x6000607C.
+
+**Over the air (`examples/rf_ota`, two boards about 10 cm apart, 2437 MHz).** D0 sends a +2 MHz DAC tone, 1 s on / 1 s off, at gain 127; C9:48 receives at forced gain 20.
+
+| Transmitter | Receiver | Tone on | Tone off | Image |
+|---|---|---|---|---|
+| vendor (IDF) | ours (esp-ndf) | +36 dB | about −32 dB | about −10 dB |
+| ours (IDF) | ours (esp-ndf) | +37 dB | about −33 dB | about +3 dB |
+| ours (esp-ndf) | ours (esp-ndf) | **+36.6 dB** | **−31.3 dB** | +2.7 dB |
+
+- Both directions work with no vendor code.
+- The image sits about 34 dB below the tone with our TX, against about 46 dB with the vendor's, as expected without our own TX IQ calibration.
+- A forced RX gain left on (0x6001C02C bit 23) blocks transmit, so `rf_tx_on` releases it.
+- The received spectrum is mirrored: a +2 MHz transmitted tone lands at −2 MHz, so raw capture Q is inverted (esp_sdr negates it too).
+- **Cold boot:** RTC_CNTL_ANA_CONF (0x60008034) bits 27/28/30/31 (TXRF, RFRX-pbus, CKGEN, PLL analog-bus power) must be set, or the PLL calibration never completes. They survive a chip reset, which hid this while vendor runs preceded ours.
 
 **Correction:** an earlier "±2 MHz loopback of about 0.3 LSB" was an artefact. Those captures were mostly unwritten words: the capture length follows the DAC count.
 
@@ -415,7 +429,7 @@ The measured rates include the start. The consumer's budget per unit is about 12
 - Chip-specific (but boot-stable) analog values come from the init's searches: PLL cap, block 0x6B TX caps against the SAR power detector, block 0x67.
 
 **Still open:**
-- **Regression to chase first:** after the loopback / estimator probes, `rf_pll_set_khz(2437000)` on esp-ndf reports `locked=0`. It ends at the same cap (0x0C8) in 169 µs instead of ~400 µs, and the window comparator 62.0C reads out of window at the hardware pick. Clearing 67.00[6] at init did not help. Next: check whether the vendor init clears it (analog state that survives a chip reset); then the board dropped off USB.
+- **Second chip (D0) with C9:48's replay plus our RX DC calibration:** PLL locked; RX DC within ±2.4 LSB up to gain 60; transmits.
 - TX DC/IQ calibration (needs the vendor TX-cal mode to get TX into the loopback); 0x6B caps;
 - the LO divider below about 2.2 GHz;
 - TX checked over the air.

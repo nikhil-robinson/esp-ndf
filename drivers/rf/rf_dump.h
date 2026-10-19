@@ -10,7 +10,8 @@
 enum { RF_DUMP_80M = 0, RF_DUMP_40M = 1u << 15, RF_DUMP_16M = 1u << 16 };
 
 static inline int rf_iq_i(uint32_t w) { return (int32_t)(w << 22) >> 22; }
-static inline int rf_iq_q(uint32_t w) { return (int32_t)(w << 12) >> 22; }
+static inline int rf_iq_q(uint32_t w) { return (int32_t)(w << 12) >> 22; }   /* raw: inverted vs the DAC's Q
+                                                   (a +2 MHz transmitted tone reads at -2 MHz); use -rf_iq_q for the true spectrum */
 
 #define RF_DUMP_BANK(b) (0x3FCB0000u + 0x10000u * (b))   /* banks 0..2; 3 holds ROM data */
 static inline uint32_t rf_iq_word(int i, int q) { return ((uint32_t)i & 0x3FF) | ((uint32_t)q & 0x3FF) << 10; }

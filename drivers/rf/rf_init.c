@@ -185,6 +185,7 @@ void rf_txon(int on)
 
 void rf_tx_on(uint8_t gain, uint16_t bb)
 {
+    rf_rx_gain(-1);                             /* a forced RX gain left on blocks transmit (measured over the air) */
     REG(WIFI_BB_CFG) |= 2;
     rf_tone_off();
     rf_pbus_force_mode(0);
