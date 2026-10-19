@@ -197,6 +197,27 @@ void app_main(void)
 
     }
 #endif
+#if IQPROBE > 9
+    {   /* vendor TX IQ measurement vs the IQ correction word */
+        extern void txcal_debuge_mode(void), txcal_work_mode(void);
+        extern void txiq_set_reg(int32_t v, uint32_t which);
+        extern void txiq_get_mis_pwr(uint32_t mode, int32_t atten, int32_t freq, int16_t *o1, int16_t *o2);
+        printf("607C %08lx\n", (unsigned long)*(volatile uint32_t *)0x6000607C);
+        txcal_debuge_mode();
+        static const int set[][2] = { { 0, -24 }, { 0, -16 }, { 0, -8 }, { 0, 0 }, { 0, 8 }, { 0, 16 }, { 0, 24 },
+                                      { -12, 0 }, { -8, 0 }, { -4, 0 }, { 4, 0 }, { 8, 0 }, { 12, 0 }, { -1, -3 } };
+        for (int f = 64; f <= 256; f *= 2)
+            for (unsigned k = 0; k < sizeof set / sizeof set[0]; k++) {
+                txiq_set_reg(set[k][0], 1); txiq_set_reg(set[k][1], 0);
+                int16_t a, b, c, d;
+                txiq_get_mis_pwr(1, 0, f, &a, &b);
+                txiq_get_mis_pwr(0, 0, f, &c, &d);
+                printf("vendor f %3d g %3d p %3d: mode1 %5d %5d  mode0 %5d %5d  607C %03lx tone %08lx\n", f, set[k][0], set[k][1], a, b, c, d,
+                       (unsigned long)(*(volatile uint32_t *)0x6000607C & 0x7FF), (unsigned long)*(volatile uint32_t *)0x60006040);
+            }
+        txcal_work_mode();
+    }
+#endif
 #if TXLOOP > 9
     {   /* vendor transmit reference: +2 MHz DAC tone, 1 s on / 1 s off, forever */
         const uint32_t n = 2000;

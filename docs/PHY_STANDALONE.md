@@ -447,7 +447,9 @@ The measured rates include the start. The consumer's budget per unit is about 12
 - **TX IQ (image):** the correction is 0x6000607C [10:0], gain [4:0] (5-bit signed) and phase [10:5] (6-bit signed), the same layout as the TX rows' IQ word lo[31:21] (libphy `txiq_set_reg`).
   - Over the air on D0, the image is best near gain 0 / phase 0..+8 (−42 to −43 dBc) and −22 to −30 dBc elsewhere. The stale copied word gave −34 dBc; the vendor's own calibration gives −46.
   - **Default is now the neutral word:** −41 to −45 dBc measured.
-  - **Self-calibration is not working yet.** The vendor measures with two tone-generator test modes (0x60006040 bits 27:24) through the power detector (`txiq_get_mis_pwr`, `txtone_linear_pwr`, `pwdet_tone_start`, baseline at `phy_param`+218). My reimplementation reads 300–450 counts over baseline, but its errors don't track the over-the-air image, so it was removed. Next step: compare its registers with a vendor run of `txiq_cover`.
+  - **Self-calibration: closed, not adopted.** The vendor measures with two tone-generator test modes (0x60006040 bits 27:24) through the power detector (`txiq_get_mis_pwr`, `txtone_linear_pwr`, `pwdet_tone_start`, baseline at `phy_param`+218).
+    - Calling the vendor's own `txiq_get_mis_pwr` on D0 (`bench/idf_rfrx IQPROBE=1`) across gain −12..+12 and phase −24..+24 gives readings of about 5000–6600, with mode differences a constant 30–100 counts plus drift. It barely responds, although the same settings move the over-the-air image from −43 to −21 dBc.
+    - The method is too coarse to beat the neutral word: −41 to −45 dBc against −46 for the vendor's word, and 0 needs no data. Neutral it is.
 - **Chip-specific analog values (closed).** I diffed the vendor init of C9:48 against D0 (`bench/*/data/*_c9d0.*`). Only these differ:
   - **62.01/02:** PLL cap, computed by `rf_pll_set_khz`.
   - **6B.02:** per-channel TX cap, ±1.
