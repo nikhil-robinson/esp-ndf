@@ -375,8 +375,29 @@ C9:48. Runs the same on IDF (`bench/idf_rfrx OURS=1`) and on esp-ndf
 
 **Transmit (`rf_tx_on`, `rf_dac_play`):** after TX-on, the whole FE block 0x60006000..0x600061FC (including the pbus readbacks at 0x60006118..24) equals the vendor's, except the live 0x6000607C. The loopback seen in our own capture is about 0.3 LSB at ±2 MHz on both paths (probably on-chip crosstalk). An over-the-air check needs a second board.
 
+**Streaming (`rf_stream`, drivers/rf/rf_stream.c).** Circular mode (0x60033D5C = 0x24000 | rate | run) writes at the ring index 0x60033D60 (mod 16384) into the selected bank:
+- Switching banks every 12288 pairs splits the stream into units.
+- Sentinel windows locate each unit, and unit n+1 must start exactly where unit n ended (gapless by construction).
+- A consumer that laps the ring is caught as a gap.
+
+Measured on esp-ndf, interrupts masked, single core:
+
+| Rate | Units | Samples | Measured rate | Max lateness | Consumer |
+|---|---|---|---|---|---|
+| 80 MS/s | 1000 | 12.30 M | 79.87 MS/s | 7 pairs | light |
+| 40 MS/s | 300 | 3.69 M | 39.81 MS/s | 3 pairs | sums every I sample (3.5 cycles/pair) |
+| 16 MS/s | 300 | 3.69 M | 15.97 MS/s | 1 pair | sums every I sample (3.5 cycles/pair) |
+
+The measured rates include the start. The consumer's budget per unit is about 12000 pairs, which is about 2.4 cycles per pair at 80 MS/s, so heavier work belongs on core 1.
+
+**Calibration state across boots** (two vendor init traces, same chip):
+- All 54 analog registers and all 10 pbus rows end identical.
+- Only gain memory varies:
+  - RX rows 0..159 carry the per-gain DCO codes, from `pbus_rx_dco_cal` (DCO search on pbus rows (2,1)/(3,1), measured with the BB estimator 0x6000615C..64);
+  - TX rows 160..191 carry the TX DC values.
+- Chip-specific (but boot-stable) analog values come from the init's searches: PLL cap, block 0x6B TX caps against the SAR power detector, block 0x67.
+
 **Still open:**
-- our own calibrations instead of the replayed results;
+- our own calibrations instead of the replayed results (order: RX DCO, TX DC/IQ, 0x6B caps);
 - the LO divider below about 2.2 GHz;
-- streaming capture by bank rotation (esp_sdr `ring.c`, using these registers);
 - TX checked over the air.

@@ -181,6 +181,7 @@ vector unit is off there).
 | PHY bring-up vs IDF partial / full calibration | **3.14 ms** | 38–41 ms / 34–45 ms | 11–14× | not like for like until our own calibrations exist |
 | Same replay, built on IDF | 4.65 ms | — | — | esp-ndf's analog-bus and pbus paths are faster |
 | PLL tune 2437 MHz (cap search + refine) | 402–410 µs | — | — | bit-exact with the vendor (69/69) |
+| Gapless IQ stream, one core, interrupts masked | **80 MS/s** (79.87 measured, 12.3 M samples) | esp_sdr on IDF: 80 MS/s using both cores | — | consumer budget ~2.4 cycles/pair at 80 MS/s |
 
 ## Storage
 

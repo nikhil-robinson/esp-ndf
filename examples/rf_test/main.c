@@ -66,6 +66,60 @@ static void tx_test(void)
     rf_tx_off();
 }
 
+static uint32_t cb_cycles;
+static int32_t sum_i(const uint32_t *a, uint32_t n)
+{
+    int32_t s0 = 0, s1 = 0;
+    uint32_t k = 0;
+    for (; k + 2 <= n; k += 2) { s0 += (int32_t)(a[k] << 22) >> 22; s1 += (int32_t)(a[k + 1] << 22) >> 22; }
+    if (k < n) s0 += rf_iq_i(a[k]);
+    return s0 + s1;
+}
+static int sum_cb(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx)
+{
+    uint32_t t = ccount();
+    *(int64_t *)ctx += sum_i(a, na) + sum_i(b, nb);
+    t = ccount() - t;
+    if (t > cb_cycles) cb_cycles = t;
+    return 0;
+}
+
+static int light_cb(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx)
+{
+    (void)b; (void)nb;
+    *(int64_t *)ctx += rf_iq_i(a[0]) + rf_iq_i(a[na / 2]);
+    return 0;
+}
+
+static void stream_test(void)
+{
+    {
+        rf_stream_stats_t st; int64_t acc = 0;
+        uint32_t ps = irq_lock();
+        uint64_t t0 = time_us();
+        int rc = rf_stream(RF_DUMP_80M, 1000, light_cb, &acc, &st);
+        uint64_t t1 = time_us();
+        irq_unlock(ps);
+        printf("stream 80 MS/s, light consumer: rc=%d units=%lu pairs=%llu late_max=%lu  %.3f MS/s measured\n", rc,
+               (unsigned long)st.units, (unsigned long long)st.pairs, (unsigned long)st.late_max, (double)st.pairs / (double)(t1 - t0));
+    }
+    static const struct { uint32_t rate; const char *name; double hz; } r[] = {
+        { RF_DUMP_40M, "40", 40e6 }, { RF_DUMP_16M, "16", 16e6 } };   /* full-sample consumer: too slow for 80 on one core */
+    for (unsigned k = 0; k < 2; k++) {
+        rf_stream_stats_t st; int64_t acc = 0;
+        uint32_t ps = irq_lock();
+        uint64_t t0 = time_us();
+        int rc = rf_stream(r[k].rate, 300, sum_cb, &acc, &st);
+        uint64_t t1 = time_us();
+        irq_unlock(ps);
+        printf("  callback max %lu cycles (%.2f per pair)\n", (unsigned long)cb_cycles, cb_cycles / 12288.0);
+        cb_cycles = 0;
+        printf("stream %s MS/s: rc=%d units=%lu pairs=%llu late_max=%lu  %.3f MS/s measured, mean I %.2f\n", r[k].name, rc,
+               (unsigned long)st.units, (unsigned long long)st.pairs, (unsigned long)st.late_max,
+               (double)st.pairs / (double)(t1 - t0), st.pairs ? (double)acc / (double)st.pairs : 0.0);
+    }
+}
+
 int main(void)
 {
     delay_ms(1500);
@@ -83,6 +137,7 @@ int main(void)
            (unsigned long)((t2 - t1) / mhz), rc, r.cap, r.locked, (unsigned long)((t3 - t2) / mhz));
     static const int gains[] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, -1 };
     for (unsigned g = 0; g < sizeof gains / sizeof gains[0]; g++) capture(gains[g]);
+    stream_test();
     tx_test();
     printf("=== done\n");
     for (;;) {}

@@ -21,3 +21,11 @@ void rf_dac_stop(void);
 
 /* One-shot capture of n words at RF_DUMP_BURST_ADDR; 0 on success, -1 on timeout. */
 int rf_dump_burst(uint32_t rate, uint32_t n);
+
+/* Continuous gapless capture: up to `units` units of ~12288 pairs, each passed
+ * to cb as two contiguous segments (ring wrap); cb returns nonzero to stop.
+ * Run with interrupts masked; cb must return within ~10000 pairs (125 us at
+ * 80 MS/s). Returns 0, -1 (late: cb too slow), -2 (gap), -3 (end not found). */
+typedef int (*rf_stream_cb)(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx);
+typedef struct { uint32_t units; uint64_t pairs; uint32_t late_max; uint32_t first, expected, end; } rf_stream_stats_t;
+int rf_stream(uint32_t rate, uint32_t units, rf_stream_cb cb, void *ctx, rf_stream_stats_t *st);
