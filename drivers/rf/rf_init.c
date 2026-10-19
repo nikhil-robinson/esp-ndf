@@ -71,8 +71,11 @@ void rf_pbus_xpd_rx_on(uint16_t rxgain)
     rf_pbus_write(1, 1, 0x189); rf_pbus_write(1, 2, rxgain);
 }
 
+uint32_t rf_gain_shadow[256][2];               /* what gain memory holds (it cannot be read back) */
+
 void rf_gain_mem_write(uint8_t index, uint32_t lo, uint32_t hi)
 {
+    rf_gain_shadow[index][0] = lo; rf_gain_shadow[index][1] = hi;
     REG(GAIN_DATA) = hi; REG(GAIN_CMD) = (uint32_t)index << 8 | 0x100F0;
     REG(GAIN_DATA) = lo; REG(GAIN_CMD) = (uint32_t)index << 8 | 0x1000F;
 }

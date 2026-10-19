@@ -16,6 +16,14 @@ void rf_pbus_force_mode(int on);               /* off: hardware owns the front e
 void rf_pbus_xpd_tx_off(void);
 void rf_pbus_xpd_rx_on(uint16_t rxgain);
 void rf_gain_mem_write(uint8_t index, uint32_t lo, uint32_t hi);
+extern uint32_t rf_gain_shadow[256][2];         /* [row] = { lo, hi } as last written */
+
+/* RX gain rows (row = forced gain index): DC offset DACs, offset binary, DC rises with the code
+ *   I stage 1 hi[30:22] (9 bits, before the VGA), I stage 2 hi[21:14] (8 bits)
+ *   Q stage 1 lo[16:8],                           Q stage 2 lo[7:0]
+ * rf_rx_dc_cal(): our calibration with the dump engine, rows 0..rows-1, one solve per group of
+ * rows sharing gain codes; receive must be on and tuned. Returns the worst residual |DC| x16. */
+int rf_rx_dc_cal(unsigned rows);
 void rf_init_replay(void);                      /* this board's vendor init, as data */
 void rf_rx_on(void);                            /* receive front end and RX clock on */
 void rf_rx_gain(int gain);                      /* <0: AGC; else forced index (0..127) */
