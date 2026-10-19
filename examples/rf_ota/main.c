@@ -48,10 +48,11 @@ int main(void)
         for (uint32_t k = 0; k < n; k++)
             b[k] = rf_iq_word((int)lrintf(300 * cosf(2 * (float)M_PI * k / 20)), (int)lrintf(300 * sinf(2 * (float)M_PI * k / 20)));
         for (int s = 0; s < 12; s++) {
-            int phase = s / 4;                  /* 0 copied vendor DC words, 1 neutral, 2 our calibration */
+            int phase = s / 4;                  /* 0 copied DC words, 1 neutral, 2 our DC calibration */
             if (s & 1) { rf_dac_stop(); rf_tx_off(); printf("tx off\n"); delay_ms(1000); continue; }
             if (s == 4) rf_tx_dc_reset();
             if (s == 8) { rf_tx_on(127, 0); uint32_t t = time_ms(); rf_tx_dc_cal(127, 0); printf("tx dc cal %lu ms\n", (unsigned long)(time_ms() - t)); rf_tx_off(); }
+
             rf_tx_on(127, 0); rf_dac_play(1, n, 0, 1); printf("tx on phase %d\n", phase);
             delay_ms(1000);
         }

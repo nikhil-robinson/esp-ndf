@@ -444,6 +444,10 @@ The measured rates include the start. The consumer's budget per unit is about 12
     | neutral 0x100 | −31 dBc |
     | **ours, from neutral, 28 ms** | **−33 dBc** |
 
-- TX IQ (image) calibration: image at −34 dBc against the vendor's −46; the IQ fields are cal2 lo[31:21] and w3 hi[25:17]. 0x6B caps.
+- **TX IQ (image):** the correction is 0x6000607C [10:0], gain [4:0] (5-bit signed) and phase [10:5] (6-bit signed), the same layout as the TX rows' IQ word lo[31:21] (libphy `txiq_set_reg`).
+  - Over the air on D0, the image is best near gain 0 / phase 0..+8 (−42 to −43 dBc) and −22 to −30 dBc elsewhere. The stale copied word gave −34 dBc; the vendor's own calibration gives −46.
+  - **Default is now the neutral word:** −41 to −45 dBc measured.
+  - **Self-calibration is not working yet.** The vendor measures with two tone-generator test modes (0x60006040 bits 27:24) through the power detector (`txiq_get_mis_pwr`, `txtone_linear_pwr`, `pwdet_tone_start`, baseline at `phy_param`+218). My reimplementation reads 300–450 counts over baseline, but its errors don't track the over-the-air image, so it was removed. Next step: compare its registers with a vendor run of `txiq_cover`.
+- Block 0x6B TX caps and the other analog values are still C9:48's; D0 works with them.
 - ~~LO divider~~ done: `rf_tune_rx_khz()` runs the PLL at 6/5 of the LO with 65.00[4] set below 2240 MHz. The VCO locks directly from about 2230 to 2760 MHz (`examples/rf_range`), so receive covers about 1.85–2.76 GHz and transmit about 2.23–2.76 GHz. Checked over the air: receiver on the 6/5 path at 2280 MHz (PLL 2736), transmitter direct at 2280: tone +43.9 dB on, −32.1 dB off. Sub-GHz is out of reach: the divider register cannot go below 960 MHz, and the front end is matched for 2.4 GHz.
 - TX checked over the air.

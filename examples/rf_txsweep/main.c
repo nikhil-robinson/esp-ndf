@@ -44,8 +44,8 @@ int main(void)
     printf("=== rf_txsweep role %s\n", tx ? "TX" : "RX");
     rf_init_replay();
     rf_pll_result_t r;
-    rf_pll_set_khz(2437000, &r);
     rf_rx_on();
+    if (tx) rf_pll_set_khz(2437000, &r); else rf_tune_rx_khz(2436000);   /* receiver 1 MHz below */
     rf_rx_dc_cal(128);
     if (tx) {
         const uint32_t n = 2000;
@@ -55,20 +55,16 @@ int main(void)
         delay_ms(2000);                          /* receiver ready */
         rf_tx_on(127, 0);
         rf_dac_play(1, n, 0, 1);
-        unsigned base = REG(0x60006000) >> 18 & 0xFF;
-        uint32_t lo0 = rf_gain_shadow[base][0], hi0 = rf_gain_shadow[base][1];
-        static const int d[] = { 0, -32, -16, 16, 32, 0 };
-        for (int f = 0; f < 5; f++) {
-            for (unsigned k = 0; k < 14; k++) rf_gain_mem_write(base + k, lo0, hi0);
-            rf_txon(0); delay_ms(600);            /* marker: off */
-            for (unsigned s = 0; s < sizeof d / sizeof d[0]; s++) {
-                uint32_t lo = lo0, hi = hi0;
-                field_add(&lo, &hi, f, d[s]);
-                for (unsigned k = 0; k < 14; k++) rf_gain_mem_write(base + k, lo, hi);
-                rf_txon(0); rf_txon(1);
-                printf("field %d %+d\n", f, d[s]);
-                delay_ms(600);
-            }
+        static const int set[][2] = { { 0, -24 }, { 0, -16 }, { 0, -8 }, { 0, 0 }, { 0, 8 }, { 0, 16 }, { 0, 24 },
+                                      { -12, 0 }, { -8, 0 }, { -4, 0 }, { 4, 0 }, { 8, 0 }, { 12, 0 } };   /* { gain, phase } */
+        for (unsigned k = 0; k < sizeof set / sizeof set[0]; k++) {
+            uint16_t w = (uint16_t)(((unsigned)set[k][1] & 0x3F) << 5 | ((unsigned)set[k][0] & 0x1F));
+            rf_dac_stop(); rf_tx_off();
+            rf_tx_set_iq(w);
+            rf_tx_on(127, 0); rf_dac_play(1, n, 0, 1);
+            *(volatile uint32_t *)0x6000607C = (*(volatile uint32_t *)0x6000607C & ~0x7FFu) | w;
+            printf("set g %3d p %3d t %lu\n", set[k][0], set[k][1], (unsigned long)time_ms());
+            delay_ms(500);
         }
         rf_dac_stop(); rf_tx_off();
     } else {
@@ -76,8 +72,7 @@ int main(void)
         while (time_us() - t0 < 30000000) {
             rf_rx_gain(20); delay_us(200);
             rf_dump_burst(RF_DUMP_80M, 8192);
-            printf("t %6lu tone %6.1f image %6.1f dc %6.1f\n", (unsigned long)((time_us() - t0) / 1000),
-                   bin_db(8192, 2e6f), bin_db(8192, -2e6f), bin_db(8192, 0));
+            printf("t %6lu tone %6.1f image %6.1f\n", (unsigned long)time_ms(), bin_db(8192, 3e6f), bin_db(8192, -1e6f));   /* receiver 1 MHz low: tone +3, image -1 */
             delay_ms(100);
         }
     }

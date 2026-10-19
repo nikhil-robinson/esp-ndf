@@ -39,9 +39,10 @@ void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig);   /* fills the Wi-Fi and
 void rf_txon(int on);                           /* force the transmitter on without a frame */
 void rf_tx_on(uint8_t gain, uint16_t bb);       /* tone off, TX front end on, gain, forced on */
 void rf_tx_off(void);
-void rf_tx_dc_cal(uint8_t gain, uint16_t bb);
-void rf_tx_dc_reset(void);                     /* neutral TX DC words */   /* our TX LO-leakage calibration (power detector); after rf_tx_on */
-void rf_loopback(int on, uint16_t pa, uint16_t rxg);
-void rf_pwdet_on(void);                        /* TX power detector via SAR2 */
+void rf_tx_dc_cal(uint8_t gain, uint16_t bb);   /* our TX LO-leakage calibration (power detector); after rf_tx_on */
+void rf_tx_dc_reset(void);                      /* neutral TX DC words */
+void rf_tx_set_iq(uint16_t v);                  /* TX IQ word: gain [4:0], phase [10:5], signed; default 0 */
+void rf_loopback(int on, uint16_t pa, uint16_t rxg);   /* internal TX -> RX path; pa 0xFFFF: switch and clocks only */
+void rf_pwdet_on(void);                         /* TX power detector via SAR2 */
 uint32_t rf_pwdet_read(void);                   /* sum of its 8 latest 13-bit results */
-void rf_bb_est(uint16_t n, int32_t *i, int32_t *q, int32_t *pwr);   /* hardware DC / power estimate over n+1 samples */   /* internal TX -> RX path, for TX measurement */
+void rf_bb_est(uint16_t n, int32_t *i, int32_t *q, int32_t *pwr);   /* hardware DC / power estimate over n+1 samples */

@@ -3,6 +3,7 @@
 #include "rf_txcal_c948.h"
 #include "rf_regi2c.h"
 #include "rf_pll.h"
+#include "rf_dump.h"
 
 #define REG(a) (*(volatile uint32_t *)(a))
 void rf_delay_us(uint32_t us);                  /* platform hook */
@@ -157,6 +158,11 @@ static void tx_rows(unsigned base, unsigned n, uint8_t gain, uint16_t bb, const 
 }
 
 static uint16_t txcal[5][4];                   /* RAM copy of rf_txcal_wifi: rf_tx_dc_cal rewrites w0/w2 */
+/* TX IQ word (row lo[31:21], also 0x6000607C [10:0]): gain [4:0] 5-bit signed, phase
+ * [10:5] 6-bit signed. Neutral (0) measured -43 dBc image over the air on D0, the copied
+ * word -34 dBc, the vendor's own calibration -46 dBc. */
+static uint16_t txcal2 = 0;
+void rf_tx_set_iq(uint16_t v) { txcal2 = v & 0x7FF; }
 static int txcal_init;
 static unsigned wifi_class(uint16_t bb) { return bb == 128 ? 1 : bb == 32 ? 3 : bb == 160 ? 4 : bb == 256 ? 2 : 0; }   /* rom_txbbgain_to_index */
 
@@ -166,7 +172,7 @@ void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig)
     unsigned wcls = wifi_class(bb);
     unsigned bcls = bb == 128 ? 1 : bb == 256 ? 2 : 0;                                  /* rom_bt_bb_to_index */
     if (!txcal_init) { for (int r = 0; r < 5; r++) for (int k = 0; k < 4; k++) txcal[r][k] = rf_txcal_wifi[r][k]; txcal_init = 1; }
-    tx_rows(base, 14, gain, bb, (const uint16_t (*)[4])txcal, rf_txcal_wifi2, wcls);
+    tx_rows(base, 14, gain, bb, (const uint16_t (*)[4])txcal, txcal2, wcls);
     tx_rows(base + 16, 16, gain, bb, rf_txcal_bt, rf_txcal_bt2, bcls);
     uint32_t d = (uint8_t)dig * 0x01010101u;
     for (uint32_t a = 0x60006014u; a <= 0x60006030u; a += 4) REG(a) = d;           /* BT 14..20, Wi-Fi 24..30 */
@@ -198,6 +204,7 @@ void rf_tx_on(uint8_t gain, uint16_t bb)
     rf_pbus_xpd_rx_on(0);
     rf_pbus_xpd_tx_on(1, 0);
     rf_tx_gain(gain, bb, 0);
+    REG(0x6000607Cu) = (REG(0x6000607Cu) & ~0x7FFu) | txcal2;
     rf_txon(1);
     rf_delay_us(50);
 }
@@ -216,7 +223,7 @@ void rf_loopback(int on, uint16_t pa, uint16_t rxg)
     rf_regi2c_write_bits(0x67, 0x00, 6, 6, on ? 1 : 0);
     REG(PBUS_STAT) = (REG(PBUS_STAT) & ~(3u << 16)) | (on ? 3u << 16 : 0);
     REG(PBUS_STAT) = (REG(PBUS_STAT) & ~(3u << 14)) | (on ? 3u << 14 : 0);
-    if (!on) return;
+    if (!on || pa == 0xFFFF) return;            /* 0xFFFF: switch and clocks only, keep the TX pbus rows */
     rf_pbus_write(4, 1, 127); rf_pbus_write(5, 1, pa); rf_pbus_write(0, 1, 0x104);
     rf_pbus_write(1, 1, 0x1F9); rf_pbus_write(1, 2, rxg);
 }
@@ -311,24 +318,23 @@ void rf_tx_dc_reset(void)                      /* neutral DC words (a chip witho
 void rf_tx_dc_cal(uint8_t gain, uint16_t bb)
 {
     rf_tx_gain(gain, bb, 0);                    /* initialises the RAM table */
+    volatile uint32_t *z = (volatile uint32_t *)RF_DUMP_BANK(0);
+    for (int k = 0; k < 64; k++) z[k] = 0;      /* a stopped DAC holds its last sample: feed it zeros */
+    rf_dac_play(0, 64, 0, 1);
     rf_pwdet_on();
     unsigned c = wifi_class(bb);
     for (int pass = 0; pass < 2; pass++)
         for (int w = 0; w <= 2; w += 2) {
             int best = txcal[c][w];
-            uint32_t bp = try_dc(gain, bb, w, best);
-            for (int step = pass ? 8 : 32; step >= 1; step /= 2) {
-                int moved = 1;
-                while (moved) {
-                    moved = 0;
-                    for (int dir = -1; dir <= 1; dir += 2) {
-                        int v = best + dir * step;
-                        if (v < 0 || v > 511) continue;
-                        uint32_t p = try_dc(gain, bb, w, v);
-                        if (p < bp) { bp = p; best = v; moved = 1; }
-                    }
+            for (int step = pass ? 8 : 32; step >= 1; step /= 2)
+                for (int moves = 0; moves < 16; moves++) {   /* left, centre, right measured together: the detector drifts */
+                    int lo = best - step < 0 ? 0 : best - step, hi = best + step > 511 ? 511 : best + step;
+                    uint32_t pl = try_dc(gain, bb, w, lo), pc = try_dc(gain, bb, w, best), ph = try_dc(gain, bb, w, hi);
+                    if (pl < pc && pl <= ph) best = lo;
+                    else if (ph < pc) best = hi;
+                    else break;
                 }
-            }
             try_dc(gain, bb, w, best);
         }
+    rf_dac_stop();
 }
