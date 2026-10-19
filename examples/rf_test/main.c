@@ -135,6 +135,7 @@ int main(void)
 {
     delay_ms(1500);
     printf("=== esp-ndf (no vendor code)\n");
+    printf("ANA_CONF %08lx OPTIONS0 %08lx\n", (unsigned long)*(volatile uint32_t *)0x60008034, (unsigned long)*(volatile uint32_t *)0x60008000);
     uint32_t t0 = ccount();
     rf_init_replay();
     uint32_t t1 = ccount();
@@ -146,6 +147,9 @@ int main(void)
     uint32_t mhz = sys_cpu_hz() / 1000000;
     printf("init %lu us, pll %lu us (rc=%d cap=%03x locked=%d), rx on %lu us\n", (unsigned long)((t1 - t0) / mhz),
            (unsigned long)((t2 - t1) / mhz), rc, r.cap, r.locked, (unsigned long)((t3 - t2) / mhz));
+    uint32_t tc = ccount();
+    int wr = rf_rx_dc_cal(128);
+    printf("rx dc cal %lu us, worst residual %.1f LSB\n", (unsigned long)((ccount() - tc) / mhz), wr / 16.0);
     static const int gains[] = { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, -1 };
     for (unsigned g = 0; g < sizeof gains / sizeof gains[0]; g++) capture(gains[g]);
     stream_test();

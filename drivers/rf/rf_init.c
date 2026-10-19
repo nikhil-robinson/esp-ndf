@@ -6,6 +6,8 @@
 #define REG(a) (*(volatile uint32_t *)(a))
 void rf_delay_us(uint32_t us);                  /* platform hook */
 
+#define RTC_ANA_CONF  0x60008034u               /* RF analog-bus power: survives a chip reset, off from cold */
+#define ANA_RF_PU     (1u << 31 | 1u << 30 | 1u << 28 | 1u << 27)   /* PLL, CKGEN, RFRX pbus, TXRF i2c */
 #define RTC_DIG_PWC   0x60008090u               /* bit 17 WIFI_FORCE_PD */
 #define RTC_DIG_ISO   0x60008094u               /* bit 28 WIFI_FORCE_ISO */
 #define SYS_WIFI_CLK  0x60026014u
@@ -23,6 +25,7 @@ void rf_delay_us(uint32_t us);                  /* platform hook */
 
 void rf_power_on(void)
 {
+    REG(RTC_ANA_CONF) |= ANA_RF_PU;
     REG(SYS_WIFI_CLK) |= MODEM_CLK;
     REG(RTC_DIG_PWC) &= ~(1u << 17);
     rf_delay_us(10);
