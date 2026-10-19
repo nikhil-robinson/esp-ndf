@@ -26,9 +26,9 @@ else
   OUT   = build/$(notdir $(APP))
 endif
 
-SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S $(APP)/*.c $(APP)/*.S)
+SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S lib/musl/*.c $(APP)/*.c $(APP)/*.S)
 OBJS  = $(patsubst %,$(OUT)/%.o,$(SRCS))
-INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench
+INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench -Ilib/musl
 
 # CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
 FLAGS = -mabi=call0 -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
@@ -61,6 +61,9 @@ LOOPFIX = sed -E 's/^([[:space:]]+)(loop|loopnez|loopgtz)([[:space:]]+)(a[0-9]+)
 else
 LOOPFIX = cat
 endif
+
+# imported musl math (lib/musl/README.md): its own conventions, no warnings
+$(OUT)/lib/musl/%.c.o: FLAGS += -include lib/musl/features.h -w
 
 $(OUT)/%.c.o: %.c
 	@mkdir -p $(dir $@)

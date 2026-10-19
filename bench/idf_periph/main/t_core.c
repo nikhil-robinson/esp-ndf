@@ -86,9 +86,13 @@ void t_core2(void)
 static inline uint32_t dcc(void) { return ccount(); }
 #include "dbench.inc"
 
+static inline uint32_t mcc(void) { return ccount(); }
+#include "mbench.inc"
+
 void t_core3(void)
 {
     dbench();
+    mbench();
     volatile double x = 1.2345678901234, y = 6.789012345678; double r = 0;
     uint32_t c0 = ccount(); for (int i = 0; i < 100; i++) r += x * y; uint32_t cm = (ccount() - c0) / 100;
     c0 = ccount(); for (int i = 0; i < 100; i++) r += x / y; uint32_t cd = (ccount() - c0) / 100;
