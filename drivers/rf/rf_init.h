@@ -24,7 +24,8 @@ extern uint32_t rf_gain_shadow[256][2];         /* [row] = { lo, hi } as last wr
  * rf_rx_dc_cal(): our calibration with the dump engine, rows 0..rows-1, one solve per group of
  * rows sharing gain codes; receive must be on and tuned. Returns the worst residual |DC| x16. */
 int rf_rx_dc_cal(unsigned rows);
-void rf_init_replay(void);                      /* this board's vendor init, as data */
+void rf_init_replay(void);
+int  rf_rc_cal(void);                           /* RX filter RC code (6A.05) applied to 67.14..1F; done by rf_init_replay */
 void rf_rx_on(void);                            /* receive front end and RX clock on */
 #ifndef RF_LO_DIRECT_MIN_KHZ
 #define RF_LO_DIRECT_MIN_KHZ 2240000u          /* below: receive through the 6/5 LO divider */

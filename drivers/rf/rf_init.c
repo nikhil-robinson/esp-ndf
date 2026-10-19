@@ -91,6 +91,31 @@ static void apply_digital(void)
         REG(rf_init_digital[i].addr) = rf_init_digital[i].value;
 }
 
+/* RX filter RC calibration (vendor init, analog 6A): measure the RC code, then
+ * offset 67.14..67.1F by it. C9:48's trace measured RF_RC_REF and its replayed
+ * values belong to that code; D0 measured +1 and the vendor wrote every one +1. */
+#define RF_RC_REF 0x23
+int rf_rc_cal(void)
+{
+    rf_regi2c_write_bits(0x6A, 0x02, 6, 5, 2);
+    rf_regi2c_write_bits(0x6A, 0x06, 4, 0, 2);
+    rf_regi2c_write_bits(0x6A, 0x04, 7, 4, 0xB);
+    rf_regi2c_write_bits(0x61, 0x08, 2, 2, 1);
+    rf_regi2c_write_bits(0x6A, 0x04, 0, 0, 1);
+    rf_regi2c_write_bits(0x6A, 0x04, 3, 3, 0);
+    rf_regi2c_write_bits(0x6A, 0x04, 3, 3, 1);
+    rf_delay_us(100);                           /* settles in ~10 us, then dithers by one code */
+    int sum = 0;
+    for (int k = 0; k < 16; k++) { sum += rf_regi2c_read_bits(0x6A, 0x05, 5, 0); rf_delay_us(10); }
+    int code = (sum + 8) / 16;
+    rf_regi2c_write_bits(0x61, 0x08, 2, 2, 0);
+    rf_regi2c_write_bits(0x6A, 0x04, 0, 0, 0);
+    int d = code - RF_RC_REF;
+    static const uint8_t regs[] = { 0x14, 0x15, 0x16, 0x17, 0x1C, 0x1D, 0x1E, 0x1F };
+    for (unsigned k = 0; k < sizeof regs; k++) rf_regi2c_write(0x67, regs[k], (uint8_t)(rf_regi2c_read(0x67, regs[k]) + d));
+    return code;
+}
+
 /* ponytail: replays one chip's traced init (calibration results included);
  * replace op groups with our own calibrations one by one. */
 void rf_init_replay(void)
@@ -111,6 +136,7 @@ void rf_init_replay(void)
         }
     }
     apply_digital();                            /* final values of words the steps rewrote */
+    rf_rc_cal();                                /* this chip's RX filter RC code, not the traced one */
 }
 
 void rf_rx_on(void)

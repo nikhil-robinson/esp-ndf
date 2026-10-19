@@ -448,6 +448,12 @@ The measured rates include the start. The consumer's budget per unit is about 12
   - Over the air on D0, the image is best near gain 0 / phase 0..+8 (−42 to −43 dBc) and −22 to −30 dBc elsewhere. The stale copied word gave −34 dBc; the vendor's own calibration gives −46.
   - **Default is now the neutral word:** −41 to −45 dBc measured.
   - **Self-calibration is not working yet.** The vendor measures with two tone-generator test modes (0x60006040 bits 27:24) through the power detector (`txiq_get_mis_pwr`, `txtone_linear_pwr`, `pwdet_tone_start`, baseline at `phy_param`+218). My reimplementation reads 300–450 counts over baseline, but its errors don't track the over-the-air image, so it was removed. Next step: compare its registers with a vendor run of `txiq_cover`.
-- Block 0x6B TX caps and the other analog values are still C9:48's; D0 works with them.
+- **Chip-specific analog values (closed).** I diffed the vendor init of C9:48 against D0 (`bench/*/data/*_c9d0.*`). Only these differ:
+  - **62.01/02:** PLL cap, computed by `rf_pll_set_khz`.
+  - **6B.02:** per-channel TX cap, ±1.
+  - **67.14..1F:** RX filter, every register ±1. It comes from an RC calibration: configure 6A, pulse 6A.04[3], read 6A.05[5:0]. The code is 0x23 on C9:48 and 0x24 on D0, and the vendor adds it to a fixed table. `rf_rc_cal()` (inside `rf_init_replay`) measures it with a 100 µs settle and an average of 16 reads (it dithers ±1), and reproduces both chips' values exactly.
+  - **69.03/04:** the SAR2 init code, a constant (0x578), skipped when already set.
+  - **69.06:** read and rewritten with bit 3 flipped on every init, so not chip data.
+- **Noise at gains 50–80 on C9:48 (closed):** it was D0's LO nearby. With D0's radio off, C9:48 shows the vendor's profile (RMS 2–33).
 - ~~LO divider~~ done: `rf_tune_rx_khz()` runs the PLL at 6/5 of the LO with 65.00[4] set below 2240 MHz. The VCO locks directly from about 2230 to 2760 MHz (`examples/rf_range`), so receive covers about 1.85–2.76 GHz and transmit about 2.23–2.76 GHz. Checked over the air: receiver on the 6/5 path at 2280 MHz (PLL 2736), transmitter direct at 2280: tone +43.9 dB on, −32.1 dB off. Sub-GHz is out of reach: the divider register cannot go below 960 MHz, and the front end is matched for 2.4 GHz.
 - TX checked over the air.
