@@ -11,7 +11,7 @@ void rf_delay_us(uint32_t us);                  /* platform hook */
 #define SYS_WIFI_CLK  0x60026014u
 #define SYS_WIFI_RST  0x60026018u
 #define MODEM_RST     0x2A1Fu                   /* BB, FE, MAC, BT BB/MAC (+regs) */
-#define MODEM_CLK     0x00788F8Fu               /* common modem clocks + calibration clock (bit 22) */
+#define MODEM_CLK     0x00FB9FCFu               /* all modem clocks (IDF SYSTEM_WIFI_CLK_EN); bits 6/12/16/17 feed the dump engine path */
 #define PBUS_CMD      0x60006104u
 #define PBUS_STAT     0x60006110u               /* bit 31 busy; bits 15:14 RX clock */
 #define PBUS_MODE     0x6000610Cu

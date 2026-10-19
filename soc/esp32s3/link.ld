@@ -42,3 +42,5 @@ SECTIONS
 
 ASSERT(_vector_table == 0x40378000, "vector table must be first in IRAM")
 ASSERT(_stack1_top <= 0x3FCE9000, "RAM full: code + data + stacks exceed SRAM below the ROM loader area")
+/* the baseband dump engine writes SRAM banks 0x3FCB0000..0x3FCDFFFF (drivers/rf/rf_dump.c) */
+ASSERT(!DEFINED(rf_dump_burst) || _stack1_top <= 0x3FCB0000, "RF dump engine in use: code + data + stacks must end below 0x3FCB0000")

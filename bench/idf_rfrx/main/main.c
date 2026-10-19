@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_rom_sys.h"
+#include "esp_timer.h"
 #include "heap_memory_layout.h"
 #include "rf_regi2c.h"
 #include "rf_pll.h"
@@ -24,6 +25,7 @@ void rf_delay_us(uint32_t us) { esp_rom_delay_us(us); }
 
 #if !OURS
 #include "esp_phy_init.h"
+#include "nvs_flash.h"
 #include "esp_wifi.h"
 #include "esp_event.h"
 void esp_wifi_bt_power_domain_on(void);
@@ -135,7 +137,9 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1500));
 #if OURS
     printf("=== ours (no vendor PHY code)\n");
+    int64_t t0 = esp_timer_get_time();
     rf_init_replay();
+    printf("init %lld us\n", esp_timer_get_time() - t0);
     rf_pll_result_t r;
     printf("pll rc=%d cap=%03x locked=%d\n", rf_pll_set_khz(2437000, &r), r.cap, r.locked);
     rf_rx_on();
@@ -156,8 +160,13 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 #else
+#if CONFIG_ESP_PHY_CALIBRATION_AND_DATA_STORAGE
+    nvs_flash_init();                                  /* stored calibration data (not timed) */
+#endif
+    int64_t t0 = esp_timer_get_time();
     esp_wifi_bt_power_domain_on();
     esp_phy_enable(PHY_MODEM_WIFI);
+    printf("init %lld us\n", esp_timer_get_time() - t0);
 #endif
     *(volatile uint32_t *)0x60026014 |= 0x00400000;
     set_chanfreq(2437, 0);
