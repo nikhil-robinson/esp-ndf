@@ -1,0 +1,154 @@
+FAIL 2402 MHz rate 0 sync 0x71764129 len 37  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 940, 'crcbad': 3, 'wrong': 0, 'len': 37, 'hdr': 82, 'rssi': -19}
+FAIL 2440 MHz rate 0 sync 0x12345678 len 100  send rc 0 packets/s 740 cpu 0.000% | {'rc': 0, 'good': 513, 'crcbad': 52, 'wrong': 0, 'len': 100, 'hdr': 82, 'rssi': -13}
+FAIL 2480 MHz rate 0 sync 0xA5A5F00F len 255  send rc 0 packets/s 385 cpu 0.000% | {'rc': 0, 'good': 391, 'crcbad': 22, 'wrong': 0, 'len': 255, 'hdr': 82, 'rssi': -23}
+FAIL 2426 MHz rate 1 sync 0x71764129 len 255  send rc 0 packets/s 658 cpu 0.000% | {'rc': 0, 'good': 788, 'crcbad': 2, 'wrong': 0, 'len': 255, 'hdr': 82, 'rssi': -15}
+FAIL 2404 MHz rate 2 sync 0x71764129 len 100  send rc 0 packets/s 124 cpu 0.000% | {'rc': 0, 'good': 73, 'crcbad': 0, 'wrong': 0, 'len': 100, 'hdr': 82, 'rssi': -12}
+FAIL 2478 MHz rate 3 sync 0x71764129 len 255  send rc 0 packets/s 182 cpu 0.000% | {'rc': 0, 'good': 209, 'crcbad': 0, 'wrong': 0, 'len': 255, 'hdr': 82, 'rssi': -16}
+FAIL 2440 MHz rate 0 sync 0x71764129 len 1  send rc 0 packets/s 1788 cpu 0.000% | {'rc': 0, 'good': 1073, 'crcbad': 0, 'wrong': 0, 'len': 1, 'hdr': 82, 'rssi': -13}
+PASS flags tx 2 rx 2 (whitening off = 2, CRC off = 1) -> good  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 900, 'crcbad': 7, 'wrong': 0, 'len': 37, 'hdr': 82, 'rssi': -13}
+PASS flags tx 1 rx 1 (whitening off = 2, CRC off = 1) -> good  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 835, 'crcbad': 8, 'wrong': 0, 'len': 37, 'hdr': 82, 'rssi': -13}
+FAIL flags tx 2 rx 0 (whitening off = 2, CRC off = 1) -> none  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 863, 'crcbad': 14, 'wrong': 0, 'len': 37, 'hdr': 82, 'rssi': -13}
+PASS flags tx 0 rx 1 (whitening off = 2, CRC off = 1) -> good  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 902, 'crcbad': 12, 'wrong': 0, 'len': 37, 'hdr': 82, 'rssi': -13}
+PASS send at 2500 MHz denied  (range)
+PASS send at 2440 MHz outside limits denied  
+FAIL counted send: 1000 packets sent, ~1000 received  send rc 0 sent 1000 in 849 ms | rx rc 0 good 632 crcbad 4 wrong 0 len 37 hdr 52 rssi -13
+=== 9 failures
+# RX packets per event (CS+0x20) vs loss: D0 sends exactly 1000 x 37 B at 1M, C9:48 receives
+CS+0x20 =   2: send rc 0 sent 1000 in 849 ms | rx rc 0 good 667 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+CS+0x20 =   4: send rc 0 sent 1000 in 849 ms | rx rc 0 good 500 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x20 =  16: send rc 0 sent 1000 in 849 ms | rx rc 0 good 500 crcbad 0 wrong 0 len 37 hdr 52 rssi -17
+CS+0x20 = 255: send rc 0 sent 1000 in 849 ms | rx rc 0 good 500 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x20 =   0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 500 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+# CS+0x20 = 1 (one packet per RX event, re-kicked): D0 sends exactly 1000 packets
+CS+0x20 = 1 len 37 rate 0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x20 = 1 len 255 rate 0: send rc 0 sent 1000 in 2593 ms | rx rc 0 good 999 crcbad 1 wrong 0 len 255 hdr 52 rssi -19
+CS+0x20 = 1 len 255 rate 1: send rc 0 sent 1000 in 1521 ms | rx rc 0 good 983 crcbad 17 wrong 0 len 255 hdr 52 rssi -21
+CS+0x20 = 1 len 1 rate 0: send rc 0 sent 1000 in 561 ms | rx rc 0 good 584 crcbad 0 wrong 0 len 1 hdr 52 rssi -14
+# RWBLECNTL bits 16..23 set on the transmitter only (receiver default): which change the on-air format (header bits, whitening, CRC)?
+TX bit None: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+TX bit 16: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+TX bit 17: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+TX bit 18: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+TX bit 19: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+TX bit 20: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+TX bit 21: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+TX bit 22: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+TX bit 23: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+# (redo, core set up first) RWBLECNTL bits 16..23 set on the transmitter only
+TX bit None: send rc 0 sent 1000 in 847 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+   ['core 0011050f']
+TX bit 16: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+   ['core 0012050f']
+TX bit 17: send rc 0 sent 1000 in 847 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+   ['core 0014050f']
+TX bit 18: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+   ['core 0018050f']
+TX bit 19: send rc 0 sent 1000 in 847 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 5a rssi -20
+   ['core 0010050f']
+TX bit 20: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+   ['core 0010050f']
+TX bit 21: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+   ['core 0010050f']
+TX bit 22: send rc 0 sent 1000 in 847 ms | rx rc 0 good 996 crcbad 0 wrong 0 len 37 hdr 52 rssi -23
+   ['core 0010050f']
+TX bit 23: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+# CRC / whitening flags (RWBLECNTL 17 / 18 via rf_pkt flags): transmitter flag vs receiver flag
+tx flags 1 rx flags 0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+tx flags 2 rx flags 0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 994 crcbad 1 wrong 0 len 37 hdr 52 rssi -16
+tx flags 0 rx flags 2: send rc 0 sent 1000 in 849 ms | rx rc 0 good 689 crcbad 4 wrong 0 len 37 hdr 52 rssi -13
+tx flags 3 rx flags 0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 670 crcbad 5 wrong 0 len 37 hdr 52 rssi -13
+tx flags 0 rx flags 3: send rc 0 sent 1000 in 849 ms | rx rc 0 good 772 crcbad 4 wrong 0 len 37 hdr 52 rssi -14
+tx flags 2 rx flags 2: send rc 0 sent 1000 in 849 ms | rx rc 0 good 744 crcbad 5 wrong 0 len 37 hdr 52 rssi -14
+CS+0x02 bit  0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x02 bit  1: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x02 bit  2: send rc 0 sent 1000 in 849 ms | rx rc 0 good 998 crcbad 1 wrong 0 len 37 hdr 52 rssi -19   <== changed
+CS+0x02 bit  3: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x02 bit  4: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x02 bit  5: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x02 bit  6: send rc 0 sent 1000 in 852 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x02 bit  7: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+CS+0x02 bit  8: send rc 0 sent 1000 in 850 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x02 bit  9: send rc 0 sent 1000 in 850 ms | rx rc 0 good 996 crcbad 3 wrong 996 len 37 hdr 52 rssi -22   <== changed
+CS+0x02 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 988 crcbad 0 wrong 0 len 37 hdr 52 rssi -24
+CS+0x02 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x02 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x02 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x02 bit 14: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x02 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x04 bit  4: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x04 bit  5: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit  6: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit  7: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x04 bit  8: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit  9: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x04 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x04 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x04 bit 14: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x04 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x18 bit  8: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x18 bit  9: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x18 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 997 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x18 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x18 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 995 crcbad 0 wrong 0 len 37 hdr 56 rssi -24
+CS+0x18 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 5a rssi -20
+CS+0x18 bit 14: send rc 0 sent 1000 in 553 ms | rx rc 0 good 667 crcbad 0 wrong 0 len 0 hdr 51 rssi -19   <== changed
+CS+0x18 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 993 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x14 bit  0: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit  1: send rc 0 sent 1000 in 849 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit  2: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x14 bit  3: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit  4: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x14 bit  5: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+CS+0x14 bit  6: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x14 bit  7: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit  8: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit  9: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x14 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+CS+0x14 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x14 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x14 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x14 bit 14: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x14 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x16 bit  6: send rc 0 sent 1000 in 849 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x16 bit  7: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+CS+0x16 bit  8: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+CS+0x16 bit  9: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x16 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x16 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x16 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 1 wrong 0 len 37 hdr 52 rssi -22   <== changed
+CS+0x16 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -22
+CS+0x16 bit 14: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+CS+0x16 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+cs 0x00 bit  5: send rc 0 sent 1000 in 849 ms | rx rc 0 good 999 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+cs 0x00 bit  6: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+cs 0x00 bit  7: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+cs 0x00 bit  8: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+cs 0x00 bit  9: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -19
+cs 0x00 bit 10: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+cs 0x00 bit 11: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -18
+cs 0x00 bit 12: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+cs 0x00 bit 13: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+cs 0x00 bit 14: send rc 0 sent 1000 in 849 ms | rx rc 0 good 628 crcbad 8 wrong 0 len 37 hdr 52 rssi -18   <== changed
+cs 0x00 bit 15: send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -21
+core 0x00 bit 10: send rc 0 sent 1000 in 847 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+core 0x00 bit 11: send rc 0 sent 1000 in 847 ms | rx rc 0 good 998 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+core 0x00 bit 12: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 wrong 0 len 37 hdr 52 rssi -20
+core 0x00 bit 13: send rc 0 sent 1000 in 847 ms | rx rc 0 good 0 crcbad 1000 wrong 0 len 0 hdr 00 rssi 0   <== changed
+core 0x00 bit 14: send rc 0 sent 1000 in 847 ms | rx rc 0 good 0 crcbad 500 wrong 0 len 0 hdr 00 rssi 0   <== changed
+core 0x00 bit 15: send rc 0 sent 1000 in 847 ms | rx rc 0 good 627 crcbad 8 wrong 0 len 37 hdr 52 rssi -23   <== changed
+# RWBLECNTL bits 13 / 14 on TX and/or RX; crcbad_dataok = CRC failed but every byte right (=> CRC off, not whitening)
+TX bit 13 RX bit None: send rc 0 sent 1000 in 847 ms | rx rc 0 good 0 crcbad 1000 crcbad_dataok 1000 wrong 0 len 0 hdr 00 rssi 0
+TX bit None RX bit 13: send rc 0 sent 1000 in 847 ms | rx rc 0 good 987 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -23
+TX bit 13 RX bit 13: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -21
+TX bit 14 RX bit None: send rc 0 sent 1000 in 847 ms | rx rc 0 good 0 crcbad 500 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+TX bit 14 RX bit 14: send rc 0 sent 1000 in 847 ms | rx rc 0 good 283 crcbad 713 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -20
+TX bit None RX bit 14: send rc 0 sent 1000 in 847 ms | rx rc 0 good 0 crcbad 500 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# whitening candidates: RWBLECNTL bits 14 / 15 combinations on both sides (+ bit 13 CRC off on both, to see data despite CRC)
+TX 0x8000 RX 0x8000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 999 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -20
+TX 0x6000 RX 0x6000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 672 len 37 hdr 52 rssi -20
+TX 0xa000 RX 0xa000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -20
+TX 0xc000 RX 0xc000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 172 crcbad 825 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -22
+TX 0x4000 RX 0x4000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 384 crcbad 616 crcbad_dataok 0 wrong 0 len 37 hdr 52 rssi -18
+TX 0x6000 RX 0x2000: send rc 0 sent 1000 in 847 ms | rx rc 0 good 500 crcbad 0 crcbad_dataok 0 wrong 500 len 73 hdr 4b rssi -22

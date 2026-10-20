@@ -41,6 +41,10 @@ void ble_hw_debug(uint32_t out[6]);         /* intmask, raw status, ET0 word, cl
  * type: payload source (0 PRBS9, 2 1010..., others: see docs). */
 int  ble_hw_raw_tx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t type, const uint8_t *d, unsigned len, uint8_t txpwr);
 int  ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len);
+int  ble_hw_raw_sendn(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint32_t count);
+int  ble_hw_raw_read2(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr);
+int  ble_hw_raw_busy(void);
+extern uint32_t ble_hw_raw_flags;
 int  ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit);
 int  ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi);
 uint32_t ble_hw_raw_rxcount(void);

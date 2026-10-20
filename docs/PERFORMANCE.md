@@ -253,3 +253,12 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | Arbitrary IQ to the DAC, continuous | yes: 9.8 s test, no gaps, phase-continuous | no API (the vendor PHY plays fixed tones and test frames only) |
 | CPU | 100% while streaming (interrupts masked); about 75 µs of each 205 µs unit is left for the source | — |
 | Headroom | the tail copy (76 µs) is the cost. A DMA copy, or a shorter tail once the switch jitter is measured, would free most of it | |
+
+## Hardware packet engine, `rf_pkt_*` (no BLE protocol)
+
+| | esp-ndf | IDF |
+|---|---|---|
+| Any sync word / length 0..255 / 1M, 2M, S8, S2 / CRC on or off | yes (exact data, two boards) | only inside the BLE stack (fixed access-address rules, LL framing); libphy's DTM test sends patterns and receives ≤ 37 bytes |
+| CPU per packet sent | one short interrupt (not measurable) | stack + controller task |
+| Send rate, 37 B at 1M | 1,180 packets/s | — |
+| Headroom | receive re-arm ~0.5 ms limits short packets to ~1000/s; fixed RX gain (AGC: section 2) | |

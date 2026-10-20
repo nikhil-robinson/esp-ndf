@@ -81,15 +81,24 @@ static void command(void)
         if (n > 5) { char *c = v[5]; ble_hw_rx_set_off = (uint16_t)strtoul(c, &c, 0); uint32_t vv = (uint32_t)strtoul(c + 1, 0, 0); ble_hw_rx_set_val = (uint16_t)vv; extern uint32_t ble_hw_rx_set_val32; ble_hw_rx_set_val32 = vv; }   /* 6th arg "csoff:val" (off >= 0x1000: core reg off-0x1000) */
         extern uint8_t ble_hw_rx_libphy, ble_hw_rx_big; ble_hw_rx_libphy = n > 6 ? (uint8_t)(atoi(v[6]) & 1) : 0;   /* 7th arg: bit 0 libphy core values, bit 1 big buffers */
         ble_hw_rx_big = n > 6 ? (uint8_t)((atoi(v[6]) >> 1) & 1) : 0;
+        extern uint8_t ble_hw_rx_fmt; ble_hw_rx_fmt = n > 7 ? (uint8_t)atoi(v[7]) : 0;   /* 8th arg: RX CS format (0 = test mode) */
+        extern uint16_t ble_hw_rx_t18; ble_hw_rx_t18 = n > 8 ? (uint16_t)strtoul(v[8], 0, 0) : 0xE000;   /* 9th: CS+0x18 */
         int rc = ble_hw_raw_rx((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint32_t)strtoul(v[3], 0, 0), 0x555555);
-        uint32_t t0 = ccount(), dur = (uint32_t)atoi(v[4]) * 240000u, got = 0, bad = 0; uint8_t b[64]; unsigned len; uint16_t st; int8_t rs;
+        int frc = n > 9 ? atoi(v[9]) : -1;             /* 10th arg: front end forced to RX with this pbus gain code (TX path off), -1 = hardware */
+        if (frc >= 0) { rf_pbus_force_mode(1); rf_pbus_xpd_tx_off(); rf_pbus_xpd_rx_on((uint16_t)frc); }
+        if (n > 10) { int dg = (int)strtol(v[10], 0, 0); rf_tx_gain(0, 0, (int8_t)dg); }   /* 11th arg: TX gain rows at minimum, digital gain byte */
+        uint32_t t0 = ccount(), dur = (uint32_t)atoi(v[4]) * 240000u, got = 0, bad = 0, wrong = 0, eb[4] = { 0 }; static uint8_t b[256]; unsigned len; uint16_t st; int8_t rs;
         uint32_t c0 = ble_hw_raw_rxcount();
         while (ccount() - t0 < dur) {
             if (!ble_hw_raw_read(b, sizeof b, &len, &st, &rs)) continue;
-            if (st & 0x0F) bad++; else got++;
-            if (got + bad <= 3) { printf("pkt len %u st %04x rssi %d:", len, st, rs); for (unsigned k = 0; k < (len < 12 ? len : 12); k++) printf(" %02x", b[k]);
-                if (len > 12) { printf(" .."); for (unsigned k = (len < 64 ? len : 64) - 4; k < (len < 64 ? len : 64); k++) printf(" %02x", b[k]); } printf("\n"); }
+            if (st & 0x0F) { bad++; for (int k = 0; k < 4; k++) if (st & 1u << k) eb[k]++; continue; }
+            got++;
+            for (unsigned k = 0; k < len; k++) if (b[k] != (uint8_t)k) { wrong++; break; }
+            if (got <= 2) { printf("pkt len %u st %04x rssi %d:", len, st, rs); for (unsigned k = 0; k < (len < 8 ? len : 8); k++) printf(" %02x", b[k]);
+                if (len > 8) { printf(" .."); for (unsigned k = len - 4; k < len; k++) printf(" %02x", b[k]); } printf("\n"); }
         }
+        if (frc >= 0) rf_pbus_force_mode(0);
+        printf("rawrx err bits: sync %lu time %lu len %lu crc %lu; packets with any byte wrong %lu\n", (unsigned long)eb[0], (unsigned long)eb[1], (unsigned long)eb[2], (unsigned long)eb[3], (unsigned long)wrong);
         printf("rawrx rc %d ok %lu bad %lu core374 %lu core00 %08lx st %08lx\n", rc, (unsigned long)got, (unsigned long)bad, (unsigned long)(ble_hw_raw_rxcount() - c0),
                (unsigned long)*(volatile uint32_t *)0x60031000, (unsigned long)*(volatile uint32_t *)0x60031014);
     } else if (!strcmp(v[0], "rawsend") && n > 4) {       /* rawsend ch_idx rate sync len: our bytes 00 01 02 ... (header byte 0x5A), one packet per event */
@@ -98,8 +107,11 @@ static void command(void)
         if (n > 5) ble_hw_raw_fmt = (uint8_t)atoi(v[5]);
         ble_hw_raw_tmpl = n > 6 ? (uint8_t)atoi(v[6]) : 0; ble_hw_raw_t18 = n > 7 ? (uint16_t)strtoul(v[7], 0, 0) : 0xFFFF;
         int rc = ble_hw_raw_send((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, 0x5A, d, (unsigned)atoi(v[4]));
-        ble_hw_stats_t s0, s1; ble_hw_get_stats(&s0); delay_ms(1000); ble_hw_get_stats(&s1);
-        printf("rawsend rc %d events/s %lu\n", rc, (unsigned long)(s1.events - s0.events));
+        ble_hw_stats_t s0, s1; ble_hw_get_stats(&s0);
+        uint32_t heard = 0, t0 = ccount(); static uint8_t hb[256]; unsigned hl; uint16_t hs; int8_t hr;
+        while (ccount() - t0 < 240000000u) if (ble_hw_raw_read(hb, sizeof hb, &hl, &hs, &hr) && !(hs & 1)) heard++;   /* replies D0's master event received */
+        ble_hw_get_stats(&s1);
+        printf("rawsend rc %d events/s %lu heard %lu\n", rc, (unsigned long)(s1.events - s0.events), (unsigned long)heard);
     } else if (!strcmp(v[0], "rawstop")) {
         ble_hw_raw_stop(); printf("rawstop\n");
     } else if (!strcmp(v[0], "scan") && n > 1) {

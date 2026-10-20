@@ -84,6 +84,30 @@ int  rf_tx_stream(uint32_t units, rf_tx_cb cb, void *ctx);
 int  rf_tx_tone_khz(int offset_khz, int amplitude);   /* CW at LO + offset (-19000..19000 kHz), amplitude 1..511 */
 int  rf_tx_stop(void);                   /* TX -> IDLE */
 
+/* ---- packets (hardware, no CPU in the data path) -------------------------------------------------------
+ * GFSK packets framed, CRC'd, whitened and stored by the radio's packet hardware (the ESP32-S3 link-layer core used
+ * as a plain packet engine: no advertising, connections or any BLE protocol). On air: preamble, sync word (any 32 bits),
+ * header byte, length byte, 0..255 payload bytes, 24-bit CRC (init crc_init; RF_PKT_CRC_OFF: none sent / none checked).
+ * Whitening is always on, seeded by the channel (RF_PKT_WHITEN_OFF is refused: no clean switch found yet).
+ * Receive: one packet per hardware event, re-armed in ~0.5 ms: about 1000 short packets/s, every long packet.
+ * Frequencies: 2402..2480 MHz in 2 MHz steps. Rates 1M, 2M, coded S8 (125 kbit/s), coded S2 (500 kbit/s). */
+enum { RF_PKT_1M = 0, RF_PKT_2M = 1, RF_PKT_125K = 2, RF_PKT_500K = 3 };
+#define RF_PKT_CRC_OFF    1u
+#define RF_PKT_WHITEN_OFF 2u
+typedef struct { uint16_t mhz; uint8_t rate; uint8_t flags; uint32_t sync; uint32_t crc_init; } rf_pkt_cfg_t;
+typedef struct { uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;
+/* send: count packets back to back (0 = until rf_pkt_stop); checked against the TX limits */
+int  rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count);
+/* receive: continuously; the front end is held in receive (nothing is ever transmitted). gain: forced RX gain code
+ * (127 measured good at bench distance; fixed gain, no AGC yet: RX chain work, docs/RF_API.md) */
+int  rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain);
+int  rf_pkt_read(rf_pkt_t *p);           /* 1 and the oldest packet (ok = CRC good), or 0 */
+int  rf_pkt_busy(void);                  /* a counted send still running */
+/* 1 if sync follows the BLE access-address rules (no run of more than 6 equal bits, at most 24 transitions, at least 2
+ * transitions in the top 6 bits, not 4 equal bytes): good correlation properties. Any 32-bit value is accepted. */
+int  rf_pkt_sync_ok(uint32_t sync);
+void rf_pkt_stop(void);
+
 /* ---- samples ------------------------------------------------------------------------------------- */
 /* IQ word: I bits 9:0, Q bits 19:10, signed 10-bit. rf_sample_q returns the true-spectrum Q (the raw Q bits are inverted). */
 static inline int rf_sample_i(uint32_t w) { return (int32_t)(w << 22) >> 22; }

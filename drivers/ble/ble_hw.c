@@ -319,19 +319,35 @@ static void conn_next(int got, uint64_t sync)
 }
 
 static uint8_t raw_on;
+static volatile uint32_t raw_left;             /* raw send: packets still to send, 0 = continuous */
 static uint16_t raw_cs = CS0;
 uint8_t ble_hw_raw_fmt = 0x02, ble_hw_raw_tmpl;   /* bench: CS format / template (0 conn, 1 adv) for ble_hw_raw_send */
 uint16_t ble_hw_raw_t18 = 0xFFFF, ble_hw_rx_set_off, ble_hw_rx_set_val;
 uint32_t ble_hw_rx_set_val32;
-uint8_t ble_hw_rx_libphy, ble_hw_rx_big;
+uint8_t ble_hw_rx_libphy, ble_hw_rx_big = 1, ble_hw_rx_fmt = 3;   /* receive: format 0x03 takes up to 255 bytes; 2 own buffers */
+uint16_t ble_hw_rx_t18 = 0xE000;
 static unsigned raw_rx_n = RING_N;
+uint32_t ble_hw_raw_flags;                     /* bit 0: CRC off */
+uint16_t ble_hw_tx_flip_off, ble_hw_tx_flip_bits;   /* bench: XOR into the send CS */
+/* RWBLECNTL on this core (measured, bench/rfmeas/rf_pkt_test.txt): bit 13 = CRC off (TX sends no valid CRC, RX ignores it),
+ * bit 19 = the header byte's bits 2..4 are not rewritten (sequence numbers off), bit 9 = advertising filter (37-byte cap).
+ * Bits 17 / 18 (whitening / CRC on other RW cores) change nothing here; bit 14 scrambles part of the frame (not a clean
+ * whitening switch). */
+static void raw_flags(int tx)                 /* bit 19 on the receiver loses packets (measured): transmitter only */
+{
+    CORE(0x00) = (CORE(0x00) & ~(1u << 13 | 1u << 9 | 1u << 19)) | (ble_hw_raw_flags & 1u) << 13 | (tx ? 1u << 19 : 0);
+}
 uint32_t ble_hw_raw_d0, ble_hw_raw_poke_off, ble_hw_raw_poke_or;   /* bench: extra bits before the next raw TX kick */
 static void raw_kick(void);
 static void service(void)
 {
     if (raw_on) {
         CORE(0x18) = 0xFFFFFFFFu;
-        if (raw_on == 2) { st.events++; EM16(TXC) = 0; EM16(CS1 + 0x1C) = TXC; }   /* send the same buffer again */
+        if (raw_on == 2) {                       /* send the same buffer again, or stop after the requested count */
+            st.events++;
+            if (raw_left && !--raw_left) { raw_on = 0; CORE(0x0C) = INT_END | INT_SKIP; return; }
+            EM16(TXC) = 0; EM16(CS1 + 0x1C) = TXC;
+        }
         raw_kick(); CORE(0x0C) = INT_END | INT_SKIP; return;
     }
     uint32_t raw = CORE(0x14);
@@ -571,11 +587,18 @@ int ble_hw_raw_tx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit,
     scan_chan = 0; adv_on = 0; conn_on = 0;
     static const uint16_t cs[45] = { 0x071C, 0x0080, 0x1100, 0xBEEF, 0xDEAD, 0xBEEF, 0, 0, 0x5555, 0x0055, 0, 0x0A25, 0x0008, 0x001E,
                                      RAW_TXD0, 0x03E8, 0, 0, 0, 0x00E0, 0x00FF, 0, 0xBEEF, 0xDEAD, 0xBEEF };
-    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = cs[k];
-    EM16(CS0 + 4) = (uint16_t)(0x1100 | rate | rate << 2);
+    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_hw_rx_fmt >= 0x20 ? scan_cs[k] : ble_hw_rx_fmt ? ble_conn_cs[k] : cs[k];
+    if (ble_hw_rx_fmt >= 0x20) {                 /* bench: scan template with format (fmt - 0x20) */
+        EM16(CS0) = (uint16_t)((EM16(CS0) & ~0x1Fu) | (ble_hw_rx_fmt - 0x20)); EM16(CS0 + 0x20) = 2; EM16(0x14C) = EM16(CS0);
+    }
+    else if (ble_hw_rx_fmt) {                         /* bench: a connection format for RX, TX blocked (CS+0x18 bits 15:13), long window */
+        EM16(CS0) = (uint16_t)((EM16(CS0) & ~0x1Fu) | ble_hw_rx_fmt);
+        EM16(CS0 + 0x18) = ble_hw_rx_t18; EM16(CS0 + 0x1A) = 0xFFFF; EM16(CS0 + 0x1C) = 0; EM16(CS0 + 0x20) = 1; EM16(CS0 + 0x28) = 0x00FF;   /* one packet per event: a slave event expects the next one at reply timing (2/event: 2/3 received, more: 1/2) */
+    }
+    EM16(CS0 + 4) = (uint16_t)((EM16(CS0 + 4) & ~0xFu) | rate | rate << 2);
     EM16(CS0 + 0x0C) = sync & 0xFFFF; EM16(CS0 + 0x0E) = sync >> 16;
     EM16(CS0 + 0x10) = crcinit & 0xFFFF; EM16(CS0 + 0x12) = (crcinit >> 16) & 0xFF;
-    EM16(CS0 + 0x16) = 0x0A00 | ch_idx;
+    EM16(CS0 + 0x16) = ble_hw_rx_fmt ? ch_idx : 0x0A00 | ch_idx;
     EM16(CS0 + 0x18) = txpwr;
     if (d) memcpy(tx_buf, d, len);
     uint16_t w = (uint16_t)((uint16_t)len << 8 | type);
@@ -597,8 +620,13 @@ int ble_hw_raw_tx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit,
  * briefly for an answer that never comes, and the event ends. */
 int ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len)
 {
+    return ble_hw_raw_sendn(ch_idx, rate, sync, crcinit, hdr0, d, len, 0);
+}
+int ble_hw_raw_sendn(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint32_t count)
+{
     if (len > 255 || rate > 3 || ch_idx > 39) return -1;
     uint32_t ps = irq_lock();
+    raw_left = count;
     scan_chan = 0; adv_on = 0; conn_on = 0;
     for (int k = 0; k < 45; k++) EM16(CS1 + 2 * k) = (ble_hw_raw_tmpl ? ble_adv_cs : ble_conn_cs)[k];
     EM16(CS1) = (uint16_t)((EM16(CS1) & ~0x1Fu) | ble_hw_raw_fmt);
@@ -611,11 +639,12 @@ int ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcini
     memcpy((uint8_t *)tx_buf + 0x40, d, len);
     EM16(TXC) = 0; EM16(TXC + 2) = (uint16_t)(len << 8 | hdr0); EM16(TXC + 4) = TXCBUF;
     EM16(CS1 + 0x1C) = TXC;
+    if (ble_hw_tx_flip_off) EM16(CS1 + ble_hw_tx_flip_off) ^= ble_hw_tx_flip_bits;   /* bench */
     EM16(0x14C) = EM16(CS1);                     /* the current CS format word, as the vendor keeps it */
     for (unsigned k = 0; k < sizeof ble_adv_core_regs / sizeof ble_adv_core_regs[0]; k++)
         if (ble_adv_core_regs[k].off >= 0x2C0) CORE(ble_adv_core_regs[k].off) = ble_adv_core_regs[k].val;
     CORE(0x24) = RING0;
-    CORE(0x00) &= ~(1u << 9);                    /* advertising filter off: it caps packets at 37 bytes (measured on RX) */
+    raw_flags(1);                                /* advertising filter off (it caps packets at 37 bytes), header byte kept, CRC flag */
     raw_on = 2; raw_cs = CS1;
     raw_kick();
     irq_unlock(ps);
@@ -629,11 +658,18 @@ int ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit)
     scan_chan = 0; adv_on = 0; conn_on = 0;
     static const uint16_t cs[45] = { 0x010A, 0x00C0, 0x1100, 0xBEEF, 0xDEAD, 0xBEEF, 0, 0, 0x5555, 0x0055, 0, 0x0A00, 0x0004, 0xFFFF,
                                      0, 0, RING_N, 0, 0, 0x00E0, 0x00FF, 0, 0xBEEF, 0xDEAD, 0xBEEF };
-    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = cs[k];
-    EM16(CS0 + 4) = (uint16_t)(0x1100 | rate | rate << 2);
+    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_hw_rx_fmt >= 0x20 ? scan_cs[k] : ble_hw_rx_fmt ? ble_conn_cs[k] : cs[k];
+    if (ble_hw_rx_fmt >= 0x20) {                 /* bench: scan template with format (fmt - 0x20) */
+        EM16(CS0) = (uint16_t)((EM16(CS0) & ~0x1Fu) | (ble_hw_rx_fmt - 0x20)); EM16(CS0 + 0x20) = 2; EM16(0x14C) = EM16(CS0);
+    }
+    else if (ble_hw_rx_fmt) {                         /* bench: a connection format for RX, TX blocked (CS+0x18 bits 15:13), long window */
+        EM16(CS0) = (uint16_t)((EM16(CS0) & ~0x1Fu) | ble_hw_rx_fmt);
+        EM16(CS0 + 0x18) = ble_hw_rx_t18; EM16(CS0 + 0x1A) = 0xFFFF; EM16(CS0 + 0x1C) = 0; EM16(CS0 + 0x20) = 1; EM16(CS0 + 0x28) = 0x00FF;   /* one packet per event: a slave event expects the next one at reply timing (2/event: 2/3 received, more: 1/2) */
+    }
+    EM16(CS0 + 4) = (uint16_t)((EM16(CS0 + 4) & ~0xFu) | rate | rate << 2);
     EM16(CS0 + 0x0C) = sync & 0xFFFF; EM16(CS0 + 0x0E) = sync >> 16;
     EM16(CS0 + 0x10) = crcinit & 0xFFFF; EM16(CS0 + 0x12) = (crcinit >> 16) & 0xFF;
-    EM16(CS0 + 0x16) = 0x0A00 | ch_idx;
+    EM16(CS0 + 0x16) = ble_hw_rx_fmt ? ch_idx : 0x0A00 | ch_idx;
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; }
     if (ble_hw_rx_big) {                         /* two descriptors, 0x120-byte buffers on our own page (as libphy: 2 descriptors) */
         EM16(RING0) = RING0 + 0x14; EM16(RING0 + 0x12) = TXBUF + 0x200;
@@ -646,7 +682,8 @@ int ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit)
     CORE(0x370) = sync;
     CORE(0xD0) |= 1u << 27;
     CORE(0x24) = RING0;
-    CORE(0x00) = (CORE(0x00) | 1u << 8) & ~(1u << 26 | 1u << 9);   /* bit 9 (advertising filter) caps RX at 37 bytes (measured) */
+    CORE(0x00) = (CORE(0x00) | 1u << 8) & ~(1u << 26);
+    raw_flags(0);
     raw_on = 1;
     raw_kick();
     irq_unlock(ps);
@@ -655,12 +692,16 @@ int ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit)
 /* next received packet from the ring: 1 and its bytes / RX status / RSSI, or 0 */
 int ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi)
 {
+    return ble_hw_raw_read2(buf, max, len, status, rssi, 0);
+}
+int ble_hw_raw_read2(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr)
+{
     static uint32_t d = RING0;
     if (d >= RING0 + raw_rx_n * 0x14) d = RING0;
     for (unsigned k = 0; k < raw_rx_n; k++) {
         if (EM16(d) & 0x8000) {
             uint16_t h = EM16(d + 4);
-            *status = EM16(d + 2); *rssi = (int8_t)(EM16(d + 6) & 0xFF); *len = h >> 8;
+            *status = EM16(d + 2); *rssi = (int8_t)(EM16(d + 6) & 0xFF); *len = h >> 8; if (hdr) *hdr = (uint8_t)h;
             unsigned n = *len < max ? *len : max;
             uint16_t pp = EM16(d + 0x12);
             memcpy(buf, pp >= TXBUF && pp < TXBUF + 0x400 ? (const void *)((uint8_t *)tx_buf + (pp - TXBUF)) : (const void *)em_addr(pp), n);
@@ -675,6 +716,7 @@ int ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status,
 }
 uint32_t ble_hw_raw_rxcount(void) { return CORE(0x374); }
 void ble_hw_raw_stop(void) { raw_on = 0; CORE(0x00) |= 1u << 26; }
+int ble_hw_raw_busy(void) { return raw_on != 0; }
 uint32_t ble_hw_raw_txcount(void) { return CORE(0xD4); }
 uint16_t ble_hw_em_rd(uint32_t off) { return EM16(off); }
 void ble_hw_em_wr(uint32_t off, uint16_t v) { EM16(off) = v; }

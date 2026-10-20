@@ -444,3 +444,260 @@ CS+0x14 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  |
 CS+0x14 = 0xffff: pkt len 100 st 0004 rssi -23: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
 CS+0x18 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
 CS+0x18 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x1a = 0x0848: pkt len 100 st 1004 rssi -22: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x1a = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x1c = 0x0848: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x1c = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x1e = 0x0848: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x1e = 0xffff: pkt len 100 st 1004 rssi -23: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x20 = 0x0848: pkt len 100 st 1004 rssi -24: 01 ea 80 03 00 00 00 00 00 00  | ok 0 bad 145
+CS+0x20 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 145
+CS+0x22 = 0x0848: pkt len 100 st 1004 rssi -24: 02 eb 80 05 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x22 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x24 = 0x0848: pkt len 100 st 1004 rssi -24: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x24 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x26 = 0x0848: pkt len 100 st 1004 rssi -24: 02 ed 80 06 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x26 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x28 = 0x0848: pkt len 100 st 1004 rssi -24: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x28 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x2a = 0x0848: pkt len 100 st 1004 rssi -58: 02 fc 80 36 04 00 00 00 00 00  | ok 0 bad 166
+CS+0x2a = 0xffff: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 168
+CS+0x2c = 0x0848: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x2c = 0xffff: pkt len 100 st 1004 rssi -22: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x2e = 0x0848: pkt len 100 st 1004 rssi -23: 02 ee 80 04 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x2e = 0xffff: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x30 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x30 = 0xffff: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x32 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x32 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x34 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x34 = 0xffff: pkt len 100 st 1004 rssi -24: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x36 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x36 = 0xffff: pkt len 100 st 1004 rssi -24: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x38 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x38 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 05 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x3a = 0x0848: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x3a = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 04 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x3c = 0x0848: pkt len 100 st 1004 rssi -22: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x3c = 0xffff: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x3e = 0x0848: pkt len 100 st 1004 rssi -23: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x3e = 0xffff: pkt len 100 st 1004 rssi -23: 02 ef 80 04 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x40 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x40 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x42 = 0x0848: pkt len 100 st 1004 rssi -23: 02 e9 80 03 00 00 00 00 00 00  | ok 0 bad 165
+CS+0x42 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x44 = 0x0848: pkt len 100 st 1004 rssi -24: 02 e9 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x44 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x46 = 0x0848: pkt len 100 st 1004 rssi -24: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x46 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 167
+CS+0x48 = 0x0848: pkt len 100 st 1004 rssi -24: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x48 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x4a = 0x0848: pkt len 100 st 1004 rssi -24: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x4a = 0xffff: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x4c = 0x0848: pkt len 100 st 1004 rssi -24: 02 ee 80 05 00 00 00 00 00 00  | ok 0 bad 168
+CS+0x4c = 0xffff: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x4e = 0x0848: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x4e = 0xffff: pkt len 100 st 1004 rssi -22: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x50 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x50 = 0xffff: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00  | ok 0 bad 168
+CS+0x52 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x52 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x54 = 0x0848: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00  | ok 0 bad 168
+CS+0x54 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x56 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x56 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x58 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00  | ok 0 bad 165
+CS+0x58 = 0xffff: pkt len 100 st 1004 rssi -24: 02 ec 80 06 00 00 00 00 00 00  | ok 0 bad 166
+# RX in other CS formats (connection template, TX blocked), D0 raw send len 37 / 100 / 251
+len  37 RX fmt 3: pkt len 37 st 0000 rssi -22: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | ok 220 bad 109
+len  37 RX fmt 2: pkt len 0 st 0001 rssi -22: | ok 31 bad 510
+len  37 RX fmt 7: - | ok 0 bad 0
+len  37 RX fmt 8: pkt len 37 st 1000 rssi -23: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | ok 196 bad 207
+len  37 RX fmt 9: pkt len 37 st 1000 rssi -23: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | ok 195 bad 206
+len 100 RX fmt 3: pkt len 100 st 0000 rssi -21: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 3c 3d 3e 3f | ok 160 bad 80
+len 100 RX fmt 2: pkt len 0 st 0001 rssi -25: | ok 31 bad 486
+len 100 RX fmt 7: - | ok 0 bad 0
+len 100 RX fmt 8: pkt len 100 st 1044 rssi -23: 00 00 00 00 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 379
+len 100 RX fmt 9: pkt len 100 st 1044 rssi -22: 00 00 00 00 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 380
+len 251 RX fmt 3: pkt len 251 st 0000 rssi -23: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 3c 3d 3e 3f | ok 96 bad 48
+len 251 RX fmt 2: pkt len 0 st 0001 rssi -24: | ok 2 bad 539
+len 251 RX fmt 7: - | ok 0 bad 0
+len 251 RX fmt 8: pkt len 0 st 1041 rssi -24: | ok 0 bad 305
+len 251 RX fmt 9: pkt len 0 st 1041 rssi -26: | ok 0 bad 303
+# RX format 0x03 (TX blocked): every byte checked (expect 00 01 02 ...), error bits split; D0 raw send, 1 s
+rate 0 len  37  D0 rawsend rc 0 events/s 1180
+   pkt len 37 st 0000 rssi -22: 00 01 02 03 04 05 06 07 .. 21 22 23 24
+   rawrx err bits: sync 365 time 0 len 0 crc 0; packets with any byte wrong 0
+   rawrx rc 0 ok 732 bad 365 core374 8388736 core00 0010050f st 00000015
+rate 0 len 251  D0 rawsend rc 0 events/s 1725
+   pkt len 0 st 00c0 rssi -21:
+   rawrx err bits: sync 163 time 0 len 0 crc 0; packets with any byte wrong 0
+   rawrx rc 0 ok 325 bad 163 core374 8388737 core00 0010050f st 00000011
+rate 0 len 255  D0 rawsend rc 0 events/s 385
+   rawrx err bits: sync 0 time 0 len 386 crc 0; packets with any byte wrong 0
+   rawrx err bits: sync 0 time 0 len 386 crc 0; packets with any byte wrong 0
+   rawrx rc 0 ok 0 bad 386 core374 4 core00 0010050f st 00000011
+rate 1 len 251  D0 rawsend rc 0 events/s 665
+   pkt len 251 st 0000 rssi -26: 00 01 02 03 04 05 06 07 .. f7 f8 f9 fa
+   rawrx err bits: sync 208 time 0 len 0 crc 125; packets with any byte wrong 0
+   rawrx rc 0 ok 414 bad 333 core374 8388737 core00 0010050f st 00000011
+rate 2 len 100  D0 rawsend rc 0 events/s 124
+   pkt len 100 st 0000 rssi -23: 00 01 02 03 04 05 06 07 .. 60 61 62 63
+   rawrx err bits: sync 2 time 0 len 0 crc 0; packets with any byte wrong 0
+   rawrx rc 0 ok 59 bad 2 core374 12583104 core00 0010050f st 00000011
+rate 3 len 251  D0 rawsend rc 0 events/s 184
+   pkt len 251 st 0000 rssi -21: 00 01 02 03 04 05 06 07 .. f7 f8 f9 fa
+   rawrx err bits: sync 0 time 0 len 0 crc 0; packets with any byte wrong 0
+   rawrx rc 0 ok 174 bad 0 core374 12583104 core00 0010050f st 00000011
+CS+0x18 0x0000: D0 events/s 485 | sync 354 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 354
+CS+0x18 0x2000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0x4000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0x8000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0x6000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0xA000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0xC000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0xE000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0xE0FF: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+CS+0x18 0x1000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 555 bad 353
+CS+0x18 0xF000: D0 events/s 485 | sync 353 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 556 bad 353
+no receiver: D0 rawsend rc 0 events/s 390 heard 0
+CS+0x18 0x0000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x2000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x4000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x8000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0xE000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x1000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x0800: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x0400: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+CS+0x18 0x0100: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+force gain  -1: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 806 bad 191
+force gain   1: D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force gain   0: D0 events/s 390 heard 0 | sync 250 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 250
+force gain   2: D0 events/s 390 heard 0 | sync 250 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 250
+force gain   4: D0 events/s 390 heard 0 | sync 250 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 250
+force gain   8: D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force gain  16: D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force  -1 txgain(0,0,None): D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+force  -1 txgain(0,0,0): D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+force  -1 txgain(0,0,-128): D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 805 bad 191
+force  -1 txgain(0,0,127): D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+force  -1 txgain(0,0,-64): D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+# RX on the passive-scan template (format 0x08, never transmits), filter off; length field sweep; D0 raw send
+len  37 CS+0x00=0x00: D0 events/s 1179 heard 0 | sync 170 time 0 len 6 crc 107; packets with any byte wrong 0 | ok 263 bad 283
+len  37 CS+0x24=0xff: D0 events/s 1179 heard 0 | sync 170 time 0 len 5 crc 109; packets with any byte wrong 0 | ok 265 bad 284
+len  37 CS+0x26=0xff: D0 events/s 1179 heard 0 | sync 170 time 0 len 5 crc 110; packets with any byte wrong 0 | ok 264 bad 285
+len  37 CS+0x28=0xff: D0 events/s 1179 heard 0 | sync 170 time 0 len 6 crc 108; packets with any byte wrong 0 | ok 265 bad 284
+len  37 CS+0x2a=0xff: D0 events/s 1179 heard 0 | sync 171 time 0 len 6 crc 107; packets with any byte wrong 0 | ok 266 bad 284
+len  37 CS+0x1e=0xff: D0 events/s 1179 heard 0 | sync 172 time 0 len 6 crc 104; packets with any byte wrong 0 | ok 269 bad 282
+len  37 CS+0x22=0xff: D0 events/s 1179 heard 0 | sync 169 time 0 len 6 crc 109; packets with any byte wrong 0 | ok 265 bad 284
+len  37 CS+0x2c=0xff: D0 events/s 1179 heard 0 | sync 172 time 0 len 5 crc 106; packets with any byte wrong 0 | ok 267 bad 283
+len 100 CS+0x00=0x00: D0 events/s 739 heard 0 | sync 280 time 0 len 240 crc 1; packets with any byte wrong 0 | ok 0 bad 520
+len 100 CS+0x24=0xff: D0 events/s 739 heard 0 | sync 280 time 0 len 233 crc 0; packets with any byte wrong 0 | ok 0 bad 513
+len 100 CS+0x26=0xff: D0 events/s 739 heard 0 | sync 279 time 0 len 238 crc 0; packets with any byte wrong 0 | ok 0 bad 517
+len 100 CS+0x28=0xff: D0 events/s 739 heard 0 | sync 281 time 0 len 237 crc 0; packets with any byte wrong 0 | ok 0 bad 518
+len 100 CS+0x2a=0xff: D0 events/s 739 heard 0 | sync 281 time 0 len 239 crc 0; packets with any byte wrong 0 | ok 0 bad 520
+len 100 CS+0x1e=0xff: D0 events/s 739 heard 0 | sync 281 time 0 len 233 crc 0; packets with any byte wrong 0 | ok 0 bad 514
+len 100 CS+0x22=0xff: D0 events/s 739 heard 0 | sync 279 time 0 len 240 crc 0; packets with any byte wrong 0 | ok 0 bad 519
+len 100 CS+0x2c=0xff: D0 events/s 739 heard 0 | sync 280 time 0 len 238 crc 0; packets with any byte wrong 0 | ok 0 bad 518
+len 251 CS+0x00=0x00: D0 events/s 390 heard 0 | sync 283 time 0 len 126 crc 0; packets with any byte wrong 0 | ok 0 bad 409
+len 251 CS+0x24=0xff: D0 events/s 390 heard 0 | sync 283 time 0 len 126 crc 0; packets with any byte wrong 0 | ok 0 bad 409
+len 251 CS+0x26=0xff: D0 events/s 390 heard 0 | sync 281 time 0 len 125 crc 0; packets with any byte wrong 0 | ok 0 bad 406
+len 251 CS+0x28=0xff: D0 events/s 390 heard 0 | sync 281 time 0 len 125 crc 0; packets with any byte wrong 0 | ok 0 bad 406
+len 251 CS+0x2a=0xff: D0 events/s 390 heard 0 | sync 282 time 0 len 124 crc 1; packets with any byte wrong 0 | ok 0 bad 407
+len 251 CS+0x1e=0xff: D0 events/s 390 heard 0 | sync 283 time 0 len 125 crc 0; packets with any byte wrong 0 | ok 0 bad 408
+len 251 CS+0x22=0xff: D0 events/s 390 heard 0 | sync 282 time 0 len 124 crc 1; packets with any byte wrong 0 | ok 0 bad 407
+len 251 CS+0x2c=0xff: D0 events/s 390 heard 0 | sync 282 time 0 len 125 crc 0; packets with any byte wrong 0 | ok 0 bad 407
+fmt  0: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt  1: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt  2: D0 events/s 640 heard 107 | sync 4381 time 0 len 155 crc 0; packets with any byte wrong 0 | ok 0 bad 4536
+fmt  3: D0 events/s 739 heard 0 | sync 0 time 0 len 1258 crc 0; packets with any byte wrong 0 | ok 0 bad 1258
+fmt  4: D0 events/s 724 heard 16 | sync 3485 time 0 len 0 crc 0; packets with any byte wrong 76 | ok 76 bad 3485
+fmt  5: D0 events/s 725 heard 15 | sync 3486 time 0 len 0 crc 0; packets with any byte wrong 75 | ok 75 bad 3486
+fmt  6: D0 events/s 704 heard 38 | sync 5142 time 0 len 0 crc 0; packets with any byte wrong 41 | ok 41 bad 5142
+fmt  7: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt  8: D0 events/s 739 heard 0 | sync 1757 time 0 len 1006 crc 0; packets with any byte wrong 0 | ok 0 bad 2763
+fmt  9: D0 events/s 739 heard 0 | sync 1758 time 0 len 1006 crc 1; packets with any byte wrong 0 | ok 0 bad 2765
+fmt 10: D0 events/s 739 heard 0 | sync 1758 time 0 len 1007 crc 2; packets with any byte wrong 1 | ok 1 bad 2767
+fmt 11: D0 events/s 739 heard 0 | sync 1760 time 0 len 1010 crc 1; packets with any byte wrong 0 | ok 0 bad 2771
+fmt 12: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 13: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 14: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 15: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 16: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 17: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 18: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 19: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 20: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 21: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 22: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 23: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 24: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 25: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 26: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 27: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 28: D0 events/s 483 heard 332 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+fmt 29: D0 events/s 739 heard 0 | sync 0 time 0 len 629 crc 0; packets with any byte wrong 0 | ok 0 bad 629
+fmt 30: D0 events/s 385 heard 380 | sync 5302 time 0 len 441 crc 0; packets with any byte wrong 0 | ok 0 bad 5743
+fmt 31: D0 events/s 739 heard 0 | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 0
+scan tmpl fmt 8 + CS+0x00=0x0000: D0 events/s 739 heard 0 | sync 1760 time 0 len 1007 crc 0; packets with any byte wrong 0 | ok 0 bad 2767
+scan tmpl fmt 8 + CS+0x04=0x1100: D0 events/s 739 heard 0 | sync 1757 time 0 len 1005 crc 0; packets with any byte wrong 0 | ok 0 bad 2762
+scan tmpl fmt 8 + CS+0x02=0x0801: D0 events/s 739 heard 0 | sync 1762 time 0 len 1015 crc 0; packets with any byte wrong 0 | ok 0 bad 2777
+scan tmpl fmt 8 + CS+0x1e=0x0021: D0 events/s 739 heard 0 | sync 1761 time 0 len 1011 crc 0; packets with any byte wrong 0 | ok 0 bad 2772
+scan tmpl fmt 8 + CS+0x1e=0x00ff: D0 events/s 739 heard 0 | sync 1761 time 0 len 1007 crc 1; packets with any byte wrong 0 | ok 0 bad 2768
+scan tmpl fmt 8 + CS+0x22=0xffff: D0 events/s 739 heard 0 | sync 1763 time 0 len 1004 crc 0; packets with any byte wrong 0 | ok 0 bad 2767
+scan tmpl fmt 8 + CS+0x26=0x0c1f: D0 events/s 739 heard 0 | sync 1755 time 0 len 1013 crc 1; packets with any byte wrong 0 | ok 0 bad 2769
+scan tmpl fmt 8 + CS+0x50=0x00a6: D0 events/s 739 heard 0 | sync 1758 time 0 len 1011 crc 1; packets with any byte wrong 0 | ok 0 bad 2770
+scan tmpl fmt 8 + CS+0x56=0x0100: D0 events/s 739 heard 0 | sync 1761 time 0 len 1006 crc 1; packets with any byte wrong 0 | ok 0 bad 2768
+scan tmpl fmt 8 + CS+0x04=0x1300: D0 events/s 739 heard 0 | sync 1761 time 0 len 1000 crc 1; packets with any byte wrong 0 | ok 0 bad 2762
+scan tmpl fmt 8 + CS+0x04=0x1500: D0 events/s 739 heard 0 | sync 1762 time 0 len 1008 crc 1; packets with any byte wrong 0 | ok 0 bad 2771
+fmt 3 + CS+0x00=0x0000: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2e=0x0001: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2e=0x0002: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2e=0x0004: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2c=0x0001: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2c=0x0004: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x2a=0x0001: D0 events/s 390 heard 0 | sync 79 time 666 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 745
+fmt 3 + CS+0x1e=0x0001: D0 events/s 287 heard 574 | sync 191 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 804 bad 191
+fmt 3 + CS+0x20=0x0001: D0 events/s 331 heard 331 | sync 79 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 716 bad 79
+CS+0x02=0x0800: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0803: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0805: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0809: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0811: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0821: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0841: D0 events/s 390 heard 0 | ok 0 bad 684
+CS+0x02=0x0881: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0901: D0 events/s 331 heard 330 | ok 705 bad 127
+CS+0x02=0x0a01: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0c01: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x0001: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x1801: D0 events/s 288 heard 572 | ok 770 bad 155
+CS+0x02=0x2801: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x4801: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x02=0x8801: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1110: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1120: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1140: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1180: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1000: D0 events/s 287 heard 574 | ok 772 bad 156
+CS+0x04=0x1300: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1500: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x1900: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x0100: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x3100: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x5100: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x04=0x9100: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x18=0xe100: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x18=0xe200: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x18=0xe400: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x18=0xe800: D0 events/s 287 heard 574 | ok 772 bad 155
+CS+0x18=0xf000: D0 events/s 287 heard 574 | ok 772 bad 155
+force  32 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force  64 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force 100 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force 127 txgain(0,0,None): D0 events/s 390 heard 0 | sync 79 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 664 bad 79
+force 200 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force 300 txgain(0,0,None): D0 events/s 390 heard 0 | sync 79 time 0 len 0 crc 17; packets with any byte wrong 0 | ok 320 bad 96
+force 511 txgain(0,0,None): D0 events/s 390 heard 0 | sync 79 time 0 len 0 crc 32; packets with any byte wrong 0 | ok 593 bad 111
+force 393 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+force 388 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249

@@ -1,0 +1,31 @@
+PASS 2402 MHz rate 0 sync 0x71764129 len 37  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 1415, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 37, 'hdr': 90, 'rssi': -18}
+FAIL 2420 MHz rate 0 sync 0x12345678 len 100  send rc 0 packets/s 740 cpu 0.000% | {'rc': 0, 'good': 760, 'crcbad': 97, 'crcbad_dataok': 65, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -18}
+FAIL 2460 MHz rate 0 sync 0x12345678 len 100  send rc 0 packets/s 740 cpu 0.000% | {'rc': 0, 'good': 719, 'crcbad': 119, 'crcbad_dataok': 7, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -20}
+FAIL 2440 MHz rate 0 sync 0x12345678 len 100  send rc 0 packets/s 740 cpu 0.000% | {'rc': 0, 'good': 628, 'crcbad': 174, 'crcbad_dataok': 91, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -23}
+PASS 2480 MHz rate 0 sync 0xA5A5F00F len 255  send rc 0 packets/s 385 cpu 0.000% | {'rc': 0, 'good': 234, 'crcbad': 10, 'crcbad_dataok': 0, 'wrong': 0, 'len': 255, 'hdr': 90, 'rssi': -16}
+PASS 2426 MHz rate 1 sync 0x71764129 len 255  send rc 0 packets/s 658 cpu 0.000% | {'rc': 0, 'good': 782, 'crcbad': 7, 'crcbad_dataok': 0, 'wrong': 0, 'len': 255, 'hdr': 90, 'rssi': -21}
+PASS 2404 MHz rate 2 sync 0x71764129 len 100  send rc 0 packets/s 124 cpu 0.000% | {'rc': 0, 'good': 75, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -20}
+PASS 2478 MHz rate 3 sync 0x71764129 len 255  send rc 0 packets/s 182 cpu 0.000% | {'rc': 0, 'good': 207, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 255, 'hdr': 90, 'rssi': -16}
+PASS 2440 MHz rate 0 sync 0x71764129 len 1  send rc 0 packets/s 1788 cpu 0.000% | {'rc': 0, 'good': 1265, 'crcbad': 2, 'crcbad_dataok': 2, 'wrong': 0, 'len': 1, 'hdr': 90, 'rssi': -14}
+FAIL CRC flag tx 1 rx 1 (1 = CRC off) -> good  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 906, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 9, 'len': 37, 'hdr': 90, 'rssi': -13}
+PASS CRC flag tx 1 rx 0 (1 = CRC off) -> crcbad  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 0, 'crcbad': 1416, 'crcbad_dataok': 1416, 'wrong': 0, 'len': 0, 'hdr': 0, 'rssi': 0}
+PASS CRC flag tx 0 rx 1 (1 = CRC off) -> good  send rc 0 packets/s 1180 cpu 0.000% | {'rc': 0, 'good': 1416, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 37, 'hdr': 90, 'rssi': -20}
+PASS whitening off refused (not supported yet)  
+PASS send at 2500 MHz denied  (range)
+PASS send at 2440 MHz outside limits denied  
+PASS counted send: 1000 packets sent, >= 990 received  send rc 0 sent 1000 in 849 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -19
+=== 4 failures
+# 100-byte CRC errors: sync word vs length (2420 MHz, 1M, exactly 1000 packets)
+sync 0x71764129 len 100: send rc 0 sent 1000 in 1353 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -20
+sync 0x12345678 len 100: send rc 0 sent 1000 in 1353 ms | rx rc 0 good 543 crcbad 33 crcbad_dataok 8 wrong 0 len 100 hdr 5a rssi -12
+sync 0x12345678 len 37: send rc 0 sent 1000 in 849 ms | rx rc 0 good 598 crcbad 97 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -12
+sync 0x71764129 len 200: send rc 0 sent 1000 in 2153 ms | rx rc 0 good 999 crcbad 1 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -18
+sync 0x8E89BED6 len 100: send rc 0 sent 1000 in 1353 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -18
+sync 0xA5A5F00F len 100: send rc 0 sent 1000 in 1353 ms | rx rc 0 good 618 crcbad 43 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -12
+# sync word or signal level? interleaved runs, 2420 MHz, 100 B, 1000 packets
+sync 0x12345678: rx rc 0 good 682 crcbad 96 crcbad_dataok 43 wrong 0 len 100 hdr 5a rssi -12
+sync 0x71764129: rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -17
+sync 0x12345678: rx rc 0 good 574 crcbad 39 crcbad_dataok 13 wrong 0 len 100 hdr 5a rssi -12
+sync 0x71764129: rx rc 0 good 643 crcbad 11 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -12
+sync 0x12345678: rx rc 0 good 718 crcbad 101 crcbad_dataok 61 wrong 0 len 100 hdr 5a rssi -18
+sync 0x71764129: rx rc 0 good 575 crcbad 6 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -12

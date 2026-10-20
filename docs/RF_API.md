@@ -82,3 +82,43 @@ Measured (bench/rfmeas/tx_stream.txt, rf_api_test.txt; D0 transmits, C9:48 recei
 | Bank switch between identical banks | seamless (30/30 captures clean, ≤ 0.26 rad) |
 | 48,000 units (9.8 s) of a 2.5 MHz tone | 0 late switches, 0 / 100 captures with a phase jump > 0.5 rad (worst 0.098 rad) |
 | Budget per unit | 153 µs window, of which the tail copy takes 76 µs; about 75 µs is left for the callback (a 16-word table fill takes 45 µs) |
+
+## 4.1 Hardware packet engine (`rf_pkt_*`)
+
+Packets are framed, CRC'd, whitened and stored by the radio's packet hardware, with no CPU in the data path and no BLE protocol in our code.
+
+**Background.** The demodulator can only be switched on by the link-layer core. Step 0 checked this: single-bit scans of the modem, coex, sequencer and core registers found no other enable (bench/rfmeas/modem_bitscan.txt). Espressif's own lowest-level radio test (libphy `esp_phy_ble_tx`/`rx`) also runs on that core in a protocol-free test mode (bench/idf_phyble). The core is therefore used only as a framer/deframer.
+
+**How the engine is built**
+
+| Part | Setting (each one measured) |
+|---|---|
+| Send | Connection-master control-structure format 0x02 with no connection. One packet per event, re-kicked from the end interrupt. CS+0x18 holds the TX power only, because the template's bits 15:13 block transmit. |
+| Receive | Connection-slave format 0x03; this is the only format found that takes packets up to 255 bytes. Max length 0xFF at CS+0x28, one packet per event, two of our own 256-byte buffers. |
+| Receive-only | The slave format always answers (D0 hears 574 replies). Holding the front end in forced receive (TX path off, gain code 127) stops every reply (D0 hears 0) and still receives every packet. |
+| Global switches (RWBLECNTL) | Bit 9 = advertising filter, which caps at 37 bytes; turned off. Bit 13 = CRC off, on both sides. Bit 19 on the transmitter = header byte sent exactly as given. Bits 17/18 (CRC/whitening on other RW cores) do nothing here. Bit 14 scrambles part of the frame and is not a clean whitening switch, so whitening-off is refused for now. |
+| Test-mode formats (libphy) | 0x1C TX test sends only built-in patterns (PRBS9, 0x55, 0xF0). 0x0A RX test caps at 37 bytes. |
+
+**Measured** (bench/rfmeas/rf_pkt_test_final.txt; D0 sends, C9:48 receives):
+
+| Case | Result |
+|---|---|
+| 1M / 2M / coded S8 / coded S2 | data exact, 0 wrong bytes |
+| 2402 / 2404 / 2426 / 2440 / 2478 / 2480 MHz | data exact |
+| Lengths 1 / 37 / 100 / 200 / 255 bytes | data exact |
+| Sync words 0x71764129, 0x8E89BED6, 0x12345678, 0xA5A5F00F | all decode with exact data |
+| Counted send, exactly 1,000 × 37 bytes | 1,000 received |
+| 1,000 × 100 bytes | 1,000 received |
+| 1,000 × 200 bytes | 999 received |
+| CRC off on TX, CRC on at RX | every packet CRC-bad with exact data |
+| CRC off on both sides, or CRC off at RX only | good |
+| Header byte 0x5A | received as 0x5A |
+| Out of band (2500 MHz) / outside `rf_set_limits` | refused |
+| CPU while sending | not measurable (one short interrupt per packet); 0 while receiving apart from reading packets |
+| Send rate, 37 bytes at 1M | 1,180 packets/s |
+| Receive rate | about 1,000 short packets/s (the re-arm takes about 0.5 ms); every packet of 100 bytes or more |
+
+**Open items**
+
+- **Run-to-run receive quality.** Some runs lose 30–40% of packets, or get 1–15% CRC errors, at the fixed forced gain. The cause is in the receive chain (gain, DC), not the framing: even in those runs every received byte is exact. This moves to section 2 (RX chain, AGC under forced receive).
+- **Whitening off.** No clean switch found yet.
