@@ -87,7 +87,7 @@ int main(void)
     printf("ble_hw_adv rc %d\n", ble_hw_adv(37, addr, 1, data, sizeof data, 20000));
     int was = 0; uint32_t t1 = 0;
     ble_hw_stats_t s0 = { 0 }, s;
-    for (int sec = 0; sec < 60; ) {
+    for (int sec = 0; sec < 120; ) {
         ble_hw_pkt_t p;
         int got = ble_hw_wait(&p, 50000), c = ble_hw_connected();
         if (got && c) {
@@ -100,8 +100,8 @@ int main(void)
             t1 = time_us() / 1000000; sec++;
             if (c && (cccd & 1)) { counter++; uint8_t nt[7] = { 0x1B, 6, 0 }; memcpy(nt + 3, &counter, 4); att_send(nt, 7); }
             ble_hw_get_stats(&s);
-            printf("t %d s: %s, events %lu/s, PDUs %lu/s, TX %lu, CPU %.3f%%\n", sec, c ? "connected" : "advertising", (unsigned long)(s.events - s0.events),
-                   (unsigned long)(s.packets - s0.packets), (unsigned long)s.tx_pdus, (double)(s.isr_cycles - s0.isr_cycles) / 2.4e6);
+            printf("t %d s: %s, events %lu/s, PDUs %lu/s, TX %lu, RX errors %lu, disconnects %lu, CPU %.3f%%\n", sec, c ? "connected" : "advertising", (unsigned long)(s.events - s0.events),
+                   (unsigned long)(s.packets - s0.packets), (unsigned long)s.tx_pdus, (unsigned long)s.rx_errors, (unsigned long)s.disconnects, (double)(s.isr_cycles - s0.isr_cycles) / 2.4e6);
             s0 = s;
         }
     }

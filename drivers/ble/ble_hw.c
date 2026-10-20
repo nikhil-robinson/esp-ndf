@@ -98,6 +98,9 @@ static void drain(void)
 {
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) {
         if (!(EM16(d) & 0x8000)) continue;
+        if (EM16(d + 2) & 0x000F) {               /* RX status [3:0]: sync, RX time, length, CRC error (bit 6 etc. are normal flags) */
+            st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
+        }
         uint32_t n = (q_head + 1) % Q_N;
         if (conn_on && cn.evt == 0 && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
         if (n == q_tail) st.dropped++;
@@ -248,14 +251,25 @@ static void tx_load(void)                        /* next queued PDU into the des
     st.tx_pdus++;
 }
 
-static void conn_end(void)
+static void arm_adv(void);
+static void conn_end(void)                       /* link lost or terminated: back to advertising */
 {
     conn_on = 0;
     st.disconnects++;
+    for (int e = 0; e < 16; e++) EM16(16 * e + 0) = 0x281A;
+    adv_on = 1;
+    adv_next = clkn() + 16;
+    arm_adv();
 }
 
 /* after each connection event: next anchor, pending updates at their instant, supervision */
-static void conn_next(int got)
+/* anchor tracking: after an event with a PDU, the next window opens SYNC_LEAD before the expected sync
+ * (last sync + interval) and lasts 2 * SYNC_LEAD; without a PDU it widens by WIDEN per missed event. */
+#define SYNC_LEAD (2u * 300u)                    /* half-us */
+#define WIDEN     (2u * 50u)
+static uint64_t last_sync;
+static uint32_t missed;
+static void conn_next(int got, uint64_t sync)
 {
     tx_load();
     if (got) cn.last_rx_ms = ms_now();
@@ -268,8 +282,22 @@ static void conn_next(int got)
         cn.anchor += iv + 2u * 1250u * cn.new_winoff;
         cn.interval = cn.new_interval; cn.latency = cn.new_latency; cn.timeout = cn.new_timeout;
         cn.win = 2u * (1250u * cn.new_winsize + 400u);
-    } else cn.anchor += iv;
+    } else if (got && sync && cn.evt > 1 &&
+               (int64_t)(sync + iv - SYNC_LEAD - (cn.anchor + iv)) < (int64_t)cn.win &&
+               (int64_t)((cn.anchor + iv) - (sync + iv - SYNC_LEAD)) < (int64_t)cn.win) {   /* plausible sync only */
+        last_sync = sync; missed = 0;
+        cn.anchor = sync + iv - SYNC_LEAD;
+        cn.win = 2u * SYNC_LEAD;
+    } else {
+        missed++;
+        cn.anchor += iv - WIDEN / 2; cn.win += WIDEN;
+        if (cn.win > 2u * 1250u * 4u) cn.win = 2u * 1250u * 4u;
+    }
     if (cn.map_pending && cn.evt == cn.instant_map) { cn.map_pending = 0; chm_apply(cn.new_chm); }
+    uint64_t now = now_hu();
+    while ((int64_t)(cn.anchor - now) < 2 * 1000) {        /* never schedule into the past: skip whole events */
+        cn.anchor += 2u * 1250u * cn.interval; cn.evt++; csa1_next();
+    }
     conn_arm();
 }
 
@@ -290,7 +318,16 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
-        if (conn_on) { uint32_t before = st.packets; drain(); conn_next(st.packets != before); }
+        if (conn_on) {
+            uint32_t before = st.packets;
+            uint64_t sync = 0;                     /* first PDU of the event: CLKN + fine count at sync (RXCLKNSYNC, RXFCNTSYNC[9:0]) */
+            uint32_t best = 0xFFFFFFFF;
+            for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) if ((EM16(d) & 0x8000) && !(EM16(d + 2) & 0x000F)) {
+                uint32_t ck = EM16(d + 8) | (uint32_t)EM16(d + 10) << 16;
+                if (ck < best) { best = ck; sync = (uint64_t)ck * 625u + (624u - (EM16(d + 0x0C) & 0x3FF)); }
+            }
+            drain(); conn_next(st.packets != before, sync);
+        }
         else if (adv_on) {
             uint64_t adv_start = (uint64_t)adv_next * 625u;          /* this advert started at adv_next (fine 0x270 = slot start) */
             uint32_t h0 = q_head; drain();
@@ -387,7 +424,7 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
         return 1;
     case 0x01:                                   /* LL_CHANNEL_MAP_IND */
         memcpy(cn.new_chm, d + 1, 5); cn.instant_map = d[6] | d[7] << 8; cn.map_pending = 1; return 1;
-    case 0x02: conn_end(); return 1;             /* LL_TERMINATE_IND */
+    case 0x02: { uint32_t ps = irq_lock(); if (conn_on) conn_end(); irq_unlock(ps); return 1; }   /* LL_TERMINATE_IND */
     case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP, no features */
         r[0] = 0x09; memset(r + 1, 0, 8); ble_hw_send(3, r, 9); return 1;
     case 0x0C:                                   /* LL_VERSION_IND: 5.0, Espressif (0x02E5) */
@@ -471,7 +508,8 @@ int ble_hw_wait(ble_hw_pkt_t *p, uint32_t timeout_us)
 
 void ble_hw_debug(uint32_t out[6])
 {
-    out[0] = CORE(0x0C); out[1] = CORE(0x14); out[2] = EM16(16) | (uint32_t)EM16(32) << 16; out[3] = clkn(); out[4] = EM16(18) | (uint32_t)EM16(34) << 16;
+    uint32_t e = 16 * cn.idx;
+    out[0] = CORE(0x0C); out[1] = CORE(0x14); out[2] = EM16(e) | (uint32_t)EM16(CS1 + 0x1A) << 16; out[3] = clkn(); out[4] = EM16(e + 2) | (uint32_t)EM16(e + 4) << 16;
     out[5] = CORE(0x2D8);
 }
 

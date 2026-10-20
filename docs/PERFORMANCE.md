@@ -237,3 +237,11 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | Adverts | 50/s at a 20 ms interval (any interval) | ~2,500/s looped from one DAC bank |
 | CPU | 0.044% (one short interrupt per advert) | 0% while looping, but the DAC bank is busy and the radio is held in TX |
 | Received by IDF Bluedroid | yes, ~16/s (scanner covers ch 37 a third of the time) | yes, ~800/s |
+
+## BLE connection (slave, hardware link layer, no vendor code), `examples/ble_conn`
+
+| | esp-ndf `ble_hw` | IDF (Bluedroid + vendor controller) |
+|---|---|---|
+| Link with an IDF central, 25 ms interval | stable 5+ min, reconnects after a central reset | — |
+| CPU for the link layer | 0.15% (one interrupt per connection event) | not measured |
+| Code | `drivers/ble/ble_hw.c` + generated tables, no blobs | libbtdm_app + ROM + libbtbb + libphy |

@@ -669,7 +669,41 @@ The core sends ADV_NONCONN_IND itself (header, CRC, whitening, GFSK). The CPU on
 5. **Random own address:** LINKCNTL (CS+2) bit 7, TxAdd (0x40) in the header, and bit 6 of TX descriptor word 8. All three, as the vendor sets them.
 6. **The coex priority word 0x6003509C** must be the BT value 0x00140064 (`ble_hw_init`). The PHY init's 0x0C800000 transmits a corrupted signal: the AA is found with 5+ bit errors and nothing decodes.
 
+### Connections (slave) — `examples/ble_conn`
+
+D0 runs the vendor stack as central (IDF Bluedroid GATT client, `bench/idf_blecentral`); C9:48 runs `examples/ble_conn` on our link layer.
+
+**Measured:**
+- D0 connects and negotiates MTU 23.
+- Discovery finds both services (status 0); the read and the CCCD write succeed.
+- Notifications arrive once a second.
+- 5+ minutes connected without a drop, 40 events/s at the 25 ms interval, 0.15% CPU.
+- If the central is reset mid-link, our supervision timeout disconnects, we advertise again, and D0 reconnects and rediscovers.
+
+**How it works** (vendor connection captures `state_conn_c948.txt`, `state_advind_c948.txt`):
+- **Connectable advertising:** the ADV_IND TX descriptor (EM 0x1400) chains to a SCAN_RSP descriptor at +14 (0x0604: type 4, AdvA only), which chains back. The core answers SCAN_REQ by itself. Cutting the chain stalls advertising as soon as anyone scans actively.
+  - The ADV_IND header has ChSel = 0, so the central uses CSA#1 (the vendor sets it and runs CSA#2 in hardware: HOPCNTL 0xCC19, mode 2).
+- **CONNECT_IND** lands in the RX ring after our advert. `conn_start` builds the slave CS at EM 0x45A from the vendor template:
+  - format 3, AA, CRC init and channel map from the CONNECT_IND;
+  - the TX descriptor pointer is 0 (the core answers with empty PDUs).
+  - The first window opens at the transmit window, computed from the advert start + ramp + ADV_IND air + 150 µs + CONNECT_IND air (352 µs) + 1.25 ms + WinOffset.
+- **Each event:**
+  - channel from CSA#1 in software (hardware hopping off);
+  - exchange-table entries rotated;
+  - anchor tracked from the first good PDU's sync time: RX descriptor +8 CLKN, +0x0C [9:0] fine count, so sync = CLKN × 625 + (624 − fine) half-µs;
+  - the next window opens 300 µs before the expected sync and lasts 600 µs, widening by 50 µs per missed event. A sync more than a window away from the expected anchor is ignored, and a window is never scheduled into the past (a start in the past leaves the entry stuck "in progress").
+- **RX status** (+2) bits [3:0] are errors (sync, time, length, CRC); bit 6 and above are normal flags. Error descriptors don't count as hearing the master, which is what lets supervision fire.
+- **TX:** an 8-PDU software FIFO feeds one descriptor (EM 0x1440, payload in the 0x2400 page). The next PDU is loaded at an event end once the core has marked the last one done (bit 15). SN/NESN/ACK are handled by the core.
+- **LL control** (`ble_hw_ll_control`):
+  - answers feature (none), version (5.0, 0x02E5), length (27/328) and ping requests, and LL_UNKNOWN_RSP to anything else;
+  - applies connection update and channel map at their instant;
+  - terminate, or the supervision timeout, returns to advertising.
+- **The example's GATT server:** GAP (Device Name) plus service 0xFFE0 with a read/notify characteristic and its CCCD. It answers MTU, Read By Group Type, Read By Type, Find Information, Read and Write, and rejects L2CAP signalling.
+
 **Still open:**
-- Connections.
-- Scannable/connectable advertising (needs RX after TX within the event).
+- the central (master) role;
+- encryption (pairing / LL_ENC);
+- CSA#2;
+- data length extension beyond 27 bytes;
+- 2M / Coded PHY.
 - RX buffers per window: CS+0x20 (the vendor's scanner uses 1) sets how many PDUs one scan window takes. With the 10-descriptor ring it takes 10, which gives 2,280 PDUs/s (was 1,190).
