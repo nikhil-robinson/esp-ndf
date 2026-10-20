@@ -9,6 +9,10 @@
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_phy_init.h"
+#ifdef BTTRACE
+#include "esp_bt.h"
+#include "nvs_flash.h"
+#endif
 void esp_wifi_bt_power_domain_on(void);
 extern void set_chanfreq(uint32_t mhz, uint32_t mode);
 extern void set_rf_freq_offset(uint32_t xtal_sel, uint32_t mhz, int32_t khz);
@@ -96,8 +100,18 @@ void app_main(void)
     printf("@info hooked_before_init %d\n", pre);
 
     mark(1, 0, 0);                                         /* phase 1: power on + PHY init + full calibration */
+#ifdef BTTRACE
+    {                                                      /* the BLE controller brings the PHY up itself */
+        nvs_flash_init();
+        esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
+        esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+        esp_bt_controller_init(&cfg);
+        esp_bt_controller_enable(ESP_BT_MODE_BLE);
+    }
+#else
     esp_wifi_bt_power_domain_on();
     esp_phy_enable(PHY_MODEM_WIFI);
+#endif
     int post = install();                                  /* entries libphy rewrote during init */
     printf("@info rehooked_after_init %d\n", post);
     for (int i = 0; i < 256; i++) if (hook_fn[i] && orig[i]) printf("@orig %03x %08lx\n", i * 4, (unsigned long)orig[i]);
@@ -107,6 +121,11 @@ void app_main(void)
 
     printf("@info init_records %lu lost %lu\n", (unsigned long)nrec, (unsigned long)lost);
 
+#ifdef BTTRACE
+    mark(99, 0, 0);
+    if (0)
+#endif
+    {
     static const uint16_t ch[] = { 2412, 2437, 2462, 2484 };
     for (unsigned i = 0; i < 4; i++) { mark(2, ch[i], 0); set_chanfreq(ch[i], 0); }
     static const uint16_t fr[] = { 1900, 2437, 2700 };
@@ -122,6 +141,7 @@ void app_main(void)
     mark(10, 0, 0); stop_tx_tone(1); force_tx_gain(10, 2, 0); force_txon_mode(1, 0, 0);
     mark(11, 0, 0); force_txon_mode(0, 0, 0);
     mark(99, 0, 0);
+    }
 
     printf("@info records %lu lost %lu\n", (unsigned long)nrec, (unsigned long)lost);
     for (uint32_t c = 0; c < paral_calls; c++) {
