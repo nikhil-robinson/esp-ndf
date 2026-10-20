@@ -4,6 +4,8 @@
 #include "console.h"
 #include "xtensa.h"
 #include "sys.h"
+#include "tsens.h"
+#include "regi2c.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,6 +89,29 @@ static void command(void)
         R(0x600060CC) = (uint32_t)strtoul(v[2], 0, 0);
         R(0x600060C8) = (R(0x600060C8) & 0xFFFC00FFu) | (uint32_t)((0x200 + num(v[1])) & 0x3FF) << 8;
         R(0x600060C8) &= 0xFFFCFFFFu;
+    } else if (!strcmp(c, "freq") && n > 1) {         /* freq f_hz: precise tone frequency from the phase slope over 16 blocks */
+        rf_dump_burst(RF_DUMP_80M, 16384 - 1);
+        const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
+        float f0 = (float)atof(v[1]); double ph[16];
+        for (int b = 0; b < 16; b++) {
+            double re = 0, im = 0;
+            for (int k = 0; k < 1023; k++) {
+                int idx = b * 1023 + k; double a = -2 * M_PI * f0 * idx / 80e6, cs = cos(a), sn = sin(a);
+                double i = rf_iq_i(w[idx]), q = -rf_iq_q(w[idx]);
+                re += i * cs - q * sn; im += i * sn + q * cs;
+            }
+            ph[b] = atan2(im, re);
+        }
+        double s = 0; for (int b = 1; b < 16; b++) { double d = ph[b] - ph[b - 1]; while (d > M_PI) d -= 2 * M_PI; while (d < -M_PI) d += 2 * M_PI; s += d; }
+        printf("freq %.1f Hz\n", f0 + s / 15 / (2 * M_PI) * 80e6 / 1023);
+    } else if (!strcmp(c, "lat")) {                    /* capture start latency: start pulse -> write index moves */
+        R(0x60033D5C) = 0; R(0x60033D90) = 0x000C2040u; R(0x600C101C) = 1;
+        R(0x60033D5C) = 0x24000u; uint32_t i0 = R(0x60033D60) & 0x3FFF;
+        uint32_t t0 = ccount(); R(0x60033D5C) = 0x24000u | 1u << 31;
+        while ((R(0x60033D60) & 0x3FFF) == i0 && ccount() - t0 < 2400000) {}
+        uint32_t t1 = ccount() - t0;
+        R(0x60033D5C) = 0; R(0x600C101C) = 0;
+        printf("lat capture run -> first index change %lu cycles = %.0f ns\n", (unsigned long)t1, t1 * 1000.0 / (sys_cpu_hz() / 1e6));
     } else if (!strcmp(c, "gain") && n > 1) {
         rf_rx_gain((int)num(v[1]));
     } else if (!strcmp(c, "row") && n > 3) {
@@ -131,8 +156,15 @@ static void command(void)
         R((uint32_t)strtoul(v[1], 0, 0)) = (uint32_t)strtoul(v[2], 0, 0);
     } else if (!strcmp(c, "delay") && n > 1) {
         delay_us((uint32_t)num(v[1]));
+    } else if (!strcmp(c, "tempraw") && n > 1) {      /* tempraw dac: raw sensor code with range DAC = dac */
+        static int ts2; if (!ts2) { tsens_init(); ts2 = 1; }
+        regi2c_write_mask(0x69, 0x06, 3, 0, (uint8_t)num(v[1])); delay_us(500);
+        R(0x60008850) |= 1u << 24; while (!(R(0x60008850) & 1u << 8)) {}
+        uint32_t raw = R(0x60008850) & 0xFF; R(0x60008850) &= ~(1u << 24);
+        printf("tempraw dac %ld raw %lu 69.06 %02x\n", num(v[1]), (unsigned long)raw, regi2c_read(0x69, 0x06));
     } else if (!strcmp(c, "temp")) {
-        printf("temp n/a\n");
+        static int ts; if (!ts) { tsens_init(); ts = 1; }
+        printf("temp %.1f\n", tsens_read_c());
     } else { printf("err unknown %s\n", c); return; }
     printf("ok\n");
 }
