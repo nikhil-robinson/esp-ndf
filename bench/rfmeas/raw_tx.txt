@@ -1,0 +1,12 @@
+# D0: our raw packet engine (core test mode, no BLE protocol): rawtx ch_idx rate sync type len; C9:48 measures power at 2402 MHz
+D0 silent, C9:48 ['pwr max 20077 mean -290 n 63095']
+rawtx 37 0 0x71764129 0 37 ['rawtx rc 0 packets/s 0 core00 0010070f st 00000001'] C9:48 ['pwr max 12619 mean -343 n 63103']
+rawtx 37 1 0x71764129 0 37 ['rawtx rc 0 packets/s 0 core00 0010070f st 00000001'] C9:48 ['pwr max 13470 mean -375 n 63108']
+rawtx 37 2 0x71764129 0 37 ['rawtx rc 0 packets/s 0 core00 0010070f st 00000001'] C9:48 ['pwr max 21164 mean -514 n 63152']
+rawtx 37 0 0x12345678 0 255 ['rawtx rc 0 packets/s 0 core00 0010070f st 00000001'] C9:48 ['pwr max 10203 mean 30 n 63259']
+after stop C9:48 ['pwr max 8954 mean 142 n 63297']
+# D0: core register variants before rawtx 37 0 0x71764129 0 37
+rwblecntl 0x410f ['rawtx rc 0 packets/s 0 core00 0000410f st 00000001']
++ 0x78 bit8 off ['rawtx rc 0 packets/s 0 core00 0000410f st 00000001']
++ rx desc ptr 0x01001000 ['rawtx rc 0 packets/s 0 core00 0000410f st 00000001']
+rwblecntl 0x0010070f + 0x78 ['rawtx rc 0 packets/s 0 core00 0010070f st 00000001']

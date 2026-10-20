@@ -36,3 +36,15 @@ int  ble_hw_conn_info(uint8_t *csa2, uint16_t *interval);   /* channel selection
 int  ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len);   /* llid 2 L2CAP, 3 LL control; <= 27 bytes */
 int  ble_hw_ll_control(const ble_hw_pkt_t *p);                       /* answers LL control PDUs; 1 if consumed */
 void ble_hw_debug(uint32_t out[6]);         /* intmask, raw status, ET0 word, clkn, RX desc ptr, ET0 start */
+/* raw packet engine (core test mode, no BLE protocol): continuous packets of preamble + sync + len bytes + CRC.
+ * ch_idx: BLE channel index (37 = 2402 MHz, 0..36 = 2404..2478, 38 = 2426, 39 = 2480); rate 0 1M, 1 2M, 2 coded S8, 3 coded S2;
+ * type: payload source (0 PRBS9, 2 1010..., others: see docs). */
+int  ble_hw_raw_tx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t type, const uint8_t *d, unsigned len, uint8_t txpwr);
+int  ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len);
+int  ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit);
+int  ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi);
+uint32_t ble_hw_raw_rxcount(void);
+void ble_hw_raw_stop(void);
+uint32_t ble_hw_raw_txcount(void);
+uint16_t ble_hw_em_rd(uint32_t off);
+void ble_hw_em_wr(uint32_t off, uint16_t v);

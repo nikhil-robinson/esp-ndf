@@ -20,8 +20,8 @@ static uint16_t cnt[512];
 
 static void command(void)
 {
-    char *v[6]; int n = 0;
-    for (char *p = line; *p && n < 6; ) {
+    char *v[10]; int n = 0;
+    for (char *p = line; *p && n < 10; ) {
         while (*p == ' ') *p++ = 0;
         if (!*p) break;
         v[n++] = p; while (*p && *p != ' ') p++;
@@ -58,6 +58,50 @@ static void command(void)
             }
         }
         printf("bitscan hits %d\n", hits);
+    } else if (!strcmp(v[0], "rawtx") && n > 5) {         /* rawtx ch_idx rate sync type len: raw packets, then count for 1 s */
+        static uint8_t d[255]; for (int k = 0; k < 255; k++) d[k] = (uint8_t)k;
+        if (n > 6) {                                       /* 7th arg: prefix mode 1 = preamble 0x55 + sync (LSB first) at the buffer start, 2 = 0xAA + sync */
+            uint32_t sw = (uint32_t)strtoul(v[3], 0, 0); int m = atoi(v[6]);
+            d[0] = m == 2 ? 0xAA : 0x55; d[1] = (uint8_t)sw; d[2] = (uint8_t)(sw >> 8); d[3] = (uint8_t)(sw >> 16); d[4] = (uint8_t)(sw >> 24);
+            for (int k = 5; k < 255; k++) d[k] = (uint8_t)(k - 5);
+        }
+        extern uint32_t ble_hw_raw_poke_off, ble_hw_raw_poke_or;   /* 8th arg "off:bits": OR into a core register before the kick */
+        ble_hw_raw_poke_off = 0;
+        if (n > 7) { char *c = v[7]; ble_hw_raw_poke_off = (uint32_t)strtoul(c, &c, 0); ble_hw_raw_poke_or = (uint32_t)strtoul(c + 1, 0, 0); }
+        int rc = ble_hw_raw_tx((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, (uint8_t)atoi(v[4]), d, (unsigned)atoi(v[5]), 8);
+        uint32_t c0 = ble_hw_raw_txcount(); delay_ms(1000);
+        printf("rawtx rc %d packets/s %lu core00 %08lx st %08lx\n", rc, (unsigned long)(ble_hw_raw_txcount() - c0), (unsigned long)*(volatile uint32_t *)0x60031000, (unsigned long)*(volatile uint32_t *)0x60031014);
+    } else if (!strcmp(v[0], "emr") && n > 1) {           /* emr off [count]: exchange-memory words */
+        uint32_t o = (uint32_t)strtoul(v[1], 0, 0), c = n > 2 ? (uint32_t)atoi(v[2]) : 1;
+        printf("emr %04lx:", (unsigned long)o); for (uint32_t k = 0; k < c; k++) printf(" %04x", ble_hw_em_rd(o + 2 * k)); printf("\n");
+    } else if (!strcmp(v[0], "emw") && n > 2) {
+        ble_hw_em_wr((uint32_t)strtoul(v[1], 0, 0), (uint16_t)strtoul(v[2], 0, 0)); printf("emw\n");
+    } else if (!strcmp(v[0], "rawrx") && n > 4) {         /* rawrx ch_idx rate sync ms: receive, count, show the first packets */
+        extern uint16_t ble_hw_rx_set_off, ble_hw_rx_set_val; ble_hw_rx_set_off = 0;
+        if (n > 5) { char *c = v[5]; ble_hw_rx_set_off = (uint16_t)strtoul(c, &c, 0); uint32_t vv = (uint32_t)strtoul(c + 1, 0, 0); ble_hw_rx_set_val = (uint16_t)vv; extern uint32_t ble_hw_rx_set_val32; ble_hw_rx_set_val32 = vv; }   /* 6th arg "csoff:val" (off >= 0x1000: core reg off-0x1000) */
+        extern uint8_t ble_hw_rx_libphy, ble_hw_rx_big; ble_hw_rx_libphy = n > 6 ? (uint8_t)(atoi(v[6]) & 1) : 0;   /* 7th arg: bit 0 libphy core values, bit 1 big buffers */
+        ble_hw_rx_big = n > 6 ? (uint8_t)((atoi(v[6]) >> 1) & 1) : 0;
+        int rc = ble_hw_raw_rx((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint32_t)strtoul(v[3], 0, 0), 0x555555);
+        uint32_t t0 = ccount(), dur = (uint32_t)atoi(v[4]) * 240000u, got = 0, bad = 0; uint8_t b[64]; unsigned len; uint16_t st; int8_t rs;
+        uint32_t c0 = ble_hw_raw_rxcount();
+        while (ccount() - t0 < dur) {
+            if (!ble_hw_raw_read(b, sizeof b, &len, &st, &rs)) continue;
+            if (st & 0x0F) bad++; else got++;
+            if (got + bad <= 3) { printf("pkt len %u st %04x rssi %d:", len, st, rs); for (unsigned k = 0; k < (len < 12 ? len : 12); k++) printf(" %02x", b[k]);
+                if (len > 12) { printf(" .."); for (unsigned k = (len < 64 ? len : 64) - 4; k < (len < 64 ? len : 64); k++) printf(" %02x", b[k]); } printf("\n"); }
+        }
+        printf("rawrx rc %d ok %lu bad %lu core374 %lu core00 %08lx st %08lx\n", rc, (unsigned long)got, (unsigned long)bad, (unsigned long)(ble_hw_raw_rxcount() - c0),
+               (unsigned long)*(volatile uint32_t *)0x60031000, (unsigned long)*(volatile uint32_t *)0x60031014);
+    } else if (!strcmp(v[0], "rawsend") && n > 4) {       /* rawsend ch_idx rate sync len: our bytes 00 01 02 ... (header byte 0x5A), one packet per event */
+        static uint8_t d[255]; for (int k = 0; k < 255; k++) d[k] = (uint8_t)k;
+        extern uint8_t ble_hw_raw_fmt, ble_hw_raw_tmpl; extern uint16_t ble_hw_raw_t18;
+        if (n > 5) ble_hw_raw_fmt = (uint8_t)atoi(v[5]);
+        ble_hw_raw_tmpl = n > 6 ? (uint8_t)atoi(v[6]) : 0; ble_hw_raw_t18 = n > 7 ? (uint16_t)strtoul(v[7], 0, 0) : 0xFFFF;
+        int rc = ble_hw_raw_send((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, 0x5A, d, (unsigned)atoi(v[4]));
+        ble_hw_stats_t s0, s1; ble_hw_get_stats(&s0); delay_ms(1000); ble_hw_get_stats(&s1);
+        printf("rawsend rc %d events/s %lu\n", rc, (unsigned long)(s1.events - s0.events));
+    } else if (!strcmp(v[0], "rawstop")) {
+        ble_hw_raw_stop(); printf("rawstop\n");
     } else if (!strcmp(v[0], "scan") && n > 1) {
         ble_hw_scan((uint8_t)atoi(v[1])); printf("scan\n");
     } else if (!strcmp(v[0], "stop")) {

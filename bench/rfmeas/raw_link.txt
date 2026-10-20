@@ -1,0 +1,446 @@
+# raw packet link, no BLE protocol: D0 rawtx (core test mode 0x1C), C9:48 rawrx (test mode 0x0A); ch_idx 37 = 2402 MHz
+D0 ['rawtx rc 0 packets/s 1599 core00 0010070f st 00000011']
+pkt len 37 st 1000 rssi -25: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23
+pkt len 37 st 1000 rssi -25: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23
+pkt len 37 st 1000 rssi -25: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23
+pkt len 37 st 1000 rssi -25: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23
+rawrx rc 0 ok 1387 bad 154 core374 268440064 core00 0010070f st 00000015
+# payload source sweep: TX descriptor type 0..15 (buffer holds 00 01 02 ...); first received bytes + counts
+type 0 rawtx rc 0 packets/s 1599
+   pkt len 37 st 1000 rssi -25: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45 core374 268440064
+type 1 rawtx rc 0 packets/s 4294966329
+    | rawrx rc 0 ok 0 bad 0 core374 1879043588
+type 2 rawtx rc 0 packets/s 4294966331
+   pkt len 37 st 1000 rssi -26: 55 55 55 55 55 55 55 55 55 55 55 55 55 55 55 55 | rawrx rc 0 ok 404 bad 45 core374 0
+type 3 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 4294966816
+type 4 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 65505
+type 5 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 6 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 7 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 8 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 9 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 10 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 11 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 12 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 13 rawtx rc 0 packets/s 4294966330
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 14 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 0
+type 15 rawtx rc 0 packets/s 4294966331
+    | rawrx rc 0 ok 0 bad 0 core374 0
+# same sweep, both boards reset per type
+type 1 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 3 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 4 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 5 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 6 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -25: f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 f0 | rawrx rc 0 ok 404 bad 45
+type 7 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 8 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 9 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 10 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 11 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 12 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 13 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 14 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+type 15 rawtx rc 0 packets/s 1599 | - | rawrx rc 0 ok 0 bad 0
+# odd types with preamble + sync at the start of the buffer
+type 1 prefix 1 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 1 prefix 2 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 3 prefix 1 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 3 prefix 2 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 5 prefix 1 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 5 prefix 2 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 7 prefix 1 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+type 7 prefix 2 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+# core 0xD0 bits (RF test control) on top of type 0, buffer = 00 01 02 ...
+0xD0 |= 0x1000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x2000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x8000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x4000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+# core 0xD0 bits set before the kick, type 0, buffer = 00 01 02 ...
+0xD0 |= 0x1000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x2000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x8000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x4000 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+0xD0 |= 0x1025 rawtx rc 0 packets/s 1599 | pkt len 37 st 1000 rssi -26: ff c1 fb e8 4c 90 72 8b e7 b3 51 89 63 ab 23 23 | rawrx rc 0 ok 404 bad 45
+# bit sweep of core 0x50 / 0x54 (set before the kick), type 0, buffer = 00 01 02 ...; looking for the payload-from-buffer bit
+0x50 bit 0 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 1 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 2 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 3 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 4 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 5 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 6 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 7 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 8 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 9 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 10 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 11 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 12 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 13 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 14 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 15 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 16 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 17 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 18 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 19 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 20 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 21 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 22 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 23 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 24 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 25 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 26 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 27 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 28 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 29 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 265 bad 29
+0x50 bit 30 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x50 bit 31 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 0 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 265 bad 29
+0x54 bit 1 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 2 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 3 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 4 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 5 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 6 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 7 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 8 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 9 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 10 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 11 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 12 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 13 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 14 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 15 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 16 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 17 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 18 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 19 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 20 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 21 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 22 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 23 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 24 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 25 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 26 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 27 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 28 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 29 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 30 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+0x54 bit 31 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+# flip single bits of the TX test-mode CS (EM 0x400 + off) and TX descriptor (0x1400/0x1420 +2/+6); buffer = 00 01 02 ...
+CS+0x0 bit 5 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 6 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 7 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 8 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 9 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 10 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 11 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 12 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 13 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 14 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x0 bit 15 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 0 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 1 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 2 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 3 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 4 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 5 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 265 bad 29
+CS+0x2 bit 6 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 7 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 258 bad 29
+CS+0x2 bit 8 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 9 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 10 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 261 bad 29
+CS+0x2 bit 11 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 12 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 13 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 14 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x2 bit 15 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 4 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 5 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 6 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 7 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 8 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 9 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 10 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 11 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 12 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 13 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 14 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+CS+0x4 bit 15 packets/s 1599 |  ff c1 fb e8 4c 90 72 8b | ok 264 bad 29
+# C9:48 raw test-mode RX (format 0x0A) of buffer-sourced packets: D0 hardware advert (buffer: AdvA 11 22 33 44 55 c6 + 31 zero bytes), sync 0x8E89BED6, ch idx 37
+['adv 0']
+pkt len 37 st 1000 rssi -22: 11 22 33 44 55 c6 00 00 00 00 00 00 00 00 00 00
+pkt len 37 st 1000 rssi -22: 11 22 33 44 55 c6 00 00 00 00 00 00 00 00 00 00
+pkt len 37 st 1000 rssi -22: 11 22 33 44 55 c6 00 00 00 00 00 00 00 00 00 00
+pkt len 37 st 1000 rssi -22: 11 22 33 44 55 c6 00 00 00 00 00 00 00 00 00 00
+rawrx rc 0 ok 468 bad 52 core374 268439553 core00 0010070f st 00000011
+# buffer-sourced raw packets: D0 rawsend ch rate sync len interval (normal TX format, our sync/rate/length; first 6 bytes A0..A5 then 00 01 02 ...); C9:48 raw test-mode RX
+ch 37 rate 0 sync 0x71764129 len 37: D0 rawsend rc 0 events/s 199
+   pkt len 37 st 1000 rssi -22: a0 a1 a2 a3 a4 a5 00 00 00 00 00 00 .. 00 00 00 00
+   rawrx rc 0 ok 176 bad 19 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 0 sync 0x12345678 len 37: D0 rawsend rc 0 events/s 199
+   pkt len 37 st 1000 rssi -22: a0 a1 a2 a3 a4 a5 00 00 00 00 00 00 .. 00 00 00 00
+   rawrx rc 0 ok 180 bad 20 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 0 sync 0x71764129 len 100: D0 rawsend rc 0 events/s 1
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 0 sync 0x71764129 len 255: D0 rawsend rc 0 events/s 1
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 1 sync 0x71764129 len 100: D0 rawsend rc 0 events/s 199
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 2 sync 0x71764129 len 37: D0 rawsend rc 0 events/s 1
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 3 sync 0x71764129 len 37: D0 rawsend rc 0 events/s 1
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 5 rate 0 sync 0x71764129 len 37: D0 rawsend rc 0 events/s 199
+   pkt len 37 st 1000 rssi -22: a0 a1 a2 a3 a4 a5 00 00 00 00 00 00 .. 00 00 00 00
+   rawrx rc 0 ok 176 bad 19 core374 268439553 core00 0010070f st 00000011
+# raw send from our buffer, connection-master format 0x02 (no connection): D0 rawsend ch rate sync len (bytes 00 01 02 .., header 0x5A); C9:48 raw test-mode RX
+ch 37 rate 0 len 37: D0 rawsend rc 0 events/s 1814
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 0 len 100: D0 rawsend rc 0 events/s 1814
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 0 len 251: D0 rawsend rc 0 events/s 1814
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 1 len 100: D0 rawsend rc 0 events/s 2004
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 2 len 37: D0 rawsend rc 0 events/s 605
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+ch 37 rate 3 len 37: D0 rawsend rc 0 events/s 717
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+   rawrx rc 0 ok 0 bad 0 core374 268439553 core00 0010070f st 00000011
+# CS format sweep for buffer TX (CS from the slave-connection template, our sync/channel, descriptor 0x5A + 00 01 02 ..., len 37): which format sends our buffer?
+fmt  0 events/s 1                 | - | ok 0 bad 0
+fmt  1 events/s 1                 | - | ok 0 bad 0
+fmt  2 events/s 1814              | - | ok 0 bad 0
+fmt  3 events/s 2263              | - | ok 0 bad 0
+fmt  4 events/s 353               | - | ok 0 bad 0
+fmt  5 events/s 154               | - | ok 0 bad 0
+fmt  6 events/s 442               | - | ok 0 bad 0
+fmt  7 events/s 1                 | - | ok 0 bad 0
+fmt  8 events/s 156               | - | ok 0 bad 0
+fmt  9 events/s 156               | - | ok 0 bad 0
+fmt 10 events/s 156               | - | ok 0 bad 0
+fmt 11 events/s 156               | - | ok 0 bad 0
+fmt 12 events/s 1                 | - | ok 0 bad 0
+fmt 13 events/s 1                 | - | ok 0 bad 0
+fmt 14 events/s 156               | - | ok 0 bad 0
+fmt 15 events/s 156               | - | ok 0 bad 0
+fmt 16 events/s 1                 | - | ok 0 bad 0
+fmt 17 events/s 1                 | - | ok 0 bad 0
+fmt 18 events/s 1                 | - | ok 0 bad 0
+fmt 19 events/s 1                 | - | ok 0 bad 0
+fmt 20 events/s 1                 | - | ok 0 bad 0
+fmt 21 events/s 1                 | - | ok 0 bad 0
+fmt 22 events/s 1                 | - | ok 0 bad 0
+fmt 23 events/s 1                 | - | ok 0 bad 0
+fmt 24 events/s 1                 | - | ok 0 bad 0
+fmt 25 events/s 1                 | - | ok 0 bad 0
+fmt 26 events/s 1                 | - | ok 0 bad 0
+fmt 27 events/s 1                 | - | ok 0 bad 0
+fmt 28 events/s 0                 | - | ok 0 bad 0
+fmt 29 events/s 0                 | - | ok 0 bad 0
+fmt 30 events/s 1                 | - | ok 0 bad 0
+fmt 31 events/s 1                 | - | ok 0 bad 0
+# + EM 0x14C format word + advertising core regs (>= 0x2C0)
+fmt  2 events/s 1814        | - | ok 0 bad 0
+fmt  3 events/s 2263        | - | ok 0 bad 0
+fmt  4 events/s 353         | - | ok 0 bad 0
+fmt  6 events/s 442         | - | ok 0 bad 0
+fmt  8 events/s 156         | - | ok 0 bad 0
+fmt  9 events/s 156         | - | ok 0 bad 0
+fmt 14 events/s 156         | - | ok 0 bad 0
+# raw send: template (0 conn / 1 adv), format, CS+0x18
+fmt 4 tmpl 1 +18 None events/s 1555        | - | ok 0 bad 0
+fmt 2 tmpl 0 +18 0x000b events/s 1180        |  00 01 02 03 04 05 06 07 08 09 | ok 292 bad 32
+fmt 3 tmpl 0 +18 0x000b events/s 2263        | - | ok 0 bad 0
+fmt 2 tmpl 1 +18 None events/s 1180        |  00 01 02 03 04 05 06 07 08 09 | ok 290 bad 32
+fmt 3 tmpl 1 +18 None events/s 3357        | - | ok 0 bad 0
+# raw send (format 0x02, +0x18 = 0x000B) matrix: our bytes 00 01 02 ..; C9:48 raw test-mode RX
+ch 37 rate 0 sync 0x71764129 len  37: events/s 1180    | pkt len 37 st 1000 rssi -22 | ok 974 bad 108
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 0 sync 0x12345678 len  37: events/s 1180    | pkt len 37 st 1000 rssi -21 | ok 976 bad 108
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 0 sync 0xA5A5F00F len  37: events/s 1180    | pkt len 37 st 1000 rssi -24 | ok 969 bad 108
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 10 rate 0 sync 0x71764129 len  37: events/s 1180    | pkt len 37 st 1000 rssi -24 | ok 971 bad 108
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 0 sync 0x71764129 len 100: events/s 740     |  | ok 0 bad 0
+ch 37 rate 0 sync 0x71764129 len 200: events/s 464     |  | ok 0 bad 0
+ch 37 rate 0 sync 0x71764129 len 251: events/s 390     |  | ok 0 bad 0
+ch 37 rate 0 sync 0x71764129 len 255: events/s 385     |  | ok 0 bad 0
+ch 37 rate 1 sync 0x71764129 len  37: events/s 1545    | pkt len 37 st 1000 rssi -25 | ok 1043 bad 116
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 1 sync 0x71764129 len 251: events/s 665     |  | ok 0 bad 0
+ch 37 rate 2 sync 0x71764129 len  37: events/s 248     | pkt len 37 st 1000 rssi -23 | ok 38 bad 4
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 3 sync 0x71764129 len  37: events/s 503     | pkt len 37 st 1000 rssi -23 | ok 190 bad 21
+      data  00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24
+ch 37 rate 2 sync 0x71764129 len 251: events/s 56      |  | ok 0 bad 0
+# RX max-length field search: D0 raw send len 100; C9:48 raw RX with one CS field set
+['rawsend rc 0 events/s 740']
+CS+0x0 = 0x0000:  | ok 0 bad 0
+CS+0x26 = 0x00ff:  | ok 0 bad 0
+CS+0x26 = 0xffff:  | ok 0 bad 0
+CS+0x28 = 0x00ff:  | ok 0 bad 0
+CS+0x28 = 0xffff:  | ok 0 bad 0
+CS+0x24 = 0x00ff:  | ok 0 bad 0
+CS+0x24 = 0xffff:  | ok 0 bad 0
+CS+0x2a = 0x00ff:  | ok 0 bad 0
+CS+0x2a = 0xffff:  | ok 0 bad 0
+CS+0x1e = 0x00ff:  | ok 0 bad 0
+CS+0x1e = 0xffff:  | ok 0 bad 0
+CS+0x2c = 0xffff:  | ok 0 bad 0
+CS+0x2e = 0xffff:  | ok 0 bad 0
+CS+0x26 = 0x00fb:  | ok 0 bad 0
+CS+0x28 = 0x0ffb:  | ok 0 bad 0
+# long packets from the test-mode transmitter (PRBS9) -> raw RX: is the limit on the RX or the buffer-TX side?
+len 100 rawtx rc 0 packets/s 800 | - | rawrx rc 0 ok 0 bad 0
+len 200 rawtx rc 0 packets/s 400 | - | rawrx rc 0 ok 0 bad 0
+len 255 rawtx rc 0 packets/s 400 | - | rawrx rc 0 ok 0 bad 0
+# core 0x0E0 (0x0190012C: 400 / 300 us?) raised; D0 raw send len 100 / 255 (our bytes)
+len 100 ['rawsend rc 0 events/s 740']
+  0x0E0 = 0x0190012c: - | ok 0 bad 0
+  0x0E0 = 0x07d007d0: - | ok 0 bad 0
+  0x0E0 = 0x0fff0fff: - | ok 0 bad 0
+  0x0E0 = 0x0190ffff: - | ok 0 bad 0
+  0x0E0 = 0xffff012c: - | ok 0 bad 0
+len 255 ['rawsend rc 0 events/s 385']
+  0x0E0 = 0x0190012c: - | ok 0 bad 0
+  0x0E0 = 0x07d007d0: - | ok 0 bad 0
+  0x0E0 = 0x0fff0fff: - | ok 0 bad 0
+  0x0E0 = 0x0190ffff: - | ok 0 bad 0
+  0x0E0 = 0xffff012c: - | ok 0 bad 0
+# raw RX with libphy RX core values (0x080/0x090-0x09C/0x0E0): long packets from D0 raw send
+len 37 rawsend rc 0 events/s 1180 | pkt len 37 st 1000 rssi -22: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | rawrx rc 0 ok 485 bad 54
+len 100 rawsend rc 0 events/s 740 | - | rawrx rc 0 ok 0 bad 0
+len 255 rawsend rc 0 events/s 385 | - | rawrx rc 0 ok 0 bad 0
+# modem 0x088 / 0x0B8 set to libphy RX values before raw RX; D0 raw send len 100 / 255
+len 100 [('0x60011088', '0x00005f30')] | - | ok 0 bad 0
+len 100 [('0x60011088', '0x00005f3a')] | - | ok 0 bad 0
+len 100 [('0x60011088', '0x00015f30')] | - | ok 0 bad 0
+len 100 [('0x600110b8', '0x1ae501b1')] | - | ok 0 bad 0
+len 100 [('0x60011088', '0x00005f30'), ('0x600110b8', '0x1ae501b1')] | - | ok 0 bad 0
+len 255 [('0x60011088', '0x00005f30')] | - | ok 0 bad 0
+len 255 [('0x60011088', '0x00005f3a')] | - | ok 0 bad 0
+len 255 [('0x60011088', '0x00015f30')] | - | ok 0 bad 0
+len 255 [('0x600110b8', '0x1ae501b1')] | - | ok 0 bad 0
+len 255 [('0x60011088', '0x00005f30'), ('0x600110b8', '0x1ae501b1')] | - | ok 0 bad 0
+D0 rawsend idx 0 len 37 ['rawsend rc 0 events/s 1180']
+rx desc 2c0: 100402e0 00d59712  2e0: 100402c0 00d69712  buf b00: 15ece902 00000000 00000000  f00: 12e8e702 00000000 00000000
+D0 rawsend idx 0 len 200 ['rawsend rc 0 events/s 464']
+rx desc 2c0: 100402e0 00d57a12  2e0: 100402c0 00d57a12  buf b00: 14ece902 00000000 00000000  f00: 14e9e702 00000000 00000000
+# raw RX with 2 descriptors + own 0x120-byte buffers (EM page 40); D0 raw send
+len 37 mode 2 | - | ok 0 bad 0
+len 37 mode 3 | - | ok 0 bad 0
+len 100 mode 2 | - | ok 0 bad 0
+len 100 mode 3 | - | ok 0 bad 0
+len 255 mode 2 | - | ok 0 bad 0
+len 255 mode 3 | - | ok 0 bad 0
+# raw RX: 2 descriptors, 256-byte buffers in the TX page (EM 0x2600 / 0x2700); D0 raw send
+len 37 mode 2 | pkt len 37 st 1000 rssi -21: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | ok 420 bad 0
+len 37 mode 3 | pkt len 37 st 1000 rssi -23: 00 01 02 03 04 05 06 07 08 09 0a 0b .. 21 22 23 24 | ok 420 bad 0
+len 100 mode 2 | - | ok 0 bad 0
+len 100 mode 3 | - | ok 0 bad 0
+len 255 mode 2 | - | ok 0 bad 0
+len 255 mode 3 | - | ok 0 bad 0
+# libphy-vs-ours core register differences, one at a time (rawrx core poke), D0 raw send len 100
+['rawsend rc 0 events/s 740']
+core 2d4 = 00000102: - | ok 0 bad 0
+core 2cc = 00b400b4: - | ok 0 bad 0
+core 0f8 = 00000211: - | ok 0 bad 0
+core 15c = 3489adef: - | ok 0 bad 0
+core 150 = 000000f1: - | ok 0 bad 0
+core 32c = 00000000: - | ok 0 bad 0
+core 368 = 00000000: - | ok 0 bad 0
+core 0ec = 00000000: - | ok 0 bad 0
+core 0f0 = 00000000: - | ok 0 bad 0
+core 2c4 = 00000001: - | ok 0 bad 0
+core 000 = 0000410f: pkt len 182 st 1020 rssi -24: 02 e9 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 209 bad 45
+core 078 = c8c10000: - | ok 0 bad 0
+core 00c = 00e0003f: - | ok 0 bad 0
+# RWBLECNTL bits on the RX side (D0 raw send len 100, its RWBLECNTL 0x0010070f)
+['rawsend rc 0 events/s 740']
+RWBLECNTL 0010070f: - | ok 0 bad 0
+RWBLECNTL 0010050f: pkt len 100 st 1004 rssi -24: 02 ef 80 05 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+RWBLECNTL 0010030f: - | ok 0 bad 0
+RWBLECNTL 0010010f: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 255
+RWBLECNTL 0000070f: - | ok 0 bad 0
+RWBLECNTL 0010470f: - | ok 0 bad 0
+RWBLECNTL 0000010f: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 1 bad 251
+RWBLECNTL 0000410f: pkt len 182 st 1020 rssi -23: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 209 bad 45
+# RX length error search with the advertising filter off: CS fields / core regs, D0 raw send len 100
+['rawsend rc 0 events/s 740']
+CS+0x00 = 0x0000: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 252
+CS+0x28 = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x28 = 0x01ff: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 252
+CS+0x26 = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ee 80 04 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x26 = 0xffff: pkt len 100 st 1004 rssi -22: 02 ec 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 255
+CS+0x24 = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x24 = 0xffff: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+CS+0x2a = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x1e = 0x00ff: pkt len 100 st 1004 rssi -23: 02 eb 80 04 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+CS+0x20 = 0x00ff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 220
+CS+0x22 = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 252
+CS+0x2c = 0x00ff: pkt len 100 st 1004 rssi -22: 01 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x2e = 0x00ff: pkt len 100 st 1004 rssi -24: 02 e9 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+CS+0x30 = 0x00ff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x32 = 0x00ff: pkt len 100 st 1004 rssi -24: 02 ed 80 06 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x34 = 0x00ff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+CS+0x36 = 0x00ff: pkt len 100 st 1004 rssi -24: 02 eb 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+CS+0x38 = 0x00ff: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+CS+0x3a = 0x00ff: pkt len 100 st 1004 rssi -23: 02 ef 80 06 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 255
+# core 0x0E0 with the advertising filter off, D0 raw send len 100
+['rawsend rc 0 events/s 740']
+0x0E0 = 019000fa: pkt len 100 st 1004 rssi -24: 02 ee 80 05 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+0x0E0 = 019000ff: pkt len 100 st 1004 rssi -24: 02 eb 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+0x0E0 = 01ff01ff: - | ok 0 bad 0
+0x0E0 = 0fff0fff: - | ok 0 bad 0
+0x0E0 = 00ff00ff: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+0x0E0 = ffffffff: - | ok 0 bad 0
+0x0E0 = 07ff07ff: - | ok 0 bad 0
+# advertising filter off on both sides
+rawsend 37 0 0x71764129 100 2 | rawsend rc 0 events/s 740 | pkt len 100 st 1004 rssi -23: 02 ee 80 06 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 338
+rawsend 37 0 0x71764129 255 2 | rawsend rc 0 events/s 385 | pkt len 255 st 1004 rssi -23: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 209
+rawtx 37 0 0x71764129 0 100 | rawtx rc 0 packets/s 800 | pkt len 100 st 1004 rssi -26: 02 e7 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 362
+rawtx 37 0 0x71764129 0 255 | rawtx rc 0 packets/s 400 | pkt len 255 st 1004 rssi -26: 02 ea 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 213
+# core 0x2CC / 0x2D4 and others with the advertising filter off, D0 raw send len 100
+['rawsend rc 0 events/s 740']
+core 2d4 = 00000102: pkt len 100 st 1004 rssi -22: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 2d4 = 000001ff: pkt len 100 st 1004 rssi -24: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 2cc = 00ff00ff: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+core 2cc = 01ff01ff: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 2cc = 00b400b4: pkt len 100 st 1004 rssi -22: 02 eb 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 2c8 = ffffffff: pkt len 100 st 1004 rssi -23: 02 ee 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 254
+core 0e4 = ffffffff: pkt len 100 st 1004 rssi -23: 02 eb 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 0e8 = ffffffff: pkt len 100 st 1004 rssi -23: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 0ec = 0000ffff: pkt len 100 st 1004 rssi -23: 02 ea 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 070 = 000000ff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+core 074 = 0000ffff: - | ok 0 bad 0
+core 0f8 = 000002ff: pkt len 100 st 1004 rssi -22: 02 ef 80 03 00 00 00 00 00 00 00 00 .. 00 00 00 00 | ok 0 bad 253
+# CS word sweep (+0x14..+0x58) with 0x0848 / 0xFFFF, filter off, D0 raw send len 100; only lines that differ from the length-error baseline are shown on screen
+['rawsend rc 0 events/s 740']
+CS+0x14 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 165
+CS+0x14 = 0xffff: pkt len 100 st 0004 rssi -23: 02 ec 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x18 = 0x0848: pkt len 100 st 1004 rssi -22: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
+CS+0x18 = 0xffff: pkt len 100 st 1004 rssi -23: 02 ed 80 03 00 00 00 00 00 00  | ok 0 bad 166
