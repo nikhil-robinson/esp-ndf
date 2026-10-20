@@ -459,3 +459,15 @@ The measured rates include the start. The consumer's budget per unit is about 12
 - **Noise at gains 50–80 on C9:48 (closed):** it was D0's LO nearby. With D0's radio off, C9:48 shows the vendor's profile (RMS 2–33).
 - ~~LO divider~~ done: `rf_tune_rx_khz()` runs the PLL at 6/5 of the LO with 65.00[4] set below 2240 MHz. The VCO locks directly from about 2230 to 2760 MHz (`examples/rf_range`), so receive covers about 1.85–2.76 GHz and transmit about 2.23–2.76 GHz. Checked over the air: receiver on the 6/5 path at 2280 MHz (PLL 2736), transmitter direct at 2280: tone +43.9 dB on, −32.1 dB off. Sub-GHz is out of reach: the divider register cannot go below 960 MHz, and the front end is matched for 2.4 GHz.
 - TX checked over the air.
+
+## 8. Open-list progress (A/B/C)
+
+- **A1, retune:** `rf_pll_set_khz` (hardware cap calibration + refinement) takes 390 µs. `rf_pll_hop(khz, cap)` with a cap cached from an earlier tune is 8 analog-bus operations, 38 µs (3.44 µs per bus write); the vendor measured 0.7–0.9 ms. LO settling after a hop over the air: pending (needs board D0).
+- **A1, analog-bus map:** `docs/RF_REGMAP.md`, generated from both chips' vendor traces by `bench/idf_rftrace/regmap.py`: 56 registers in 8 blocks, final values per chip, chip-specific ones marked, meanings where we established them.
+- **A4, rates (`examples/rf_dumpinfo`):**
+  - capture control bits 16:15 give 80, 40 or 16 MS/s (measured 79.75 / 39.94 / 15.99 including start-up); bit 17 is circular mode; bits 23:20 do not change the rate;
+  - there is no hardware decimator below 16 MS/s, so lower rates mean software decimation of a stream.
+  - The config register 0x60033D90 selects the source of each byte lane of the stored word (0 gives four copies of one byte), so 8-bit packing is possible.
+  - Config bit 24 stores one word per baseband event (64 words took 0.2–33 ms, varying): an event-gated capture, a lead for the energy/packet detector (A2).
+- **A4, playback position:** no register follows the 40 MS/s play index. 0x60033D58 and 0x60033D80[9:0] change during playback but much more slowly.
+- **A6, clocks:** over 1 s of SYSTIMER, the ring write index runs at 80.000003 MS/s (40.000001 at 40), and the CPU at 240.000010 MHz. All derive from the 40 MHz crystal, so the write index is a sample-exact timer with no drift against the CPU. 0x60033D4C counts about 170 k events per second (not a clock).

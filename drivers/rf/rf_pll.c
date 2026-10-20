@@ -60,3 +60,18 @@ int rf_pll_set_khz(uint32_t khz, rf_pll_result_t *res)
     if (res) { res->cap = c; res->hw_cap = (uint8_t)hw; res->locked = vol() == 0; res->cal_polls = polls; }
     return 0;
 }
+
+/* Fast retune for hopping: divider and a cap known from an earlier
+ * rf_pll_set_khz at that frequency (res.cap); no calibration, no search.
+ * The calibration mux (62.0b[6]) is left as rf_pll_set_khz leaves it. */
+void rf_pll_hop(uint32_t khz, uint16_t cap)
+{
+    uint32_t n = (uint32_t)((uint64_t)khz * 4u * 65536u / 120000u - 32u * 65536u);
+    rf_regi2c_write(0x63, 0x00, 0x07);
+    rf_regi2c_write(0x63, 0x03, (uint8_t)(n >> 16));
+    rf_regi2c_write(0x63, 0x04, (uint8_t)(n >> 8));
+    rf_regi2c_write(0x63, 0x05, (uint8_t)n);
+    rf_regi2c_write(0x63, 0x00, 0x17);
+    rf_regi2c_write(0x62, 0x01, (uint8_t)cap);
+    rf_regi2c_write_bits(0x62, 0x02, 4, 4, (uint8_t)(cap >> 8));
+}
