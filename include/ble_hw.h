@@ -15,7 +15,7 @@ typedef struct {
 
 typedef struct {
     uint32_t events, packets, dropped;   /* scan events run, PDUs received, PDUs lost to a full queue */
-    uint32_t aborts, isr_calls;                     /* stuck events aborted by the watchdog */
+    uint32_t aborts, isr_calls, skips;                     /* stuck events aborted by the watchdog */
     uint32_t isr_cycles;                 /* CPU cycles spent in the interrupt handler */
 } ble_hw_stats_t;
 

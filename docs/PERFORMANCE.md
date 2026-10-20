@@ -224,8 +224,8 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 
 | | esp-ndf `ble_hw` | IDF Bluedroid scanner | esp-ndf software receiver |
 |---|---|---|---|
-| PDUs/s, one advertiser at ~2,500/s | ~935 (ch 37 only) | 750–850 per channel (rotating 37/38/39) | bursts only |
-| CPU while scanning | 2.17% (about 20 µs per event) | not measured | about 100% while decoding |
+| PDUs/s, one advertiser at ~2,500/s | ~1,190 (ch 37 only) | 750–850 per channel (rotating 37/38/39) | bursts only |
+| CPU while scanning | 2.6% (interrupt-driven, about 21 µs per event) | not measured | about 100% while decoding |
 | Init | 2.2 ms | — | — |
 
-**Headroom:** 37% of the sent PDUs are caught. The cost is one receive window per event plus the 1-half-slot re-arm gap; chaining windows within one event would close it.
+**Headroom:** 47% of the sent PDUs are caught. One PDU per receive window, plus a 250 µs kick-to-start margin per window.

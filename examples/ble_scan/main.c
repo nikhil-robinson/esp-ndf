@@ -40,8 +40,8 @@ int main(void)
         }
         ble_hw_get_stats(&s);
         printf("  (time inside ble_hw_wait, asleep or servicing: %.1f%%)\n", idle / 2.4e6);
-        printf("t %d s: %lu PDUs/s, %lu events/s, service CPU %.2f%%, dropped %lu, watchdog re-arms %lu, interrupts %lu\n", sec, (unsigned long)(s.packets - s0.packets),
-               (unsigned long)(s.events - s0.events), (double)(s.isr_cycles - s0.isr_cycles) / 2.4e6, (unsigned long)s.dropped, (unsigned long)s.aborts, (unsigned long)s.isr_calls);
+        printf("t %d s: %lu PDUs/s, %lu events/s, service CPU %.2f%%, dropped %lu, watchdog re-arms %lu, interrupts %lu skips %lu\n", sec, (unsigned long)(s.packets - s0.packets),
+               (unsigned long)(s.events - s0.events), (double)(s.isr_cycles - s0.isr_cycles) / 2.4e6, (unsigned long)s.dropped, (unsigned long)s.aborts, (unsigned long)s.isr_calls, (unsigned long)s.skips);
         s0 = s;
     }
     ble_hw_stop();

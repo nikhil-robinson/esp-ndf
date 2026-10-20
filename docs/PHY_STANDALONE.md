@@ -601,10 +601,10 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
 
 | Metric | Value |
 |---|---|
-| PDUs received | about 935/s |
-| Scan events | about 1,068/s |
+| PDUs received | about 1,190/s (935 with half-slot starts) |
+| Scan events | about 1,260/s |
 | Drops / watchdog re-arms | 0 / 0 |
-| Servicing CPU | 2.17% (about 20 µs per event); the rest is spent asleep in `waiti` |
+| CPU | 2.6% in the interrupt handler (about 21 µs per event); the rest is spent asleep in `waiti` |
 | `ble_hw_init` | 2.2 ms |
 
 For comparison:
@@ -645,7 +645,8 @@ Inside `rf_init`, the piece is `set_chan_freq_hw_init` → `get_rf_freq_init` �
 - **Kick lead:** start each event 1 half-slot ahead. A lead of 2 is never picked up, and its kick is silently lost.
 - **One window per event:** each event is one receive window, ending after one PDU or about 625 µs, so the core needs one kick per event (queued exchange-table entries don't chain).
 - **Drain before each kick:** the core can set a descriptor's done bit after the end interrupt, and an event kicked onto a done descriptor never ends.
-- **Re-arm from thread context:** doing it inside the interrupt handler wedges the scheduler within a few events (many variants tried; root cause still open). The handler only masks the core interrupt and wakes the CPU; `ble_hw_read` / `ble_hw_wait` do the work.
+- **Handle skips as well as ends:** the interrupt handler masks the core interrupt, handles end and skip (bits 5 and 8), re-arms and unmasks. An unhandled skip leaves the scheduler idle with no further interrupt; that, plus the descriptor race, was why in-handler re-arming first appeared to wedge.
+- **Fine start:** each event starts 250 µs after its kick, via the exchange-table fine start (0x60031020 counts down 623..0 in 0.5 µs units). 150 µs is too soon (every event is skipped); this gives 1,190 PDUs/s against 935 with half-slot starts.
 
 **Still open:**
 - TX of advertising from the core (software TX works, §10).

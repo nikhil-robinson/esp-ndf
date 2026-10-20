@@ -14,6 +14,7 @@
  *       0x1C SLOTCLK (bit 31 samples), 0x24 RX descriptor pointer, 0x100 ACTSCHCNTL (bit 31 starts entry). */
 #include "ble_hw.h"
 #include "irq.h"
+#include "console.h"
 #include "soc_intr.h"
 #include "xtensa.h"
 #include "sys.h"
@@ -28,6 +29,15 @@
 #define RING_N  10u
 #define INT_END (1u << 5)
 #define INT_SKIP (1u << 8)
+#ifndef BLE_FINE
+#define BLE_FINE 500                              /* kick-to-start margin, half-us */
+#endif
+#ifndef BLE_MAXEV
+#define BLE_MAXEV 0x40
+#endif
+#ifndef BLE_MASK
+#define BLE_MASK (INT_END | INT_SKIP)
+#endif
 
 static uint32_t em_buf[BLE_EM_WORDS];
 static volatile uint8_t scan_chan;            /* 0: stopped */
@@ -80,23 +90,34 @@ static void arm(void)
 {
     drain();
     EM16(0x416) = scan_chan;                     /* fixed channel, no hop */
-    EM16(0x42E) = 0x40;                          /* MAXEVTIME: bounded event */
-    uint32_t t = clkn() + 1;                     /* next half-slot (measured: 1 and 3 work, 2 is never picked up) */
+    EM16(0x42E) = BLE_MAXEV;                     /* MAXEVTIME */
+    /* start 250 us after the kick: CLKN half-slot + fine target (0x60031020 counts down 623..0, 0.5 us).
+     * Measured: 150 us is too soon (every event skipped), 200..250 us best (1190 PDUs/s vs 935 with
+     * half-slot starts), 300 us slower. */
+    uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;
+    if (cnt > BLE_FINE) f = cnt - BLE_FINE; else { f = cnt + 0x270u - BLE_FINE; t++; }
     EM16(0) = EM16(0) & ~0x38u;
-    EM16(2) = t & 0xFFFF; EM16(4) = (t >> 16) & 0xFFF; EM16(6) = 0;
+    EM16(2) = t & 0xFFFF; EM16(4) = (t >> 16) & 0xFFF; EM16(6) = f;
     CORE(0x24) = RING0;
     CORE(0x18) = 0xFFFFFFFFu;                    /* stale status blocks the next start (measured) */
     CORE(0x100) = 0x80000000u;
 }
 
-/* Event end/skip handling runs in thread context (ble_hw_service), not in the interrupt: re-arming from the
- * interrupt handler wedges the scheduler within a few events (measured, many variants; root cause open).
- * The interrupt only masks the core's interrupt and wakes the CPU. */
-static void isr(void *arg) { (void)arg; st.isr_calls++; CORE(0x0C) = 0; }
+/* Interrupt: mask the core's interrupt, handle, unmask. Skipped events (bit 8) must be handled as well as
+ * ended ones: an unhandled skip leaves the scheduler idle with no further interrupt (measured). */
+static void service(void);
+static void isr(void *arg)
+{
+    (void)arg; st.isr_calls++; CORE(0x0C) = 0;
+    service();
+}
 
 static void service(void)
 {
     uint32_t raw = CORE(0x14);
+#ifdef BLE_RX_ACK
+    if ((raw & (1u << 2)) && !(raw & (INT_END | INT_SKIP))) { CORE(0x18) = 1u << 2; drain(); }   /* PDU inside a long window */
+#endif
     if (raw & (INT_END | INT_SKIP)) {
         uint32_t c0 = ccount();
         CORE(0x18) = raw;
@@ -106,11 +127,12 @@ static void service(void)
             CORE(0x2D8) = f | 1;
         }
         st.events++;
+        if (raw & INT_SKIP) st.skips++;
         last_end = c0;
         if (scan_chan) arm(); else drain();
         st.isr_cycles += ccount() - c0;
     }
-    CORE(0x0C) = INT_END | INT_SKIP;
+    CORE(0x0C) = BLE_MASK;
 }
 
 int ble_hw_init(void)
@@ -191,4 +213,5 @@ void ble_hw_debug(uint32_t out[6])
     out[0] = CORE(0x0C); out[1] = CORE(0x14); out[2] = EM16(0); out[3] = clkn(); out[4] = CORE(0x24);
     out[5] = CORE(0x2D8);
 }
+
 
