@@ -578,9 +578,11 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
 **Across temperature:** the crystal is covered above; lock range was measured at about 75 °C only.
 
 ### A.5, A.8, B: status
-- **A.5, modem reuse / BLE raw:** not done.
-  - Our radio path is the raw-IQ dump engine plus DAC playback. Custom protocols run as software radio on it.
-  - The Wi-Fi/BLE demodulators are driven by undocumented MAC/modem registers that the blobs own. Reusing them is a separate reverse-engineering project.
+- **A.5, BLE raw mode: works, as a software modem on our API** (`examples/rfctl`: `bleadv`, `blerx`). It interoperates with the vendor BLE stack in both directions.
+  - **TX:** the full packet is built in software: preamble, access address, ADV_NONCONN_IND PDU, CRC-24, whitening. It is GFSK-modulated (BT 0.5, ±250 kHz, 40 samples per bit) on a +2 MHz IF and looped from one DAC bank, about 2500 packets/s. An IDF Bluedroid scanner (`bench/idf_blescan`) receives it on channels 37, 38 and 39 at 750–850 packets/s each, at −22 dBm RSSI. The stack drops CRC failures, so the CRC is right (`bench/rfmeas/ble_tx.txt`).
+  - **RX:** 1 ms bursts at 16 MS/s. Bursts without energy are skipped. Then an FM discriminator (conjugate product, IF removed, int8), integrate-and-dump per bit, access-address search, dewhitening and the CRC check. Against an IDF advertiser (`ADV=1 idf.py -B build_adv`, channel 37, 20 ms) it decoded 20/20 with the CRC passing, within 0–45 bursts each (`bench/rfmeas/ble_rx.txt`).
+  - The capture's Q is inverted versus the DAC (as in `meas`). A signal at +1.83 MHz confirmed the sign.
+  - **Still open:** driving the chip's hardware BLE/Wi-Fi demodulators directly. They are undocumented MAC/modem blocks owned by the blobs. Any protocol up to about 8 MHz wide runs in software on the same path as above.
 - **A.8, coexistence with native Wi-Fi: works** (`bench/idf_coex`, `result.txt`). On one chip, three cycles of Wi-Fi start + scan → `esp_wifi_stop` → our init + receive of D0's tone → Wi-Fi again:
   - every scan found 8–9 APs at −45 dBm, and every receive got the tone at +36.5 dB;
   - hand-off costs: `esp_wifi_stop` 1.6 ms, our init + tune 5.2 ms, the next `esp_wifi_start` 2.3 ms (the vendor keeps its calibration);

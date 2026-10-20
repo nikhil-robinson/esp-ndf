@@ -46,6 +46,140 @@ static void tx_tone(int gain, int bb, int if_khz, int amp)
     tx_active = 1;
 }
 
+/* BLE 1M advertising in software (A.5): ADV_NONCONN_IND with a complete local name, CRC-24 and whitening per
+ * the core spec (byte-wise forms from dmitry.gr "BLE fun"), GFSK BT 0.5, deviation 250 kHz, 40 samples per bit
+ * at 40 MS/s, on an IF offset from the LO. The bank loops: packet, then silence, 400 us per period. */
+static uint8_t swapbits(uint8_t a) { uint8_t v = 0; for (int k = 0; k < 8; k++) if (a & (1 << k)) v |= 0x80 >> k; return v; }
+static int ble_build(uint8_t *pkt, int chan, const char *name)
+{
+    static const uint8_t adva[6] = { 0x01, 0x02, 0x03, 0x0D, 0x0F, 0xC0 };   /* random static, LSB first */
+    int nl = (int)strlen(name), n = 0;
+    pkt[n++] = 0xAA; pkt[n++] = 0xD6; pkt[n++] = 0xBE; pkt[n++] = 0x89; pkt[n++] = 0x8E;
+    uint8_t *pdu = pkt + n;
+    pdu[0] = 0x42; pdu[1] = (uint8_t)(6 + 3 + 2 + nl);               /* ADV_NONCONN_IND, TxAdd random */
+    memcpy(pdu + 2, adva, 6);
+    pdu[8] = 2; pdu[9] = 1; pdu[10] = 6;
+    pdu[11] = (uint8_t)(nl + 1); pdu[12] = 9; memcpy(pdu + 13, name, (size_t)nl);
+    int pl = 13 + nl;
+    uint8_t c[3] = { 0x55, 0x55, 0x55 };
+    for (int k = 0; k < pl; k++) {
+        uint8_t d = pdu[k];
+        for (int v = 0; v < 8; v++, d >>= 1) {
+            uint8_t t = c[0] >> 7;
+            c[0] = (uint8_t)(c[0] << 1 | c[1] >> 7); c[1] = (uint8_t)(c[1] << 1 | c[2] >> 7); c[2] <<= 1;
+            if (t != (d & 1)) { c[2] ^= 0x5B; c[1] ^= 0x06; }
+        }
+    }
+    for (int k = 0; k < 3; k++) pdu[pl + k] = swapbits(c[k]);
+    uint8_t wc = swapbits((uint8_t)chan) | 2;
+    for (int k = 0; k < pl + 3; k++)
+        for (uint8_t m = 1; m; m <<= 1) { if (wc & 0x80) { wc ^= 0x11; pdu[k] ^= m; } wc <<= 1; }
+    return n + pl + 3;
+}
+
+static void ble_adv(int chan, int if_khz, int amp, const char *name)
+{
+    static uint8_t pkt[64];
+    int nb = ble_build(pkt, chan, name) * 8;
+    const int sps = 40, half = 3 * sps;
+    static float g[2 * 3 * 40 + 1]; float gs = 0;
+    for (int k = -half; k <= half; k++) {                           /* Gaussian, sigma = sqrt(ln2) / (2 pi BT) bits */
+        float t = (float)k / sps / 0.2650f; g[k + half] = expf(-0.5f * t * t); gs += g[k + half];
+    }
+    const uint32_t n = 16000;
+    volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
+    if (tx_active) rf_dac_stop();
+    float ph = 0;
+    for (uint32_t k = 0; k < n; k++) {
+        float f = 0;                                                /* filtered NRZ, -1..1 */
+        int on = (int)k < (nb + 6) * sps;
+        if (on) for (int j = -half; j <= half; j += 2) {           /* every 2nd tap: 40 samples/bit is plenty */
+            int s = (int)k - 3 * sps + j, bit = s / sps;
+            float v = (s < 0 || bit >= nb) ? 0 : ((pkt[bit >> 3] >> (bit & 7)) & 1 ? 1.f : -1.f);
+            f += v * g[j + half];
+        }
+        f *= 2 / gs;
+        ph += 2 * (float)M_PI * ((float)if_khz * 1e3f + 250e3f * f) / 40e6f;
+        if (ph > (float)M_PI) ph -= 2 * (float)M_PI;
+        if (ph < -(float)M_PI) ph += 2 * (float)M_PI;
+        b[k] = on ? rf_iq_word((int)lrintf(amp * cosf(ph)), (int)lrintf(amp * sinf(ph))) : rf_iq_word(0, 0);
+    }
+    rf_tx_on(127, 0);
+    rf_dac_play(1, n, 0, 1);
+    tx_active = 1;
+    printf("bleadv %d bits\n", nb);
+}
+
+/* BLE 1M receive in software: 16 MS/s bursts (1 ms each), skip bursts without energy, FM discriminator by
+ * conjugate product with the +2 MHz IF removed (sign only), access-address search at mid-bit, dewhiten,
+ * CRC-24 check. LO = channel - 2 MHz. Returns the try that decoded, or -1. */
+static int8_t ble_d[RF_DUMP_MAX];                              /* normalised discriminator, x100 */
+static int BLE_BIT(int k) { int a = 0; for (int j = 0; j < 16; j++) a += ble_d[k + j]; return a > 0; }   /* integrate and dump */
+static int ble_rx(int chan, int tries, int qs)
+{
+    const int sps = 16; const float c4 = 0.70710678f;            /* IF step pi/4 per sample */
+    int hot = 0, best = 99, besti = 99, ones = 0;
+    for (int t = 0; t < tries; t++) {
+        rf_dump_burst(RF_DUMP_16M, RF_DUMP_MAX);
+        const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
+        float pmax = 0, pmin = 1e30f;
+        for (int b = 0; b < (int)RF_DUMP_MAX / 256; b++) {
+            float p = 0;
+            for (int k = b * 256; k < b * 256 + 256; k += 4) { float i = rf_iq_i(w[k]), q = rf_iq_q(w[k]); p += i * i + q * q; }
+            if (p > pmax) pmax = p;
+            if (p < pmin) pmin = p;
+        }
+        if (pmax < 10 * pmin) continue;
+        hot++;
+        int pi = rf_iq_i(w[0]), pq = qs * rf_iq_q(w[0]);
+        for (int k = 1; k < (int)RF_DUMP_MAX; k++) {
+            int i = rf_iq_i(w[k]), q = qs * rf_iq_q(w[k]);
+            float re = (float)i * pi + (float)q * pq, im = (float)q * pi - (float)i * pq;
+            float d = im * c4 - re * c4, m = sqrtf(re * re + im * im) + 1e-3f;   /* Im(x * e^-j pi/4), normalised */
+            ble_d[k] = (int8_t)lrintf(100 * d / m);
+            ones += d > 0;
+            pi = i; pq = q;
+        }
+        const uint32_t aa = 0x8E89BED6u;
+        for (int k0 = 1; k0 + sps * (40 + 8 * 42) < (int)RF_DUMP_MAX; k0++) {
+            int err = 0;
+            for (int m = 0; m < 32; m++) err += BLE_BIT(k0 + sps * (8 + m)) != (int)((aa >> m) & 1);
+            if (err < best) best = err;
+            if (32 - err < besti) besti = 32 - err;
+            if (err > 1) continue;
+            uint8_t pdu[42] = { 0 };
+            uint8_t wc = swapbits((uint8_t)chan) | 2;
+            for (int by = 0; by < 42; by++)
+                for (int bi = 0; bi < 8; bi++) {
+                    int v = BLE_BIT(k0 + sps * (40 + 8 * by + bi));
+                    if (wc & 0x80) { wc ^= 0x11; v ^= 1; }
+                    wc <<= 1;
+                    pdu[by] |= (uint8_t)(v << bi);
+                }
+            int len = pdu[1] & 0x3F;
+            if (len > 37) continue;
+            uint8_t c[3] = { 0x55, 0x55, 0x55 };
+            for (int k = 0; k < len + 2; k++) {
+                uint8_t d = pdu[k];
+                for (int v = 0; v < 8; v++, d >>= 1) {
+                    uint8_t tb = c[0] >> 7;
+                    c[0] = (uint8_t)(c[0] << 1 | c[1] >> 7); c[1] = (uint8_t)(c[1] << 1 | c[2] >> 7); c[2] <<= 1;
+                    if (tb != (d & 1)) { c[2] ^= 0x5B; c[1] ^= 0x06; }
+                }
+            }
+            int ok = 1;
+            for (int k = 0; k < 3; k++) ok &= pdu[len + 2 + k] == swapbits(c[k]);
+            if (!ok) continue;
+            printf("blerx try %d at %d type %x len %d crc ok pdu", t, k0, pdu[0] & 0xF, len);
+            for (int k = 0; k < len + 2; k++) printf(" %02x", pdu[k]);
+            printf("\n");
+            return t;
+        }
+    }
+    printf("blerx none in %d tries (%d with energy, AA errors best %d, inverted %d, ones %d)\n", tries, hot, best, besti, ones);
+    return -1;
+}
+
 static char line[256];
 static int argv_n(char **v, int max)
 {
@@ -146,6 +280,10 @@ static void command(void)
         float lo = (float)atof(v[2]), hi = (float)atof(v[3]), st = n > 4 ? (float)atof(v[4]) : 100e3f, best = -200, bf = 0;
         for (float f = lo; f <= hi; f += st) { float p = bin_db(w, ns, f, 80e6f); if (p > best) { best = p; bf = f; } }
         printf("scan peak %.0f Hz %.1f dB\n", bf, best);
+    } else if (!strcmp(c, "bleadv") && n > 4) {       /* bleadv chan if_khz amp name: tune the LO first (tunetx) */
+        ble_adv((int)num(v[1]), (int)num(v[2]), (int)num(v[3]), v[4]);
+    } else if (!strcmp(c, "blerx") && n > 2) {        /* blerx chan tries: receive LO tuned to channel - 2 MHz first */
+        ble_rx((int)num(v[1]), (int)num(v[2]), n > 3 ? (int)num(v[3]) : -1);   /* qs: Q sign */
     } else if (!strcmp(c, "hann") && n > 1) {
         hann = (int)num(v[1]);
     } else if (!strcmp(c, "est") && n > 1) {

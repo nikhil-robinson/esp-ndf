@@ -1,0 +1,6 @@
+# software BLE advertising on our API (rfctl bleadv chan 2000 300 NDFxx, LO = channel - 2 MHz), D0 -> C9:48 running
+# bench/idf_blescan (vendor controller + Bluedroid, passive scan rotating 37/38/39, duplicates on). ~2500 packets/s sent.
+chan,lo_khz,received_per_s,rssi_dbm
+37,2400000,746-834,-22
+38,2424000,746-855,-22
+39,2478000,746-828,-28..-69
