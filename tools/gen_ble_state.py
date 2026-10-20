@@ -60,6 +60,20 @@ acore = [(a - 0x60031000, v) for a, v in sorted(areg.items()) if 0x60031000 <= a
 o += ['/* core registers while the vendor advertised (differ from the scan set at 0x2CC, 0x308.., 0x32C, 0x368, 0x374) */',
       'static const struct { uint16_t off; uint32_t val; } ble_adv_core_regs[] = {'] + ['    { 0x%03X, 0x%08X },' % x for x in acore] + ['};',
       'static const uint16_t ble_adv_em14c = 0x%04X;   /* EM 0x14C: the current CS format word */' % ard16(0x14C)]
+# slave connection control structure (CS index 1, EM 0x45A) from the connection capture
+con = 'bench/idf_bleprobe/data/state_conn_c948.txt'
+tc = open(con, errors='replace').read(); tc = tc[tc.index('== state'):tc.index('== state end')]
+csegs = sorted((int(o, 16), int(a, 16)) for k, o, a in re.findall(r'^seg (\d+) off (\w+) addr (\w+)', tc, re.M))
+cmem = {}
+for l in re.findall(r'^e (.*)$', tc, re.M):
+    w = [int(x, 16) for x in l.split()]
+    for i, v in enumerate(w[1:]): cmem[w[0] + 4 * i] = v
+def crd16(o):
+    sg = max((x for x in csegs if x[0] <= o), key=lambda x: x[0]); a = sg[1] + o - sg[0]
+    return (cmem.get(a & ~3, 0) >> (8 * (a & 2))) & 0xFFFF
+o += ['/* slave connection CS (45 half-words at EM 0x45A) and its exchange-table entry template, from ' + con + ' */',
+      'static const uint16_t ble_conn_cs[45] = {' + ', '.join('0x%04X' % crd16(0x45A + 2 * i) for i in range(45)) + '};',
+      'static const uint16_t ble_conn_et[8] = {' + ', '.join('0x%04X' % crd16(2 * i) for i in range(8)) + '};']
 o += ['/* advertiser CS (45 half-words at EM 0x400) and TX descriptor (EM 0x1400) from ' + adv + ' */',
       'static const uint16_t ble_adv_cs[45] = {' + ', '.join('0x%04X' % ard16(0x400 + 2 * i) for i in range(45)) + '};',
       'static const uint16_t ble_adv_txdesc[9] = {' + ', '.join('0x%04X' % ard16(0x1400 + 2 * i) for i in range(9)) + '};']

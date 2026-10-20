@@ -46,11 +46,34 @@ static volatile uint32_t last_end;            /* ccount of the last event end (w
 static volatile uint8_t adv_on;              /* advertising instead of scanning */
 static uint32_t adv_next, adv_iv;             /* next advert start / interval, half-slots */
 static uint16_t scan_cs[45];                  /* scan control structure, restored by ble_hw_scan */
-static uint32_t tx_buf[16];                   /* advertising payload, EM 0x2400 (page register 7) */
+static uint32_t tx_buf[64];                   /* EM 0x2400 (page register 7): +0 advertising payload, +0x40.. data TX */
 #define CS0     0x400u
 #define TXD     0x1400u
 #define TXBUF   0x2400u
 static ble_hw_stats_t st;
+
+/* ---- connection (slave) ---------------------------------------------------------------------- */
+#define CS1     0x45Au                           /* slave connection control structure (CS index 1) */
+#define TXC     0x1440u                          /* our data TX descriptor */
+#define TXCBUF  (TXBUF + 0x40u)
+static volatile uint8_t conn_on;
+static uint8_t own_addr[6];
+static struct {
+    uint32_t aa, crcinit;
+    uint16_t interval, latency, timeout, evt, instant_upd, instant_map;
+    uint8_t  hop, last_unmapped, chm[5], nused, used[37], upd_pending, map_pending, new_chm[5];
+    uint16_t new_interval, new_latency, new_timeout, new_winoff; uint8_t new_winsize;
+    uint64_t anchor;                             /* half-us: start of the window of the next event */
+    uint32_t win;                                /* half-us: window length */
+    uint32_t last_rx_ms;                         /* ms clock of the last PDU from the master */
+    uint32_t idx;                                /* exchange-table entry rotation */
+} cn;
+static volatile uint8_t tx_busy;
+#define TXQ_N 8u
+static struct { uint8_t llid, len, d[27]; } txq[TXQ_N];
+static volatile uint32_t txq_head, txq_tail;
+static uint8_t init_addr[6];
+static uint32_t ms_now(void) { return (uint32_t)(time_us() / 1000); }
 #define Q_N 32u
 static ble_hw_pkt_t q[Q_N];
 static volatile uint32_t q_head, q_tail;
@@ -76,6 +99,7 @@ static void drain(void)
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) {
         if (!(EM16(d) & 0x8000)) continue;
         uint32_t n = (q_head + 1) % Q_N;
+        if (conn_on && cn.evt == 0 && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
         if (n == q_tail) st.dropped++;
         else {
             ble_hw_pkt_t *p = &q[q_head];
@@ -121,6 +145,8 @@ static void isr(void *arg)
     service();
 }
 
+static uint8_t adv_type = 2;                  /* 0 ADV_IND (connectable), 2 ADV_NONCONN_IND */
+void ble_hw_adv_type(uint8_t t) { adv_type = t; }
 static uint32_t adv_idx;                      /* the vendor rotates exchange-table entries 0..15, one per advert */
 static void arm_adv(void)
 {
@@ -133,9 +159,118 @@ static void arm_adv(void)
     EM16(e + 6) = 0x270;                         /* fine start = start of the half-slot (vendor) */
     EM16(e + 8) = CS0 / 2;
     EM16(e + 10) = 0x030B; EM16(e + 12) = 0x0C00; EM16(e + 14) = 0x0F00;
-    EM16(TXD) = 0;                               /* descriptor owned by the core again */
+    EM16(TXD) = adv_type == 0 ? TXD + 14 : 0;    /* ADV_IND chains to the SCAN_RSP descriptor at +14 (vendor); owned by the core */
+    EM16(TXD + 14) = TXD;
+    CORE(0x24) = RING0;
     CORE(0x18) = 0xFFFFFFFFu;
     CORE(0x100) = 0x80000000u | adv_idx;
+}
+
+static uint64_t now_hu(void)                    /* current core time, half-us */
+{
+    uint32_t t = clkn(), f = CORE(0x20) & 0x3FF;
+    return (uint64_t)t * 625u + (624u - f);
+}
+
+static void chm_apply(const uint8_t m[5])
+{
+    memcpy(cn.chm, m, 5); cn.nused = 0;
+    for (int c = 0; c < 37; c++) if (m[c >> 3] & (1 << (c & 7))) cn.used[cn.nused++] = (uint8_t)c;
+    EM16(CS1 + 0x22) = m[0] | m[1] << 8; EM16(CS1 + 0x24) = m[2] | m[3] << 8; EM16(CS1 + 0x26) = (EM16(CS1 + 0x26) & 0xFF00) | m[4];
+}
+
+static uint8_t csa1_next(void)                   /* channel selection #1 */
+{
+    cn.last_unmapped = (uint8_t)((cn.last_unmapped + cn.hop) % 37);
+    uint8_t c = cn.last_unmapped;
+    if (!(cn.chm[c >> 3] & (1 << (c & 7)))) c = cn.used[c % cn.nused];
+    return c;
+}
+
+static void conn_arm(void)                       /* the window of event cn.evt, on its channel */
+{
+    EM16(CS1 + 0x16) = csa1_next();              /* fixed channel this event (hardware hopping off) */
+    uint32_t w = cn.win / 2;                     /* RXWINCNTL in us (RXWIDE 0) */
+    EM16(CS1 + 0x1A) = (uint16_t)(w > 0x7FFF ? 0x7FFF : w);
+    uint64_t st_hu = cn.anchor;
+    uint32_t t = (uint32_t)(st_hu / 625u), f = 624u - (uint32_t)(st_hu % 625u);
+    cn.idx = (cn.idx + 1) & 15;
+    uint32_t e = 16 * cn.idx;
+    EM16(e + 0) = ble_conn_et[0] & ~0x38u;
+    EM16(e + 2) = t & 0xFFFF; EM16(e + 4) = (t >> 16) & 0xFFF; EM16(e + 6) = f;
+    EM16(e + 8) = CS1 / 2; EM16(e + 10) = ble_conn_et[5]; EM16(e + 12) = ble_conn_et[6]; EM16(e + 14) = ble_conn_et[7];
+    CORE(0x24) = RING0;
+    CORE(0x18) = 0xFFFFFFFFu;
+    CORE(0x100) = 0x80000000u | cn.idx;
+}
+
+static void conn_start(const uint8_t *p, uint64_t adv_start_hu)   /* p: CONNECT_IND payload (34 bytes) */
+{
+    const uint8_t *ll = p + 12;
+    cn.aa = ll[0] | ll[1] << 8 | ll[2] << 16 | (uint32_t)ll[3] << 24;
+    cn.crcinit = ll[4] | ll[5] << 8 | ll[6] << 16;
+    uint8_t winsize = ll[7]; uint16_t winoff = ll[8] | ll[9] << 8;
+    cn.interval = ll[10] | ll[11] << 8; cn.latency = ll[12] | ll[13] << 8; cn.timeout = ll[14] | ll[15] << 8;
+    cn.hop = ll[21] & 0x1F; cn.last_unmapped = 0; cn.evt = 0; cn.upd_pending = cn.map_pending = 0;
+    for (int k = 0; k < 45; k++) EM16(CS1 + 2 * k) = ble_conn_cs[k];
+    EM16(CS1 + 0x0C) = cn.aa & 0xFFFF; EM16(CS1 + 0x0E) = cn.aa >> 16;
+    EM16(CS1 + 0x10) = cn.crcinit & 0xFFFF; EM16(CS1 + 0x12) = cn.crcinit >> 16;
+    EM16(CS1 + 0x1C) = 0;                        /* no TX descriptor: the core answers with empty PDUs */
+    EM16(CS1 + 0x20) = RING_N;
+    EM16(CS1 + 0x50) = 0;
+    chm_apply(ll + 16);
+    /* CONNECT_IND end: advert start + radio ramp (~100 us) + ADV_IND air + 150 us + CONNECT_IND air (352 us) */
+    uint32_t adv_air = 8u * (1 + 4 + 2 + (EM16(TXD + 2) >> 8) + 3);
+    uint64_t ci_end = adv_start_hu + 2u * (100 + adv_air + 150 + 352);
+    uint64_t tw = ci_end + 2u * 1250u * (1u + winoff);          /* transmit window start */
+    cn.anchor = tw - 2u * 200u;
+    cn.win = 2u * (1250u * winsize + 400u);
+    cn.last_rx_ms = ms_now();
+    q_tail = q_head;                             /* advertising-phase PDUs (incl. the CONNECT_IND) are not link data */
+    memcpy(init_addr, p, 6);
+    txq_head = txq_tail = 0;
+    adv_on = 0; conn_on = 1; tx_busy = 0;
+    conn_arm();
+}
+
+static void tx_load(void)                        /* next queued PDU into the descriptor once the core is done with the last */
+{
+    if (tx_busy && !(EM16(TXC) & 0x8000) && EM16(CS1 + 0x1C)) return;   /* still in flight */
+    tx_busy = 0;
+    if (txq_tail == txq_head) return;
+    memcpy((uint8_t *)tx_buf + 0x40, txq[txq_tail].d, txq[txq_tail].len);
+    EM16(TXC) = 0;
+    EM16(TXC + 2) = (uint16_t)(txq[txq_tail].len << 8 | txq[txq_tail].llid);
+    EM16(TXC + 4) = TXCBUF;
+    EM16(CS1 + 0x1C) = TXC;
+    txq_tail = (txq_tail + 1) % TXQ_N;
+    tx_busy = 1;
+    st.tx_pdus++;
+}
+
+static void conn_end(void)
+{
+    conn_on = 0;
+    st.disconnects++;
+}
+
+/* after each connection event: next anchor, pending updates at their instant, supervision */
+static void conn_next(int got)
+{
+    tx_load();
+    if (got) cn.last_rx_ms = ms_now();
+    if (ms_now() - cn.last_rx_ms > cn.timeout * 10u) { conn_end(); return; }
+    cn.evt++;
+    EM16(CS1 + 0x50) = cn.evt;
+    uint64_t iv = 2u * 1250u * cn.interval;
+    if (cn.upd_pending && cn.evt == cn.instant_upd) {           /* connection update: new window at the instant */
+        cn.upd_pending = 0;
+        cn.anchor += iv + 2u * 1250u * cn.new_winoff;
+        cn.interval = cn.new_interval; cn.latency = cn.new_latency; cn.timeout = cn.new_timeout;
+        cn.win = 2u * (1250u * cn.new_winsize + 400u);
+    } else cn.anchor += iv;
+    if (cn.map_pending && cn.evt == cn.instant_map) { cn.map_pending = 0; chm_apply(cn.new_chm); }
+    conn_arm();
 }
 
 static void service(void)
@@ -155,7 +290,15 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
-        if (adv_on) { adv_next += adv_iv; arm_adv(); }
+        if (conn_on) { uint32_t before = st.packets; drain(); conn_next(st.packets != before); }
+        else if (adv_on) {
+            uint64_t adv_start = (uint64_t)adv_next * 625u;          /* this advert started at adv_next (fine 0x270 = slot start) */
+            uint32_t h0 = q_head; drain();
+            int connected = 0;
+            for (uint32_t k = h0; k != q_head; k = (k + 1) % Q_N)   /* CONNECT_IND to our address? */
+                if ((q[k].hdr0 & 0xF) == 5 && q[k].len == 34 && !memcmp(q[k].data + 6, own_addr, 6)) { conn_start(q[k].data, adv_start); connected = 1; break; }
+            if (!connected) { adv_next += adv_iv; arm_adv(); }
+        }
         else if (scan_chan) arm(); else drain();
         st.isr_cycles += ccount() - c0;
     }
@@ -214,7 +357,48 @@ void ble_hw_scan(uint8_t chan)
     arm();
 }
 
-void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; }
+void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; conn_on = 0; }
+
+int ble_hw_connected(void) { return conn_on; }
+
+/* queue one LL data PDU (llid 2: L2CAP start, 3: LL control); -1 while the previous one is not acknowledged */
+int ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len)
+{
+    if (!conn_on || len > 27) return -1;
+    uint32_t ps = irq_lock();
+    uint32_t n = (txq_head + 1) % TXQ_N;
+    if (n == txq_tail) { irq_unlock(ps); return -1; }     /* queue full */
+    txq[txq_head].llid = llid; txq[txq_head].len = (uint8_t)len; memcpy(txq[txq_head].d, data, len);
+    txq_head = n;
+    tx_load();
+    irq_unlock(ps);
+    return 0;
+}
+
+/* LL control the link layer must answer; the rest goes to the application. Returns 1 if consumed. */
+int ble_hw_ll_control(const ble_hw_pkt_t *p)
+{
+    if ((p->hdr0 & 3) != 3 || !p->len) return 0;
+    const uint8_t *d = p->data; uint8_t r[27];
+    switch (d[0]) {
+    case 0x00:                                   /* LL_CONNECTION_UPDATE_IND: WinSize WinOffset Interval Latency Timeout Instant */
+        cn.new_winsize = d[1]; cn.new_winoff = d[2] | d[3] << 8; cn.new_interval = d[4] | d[5] << 8;
+        cn.new_latency = d[6] | d[7] << 8; cn.new_timeout = d[8] | d[9] << 8; cn.instant_upd = d[10] | d[11] << 8; cn.upd_pending = 1;
+        return 1;
+    case 0x01:                                   /* LL_CHANNEL_MAP_IND */
+        memcpy(cn.new_chm, d + 1, 5); cn.instant_map = d[6] | d[7] << 8; cn.map_pending = 1; return 1;
+    case 0x02: conn_end(); return 1;             /* LL_TERMINATE_IND */
+    case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP, no features */
+        r[0] = 0x09; memset(r + 1, 0, 8); ble_hw_send(3, r, 9); return 1;
+    case 0x0C:                                   /* LL_VERSION_IND: 5.0, Espressif (0x02E5) */
+        r[0] = 0x0C; r[1] = 9; r[2] = 0xE5; r[3] = 0x02; r[4] = 0; r[5] = 0; ble_hw_send(3, r, 6); return 1;
+    case 0x12: r[0] = 0x13; ble_hw_send(3, r, 1); return 1;     /* LL_PING_REQ */
+    case 0x14:                                   /* LL_LENGTH_REQ -> 27 bytes, 328 us both ways */
+        r[0] = 0x15; r[1] = 27; r[2] = 0; r[3] = 0x48; r[4] = 0x01; r[5] = 27; r[6] = 0; r[7] = 0x48; r[8] = 0x01; ble_hw_send(3, r, 9); return 1;
+    case 0x07: case 0x09: case 0x0D: case 0x13: case 0x15: return 1;   /* responses / reject: nothing to do */
+    default: r[0] = 0x07; r[1] = d[0]; ble_hw_send(3, r, 2); return 1; /* LL_UNKNOWN_RSP */
+    }
+}
 
 int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *data, unsigned len, uint32_t interval_us)
 {
@@ -225,11 +409,12 @@ int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *d
     for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_adv_cs[k];
     EM16(CS0 + 0x16) = chan;                     /* fixed channel, no hop */
     for (int k = 0; k < 3; k++) EM16(CS0 + 6 + 2 * k) = adva[2 * k] | adva[2 * k + 1] << 8;
+    memcpy(own_addr, adva, 6);
     /* random own address: the vendor sets LINKCNTL bit 7, TxAdd in the header and bit 6 of TX descriptor word 8 */
     EM16(CS0 + 2) = (EM16(CS0 + 2) & ~0x80u) | (random ? 0x80 : 0);
     for (int k = 0; k < 9; k++) EM16(TXD + 2 * k) = ble_adv_txdesc[k];
     EM16(0x14C) = ble_adv_em14c;
-    EM16(TXD + 2) = (uint16_t)((len + 6) << 8 | 0x22 | (random ? 0x40 : 0));   /* ADV_NONCONN_IND (+ the vendor's 0x20) */
+    EM16(TXD + 2) = (uint16_t)((len + 6) << 8 | (adv_type ? 0x20 : 0) | adv_type | (random ? 0x40 : 0));   /* 0x20 = ChSel (CSA#2); off when connectable: we hop with CSA#1 */
     EM16(TXD + 4) = TXBUF;
     EM16(TXD + 16) = (EM16(TXD + 16) & ~0x40u) | (random ? 0x40 : 0);
     memcpy(tx_buf, data, len);

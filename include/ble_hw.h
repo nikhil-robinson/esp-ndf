@@ -15,7 +15,7 @@ typedef struct {
 
 typedef struct {
     uint32_t events, packets, dropped;   /* scan events run, PDUs received, PDUs lost to a full queue */
-    uint32_t aborts, isr_calls, skips;                     /* stuck events aborted by the watchdog */
+    uint32_t aborts, isr_calls, skips, disconnects, tx_pdus;                     /* stuck events aborted by the watchdog */
     uint32_t isr_cycles;                 /* CPU cycles spent in the interrupt handler */
 } ble_hw_stats_t;
 
@@ -23,8 +23,14 @@ int  ble_hw_init(void);                /* after rf_init_replay(); 0 on success *
 void ble_hw_scan(uint8_t chan);        /* continuous passive scan on one advertising channel (37, 38, 39) */
 void ble_hw_stop(void);
 /* Advertise ADV_NONCONN_IND (AdvA + up to 31 bytes AdvData) from the core every interval_us on one channel. */
+void ble_hw_adv_type(uint8_t type);   /* before ble_hw_adv: 0 ADV_IND (connectable), 2 ADV_NONCONN_IND (default) */
 int  ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *data, unsigned len, uint32_t interval_us);
 int  ble_hw_read(ble_hw_pkt_t *p);     /* 1 and the oldest PDU, or 0 when none; also services the core */
 int  ble_hw_wait(ble_hw_pkt_t *p, uint32_t timeout_us);   /* sleep (waiti) until a PDU or the timeout */
 void ble_hw_get_stats(ble_hw_stats_t *s);
+/* Connection (slave): after ble_hw_adv_type(0) + ble_hw_adv(), a CONNECT_IND to our address starts the link.
+ * Received LL data PDUs arrive through ble_hw_read (hdr0 = LL header byte 0: LLID [1:0]). */
+int  ble_hw_connected(void);
+int  ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len);   /* llid 2 L2CAP, 3 LL control; <= 27 bytes */
+int  ble_hw_ll_control(const ble_hw_pkt_t *p);                       /* answers LL control PDUs; 1 if consumed */
 void ble_hw_debug(uint32_t out[6]);         /* intmask, raw status, ET0 word, clkn, RX desc ptr, ET0 start */

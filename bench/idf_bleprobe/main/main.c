@@ -161,7 +161,11 @@ void app_main(void)
     dump("idle");
 #ifdef ADVMODE
     {   /* advertiser instead of scanner: ADV_NONCONN_IND "IDF-ADV", channel 37, 20 ms; then freeze and dump */
+#ifdef CONNMODE
+        static uint8_t raw[] = { 2, 1, 6, 11, 9, 'N', 'D', 'F', '-', 'P', 'E', 'R', 'I', 'P', 'H' };
+#else
         static uint8_t raw[] = { 2, 1, 6, 8, 9, 'I', 'D', 'F', '-', 'A', 'D', 'V' };
+#endif
         esp_ble_gap_config_adv_data_raw(raw, sizeof raw);
         vTaskDelay(pdMS_TO_TICKS(100));
 #ifdef RANDADDR
@@ -169,14 +173,22 @@ void app_main(void)
         esp_ble_gap_set_rand_addr(ra);
         vTaskDelay(pdMS_TO_TICKS(100));
 #endif
-        esp_ble_adv_params_t ap = { .adv_int_min = 0x20, .adv_int_max = 0x20, .adv_type = ADV_TYPE_NONCONN_IND,
+        esp_ble_adv_params_t ap = { .adv_int_min = 0x20, .adv_int_max = 0x20,
+#ifdef CONNMODE
+                                    .adv_type = ADV_TYPE_IND,
+#else
+                                    .adv_type = ADV_TYPE_NONCONN_IND,
+#endif
 #ifdef RANDADDR
                                     .own_addr_type = BLE_ADDR_TYPE_RANDOM,
 #else
                                     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
 #endif
                                     .channel_map = ADV_CHNL_37, .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY };
-#ifndef NOADV
+#ifdef CONNMODE
+        esp_ble_gap_start_advertising(&ap);
+        vTaskDelay(pdMS_TO_TICKS(4000));             /* the central connects meanwhile; dump during the connection */
+#elif !defined(NOADV)
         esp_ble_gap_start_advertising(&ap);
         vTaskDelay(pdMS_TO_TICKS(1000));
         esp_ble_gap_stop_advertising();
