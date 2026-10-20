@@ -1,0 +1,16 @@
+entry 0x403788=== ble_scan (hardware link layer, no vendor code)
+ble_hw_init rc 0, 2190 us
+  pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
+  pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
+  pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
+  (time inside ble_hw_wait, asleep or servicing: 99.3%)
+t 0 s: 928 PDUs/s, 1061 events/s, service CPU 2.15%, dropped 0, watchdog re-arms 0, interrupts 2122
+  (time inside ble_hw_wait, asleep or servicing: 100.0%)
+t 1 s: 936 PDUs/s, 1068 events/s, service CPU 2.17%, dropped 0, watchdog re-arms 0, interrupts 4258
+  (time inside ble_hw_wait, asleep or servicing: 100.0%)
+t 2 s: 936 PDUs/s, 1068 events/s, service CPU 2.17%, dropped 0, watchdog re-arms 0, interrupts 6394
+  (time inside ble_hw_wait, asleep or servicing: 100.0%)
+t 3 s: 933 PDUs/s, 1068 events/s, service CPU 2.16%, dropped 0, watchdog re-arms 0, interrupts 8530
+  (time inside ble_hw_wait, asleep or servicing: 100.0%)
+t 4 s: 934 PDUs/s, 1068 events/s, service CPU 2.17%, dropped 0, watchdog re-arms 0, interrupts 10666
+=== done

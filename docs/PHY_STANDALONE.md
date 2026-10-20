@@ -582,7 +582,7 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
   - **TX:** the full packet is built in software: preamble, access address, ADV_NONCONN_IND PDU, CRC-24, whitening. It is GFSK-modulated (BT 0.5, ±250 kHz, 40 samples per bit) on a +2 MHz IF and looped from one DAC bank, about 2500 packets/s. An IDF Bluedroid scanner (`bench/idf_blescan`) receives it on channels 37, 38 and 39 at 750–850 packets/s each, at −22 dBm RSSI. The stack drops CRC failures, so the CRC is right (`bench/rfmeas/ble_tx.txt`).
   - **RX:** 1 ms bursts at 16 MS/s. Bursts without energy are skipped. Then an FM discriminator (conjugate product, IF removed, int8), integrate-and-dump per bit, access-address search, dewhitening and the CRC check. Against an IDF advertiser (`ADV=1 idf.py -B build_adv`, channel 37, 20 ms) it decoded 20/20 with the CRC passing, within 0–45 bursts each (`bench/rfmeas/ble_rx.txt`).
   - The capture's Q is inverted versus the DAC (as in `meas`). A signal at +1.83 MHz confirmed the sign.
-  - **Still open:** driving the chip's hardware BLE/Wi-Fi demodulators directly. They are undocumented MAC/modem blocks owned by the blobs. Any protocol up to about 8 MHz wide runs in software on the same path as above.
+  - **Hardware BLE receive also works** without the vendor stack: see §11.
 - **A.8, coexistence with native Wi-Fi: works** (`bench/idf_coex`, `result.txt`). On one chip, three cycles of Wi-Fi start + scan → `esp_wifi_stop` → our init + receive of D0's tone → Wi-Fi again:
   - every scan found 8–9 APs at −45 dBm, and every receive got the tone at +36.5 dB;
   - hand-off costs: `esp_wifi_stop` 1.6 ms, our init + tune 5.2 ms, the next `esp_wifi_start` 2.3 ms (the vendor keeps its calibration);
@@ -592,3 +592,62 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
   - Calibrations are separate calls: `rf_rc_cal`, `rf_rx_dc_cal`, `rf_tx_dc_cal`, and the PLL cap calibration in `rf_pll_set_khz`. RX IQ is not needed (§9); TX IQ is neutral at 0.
   - OS hooks: only a microsecond delay.
   - ABI: esp-ndf builds everything with `-mabi=call0` (Makefile), so every measurement in this document ran on CALL0 code. The same sources also run under IDF's windowed ABI (`bench/idf_rfrx`, `bench/idf_coex`).
+
+## 11. Hardware BLE receive on the S3's own link-layer core (no vendor code)
+
+`drivers/ble/ble_hw.c`, `include/ble_hw.h`, `examples/ble_scan`. The chip's link-layer core receives advertising PDUs by itself: demodulation, access-address match, CRC, dewhitening, and the write into memory. The CPU only re-arms one scan event per received packet and copies the PDU out.
+
+**Measured** (`bench/rfmeas/ble_hw_scan.txt`; D0 sending about 2,500 ADV_NONCONN_IND/s on channel 37 with `rfctl bleadv`):
+
+| Metric | Value |
+|---|---|
+| PDUs received | about 935/s |
+| Scan events | about 1,068/s |
+| Drops / watchdog re-arms | 0 / 0 |
+| Servicing CPU | 2.17% (about 20 µs per event); the rest is spent asleep in `waiti` |
+| `ble_hw_init` | 2.2 ms |
+
+For comparison:
+- The vendor scanner (IDF Bluedroid, `bench/idf_blescan`) receives 750–850/s per channel while it rotates through 37/38/39.
+- Our software receiver (§10, A.5) needs a whole core while it decodes a 1 ms burst, and cannot run continuously.
+
+**The hardware**:
+- **Link-layer core:** RivieraWaves BLE v9 at 0x60031000 (version 0x09001B00).
+  - Registers: 0x0C interrupt mask, 0x14 raw status (bit 0 start, 2 RX, 5 end, 8 skipped), 0x18 ack, 0x1C SLOTCLK (bit 31 samples CLKN in half-slots), 0x24 RX descriptor pointer, 0x100 ACTSCHCNTL (bit 31 starts the event in exchange-table entry [3:0]), 0x2D8 an ESP interrupt FIFO ([9:5] pending, write bit 0 to pop).
+  - Exchange memory is the core's own 16-bit offset space, mapped onto DRAM by page registers at 0x60031204+ ([31:18] EM offset / 4, [17:0] DRAM word address; entries above 47 sit 28 bytes further).
+- **Exchange-memory layout used:**
+  - Exchange-table entry 0 (16 bytes): mode/status [5:3], start time in half-slots, fine start, CS pointer / 2.
+  - Scan control structure at 0x0400. The S3 layout is 2 bytes shorter at the start than the public 5.1 headers (no ISOLINKCNTL). +0x16 HOPCNTL: channel [5:0], bit 15 auto-hop (it rotates 37/38/39).
+  - RX ring at 0x1000: 10 descriptors × 0x14 bytes. +0 next, bit 15 done; +4 PDU header; +6 RSSI | channel << 8; +8 CLKN at sync; +0x12 payload pointer.
+- **BT modem block** at 0x60011000 (0x800 long). Register 0x078 holds the access address.
+
+**What it needed beyond our PHY init**, found by bisecting the vendor bring-up in IDF (`bench/idf_blegen`):
+
+| Step | Result |
+|---|---|
+| none | 0/10 |
+| `esp_bt_controller_init` | 0/10 |
+| `+ enable` | 3/10 |
+| `esp_phy_enable` alone | works |
+| libphy `rf_init` alone | works |
+
+Inside `rf_init`, the piece is `set_chan_freq_hw_init` → `get_rf_freq_init` → `wr_rf_freq_mem`:
+
+1. **RF frequency memory** (write-only; `rf_freq_mem_load()` in `rf_pll.c`). It is the per-MHz LO table the BLE hardware tunes from on every event.
+   - 85 entries for 2400–2484 MHz, 3 words each, written through 0x6000E0C4[7:0] (address) / 0x6000E148 (data) / 0x6000E0C4 bit 9 (write).
+   - Word 0 is the VCO cap interpolated between our calibrations at 2400 and 2464 MHz, plus `0x80 | vco code`; word 1 is the PLL divider; word 2 is 0.
+   - Being write-only, no register dump showed it. Without it the core runs events, but the demodulator never sees the channel.
+2. **Coex arbiter page** 0x60035000 (mirrored ×4): grants the radio to BT. Without it the BT demodulator stays idle (readout 0x600110B0 = 0x80).
+3. **BT baseband / analog-bus sequencer block** 0x6000E000: loaded while 0x6000E0C4 bit 25 is held, as libbtbb `bt_bb_v2_init_cmplx` does.
+4. **Core, modem and exchange-memory image:** generated from a vendor capture (`bench/idf_bleprobe`) by `tools/gen_ble_state.py` into `drivers/ble/ble_state.h`.
+
+**Driving rules learned on the hardware:**
+- **Kick lead:** start each event 1 half-slot ahead. A lead of 2 is never picked up, and its kick is silently lost.
+- **One window per event:** each event is one receive window, ending after one PDU or about 625 µs, so the core needs one kick per event (queued exchange-table entries don't chain).
+- **Drain before each kick:** the core can set a descriptor's done bit after the end interrupt, and an event kicked onto a done descriptor never ends.
+- **Re-arm from thread context:** doing it inside the interrupt handler wedges the scheduler within a few events (many variants tried; root cause still open). The handler only masks the core interrupt and wakes the CPU; `ble_hw_read` / `ble_hw_wait` do the work.
+
+**Still open:**
+- TX of advertising from the core (software TX works, §10).
+- Connections.
+- More PDUs per event: chaining receive windows would approach the full 2,500/s.
