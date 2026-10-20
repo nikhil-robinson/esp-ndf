@@ -1,0 +1,4 @@
+# D0 streams a 2.5 MHz tone unit by unit (rf_dac_stream: banks 0/1 alternate, position from the CPU clock, tail kept in bank 2 memory); C9:48 at 2436 MHz checks tone + phase continuity at +3.5 MHz
+stream spectrum: tone +3.5M 33.2 dB, LO 11.8, image -8.5
+streaming: phasejump 100 captures: worst 0.098 rad, captures with a jump > 0.5 rad: 0
+txstream rc 0 units 47999 late 0 min_margin 2041 words idx0 2478864127 idx1 1426342174 late_into 2577692497 cb 45 us copy 76 us

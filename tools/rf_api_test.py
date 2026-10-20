@@ -13,7 +13,7 @@ def lines():
 done = False
 while time.time() < end and not done:
     for l in lines():
-        if l.startswith(('PASS', 'FAIL', 'rx ', 'hop', '===')): print(l)
+        if l.startswith(('PASS', 'FAIL', 'rx ', 'hop', 'stream', '===')): print(l)
         if l == 'STEP 1':
             d.cmd('tunetx 2437000'); d.cmd('tx 127 0 2000 300'); time.sleep(0.2); c.write(b'g')
         elif l == 'STEP 2':
@@ -21,4 +21,6 @@ while time.time() < end and not done:
             m = d.meas(8192, 2e6, 6e6); print('D0 sees tone %.1f dB, floor %.1f dB' % (m['bins'][0], m['bins'][1])); full = m['bins'][0]; c.write(b'g')
         elif l == 'STEP 3':
             time.sleep(0.1); m = d.meas(8192, 2e6, 6e6); print('D0 sees tone %.1f dB at -10 dB level (step %.1f dB)' % (m['bins'][0], m['bins'][0] - full)); c.write(b'g')
+        elif l == 'STEP 4':
+            time.sleep(0.3); print('D0 during stream:', d.cmd('phasejump 30 3500000', timeout=60)[0])
         elif l.startswith('=== done'): done = True

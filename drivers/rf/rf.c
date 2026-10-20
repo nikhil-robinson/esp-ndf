@@ -239,6 +239,18 @@ int rf_tx_play(const uint32_t *buf, uint32_t n, int loop)
     return RF_OK;
 }
 
+int rf_tx_stream(uint32_t units, rf_tx_cb cb, void *ctx)
+{
+    if (state != RF_STATE_TX) return RF_ERR_STATE;
+    if (!cb || units < 2) return RF_ERR_RANGE;
+    rf_dac_stop();
+    rf_dac_stats_t st;
+    uint32_t ps = irq_lock();
+    int rc = rf_dac_stream(units, cb, ctx, &st);
+    irq_unlock(ps);
+    return rc ? RF_ERR_TIMEOUT : RF_OK;
+}
+
 int rf_tx_tone_khz(int offset_khz, int amplitude)
 {
     if (state != RF_STATE_TX) return RF_ERR_STATE;

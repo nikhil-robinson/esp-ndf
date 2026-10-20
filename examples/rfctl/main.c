@@ -180,6 +180,18 @@ static int ble_rx(int chan, int tries, int qs)
     return -1;
 }
 
+static uint32_t txs_tab[16];                             /* one period of a 2.5 MHz tone (16 samples at 40 MS/s; divides the 8192-word unit) */
+static int txs_cb(uint32_t *buf, uint32_t n, void *ctx)   /* repeats the period: ~2 cycles/word (models a buffer/PSRAM source) */
+{
+    (void)ctx;
+    const uint32_t *t = txs_tab;
+    for (uint32_t k = 0; k < n; k += 16) {
+        buf[k] = t[0]; buf[k + 1] = t[1]; buf[k + 2] = t[2]; buf[k + 3] = t[3]; buf[k + 4] = t[4]; buf[k + 5] = t[5]; buf[k + 6] = t[6]; buf[k + 7] = t[7];
+        buf[k + 8] = t[8]; buf[k + 9] = t[9]; buf[k + 10] = t[10]; buf[k + 11] = t[11]; buf[k + 12] = t[12]; buf[k + 13] = t[13]; buf[k + 14] = t[14]; buf[k + 15] = t[15];
+    }
+    return 0;
+}
+
 static char line[256];
 static int argv_n(char **v, int max)
 {
@@ -286,6 +298,85 @@ static void command(void)
         ble_adv((int)num(v[1]), (int)num(v[2]), (int)num(v[3]), v[4]);
     } else if (!strcmp(c, "blerx") && n > 2) {        /* blerx chan tries: receive LO tuned to channel - 2 MHz first */
         ble_rx((int)num(v[1]), (int)num(v[2]), n > 3 ? (int)num(v[3]) : -1);   /* qs: Q sign */
+    } else if (!strcmp(c, "txstream") && n > 2) {     /* txstream units if_khz: phase-continuous tone, generated unit by unit */
+        float dph = 2 * (float)M_PI * (float)num(v[2]) * 1000.0f / 40e6f;
+        for (uint32_t k = 0; k < 16; k++) txs_tab[k] = rf_iq_word((int)lrintf(300 * cosf(dph * k)), (int)lrintf(300 * sinf(dph * k)));
+        rf_tx_on(127, 0);
+        rf_dac_stats_t sts;
+        uint32_t ps = irq_lock();
+        int rc = rf_dac_stream((uint32_t)num(v[1]), txs_cb, 0, &sts);
+        irq_unlock(ps);
+        rf_tx_off();
+        printf("txstream rc %d units %lu late %lu min_margin %lu words idx0 %lu idx1 %lu late_into %lu cb %lu us copy %lu us\n", rc, (unsigned long)sts.units, (unsigned long)sts.late,
+               (unsigned long)sts.min_margin, (unsigned long)sts.idx0, (unsigned long)sts.idx1, (unsigned long)sts.late_into, (unsigned long)(sts.cb_max / 240), (unsigned long)(sts.copy_max / 240));
+    } else if (!strcmp(c, "phasejump") && n > 2) {    /* phasejump captures f_hz: max phase deviation from linear per 256-sample block */
+        int caps = (int)num(v[1]); float f0 = (float)atof(v[2]); float worst = 0; int bad = 0;
+        for (int cpt = 0; cpt < caps; cpt++) {
+            rf_dump_burst(RF_DUMP_80M, 16383);
+            const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
+            float ph[63];
+            for (int b = 0; b < 63; b++) {
+                float re = 0, im = 0;
+                for (int k = 0; k < 256; k++) {
+                    int idx = b * 256 + k; float a = -2 * (float)M_PI * f0 * idx / 80e6f, cs = cosf(a), sn = sinf(a);
+                    float i = rf_iq_i(w[idx]), q = -rf_iq_q(w[idx]);
+                    re += i * cs - q * sn; im += i * sn + q * cs;
+                }
+                ph[b] = atan2f(im, re);
+            }
+            float sum = 0; for (int b = 1; b < 63; b++) { float d = ph[b] - ph[b - 1]; while (d > (float)M_PI) d -= 2 * (float)M_PI; while (d < -(float)M_PI) d += 2 * (float)M_PI; sum += d; }
+            float slope = sum / 62, mx = 0;
+            for (int b = 1; b < 63; b++) { float d = ph[b] - ph[b - 1] - slope; while (d > (float)M_PI) d -= 2 * (float)M_PI; while (d < -(float)M_PI) d += 2 * (float)M_PI; if (fabsf(d) > mx) mx = fabsf(d); }
+            if (mx > worst) worst = mx;
+            if (mx > 0.5f) bad++;
+        }
+        printf("phasejump %d captures: worst %.3f rad, captures with a jump > 0.5 rad: %d\n", caps, worst, bad);
+    } else if (!strcmp(c, "dactest") && n > 1) {     /* dactest mode: 16384-word loop of a +2.5 MHz tone from bank 0 */
+        int mode = (int)num(v[1]);
+        volatile uint32_t *b0 = (volatile uint32_t *)RF_DUMP_BANK(0);
+        for (uint32_t k = 0; k < 16384; k++) { float a = 2 * (float)M_PI * 2.5e6f * k / 40e6f; b0[k] = rf_iq_word((int)lrintf(300 * cosf(a)), (int)lrintf(300 * sinf(a))); }
+        rf_tx_on(127, 0);
+        volatile uint32_t *bs = (volatile uint32_t *)0x600C101C, *dac = (volatile uint32_t *)0x60033D64, *ct = (volatile uint32_t *)0x60033D5C;
+        *ct = 0; *dac = 0;
+        *bs = (*bs & ~15u) | 1u | (mode == 2 ? 4u : 0);
+        if (mode == 1) { *(volatile uint32_t *)0x60033D90 = 0x000C2040u; *ct = 0x00024000u | RF_DUMP_40M; *bs |= 4; }
+        uint32_t d = 1u << 31 | 16384u;
+        *dac = d;
+        if (mode == 1) *ct = 0x00024000u | RF_DUMP_40M | 1u << 31;
+        *dac = d | 1u << 19;
+        tx_active = 1;
+        if (mode >= 3) {                                 /* 3: bank 1 = bank 0, toggle 0<->1 every ~100 us for 3 s; 4: toggle only on 16-sample boundaries */
+            uint32_t c0 = ccount(); volatile uint32_t *b1 = (volatile uint32_t *)RF_DUMP_BANK(1);
+            for (uint32_t k = 0; k < 16384; k++) b1[k] = b0[k];
+            uint32_t sw = 0; uint64_t cyc = 0; uint32_t cp = c0;
+            while (cyc < 720000000ull) {
+                uint32_t now = ccount(); cyc += now - cp; cp = now;
+                if (cyc / 24000 > sw) {
+                    if (mode == 4) { while (1) { now = ccount(); cyc += now - cp; cp = now; if (cyc % 96 < 12) break; } }
+                    *bs = (*bs & ~3u) | ((sw & 1) ? 1u : 2u); sw = cyc / 24000;
+                }
+            }
+            *bs = (*bs & ~3u) | 1u;
+        }
+        printf("dactest %d bank_sel %lx\n", mode, (unsigned long)(*bs & 15));
+    } else if (!strcmp(c, "dacidx")) {                /* sample the shared engine index (0x60033D60) while the DAC plays */
+        if (n > 1) {                                    /* dacidx 1: also run a circular capture at 40 MS/s into bank 2 (position sensor) */
+            volatile uint32_t *bs = (volatile uint32_t *)0x600C101C, *ct = (volatile uint32_t *)0x60033D5C;
+            *ct = 0; *(volatile uint32_t *)0x60033D90 = 0x000C2040u; *ct = 0x00024000u | RF_DUMP_40M;
+            *bs |= 4; *ct = 0x00024000u | RF_DUMP_40M | 1u << 31;
+        }
+        uint32_t a[8], t[8];
+        for (int k = 0; k < 8; k++) { a[k] = *(volatile uint32_t *)0x60033D60; t[k] = ccount(); delay_us(10); }
+        printf("dacidx");
+        for (int k = 0; k < 8; k++) printf(" %lu@%lu", (unsigned long)(a[k] & 0x3FFF), (unsigned long)((t[k] - t[0]) / 240));
+        printf("\n");
+    } else if (!strcmp(c, "dacrewrite") && n > 1) {   /* dacrewrite if_khz: overwrite bank 1 while the DAC keeps playing it */
+        volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1); int ik = (int)num(v[1]);
+        for (uint32_t k = 0; k < 2000; k++) {
+            float ph = 2 * (float)M_PI * (float)ik * 1000.0f * (float)k / 40e6f;
+            b[k] = rf_iq_word((int)lrintf(300 * cosf(ph)), (int)lrintf(300 * sinf(ph)));
+        }
+        printf("dacrewrite %d\n", ik);
     } else if (!strcmp(c, "xtalppb") && n > 2) {      /* xtalppb ppb khz: LO at khz corrected by ppb (+ = crystal fast), cap kept */
         int32_t ppb = (int32_t)num(v[1]); uint64_t hz = (uint64_t)num(v[2]) * 1000u;
         int64_t c = (int64_t)hz - (int64_t)hz * ppb / 1000000000;

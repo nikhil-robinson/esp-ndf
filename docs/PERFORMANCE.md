@@ -245,3 +245,11 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | Link with an IDF central, 25 ms interval | stable 5+ min, reconnects after a central reset | — |
 | CPU for the link layer | 0.15% (one interrupt per connection event) | not measured |
 | Code | `drivers/ble/ble_hw.c` + generated tables, no blobs | libbtdm_app + ROM + libbtbb + libphy |
+
+## Gapless TX streaming at 40 MS/s, `rf_tx_stream`
+
+| | esp-ndf | IDF |
+|---|---|---|
+| Arbitrary IQ to the DAC, continuous | yes: 9.8 s test, no gaps, phase-continuous | no API (the vendor PHY plays fixed tones and test frames only) |
+| CPU | 100% while streaming (interrupts masked); about 75 µs of each 205 µs unit is left for the source | — |
+| Headroom | the tail copy (76 µs) is the cost. A DMA copy, or a shorter tail once the switch jitter is measured, would free most of it | |

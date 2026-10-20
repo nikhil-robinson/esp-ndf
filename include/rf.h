@@ -76,6 +76,11 @@ int  rf_tx_set_level_db(int db);         /* -25..0 dB relative to full scale (di
 #define RF_TX_MAX_WORDS 16384u
 /* play n IQ words at 40 MS/s from buf (copied into the DAC bank); loop repeats gaplessly until rf_tx_stop */
 int  rf_tx_play(const uint32_t *buf, uint32_t n, int loop);
+/* gapless stream at 40 MS/s: cb fills 8192 words (205 us of air time) per call, unit after unit; return nonzero to end.
+ * The callback has ~75 us per unit (measured: 153 us window - 76 us tail copy; a table fill takes 45 us). Interrupts stay masked. RF_ERR_TIMEOUT = a gap. */
+#define RF_TX_UNIT 8192u
+typedef int (*rf_tx_cb)(uint32_t *buf, uint32_t n, void *ctx);
+int  rf_tx_stream(uint32_t units, rf_tx_cb cb, void *ctx);
 int  rf_tx_tone_khz(int offset_khz, int amplitude);   /* CW at LO + offset (-19000..19000 kHz), amplitude 1..511 */
 int  rf_tx_stop(void);                   /* TX -> IDLE */
 

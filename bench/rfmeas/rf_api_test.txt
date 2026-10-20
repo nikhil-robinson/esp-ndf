@@ -3,18 +3,21 @@ PASS open
 PASS freq out of range -> ERR_RANGE
 PASS set 2436 MHz
 PASS rx_start
-rx tone 44.3 dB, floor 4.1 dB
+rx tone 42.3 dB, floor 0.4 dB
 PASS rx capture sees D0's tone (> 25 dB above floor)
-rx power estimate 4971
+rx power estimate 4819
 PASS set 2500 MHz
 PASS tx outside band -> ERR_DENIED
 PASS level above limit -> ERR_DENIED
 PASS set 2437 MHz
 PASS tx_start
 PASS tone +1 MHz
-D0 sees tone 39.4 dB, floor -18.1 dB
+D0 sees tone 38.3 dB, floor -17.6 dB
 PASS level -10 dB
-D0 sees tone 30.6 dB at -10 dB level (step -8.8 dB)
+D0 sees tone 29.2 dB at -10 dB level (step -9.1 dB)
+D0 during stream: phasejump 30 captures: worst 0.108 rad, captures with a jump > 0.5 rad: 0
+stream rc 0
+PASS tx_stream 20000 units, no gap
 PASS tx_stop
 PASS hop prepare 2402/2480
 hop 14 us, 14 us

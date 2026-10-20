@@ -5,8 +5,16 @@
 #include "xtensa.h"
 #include "rf.h"
 #include <math.h>
+#include <string.h>
 
 static int fails;
+static uint32_t stab[16];
+static int scb(uint32_t *b, uint32_t n, void *ctx)          /* period, then doubling copies: fits the ~75 us budget */
+{
+    (void)ctx; memcpy(b, stab, sizeof stab);
+    for (uint32_t m = 16; m < n; m *= 2) memcpy(b + m, b, (n - m < m ? n - m : m) * 4);
+    return 0;
+}
 static void check(const char *what, int ok) { printf("%s %s\n", ok ? "PASS" : "FAIL", what); fails += !ok; }
 
 static float tone_db(const uint32_t *w, uint32_t n, float f, float fs)
@@ -54,6 +62,13 @@ int main(void)
     wait_host(2);
     check("level -10 dB", rf_tx_set_level_db(-10) == RF_OK);
     wait_host(3);
+    /* gapless stream: 2.5 MHz tone unit by unit for ~4 s; D0 checks the phase stays continuous */
+    rf_tx_set_level_db(0);
+    for (int k = 0; k < 16; k++) { float a = 2 * 3.14159265f * k / 16; stab[k] = rf_sample_word((int)(300 * cosf(a)), (int)(300 * sinf(a))); }
+    printf("STEP 4\n");
+    int src = rf_tx_stream(20000, scb, 0);
+    printf("stream rc %d\n", src);
+    check("tx_stream 20000 units, no gap", src == RF_OK);
     check("tx_stop", rf_tx_stop() == RF_OK && rf_state() == RF_STATE_IDLE);
 
     /* hop */

@@ -33,3 +33,9 @@ int rf_dump_burst(uint32_t rate, uint32_t n);
 typedef int (*rf_stream_cb)(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx);
 typedef struct { uint32_t units; uint64_t pairs; uint32_t late_max; uint32_t first, expected, end; } rf_stream_stats_t;
 int rf_stream(uint32_t rate, uint32_t units, rf_stream_cb cb, void *ctx, rf_stream_stats_t *st);
+
+/* Gapless TX stream at 40 MS/s: cb fills 8192 words per unit (return nonzero after the last); run with interrupts
+ * masked; cb (+ 76 us tail copy) must fit in 153 us. Returns 0, or -1 if a bank switch came too late (a gap). */
+typedef int (*rf_dac_cb)(uint32_t *buf, uint32_t n, void *ctx);
+typedef struct { uint32_t units, late, min_margin, idx0, idx1, late_into, cb_max, copy_max; } rf_dac_stats_t;
+int rf_dac_stream(uint32_t units, rf_dac_cb cb, void *ctx, rf_dac_stats_t *st);

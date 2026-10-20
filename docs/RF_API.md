@@ -65,3 +65,20 @@ Data: `bench/rfmeas/lock_range_fine.txt`, `freq_resolution.txt`, `hop_fast.txt`,
 - `rf_pll_locked` reads the VCO control-voltage comparator; `rf_check_lock` re-tunes once.
 - Tested: a forced bad cap is detected and recovered (`rf_api_test`). No loss-of-lock interrupt was found, so it is polled.
 - `rf_set_freq_hz` retries a failed calibration once (one failure seen in about 1000 tunes).
+
+## 3.4 Gapless TX streaming (`rf_tx_stream`)
+
+The DAC loops a 16384-word ring at 40 MS/s. The CPU cannot rewrite the bank the DAC is playing, and even reading it disturbs the output. Banks 0 and 1 therefore alternate:
+
+- **Units:** unit k (8192 words, 205 µs) plays from bank k%2, in ring half k%2.
+- **Tail copy:** the next unit goes into the free bank, together with a copy of the playing unit's last 2048 words. This tail is kept in bank 2's memory; bank 2 is never selected. The bank switch can then happen anywhere in that 51 µs tail without a seam.
+- **Position tracking:** the DAC position comes from the CPU cycle counter (6 cycles per sample, same crystal).
+
+Measured (bench/rfmeas/tx_stream.txt, rf_api_test.txt; D0 transmits, C9:48 receives):
+
+| What | Result |
+|---|---|
+| Ring position sensor: a parallel capture, or selecting bank 2 | stops the DAC (tone 34.5 dB → −27.6 dB) |
+| Bank switch between identical banks | seamless (30/30 captures clean, ≤ 0.26 rad) |
+| 48,000 units (9.8 s) of a 2.5 MHz tone | 0 late switches, 0 / 100 captures with a phase jump > 0.5 rad (worst 0.098 rad) |
+| Budget per unit | 153 µs window, of which the tail copy takes 76 µs; about 75 µs is left for the callback (a 16-word table fill takes 45 µs) |
