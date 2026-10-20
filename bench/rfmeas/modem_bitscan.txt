@@ -1,0 +1,11 @@
+# C9:48 core idle, RX on 2402; flip every bit of the modem block (0x60011000, 64 words) one at a time for 10 ms; hit = demod status words change. D0 advertising ch37/2 ms
+bitscan hits 0
+# same scan over the coex arbiter (0x60035000, 64 words) and the BT sequencer (0x6000E000, 128 words)
+0x60035000 bitscan hits 0
+0x6000E000 bitscan hits 0
+# same scan over the link-layer core registers (0x60031000, 192 words), no event kicked
+stopped: bitscan 0x60031000 192
+hit 60031000 bit 29 status mask 1
+hang at word 0x6003106c
+bitscan hits 0
+# words whose bit flip hangs the chip: 0x6003106c

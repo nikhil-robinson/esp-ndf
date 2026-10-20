@@ -1,0 +1,66 @@
+# C9:48: which blocks the BLE core drives during a scan (D0 advertising ch37 every 2 ms). Each block watched 2 s idle, then 2 s scanning
+## BT bb/sequencer 0x6000E000, idle
+watch 26000 passes
+watch end
+## coex 0x60035000, idle
+watch 51915 passes
+60035000 base 003bc5eb n 51915 lo 003bc5eb hi 005a4a8a last 005a4a8a
+6003507c base be4fb484 n 51915 lo 00034759 hi ffff5f66 last e92bb8a4
+watch end
+## modem cfg 0x6001C000, idle
+watch 44513 passes
+6001c000 base 00528826 n 72 lo 00308826 hi 00528826 last 00528826
+6001c04c base 01808080 n 1248 lo 01808080 hi 01f9faf9 last 01808080
+6001c050 base 7c5f6295 n 14229 lo 40000200 hi 7fde4a00 last 7d0fa200
+6001c06c base 00270652 n 16152 lo 00270352 hi 012a0652 last 00270452
+6001c078 base 00e30b52 n 20638 lo 0082021b hi 02f30052 last 00e30b52
+6001c08c base 03fffa01 n 8 lo 03fffa01 hi 03fffa04 last 03fffa03
+6001c128 base ce01aa54 n 3882 lo ce001800 hi ce1f0c20 last ce034a52
+6001c138 base dca014ca n 8 lo dca014ca hi dca044ca last dca034ca
+watch end
+## ble core 0x60031000, idle
+watch 51948 passes
+watch end
+## BT bb/sequencer 0x6000E000, scanning
+watch 25906 passes
+6000e024 base 07000000 n 1159 lo 05000000 hi 67000000 last 07000000
+6000e0c4 base c142287c n 1178 lo 4142287c hi c142287c last c142287c
+6000e150 base 13e000ff n 1158 lo 13e000ff hi 13e400ff last 13e000ff
+6000e168 base 0400ff00 n 1567 lo 0400ff00 hi be00ff00 last 0400ff00
+6000e424 base 07000000 n 1134 lo 05000000 hi 67000000 last 07000000
+6000e4c4 base c142287c n 1162 lo 4142287c hi c142287c last c142287c
+6000e550 base 13e000ff n 1150 lo 13e000ff hi 13e400ff last 13e000ff
+6000e568 base 0400ff00 n 1550 lo 0400ff00 hi be00ff00 last 0400ff00
+watch end
+## coex 0x60035000, scanning
+watch 51730 passes
+60035000 base 00c57bd9 n 51730 lo 00c57bd9 hi 00e4006e last 00e4006e
+6003507c base 2e39dcc5 n 51730 lo 0000a646 hi fffe3cb4 last ce74582c
+60035094 base 00000007 n 758 lo 00000003 hi 00000007 last 00000007
+watch end
+## modem cfg 0x6001C000, scanning
+watch 44384 passes
+6001c04c base 01ededee n 33 lo 01eceeed hi 01f3f2f3 last 01edeeee
+6001c050 base 66cd2a6b n 95 lo 418fee6a hi 7d4b926b last 66cd2a6b
+6001c06c base 00282d2d n 32 lo 00280852 hi 00282d2d last 00282c2e
+6001c078 base 02c2024c n 713 lo 00820237 hi 02e40b52 last 02c2024c
+6001c08c base 03fffa02 n 2 lo 03fffa00 hi 03fffa02 last 03fffa00
+6001c128 base ce1ea9c2 n 785 lo ce0019ac hi ce1f0c20 last ce08c9b0
+6001c138 base dca024ca n 2 lo dca004ca hi dca024ca last dca004ca
+watch end
+## ble core 0x60031000, scanning
+watch 51760 passes
+60031010 base 00000000 n 4 lo 00000000 hi 00000020 last 00000000
+60031014 base 00000011 n 1210 lo 00000000 hi 00000035 last 00000015
+6003101c base 0000cd7d n 311 lo 0000cd7d hi 0000e674 last 0000e674
+60031020 base 0000025f n 311 lo 00000003 hi 0000026d last 00000199
+60031024 base 00001000 n 10 lo 00001000 hi 00001050 last 00001000
+60031104 base 0000cd7d n 311 lo 0000cd7d hi 0000e675 last 0000e675
+60031108 base 0000006b n 311 lo 00000001 hi 0000026b last 00000215
+6003110c base 0000cd7c n 311 lo 0000cd7c hi 0000e674 last 0000e674
+60031110 base 00000017 n 311 lo 00000000 hi 00000270 last 000001bf
+60031178 base 0026059c n 311 lo 00005d80 hi 003ffd1b last 003ffd1b
+6003117c base 000e558c n 311 lo 0000be2d hi 003f6ab6 last 000a2264
+600312cc base 04040404 n 9727 lo 00000000 hi 250a250a last 040e040e
+600312d8 base 0000801e n 2 lo 0000801e hi 0000803e last 0000801e
+watch end

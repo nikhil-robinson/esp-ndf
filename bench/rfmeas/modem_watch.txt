@@ -1,0 +1,51 @@
+# C9:48 our init + BLE hardware setup; modem block 0x60011000 (512 words) watched 2 s per case. D0 hardware-advertises on ch 37 (2402 MHz) every 2 ms
+## core idle, D0 silent: ['pwr max 32768 mean -884 n 105122']
+watch 26021 passes
+watch end
+## core idle, D0 advertising: ['pwr max 27713 mean -19155 n 105123']
+watch 26021 passes
+watch end
+## core scanning ch 37, D0 advertising
+watch 25860 passes
+06c base 010b4007 n 6943 lo 000b4000 hi 010bc007 last 010b6027
+070 base ab004ace n 10228 lo 64004ac6 hi fd104a02 last ec104acc
+07c base 00400000 n 3531 lo 00000000 hi 00c00100 last 00c00100
+080 base e8c00000 n 7513 lo 00000000 hi fba00000 last ee800000
+0b0 base f2f13eb4 n 24455 lo a3a3089b hi fcff3fbd last edf003ea
+16c base 010b4006 n 6939 lo 000b4000 hi 010bc007 last 010b6027
+170 base ab004ac6 n 10202 lo 64004ac6 hi fd104a02 last ec004acc
+17c base 00400000 n 3530 lo 00000000 hi 00c00100 last 00c00100
+180 base de800000 n 7561 lo 00000000 hi fba00000 last ee800000
+1b0 base e0e034ac n 24492 lo a3a303a0 hi fcff3fbd last efef03ec
+26c base 010b4006 n 6966 lo 000b4000 hi 010b602f last 010b6027
+270 base ab004ace n 10170 lo 64004ac6 hi fd104a02 last ec004acc
+27c base 00400000 n 3536 lo 00000000 hi 00c00100 last 00c00100
+280 base e7c00000 n 7507 lo 00000000 hi fba00000 last ee800000
+2b0 base e7ed3daa n 24485 lo a3a3049f hi fdff39c4 last eeec03eb
+36c base 010b4007 n 6957 lo 000b4000 hi 010bc007 last 010b6027
+370 base a7004ace n 10208 lo 64004ac6 hi fd104a02 last ec104acc
+37c base 00400000 n 3540 lo 00000000 hi 00c00100 last 00c00100
+380 base e3a00000 n 7532 lo 00000000 hi fba00000 last ee800000
+3b0 base e6e93da9 n 24472 lo a3a303a0 hi fcff3fbd last eceb03e9
+46c base 010b4007 n 7005 lo 000b4000 hi 010b602f last 010b6027
+470 base a7004ace n 10228 lo 64004ac6 hi fd104a02 last ec104acc
+47c base 00400000 n 3532 lo 00000000 hi 00c00100 last 00c00100
+480 base e3a00000 n 7531 lo 00000000 hi fba00000 last ee800000
+4b0 base e4e13da6 n 24516 lo a3a303a0 hi fcff3fbd last efeb03ec
+56c base 010b4007 n 6932 lo 000b4000 hi 010b602f last 010b6027
+570 base a7004ace n 10157 lo 64004ac6 hi fd104a02 last ec104acc
+57c base 00400000 n 3537 lo 00000000 hi 00c00100 last 00c00100
+580 base e3a00000 n 7505 lo 00000000 hi fba00000 last ee800000
+5b0 base dfe63da2 n 24517 lo a3a3059e hi fcff3fbd last eaed03e7
+66c base 010b4007 n 6992 lo 000b4000 hi 010bc007 last 010b6027
+670 base a7004ace n 10238 lo 64004ac6 hi fd104a02 last ec004acc
+67c base 00400000 n 3531 lo 00000000 hi 00c00100 last 00c00100
+680 base e3a00000 n 7536 lo 00000000 hi fba00000 last ee800000
+6b0 base e0e83da3 n 24521 lo a3a31291 hi fcff3fbd last eff103ec
+76c base 010b4007 n 6959 lo 000b4000 hi 010b602f last 010b6027
+770 base a7004ace n 10233 lo 64004ac6 hi fd104a02 last ec104acc
+77c base 00400000 n 3534 lo 00000000 hi 00c00100 last 00c00100
+780 base e3a00000 n 7534 lo 00000000 hi fba00000 last ee800000
+7b0 base e2e73da5 n 24482 lo a3a303a0 hi fcff3fbd last eff103ec
+watch end
+['pkts 31']

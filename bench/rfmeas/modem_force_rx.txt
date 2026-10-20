@@ -1,0 +1,18 @@
+# C9:48 core idle; force the sequencer bits the core toggles during RX; does the modem (0x6001106C/70/7C/80/B0) come alive? D0 advertising ch37/2 ms
+0x6000E024 ['rd 07000000']
+0x6000E0C4 ['rd 4142287c']
+0x6000E150 ['rd 13e000ff']
+0x6000E168 ['rd 00000000']
+0x60035094 ['rd 00000004']
+## E024=0x67000000: modem words changing: 0
+
+## E024=0x27000000: modem words changing: 0
+
+## E024=0x47000000: modem words changing: 0
+
+## E168=0xbe00ff00: modem words changing: 0
+
+## E150|bit18: modem words changing: 0
+
+## all: modem words changing: 0
+
