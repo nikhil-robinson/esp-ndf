@@ -61,7 +61,7 @@ static uint8_t own_addr[6];
 static struct {
     uint32_t aa, crcinit;
     uint16_t interval, latency, timeout, evt, instant_upd, instant_map;
-    uint8_t  hop, last_unmapped, chm[5], nused, used[37], upd_pending, map_pending, new_chm[5];
+    uint8_t  csa2, hop, last_unmapped, chm[5], nused, used[37], upd_pending, map_pending, new_chm[5];
     uint16_t new_interval, new_latency, new_timeout, new_winoff; uint8_t new_winsize;
     uint64_t anchor;                             /* half-us: start of the window of the next event */
     uint32_t win;                                /* half-us: window length */
@@ -148,6 +148,8 @@ static void isr(void *arg)
     service();
 }
 
+static uint8_t adv_csa2 = 1;                  /* advertise CSA#2 support (ChSel); ble_hw_csa2(0) forces CSA#1 */
+void ble_hw_csa2(int on) { adv_csa2 = (uint8_t)on; }
 static uint8_t adv_type = 2;                  /* 0 ADV_IND (connectable), 2 ADV_NONCONN_IND */
 void ble_hw_adv_type(uint8_t t) { adv_type = t; }
 static uint32_t adv_idx;                      /* the vendor rotates exchange-table entries 0..15, one per advert */
@@ -190,9 +192,22 @@ static uint8_t csa1_next(void)                   /* channel selection #1 */
     return c;
 }
 
+static uint8_t csa2_ch(uint16_t cnt)             /* channel selection #2 (Core 5.x Vol 6 B 4.5.8.3) */
+{
+    uint16_t cid = (uint16_t)((cn.aa >> 16) ^ (cn.aa & 0xFFFF)), p = cnt ^ cid;
+    for (int r = 0; r < 3; r++) {
+        uint16_t q = 0;
+        for (int b = 0; b < 16; b++) if (p & (1u << b)) q |= (uint16_t)(1u << ((b & 8) | (7 - (b & 7))));   /* bit reverse per byte */
+        p = (uint16_t)(17u * q + cid);
+    }
+    uint16_t e = p ^ cid; uint8_t u = e % 37;
+    if (cn.chm[u >> 3] & (1 << (u & 7))) return u;
+    return cn.used[(cn.nused * (uint32_t)e) >> 16];
+}
+
 static void conn_arm(void)                       /* the window of event cn.evt, on its channel */
 {
-    EM16(CS1 + 0x16) = csa1_next();              /* fixed channel this event (hardware hopping off) */
+    EM16(CS1 + 0x16) = cn.csa2 ? csa2_ch(cn.evt) : csa1_next();              /* fixed channel this event (hardware hopping off) */
     uint32_t w = cn.win / 2;                     /* RXWINCNTL in us (RXWIDE 0) */
     EM16(CS1 + 0x1A) = (uint16_t)(w > 0x7FFF ? 0x7FFF : w);
     uint64_t st_hu = cn.anchor;
@@ -207,8 +222,9 @@ static void conn_arm(void)                       /* the window of event cn.evt, 
     CORE(0x100) = 0x80000000u | cn.idx;
 }
 
-static void conn_start(const uint8_t *p, uint64_t adv_start_hu)   /* p: CONNECT_IND payload (34 bytes) */
+static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   /* p: CONNECT_IND payload (34 bytes) */
 {
+    cn.csa2 = (hdr0 >> 5) & 1;                   /* ChSel in the CONNECT_IND header: both sides support CSA#2 */
     const uint8_t *ll = p + 12;
     cn.aa = ll[0] | ll[1] << 8 | ll[2] << 16 | (uint32_t)ll[3] << 24;
     cn.crcinit = ll[4] | ll[5] << 8 | ll[6] << 16;
@@ -296,7 +312,7 @@ static void conn_next(int got, uint64_t sync)
     if (cn.map_pending && cn.evt == cn.instant_map) { cn.map_pending = 0; chm_apply(cn.new_chm); }
     uint64_t now = now_hu();
     while ((int64_t)(cn.anchor - now) < 2 * 1000) {        /* never schedule into the past: skip whole events */
-        cn.anchor += 2u * 1250u * cn.interval; cn.evt++; csa1_next();
+        cn.anchor += 2u * 1250u * cn.interval; cn.evt++; if (!cn.csa2) csa1_next();
     }
     conn_arm();
 }
@@ -333,7 +349,7 @@ static void service(void)
             uint32_t h0 = q_head; drain();
             int connected = 0;
             for (uint32_t k = h0; k != q_head; k = (k + 1) % Q_N)   /* CONNECT_IND to our address? */
-                if ((q[k].hdr0 & 0xF) == 5 && q[k].len == 34 && !memcmp(q[k].data + 6, own_addr, 6)) { conn_start(q[k].data, adv_start); connected = 1; break; }
+                if ((q[k].hdr0 & 0xF) == 5 && q[k].len == 34 && !memcmp(q[k].data + 6, own_addr, 6)) { conn_start(q[k].data, adv_start, q[k].hdr0); connected = 1; break; }
             if (!connected) { adv_next += adv_iv; arm_adv(); }
         }
         else if (scan_chan) arm(); else drain();
@@ -397,6 +413,7 @@ void ble_hw_scan(uint8_t chan)
 void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; conn_on = 0; }
 
 int ble_hw_connected(void) { return conn_on; }
+int ble_hw_conn_info(uint8_t *csa2, uint16_t *interval) { *csa2 = cn.csa2; *interval = cn.interval; return conn_on; }
 
 /* queue one LL data PDU (llid 2: L2CAP start, 3: LL control); -1 while the previous one is not acknowledged */
 int ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len)
@@ -451,7 +468,7 @@ int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *d
     EM16(CS0 + 2) = (EM16(CS0 + 2) & ~0x80u) | (random ? 0x80 : 0);
     for (int k = 0; k < 9; k++) EM16(TXD + 2 * k) = ble_adv_txdesc[k];
     EM16(0x14C) = ble_adv_em14c;
-    EM16(TXD + 2) = (uint16_t)((len + 6) << 8 | (adv_type ? 0x20 : 0) | adv_type | (random ? 0x40 : 0));   /* 0x20 = ChSel (CSA#2); off when connectable: we hop with CSA#1 */
+    EM16(TXD + 2) = (uint16_t)((len + 6) << 8 | (adv_csa2 || adv_type ? 0x20 : 0) | adv_type | (random ? 0x40 : 0));   /* 0x20 = ChSel: we support CSA#2 */
     EM16(TXD + 4) = TXBUF;
     EM16(TXD + 16) = (EM16(TXD + 16) & ~0x40u) | (random ? 0x40 : 0);
     memcpy(tx_buf, data, len);

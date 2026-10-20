@@ -1,0 +1,24 @@
+PASS closed: tx_start -> ERR_STATE
+PASS open
+PASS freq out of range -> ERR_RANGE
+PASS set 2436 MHz
+PASS rx_start
+rx tone 45.8 dB, floor 4.0 dB
+PASS rx capture sees D0's tone (> 25 dB above floor)
+rx power estimate 5943
+PASS set 2500 MHz
+PASS tx outside band -> ERR_DENIED
+PASS level above limit -> ERR_DENIED
+PASS set 2437 MHz
+PASS tx_start
+PASS tone +1 MHz
+D0 sees tone 42.0 dB, floor -21.6 dB
+PASS level -10 dB
+D0 sees tone 33.1 dB at -10 dB level (step -8.9 dB)
+PASS tx_stop
+PASS hop prepare 2402/2480
+hop 38 us, 38 us
+PASS hop < 60 us
+PASS close
+=== 0 failures
+=== done
