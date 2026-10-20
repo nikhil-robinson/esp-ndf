@@ -156,6 +156,7 @@ void rf_init_replay(void)
     }
     apply_digital();                            /* final values of words the steps rewrote */
     pbus_mem_load();
+    rf_regi2c_write_bits(0x67, 0x02, 5, 5, 1);  /* RX enable: 1 from power-on, cleared by the vendor's RF shutdown (esp_wifi_stop) */
     rf_rc_cal();                                /* this chip's RX filter RC code, not the traced one */
 }
 

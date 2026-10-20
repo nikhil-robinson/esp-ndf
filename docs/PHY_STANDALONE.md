@@ -581,11 +581,12 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
 - **A.5, modem reuse / BLE raw:** not done.
   - Our radio path is the raw-IQ dump engine plus DAC playback. Custom protocols run as software radio on it.
   - The Wi-Fi/BLE demodulators are driven by undocumented MAC/modem registers that the blobs own. Reusing them is a separate reverse-engineering project.
-- **A.8, coexistence with native Wi-Fi:** not supported.
-  - Our driver writes the same registers as libphy.
-  - Hand-off would mean re-running the vendor init after our use. Untested.
+- **A.8, coexistence with native Wi-Fi: works** (`bench/idf_coex`, `result.txt`). On one chip, three cycles of Wi-Fi start + scan → `esp_wifi_stop` → our init + receive of D0's tone → Wi-Fi again:
+  - every scan found 8–9 APs at −45 dBm, and every receive got the tone at +36.5 dB;
+  - hand-off costs: `esp_wifi_stop` 1.6 ms, our init + tune 5.2 ms, the next `esp_wifi_start` 2.3 ms (the vendor keeps its calibration);
+  - fix needed: `esp_wifi_stop` (the vendor's RF shutdown) clears analog register 67.02 bit 5, a receive enable that is 1 from power-on and that our replay never wrote. Without it the capture freezes. `rf_init_replay` now sets it. Found by diffing every modem, RTC and analog register between a working and a frozen receive.
 - **B:**
   - Prototypes: `drivers/rf/rf_init.h`, `rf_pll.h`, `rf_dump.h`.
   - Calibrations are separate calls: `rf_rc_cal`, `rf_rx_dc_cal`, `rf_tx_dc_cal`, and the PLL cap calibration in `rf_pll_set_khz`. RX IQ is not needed (§9); TX IQ is neutral at 0.
   - OS hooks: only a microsecond delay.
-  - ABI: plain C with no windowed-ABI dependency, so it builds under CALL0 unchanged (not separately tested).
+  - ABI: esp-ndf builds everything with `-mabi=call0` (Makefile), so every measurement in this document ran on CALL0 code. The same sources also run under IDF's windowed ABI (`bench/idf_rfrx`, `bench/idf_coex`).

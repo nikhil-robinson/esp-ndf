@@ -1,0 +1,14 @@
+--- ours before any wifi
+ours: wifi stop 119 us, our init+tune 5894 us, locked 1, tone +3MHz 36.6 dB, floor +7MHz -5.0 dB
+--- cycle 0
+wifi: wifi start 149794 us, scan rc 0, 9 APs, best -45 dBm
+ours: wifi stop 1641 us, our init+tune 5181 us, locked 1, tone +3MHz 36.6 dB, floor +7MHz -6.7 dB
+--- cycle 1
+wifi: wifi start 2249 us, scan rc 0, 8 APs, best -46 dBm
+ours: wifi stop 1611 us, our init+tune 5172 us, locked 1, tone +3MHz 36.5 dB, floor +7MHz -5.2 dB
+--- cycle 2
+wifi: wifi start 2248 us, scan rc 0, 9 APs, best -46 dBm
+ours: wifi stop 1615 us, our init+tune 5172 us, locked 1, tone +3MHz 36.8 dB, floor +7MHz -6.5 dB
+wifi final: wifi start 2250 us, scan rc 0, 9 APs, best -47 dBm
+=== done
+

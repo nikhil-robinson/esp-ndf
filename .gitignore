@@ -5,3 +5,6 @@ build/
 *.bin
 hal_bench/target/
 __pycache__/
+bench/idf_coex/build/
+bench/idf_coex/sdkconfig
+bench/idf_coex/sdkconfig.old
