@@ -1,0 +1,13 @@
+--- rx chan 0
+=== rx (no BT controller)
+rx result: correct 0 total 0 rssi 0 flag 0
+core RWBLECNTL before 0000400f during 0000410f
+--- rx chan 1
+=== rx (no BT controller)
+rx result: correct 0 total 0 rssi 0 flag 0
+core RWBLECNTL before 0000400f during 0000410f
+--- rx chan 37
+=== rx (no BT controller)
+rx result: correct 0 total 0 rssi 0 flag 0
+core RWBLECNTL before 0000400f during 0000410f
+=== done

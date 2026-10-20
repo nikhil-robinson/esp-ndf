@@ -1,0 +1,7 @@
+# D0 runs libphy esp_phy_ble_tx(chan 0, continuous); C9:48 rfctl: RMS power with LO at each frequency (signal within +-1 MHz)
+2380000 1.95
+2401000 4.73
+2403000 8.61
+2405000 1.9
+2440000 1.94
+D0 log: ['tx RWBLECNTL before 0000400f now 0000410f st 00600011']
