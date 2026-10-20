@@ -15,3 +15,5 @@ typedef struct {
 int rf_pll_set_khz(uint32_t khz, rf_pll_result_t *res);
 /* Fast retune (hopping): divider + a cap measured before by rf_pll_set_khz. */
 void rf_pll_hop(uint32_t khz, uint16_t cap);
+/* Load the RF frequency memory (per-MHz LO table, 2400..2484) the BLE hardware tunes from; after rf_init_replay. */
+void rf_freq_mem_load(void);

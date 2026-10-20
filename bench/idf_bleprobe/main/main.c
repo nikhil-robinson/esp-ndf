@@ -63,12 +63,13 @@ static uint32_t clkn(void)                          /* SLOTCLK (v9 at 0x1C): sam
 static void kick_test(void)
 {
     esp_rom_printf("== kick: et0 %04x %04x %04x %04x %04x  rxptr %08lx\n", EM16(0), EM16(2), EM16(4), EM16(6), EM16(8), (unsigned long)CORE(0x24));
-    for (uint32_t d = 0x1000; d < 0x10C8; d += 0x14) EM16(d + 4) = 0;           /* clear RXPH so a new packet shows */
+    for (uint32_t d = 0x1000; d < 0x10C8; d += 0x14) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; }   /* free the ring */
     static char out[2048]; int no = 0;
     portDISABLE_INTERRUPTS();
     uint32_t intcntl = CORE(0x0C);
     CORE(0x0C) = 0;                                 /* the vendor ISR stays out: we poll */
     for (int r = 0; r < 8; r++) {
+        for (uint32_t d = 0x1000; d < 0x10C8; d += 0x14) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; }
         uint32_t ck = clkn();
         uint16_t w0 = EM16(0);
         EM16(0) = w0 & ~0x38;                       /* status: standby */
@@ -98,7 +99,7 @@ static void kick_test(void)
 static void state_dump(void)
 {
     static const struct { uint32_t base, len; } blk[] = {
-        { 0x60011000, 0x100 }, { 0x60031000, 0x400 }, { 0x60006000, 0x200 }, { 0x60005000, 0x1000 }, { 0x6001C000, 0x2000 },
+        { 0x60011000, 0x1000 }, { 0x60031000, 0x800 }, { 0x60006000, 0x200 }, { 0x60005000, 0x1000 }, { 0x6001C000, 0x2000 },
         { 0x6000E000, 0x200 }, { 0x60026000, 0x100 }, { 0x60008000, 0x140 }, { 0x600C0000, 0x100 }, { 0x60033000, 0x3000 },
     };
     printf("== state\n");
@@ -120,6 +121,21 @@ static void state_dump(void)
         printf("\n");
     }
     printf("== state end\n");
+}
+
+#define PR esp_rom_printf
+static void kick_state_dump(void)
+{
+    static const struct { uint32_t base, len; } blk[] = {
+        { 0x60011000, 0x1000 }, { 0x60031000, 0x800 }, { 0x60006000, 0x200 }, { 0x6001C000, 0x2000 }, { 0x6000E000, 0x200 },
+        { 0x60026000, 0x100 }, { 0x60008000, 0x140 }, { 0x600C0000, 0x100 }, { 0x60033000, 0x3000 },
+    };
+    PR("== kstate\n");
+    for (unsigned b = 0; b < sizeof blk / sizeof blk[0]; b++)
+        for (uint32_t a = blk[b].base; a < blk[b].base + blk[b].len; a += 4) PR("r %08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a);
+    static const uint8_t ab[] = { 0x61, 0x62, 0x63, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D };
+    for (unsigned b = 0; b < sizeof ab; b++) for (int r = 0; r < 32; r++) PR("a %02x %02x %02x\n", ab[b], r, rf_regi2c_read(ab[b], r));
+    PR("== kstate end\n");
 }
 
 void app_main(void)
@@ -189,15 +205,15 @@ void app_main(void)
 #endif
     uint32_t clk = *(volatile uint32_t *)0x60026014, rst = *(volatile uint32_t *)0x60026018;
     *(volatile uint32_t *)0x60026014 = sclk; *(volatile uint32_t *)0x60026018 = srst;
-    for (int k = 0; k < 64; k++) *(volatile uint32_t *)(0x60011000 + 4 * k) = sm[k];
-    for (int k = 1; k < 0x100; k++) {               /* same rule as the bare-metal replay */
+    if (!(ONTO & 512)) for (int k = 0; k < 64; k++) *(volatile uint32_t *)(0x60011000 + 4 * k) = sm[k];
+    if (!(ONTO & 1024)) for (int k = 1; k < 0x100; k++) {               /* same rule as the bare-metal replay */
         uint32_t o = 4 * k;
         if (o == 0x10 || o == 0x14 || o == 0x18 || o == 0x1C || o == 0x20 || o == 0x24 || (o >= 0x100 && o < 0x120)) continue;
         if (o >= 0x200 && o < 0x2C0) { CORE(o) = sc[k]; continue; }    /* EM map: same DRAM */
         if (sc[k] || o < 0x100) CORE(o) = sc[k];
     }
     CORE(0x0C) = 0;
-    CORE(0) = sc[0];
+    if (!(ONTO & 1024)) CORE(0) = sc[0];
 #if ONTO >= 4
     { uint32_t *q = big; int nw = 0;
       for (unsigned b = 0; b < sizeof rb / sizeof rb[0]; b++)
@@ -211,6 +227,7 @@ void app_main(void)
     bt_bb_v2_init_cmplx(0);
 #endif
     portENABLE_INTERRUPTS();
+    kick_state_dump();
     esp_rom_printf("before: clk %08lx rst %08lx; after our init: syscon clk %08lx rst %08lx, map0 %08lx\n", (unsigned long)sclk, (unsigned long)srst, (unsigned long)clk, (unsigned long)rst, (unsigned long)CORE(0x204));
     kick_test();
     esp_rom_printf("=== done\n");

@@ -75,3 +75,42 @@ void rf_pll_hop(uint32_t khz, uint16_t cap)
     rf_regi2c_write(0x62, 0x01, (uint8_t)cap);
     rf_regi2c_write_bits(0x62, 0x02, 4, 4, (uint8_t)(cap >> 8));
 }
+
+/* RF frequency memory: the per-MHz table the BLE hardware tunes the LO from on its own (each event,
+ * each hop). Write-only, behind 0x6000E0C4[7:0] (address) / 0x6000E148 (data) / 0x6000E0C4 bit 9 (write).
+ * 85 entries, 2400..2484 MHz, 3 words each, as libphy get_rf_freq_init builds them:
+ *   w0 = cap[7:0] | (0x80 | vco code) << 8 | cap[8] << 12, cap interpolated from calibrations at 2400 and 2464 MHz
+ *   w1 = divider N (int, frac hi, frac lo), w2 = 0.
+ * Without it the BLE core runs its events but the LO never lands on the channel. */
+#define FM_CTRL 0x6000E0C4u
+#define FM_DATA 0x6000E148u
+static void fm_write(unsigned addr, uint32_t v)
+{
+    volatile uint32_t *c = (volatile uint32_t *)FM_CTRL;
+    *c = (*c & ~0xFFu) | (addr & 0xFF);
+    *(volatile uint32_t *)FM_DATA = v;
+    *c |= 1u << 9;
+    *c &= ~(1u << 9);
+}
+
+void rf_freq_mem_load(void)
+{
+    rf_pll_result_t r;
+    rf_regi2c_write_bits(0x62, 0x02, 7, 7, 0);
+    rf_pll_set_khz(2437000, &r);
+    uint8_t vco = rf_regi2c_read_bits(0x62, 0x06, 3, 0);
+    rf_regi2c_write_bits(0x62, 0x02, 3, 0, vco);
+    rf_regi2c_write_bits(0x62, 0x02, 7, 7, 1);
+    rf_pll_set_khz(2400000, &r); int cap0 = r.cap;
+    rf_pll_set_khz(2464000, &r); int step = (int)r.cap - cap0;   /* per 64 MHz */
+    int acc = 0;
+    for (unsigned k = 0; k < 85; k++, acc += step) {
+        uint32_t n = (uint32_t)((uint64_t)(2400000u + 1000u * k) * 4u * 65536u / 120000u - 32u * 65536u);
+        int cap = cap0 + acc / 64;
+        if (cap < 0) cap = 0;
+        if (cap > 0x1FF) cap = 0x1FF;
+        fm_write(3 * k + 0, (uint32_t)(cap & 0xFF) | ((uint32_t)(((cap >> 8) << 4 | 0x80 | vco) & 0xFF) << 8));
+        fm_write(3 * k + 1, n & 0xFFFFFF);
+        fm_write(3 * k + 2, 0);
+    }
+}

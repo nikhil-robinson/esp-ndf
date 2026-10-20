@@ -8,8 +8,9 @@ a = argparse.ArgumentParser(); a.add_argument('--adv', type=int); a.add_argument
 o = a.parse_args()
 if o.adv:
     tx = rfhost.Board(rfhost.D0); tx.cmd('init'); tx.cmd('tunetx %d' % LO[o.adv]); tx.cmd('bleadv %d 2000 300 NDF' % o.adv)
-s = serial.Serial(rfhost.C948, 115200, timeout=0.5)
-s.dtr = False; s.rts = True; time.sleep(0.1); s.rts = False
+s = serial.Serial(None, 115200, timeout=0.5)
+s.port = rfhost.C948; s.dtr = False; s.rts = False; s.open()   # DTR low: no download mode on the CH340 boards
+s.rts = True; time.sleep(0.1); s.rts = False
 end, buf = time.time() + o.timeout, b''
 while time.time() < end and b'=== done' not in buf:
     buf += s.read(4096)

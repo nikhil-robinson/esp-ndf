@@ -2,3 +2,4 @@ rom.bin
 rom.elf
 syms.args
 *.dis
+phy.dis
