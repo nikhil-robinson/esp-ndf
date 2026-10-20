@@ -224,11 +224,11 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 
 | | esp-ndf `ble_hw` | IDF Bluedroid scanner | esp-ndf software receiver |
 |---|---|---|---|
-| PDUs/s, one advertiser at ~2,500/s | ~1,190 (ch 37 only) | 750–850 per channel (rotating 37/38/39) | bursts only |
-| CPU while scanning | 2.6% (interrupt-driven, about 21 µs per event) | not measured | about 100% while decoding |
+| PDUs/s, one advertiser at ~2,500/s | ~2,280 (ch 37 only) | 750–850 per channel (rotating 37/38/39) | bursts only |
+| CPU while scanning | 1.7% (interrupt-driven, 10 PDUs per event) | not measured | about 100% while decoding |
 | Init | 2.2 ms | — | — |
 
-**Headroom:** 47% of the sent PDUs are caught. One PDU per receive window, plus a 250 µs kick-to-start margin per window.
+**Headroom:** 91% of the sent PDUs are caught. The rest are lost in the re-arm gap between 10-PDU windows; a bigger RX ring would close most of it.
 
 ## BLE advertising (hardware link layer, no vendor code), `examples/ble_adv`
 

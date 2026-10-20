@@ -99,6 +99,7 @@ static void arm(void)
     drain();
     EM16(0x416) = scan_chan;                     /* fixed channel, no hop */
     EM16(0x42E) = BLE_MAXEV;                     /* MAXEVTIME */
+    EM16(0x420) = RING_N;                        /* RX buffers per window (vendor: 1): one window takes up to RING_N PDUs */
     /* start 250 us after the kick: CLKN half-slot + fine target (0x60031020 counts down 623..0, 0.5 us).
      * Measured: 150 us is too soon (every event skipped), 200..250 us best (1190 PDUs/s vs 935 with
      * half-slot starts), 300 us slower. */

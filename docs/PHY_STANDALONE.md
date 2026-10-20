@@ -601,10 +601,10 @@ The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300.
 
 | Metric | Value |
 |---|---|
-| PDUs received | about 1,190/s (935 with half-slot starts) |
-| Scan events | about 1,260/s |
+| PDUs received | about 2,280/s (91% of the ~2,500/s sent; 935 with one PDU per window and half-slot starts) |
+| Scan events | about 228/s (10 PDUs each) |
 | Drops / watchdog re-arms | 0 / 0 |
-| CPU | 2.6% in the interrupt handler (about 21 µs per event); the rest is spent asleep in `waiti` |
+| CPU | 1.7% in the interrupt handler; the rest is spent asleep in `waiti` |
 | `ble_hw_init` | 2.2 ms |
 
 For comparison:
@@ -643,7 +643,7 @@ Inside `rf_init`, the piece is `set_chan_freq_hw_init` → `get_rf_freq_init` �
 
 **Driving rules learned on the hardware:**
 - **Kick lead:** start each event 1 half-slot ahead. A lead of 2 is never picked up, and its kick is silently lost.
-- **One window per event:** each event is one receive window, ending after one PDU or about 625 µs, so the core needs one kick per event (queued exchange-table entries don't chain).
+- **PDUs per window:** a window ends after CS+0x20 PDUs (the vendor uses 1). Queued exchange-table entries don't chain, so each window needs its own kick.
 - **Drain before each kick:** the core can set a descriptor's done bit after the end interrupt, and an event kicked onto a done descriptor never ends.
 - **Handle skips as well as ends:** the interrupt handler masks the core interrupt, handles end and skip (bits 5 and 8), re-arms and unmasks. An unhandled skip leaves the scheduler idle with no further interrupt; that, plus the descriptor race, was why in-handler re-arming first appeared to wedge.
 - **Fine start:** each event starts 250 µs after its kick, via the exchange-table fine start (0x60031020 counts down 623..0 in 0.5 µs units). 150 µs is too soon (every event is skipped); this gives 1,190 PDUs/s against 935 with half-slot starts.
@@ -672,4 +672,4 @@ The core sends ADV_NONCONN_IND itself (header, CRC, whitening, GFSK). The CPU on
 **Still open:**
 - Connections.
 - Scannable/connectable advertising (needs RX after TX within the event).
-- More PDUs per receive window: receiving caps at about 1,190 of 2,500 PDUs/s.
+- RX buffers per window: CS+0x20 (the vendor's scanner uses 1) sets how many PDUs one scan window takes. With the 10-descriptor ring it takes 10, which gives 2,280 PDUs/s (was 1,190).

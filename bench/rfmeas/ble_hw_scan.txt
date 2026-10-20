@@ -1,16 +1,16 @@
-entry 0x403788=== ble_scan (hardware link layer, no vendor code)
-ble_hw_init rc 0, 2190 us
+entry 0x40378=== ble_scan (hardware link layer, no vendor code)
+ble_hw_init rc 0, 2233 us
   pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
   pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
   pdu type 2 len 14 ch 37 rssi -7: 01 02 03 0d 0f c0 02 01 06 04 09 4e 44 46
-  (time inside ble_hw_wait, asleep or servicing: 99.0%)
-t 0 s: 1184 PDUs/s, 1256 events/s, service CPU 2.63%, dropped 0, watchdog re-arms 0, interrupts 1256 skips 0
+  (time inside ble_hw_wait, asleep or servicing: 99.2%)
+t 0 s: 2270 PDUs/s, 227 events/s, service CPU 1.71%, dropped 0, watchdog re-arms 0, interrupts 227 skips 0
   (time inside ble_hw_wait, asleep or servicing: 100.0%)
-t 1 s: 1188 PDUs/s, 1260 events/s, service CPU 2.64%, dropped 0, watchdog re-arms 0, interrupts 2516 skips 0
+t 1 s: 2280 PDUs/s, 228 events/s, service CPU 1.71%, dropped 0, watchdog re-arms 0, interrupts 455 skips 0
   (time inside ble_hw_wait, asleep or servicing: 100.0%)
-t 2 s: 1188 PDUs/s, 1260 events/s, service CPU 2.64%, dropped 0, watchdog re-arms 0, interrupts 3776 skips 0
+t 2 s: 2280 PDUs/s, 228 events/s, service CPU 1.71%, dropped 0, watchdog re-arms 0, interrupts 683 skips 0
   (time inside ble_hw_wait, asleep or servicing: 100.0%)
-t 3 s: 1194 PDUs/s, 1260 events/s, service CPU 2.64%, dropped 0, watchdog re-arms 0, interrupts 5036 skips 0
+t 3 s: 2280 PDUs/s, 228 events/s, service CPU 1.71%, dropped 0, watchdog re-arms 0, interrupts 911 skips 0
   (time inside ble_hw_wait, asleep or servicing: 100.0%)
-t 4 s: 1188 PDUs/s, 1260 events/s, service CPU 2.64%, dropped 0, watchdog re-arms 0, interrupts 6296 skips 0
+t 4 s: 2280 PDUs/s, 228 events/s, service CPU 1.71%, dropped 0, watchdog re-arms 0, interrupts 1139 skips 0
 === done
