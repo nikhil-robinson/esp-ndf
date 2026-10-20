@@ -26,6 +26,9 @@ static uint32_t NREC;
 static rec_t *recs;
 static volatile uint32_t nrec, lost;
 static uint8_t depth, in_i2c;
+/* rom_i2c_paral_write_num (table 0x180): six byte arrays (block, host, reg, msb, lsb, data) + count + extra */
+static DRAM_ATTR uint8_t paral[4][6][32];
+static DRAM_ATTR uint32_t paral_n[4][2], paral_calls;
 
 
 static IRAM_ATTR int trace_enter(int idx, uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5,
@@ -33,6 +36,12 @@ static IRAM_ATTR int trace_enter(int idx, uint32_t a0, uint32_t a1, uint32_t a2,
 {
     (void)a12; (void)a13;
     uint32_t n = nrec;
+    if (idx == 0x180 / 4 && paral_calls < 4) {
+        uint32_t c = paral_calls++, cnt = a6 & 0xFF;
+        const uint8_t *arr[6] = { (const uint8_t *)a0, (const uint8_t *)a1, (const uint8_t *)a2, (const uint8_t *)a3, (const uint8_t *)a4, (const uint8_t *)a5 };
+        for (int k = 0; k < 6; k++) for (uint32_t j = 0; j < 32 && j < cnt; j++) paral[c][k][j] = arr[k][j];
+        paral_n[c][0] = a6; paral_n[c][1] = a7;
+    }
     if (in_i2c) { depth++; return -1; }                 /* inside an analog-bus primitive: the outer call is the record */
     if (!recs || n >= NREC) { lost++; depth++; return -1; }
     if (idx >= 0x154 / 4 && idx <= 0x198 / 4) in_i2c = 1;
@@ -115,6 +124,10 @@ void app_main(void)
     mark(99, 0, 0);
 
     printf("@info records %lu lost %lu\n", (unsigned long)nrec, (unsigned long)lost);
+    for (uint32_t c = 0; c < paral_calls; c++) {
+        printf("@paral %lu n %lu extra %lu\n", (unsigned long)c, (unsigned long)paral_n[c][0], (unsigned long)paral_n[c][1]);
+        for (int k = 0; k < 6; k++) { printf("@paral_arr %d", k); for (uint32_t j = 0; j < 32 && j < (paral_n[c][0] & 0xFF); j++) printf(" %02x", paral[c][k][j]); printf("\n"); }
+    }
     for (uint32_t n = 0; n < nrec; n++) {
         rec_t *r = &recs[n];
         printf("%04x %02x %d %08lx", r->idx, r->depth, r->done, (unsigned long)r->ret);

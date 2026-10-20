@@ -197,6 +197,21 @@ void app_main(void)
 
     }
 #endif
+#if DUMPWIDE > 9
+    {   /* wide register dump after init (vendor or ours), for the cold-boot comparison */
+        static const uint32_t r[][2] = { { 0x60005000, 0x60008000 }, { 0x60011000, 0x60012000 }, { 0x6001C000, 0x60020000 },
+                                         { 0x60030000, 0x60040000 }, { 0x6000E000, 0x6000E200 }, { 0x60026000, 0x60026100 } };
+        printf("@wide\n");
+        for (unsigned b = 0; b < sizeof r / sizeof r[0]; b++)
+            for (uint32_t a = r[b][0]; a < r[b][1]; a += 4) { printf("%08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a); if ((a & 0xFFF) == 0) vTaskDelay(1); }
+        for (unsigned b = 0x60; b <= 0x6F; b++) {
+            for (unsigned r = 0; r < 256; r++) printf("a%02x%02x %02x\n", b, r, rf_regi2c_read((uint8_t)b, (uint8_t)r));
+            vTaskDelay(1);
+        }
+        printf("=== done\n");
+        for (;;) vTaskDelay(100);
+    }
+#endif
 #if IQPROBE > 9
     {   /* vendor TX IQ measurement vs the IQ correction word */
         extern void txcal_debuge_mode(void), txcal_work_mode(void);
@@ -225,7 +240,7 @@ void app_main(void)
         for (uint32_t k = 0; k < n; k++)
             b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
         for (;;) {
-#if OURS
+#if OURS || TXOURS > 9
             rf_tx_on(127, 0);
 #else
             stop_tx_tone(1); rom_pbus_workmode(); rom_pbus_xpd_rx_on(0); rom_pbus_xpd_tx_on(1, 0);
@@ -235,7 +250,7 @@ void app_main(void)
             printf("tx on\n");
             vTaskDelay(pdMS_TO_TICKS(1000));
             rf_dac_stop();
-#if OURS
+#if OURS || TXOURS > 9
             rf_tx_off();
 #else
             force_txon_mode(0, 0, 0);

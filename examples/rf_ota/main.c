@@ -13,6 +13,9 @@
 #ifdef COLD_G
 #include "../../bench/rf_state_data/cold_groups.h"
 #endif
+#ifdef WARM_G
+#include "../../bench/rf_state_data/warm_groups.h"
+#endif
 
 static float bin_db(uint32_t n, float f)        /* dBFS-ish power of one bin, 80 MS/s */
 {
@@ -50,6 +53,10 @@ int main(void)
         printf("cold group %d restored\n", COLD_G);
     }
 #endif
+#ifdef WARM_G
+    if (WARM_G & 1) for (unsigned k = 0; k < sizeof warm_g1 / sizeof warm_g1[0]; k++) if (warm_g1[k].a != 0x60008000u || 1) *(volatile uint32_t *)warm_g1[k].a = warm_g1[k].v;
+    if (WARM_G & 2) for (unsigned k = 0; k < sizeof warm_g2 / sizeof warm_g2[0]; k++) *(volatile uint32_t *)warm_g2[k].a = warm_g2[k].v;
+#endif
 #ifdef COLD_SIM
     {   /* software "cold start": RF analog buses and the modem power domain off, then on */
         volatile uint32_t *ana = (volatile uint32_t *)0x60008034, *pwc = (volatile uint32_t *)0x60008090;
@@ -61,6 +68,14 @@ int main(void)
     }
 #endif
     rf_init_replay();
+#ifdef WARM_G
+    if (WARM_G & 4) for (unsigned k = 0; k < sizeof warm_g3 / sizeof warm_g3[0]; k++) {
+        uint8_t b = warm_g3[k].b, r = warm_g3[k].r;
+        if ((b == 0x62 && (r == 0x01 || r == 0x02 || r == 0x05)) || b == 0x63) continue;   /* PLL is tuned below */
+        rf_regi2c_write(b, r, warm_g3[k].v);
+    }
+    printf("warm groups %d applied\n", WARM_G);
+#endif
 #ifndef OTA_TX_MAC
 #define OTA_TX_MAC 0xD0                         /* last MAC byte of the transmitting board */
 #endif

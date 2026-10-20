@@ -476,4 +476,12 @@ The measured rates include the start. The consumer's budget per unit is about 12
   - Snapshots: `bench/rf_state_data` (cold, and warm after a vendor run), taken with `examples/rf_state` / `rf_state_uart`.
   - Tried without success: the analog registers that still differ after our init, RTC ANA_CONF bit 18, `BB_I2C_FORCE_PU` (OPTIONS0 bit 7), and the SENS group.
   - The cold/warm group bisection (`COLD_G` in `examples/rf_ota`) gave inconsistent results.
-  - The board's UART connector drives EN, so a reset through it is a power-on reset (rst 0x1). With that cable also connected, a cold state can be reproduced at will.
+  - The board's UART connector drives EN, so a reset through it is a power-on reset (rst 0x1): every run on D0's UART port starts cold. That is reproducible: our TX silent 2/2 from cold; the vendor TX loop makes it work; the next UART reset makes it silent again.
+  - **Vendor init + our TX path works from cold** (+40.7 dB, about 10 dB more than our usual output). **Our init + our TX path fails**, also inside IDF. The gap is in what the vendor init leaves, not in our TX code.
+  - With every readable difference applied after our init, TX is still silent from cold. "Readable" here means:
+    - all 68 digital words in the modem, I2C-master, BB, MAC and FE ranges (`bench/rf_state_data/vendor_words.h`);
+    - all analog registers 0x00..0xFF of blocks 0x60..0x6F;
+    - the analog-bus master's hardware command lists (0x6000E0C0..E170);
+    - the vendor's single parallel write of block 0x6B through bus master 0 (`rom_i2c_paral_write_num`, arrays captured in `trace_c9d0_cold.txt`).
+  - So the missing state is not readable as registers: candidates are the TX power-control loop's internal state (BB 0x6001C838..848 differ), gain memory, or pbus internals.
+  - Next step: trace the vendor init with nested calls kept (the tracer drops calls inside analog-bus primitives) and the TX power-control functions (`tx_pwctrl_*`) hooked, then replay those steps rather than their results.
