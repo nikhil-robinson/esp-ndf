@@ -26,7 +26,7 @@ static void write_cap(uint16_t c)
     rf_regi2c_write_bits(0x62, 0x02, 4, 4, (uint8_t)(c >> 8));
     rf_delay_us(RF_PLL_SETTLE_US);
 }
-static uint8_t vol(void) { return rf_regi2c_read(0x62, 0x0c); }   /* 0 in window, 4 low, 8 high */
+static uint8_t vol(void) { return rf_regi2c_read(0x62, 0x0c) & 0x0C; }   /* bits 3:2: 0 in window, 4 low, 8 high (bit 1 can be set: D0) */
 
 int rf_pll_set_khz(uint32_t khz, rf_pll_result_t *res)
 {

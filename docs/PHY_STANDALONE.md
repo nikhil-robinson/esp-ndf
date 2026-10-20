@@ -482,3 +482,38 @@ The measured rates include the start. The consumer's budget per unit is about 12
     2. Layering our replay on the vendor init broke nothing (retune included), so the gap was state the vendor creates that the replay never touches.
     3. Vendor `rf_init` + `bb_init` after our init restored TX; `rf_init` alone did not.
     4. Of `bb_init`'s callees, `set_pbus_mem` writes write-only memory.
+
+## 9. Measurements (A.1 to A.3), two boards about 10 cm apart
+
+All levels are relative dB at the receiving board (no calibrated power meter or generator). Raw data is in `bench/rfmeas/`, taken with `examples/rfctl` (a line-command radio) and the scripts in `tools/` (`rfhost.py`, `meas_*.py`).
+
+- **A.1, retune:** `rf_pll_hop` with a cached cap takes 43 µs (10,357 cycles), and the received tone is at full level in the very first 3.2 µs block after it (3/3, also from 2240 and 2700 MHz). A full `rf_pll_set_khz` with calibration takes 350–390 µs. `hop_settling.txt`.
+- **A.2, receive gain per index** (`rx_gain.csv`):
+  - Rows 0..82 and 83..127 are two tables. Each rises about 0.7 dB per index, with resets where the stage mix changes (e.g. 28 → 32).
+  - Noise floor 1.3–2.6 LSB RMS up to index ~56, then rising.
+  - The CSV holds every row's raw words for decoding the stages.
+- **A.2, RX IQ:** captured samples are raw ADC data. The receiver image of a tone is below −45 dBc (at the noise floor), and the baseband RX IQ correction (0x6000607C [20:16] gain, [26:21] phase; libphy `rxiq_set_reg`) does not act on the capture. Capture needs no RX IQ correction.
+- **A.2, bandwidth code** 67.04 / 67.05 (I/Q), `rx_bandwidth.csv`:
+
+  | Code | −3 dB corner |
+  |---|---|
+  | 0x00–0x1C | ≥ 11 MHz (limited by the 40 MS/s DAC test signal) |
+  | 0x20–0x24 | 10 MHz |
+  | 0x28–0x2C | 9 MHz |
+  | 0x30–0x34 | 8 MHz |
+  | 0x38–0x3F | 7 MHz |
+
+  At the default 0x1F, the response is −24 dB at 12 MHz and −43 dB at 14 MHz. The other block-0x67 registers barely change the response.
+- **A.2, energy detector:** the baseband estimator (`rf_bb_est`, 0x6000615C..64) power output tracks signal level monotonically (0 / 64 / 72 / 209 / 874 for TX off and DAC amplitude 4 / 16 / 64 / 256).
+  - 0x60033D4C is an event counter that depends on receive gain (1 M/s at gain 0, 3 k/s at 40), not on signal presence.
+  - Config bit 24 captures one word per such event.
+- **A.2, compression** (`rx_compression.csv`): at gains 0..30 the received tone follows the input 3 dB per step up to the transmitter's own limit; at gains 40..50 the limit is ADC clipping. The analog front end never compressed first at this distance.
+- **A.2, maximum safe input:** not testable without risking the part. The datasheet (`docs/ref/esp32-s3_datasheet_en.pdf`, Table 6-5 "Maximum RX Level") gives +5 dBm typical for 802.11b / 6 Mbps / MCS0 and 0 dBm for 54 Mbps / MCS7. Table 5-1 has no RF damage rating.
+- **A.3, TX power** (`tx_power_dac.csv`, `tx_power_dig.csv`, `tx_power_freq.csv`):
+  - In DAC-driven forced-TX mode, the TX gain index and baseband code do nothing, the vendor's own `force_tx_gain` ladder included (verified on IDF, `LADDER=1`).
+  - Output power is set by:
+    - the DAC amplitude: linear at 3 dB per step from 2 to ~128 (about 31 dB), compressing above that, best around 256;
+    - the digital gain bytes 0x60006014..30: a signed attenuator, 0x80 = −25 dB to 0xF0 = 0 dB, about 0.2 dB per step; positive values cost about 2 dB.
+  - pbus-memory word 19 (0x0044FFFF) is the TX state's PA enable: only values with bits 7:4 all set transmit.
+  - Combined TX + RX response vs frequency: peak around 2380–2420 MHz, −10 dB at about 2320 / 2520 MHz, −35 dB at 2240 / 2700 MHz.
+- **Note:** two sessions came up with no link out of about 30 (cause unknown: TX or RX side). `tools/rfhost.link()` checks the level and re-initialises, logging each case.

@@ -58,3 +58,12 @@ int console_write(const char *buf, int n)
     REG(USJ_EP1_CONF) = BIT(0);
     return k;
 }
+
+/* One received byte, or -1 if none (never waits).
+ * USJ: EP1_CONF bit 2 = OUT data available, read EP1. UART0: STATUS[9:0] = RX count. */
+int console_getc(void)
+{
+    if (NDF_CONSOLE == NDF_CONSOLE_UART0) return (REG(0x6000001C) & 0x3FF) ? (int)(REG(U0_FIFO) & 0xFF) : -1;
+    if (NDF_CONSOLE == NDF_CONSOLE_USJ) return (REG(USJ_EP1_CONF) & BIT(2)) ? (int)(REG(USJ_EP1) & 0xFF) : -1;
+    return -1;
+}

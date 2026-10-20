@@ -235,6 +235,23 @@ void app_main(void)
         txcal_work_mode();
     }
 #endif
+#if LADDER > 9
+    {   /* vendor TX power ladder: force_tx_gain(gain, bb) steps, 1.5 s each, DAC tone */
+        static const struct { uint8_t g; uint16_t bb; } lad[] = { {0,0},{32,0},{64,0},{96,0},{127,0},{127,0x080},{127,0x100},{127,0x020},{127,0x0a0} };
+        const uint32_t n = 2000;
+        volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
+        for (uint32_t k = 0; k < n; k++) b[k] = rf_iq_word((int)lrint(300 * cos(2 * M_PI * k / 20)), (int)lrint(300 * sin(2 * M_PI * k / 20)));
+        stop_tx_tone(1); rom_pbus_workmode(); rom_pbus_xpd_rx_on(0); rom_pbus_xpd_tx_on(1, 0);
+        force_txon_mode(1, 0, 0); rf_dac_play(1, n, 0, 1);
+        for (int rep = 0; rep < 3; rep++)
+            for (unsigned k = 0; k < sizeof lad / sizeof lad[0]; k++) {
+                force_tx_gain(lad[k].g, lad[k].bb, 0);
+                printf("step %u gain %u bb %x t %lld\n", k, lad[k].g, lad[k].bb, esp_timer_get_time() / 1000);
+                vTaskDelay(pdMS_TO_TICKS(1500));
+            }
+        for (;;) vTaskDelay(100);
+    }
+#endif
 #if TXLOOP > 9
 #ifdef VFUNC
     {   /* pieces of the vendor init after ours */
