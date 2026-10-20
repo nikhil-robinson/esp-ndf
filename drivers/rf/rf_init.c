@@ -385,3 +385,31 @@ void rf_tx_dc_cal(uint8_t gain, uint16_t bb)
         }
     rf_dac_stop();
 }
+
+/* replay only the selected op types of the init trace (bit op: 1 analog, 2 pbus, 3 gain memory, 4 force mode);
+ * bit 7 loads the pbus memory, bit 0 applies the digital registers, bit 8 resets/powers the modem. A bisect aid. */
+void rf_init_replay_ops(unsigned mask)
+{
+    if (mask & 0x80) pbus_mem_load();
+    if (mask & 0x01) apply_digital();
+    if (mask & 0x100) rf_power_on();
+    for (unsigned i = 0; i < sizeof rf_init_ops / sizeof rf_init_ops[0]; i++) {
+        const rf_op_t *o = &rf_init_ops[i];
+        if (!((mask >> o->op) & 1)) continue;
+        switch (o->op) {
+        case 1:
+            if (o->c == 0x70) rf_regi2c_write(o->a, o->b, (uint8_t)o->x);
+            else rf_regi2c_write_bits(o->a, o->b, o->c >> 4, o->c & 7, (uint8_t)o->x);
+            break;
+        case 2: rf_pbus_write(o->a, o->b, (uint16_t)o->x); break;
+        case 3: rf_gain_mem_write(o->a, o->x, o->y); break;
+        case 4: rf_pbus_force_mode(o->a); break;
+        }
+    }
+}
+
+void rf_init_digital_range(unsigned lo, unsigned hi)   /* bisect aid */
+{
+    for (unsigned i = lo; i < hi && i < sizeof rf_init_digital / sizeof rf_init_digital[0]; i++)
+        REG(rf_init_digital[i].addr) = rf_init_digital[i].value;
+}

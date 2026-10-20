@@ -14,6 +14,7 @@
  *       0x1C SLOTCLK (bit 31 samples), 0x24 RX descriptor pointer, 0x100 ACTSCHCNTL (bit 31 starts entry). */
 #include "ble_hw.h"
 #include "irq.h"
+#include "swtimer.h"
 #include "console.h"
 #include "soc_intr.h"
 #include "xtensa.h"
@@ -42,6 +43,13 @@
 static uint32_t em_buf[BLE_EM_WORDS];
 static volatile uint8_t scan_chan;            /* 0: stopped */
 static volatile uint32_t last_end;            /* ccount of the last event end (watchdog) */
+static volatile uint8_t adv_on;              /* advertising instead of scanning */
+static uint32_t adv_next, adv_iv;             /* next advert start / interval, half-slots */
+static uint16_t scan_cs[45];                  /* scan control structure, restored by ble_hw_scan */
+static uint32_t tx_buf[16];                   /* advertising payload, EM 0x2400 (page register 7) */
+#define CS0     0x400u
+#define TXD     0x1400u
+#define TXBUF   0x2400u
 static ble_hw_stats_t st;
 #define Q_N 32u
 static ble_hw_pkt_t q[Q_N];
@@ -112,6 +120,23 @@ static void isr(void *arg)
     service();
 }
 
+static uint32_t adv_idx;                      /* the vendor rotates exchange-table entries 0..15, one per advert */
+static void arm_adv(void)
+{
+    uint32_t now = clkn();
+    if ((int32_t)(adv_next - now) < 4) adv_next = now + 4;   /* fell behind: next possible slot */
+    adv_idx = (adv_idx + 1) & 15;
+    uint32_t e = 16 * adv_idx;
+    EM16(e + 0) = 0x2802;                        /* mode 2, status standby (vendor 0x281a after processing) */
+    EM16(e + 2) = adv_next & 0xFFFF; EM16(e + 4) = (adv_next >> 16) & 0xFFF;
+    EM16(e + 6) = 0x270;                         /* fine start = start of the half-slot (vendor) */
+    EM16(e + 8) = CS0 / 2;
+    EM16(e + 10) = 0x030B; EM16(e + 12) = 0x0C00; EM16(e + 14) = 0x0F00;
+    EM16(TXD) = 0;                               /* descriptor owned by the core again */
+    CORE(0x18) = 0xFFFFFFFFu;
+    CORE(0x100) = 0x80000000u | adv_idx;
+}
+
 static void service(void)
 {
     uint32_t raw = CORE(0x14);
@@ -129,7 +154,8 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
-        if (scan_chan) arm(); else drain();
+        if (adv_on) { adv_next += adv_iv; arm_adv(); }
+        else if (scan_chan) arm(); else drain();
         st.isr_cycles += ccount() - c0;
     }
     CORE(0x0C) = BLE_MASK;
@@ -154,14 +180,22 @@ int ble_hw_init(void)
     }
     R32(0x600060FC) = (R32(0x600060FC) & 0xFFFF00FFu) | 0xC800u;
     R32(0x6000E0C4) = c4 & ~(1u << 25);
-    for (int k = 0; k < 64; k++) R32(0x60011000u + 4 * k) = ble_modem_regs[k];
+    for (int k = 0; k < 64; k++) {               /* 0x6C..0x88, 0xB0 are run-time state (captured mid-scan): leave them */
+        if ((k >= 0x6C / 4 && k <= 0x88 / 4) || k == 0xB0 / 4) continue;
+        R32(0x60011000u + 4 * k) = ble_modem_regs[k];
+    }
     memcpy(em_buf, ble_em_image, sizeof em_buf);
+    for (int k = 0; k < 56; k++) R32(0x60031204u + 4 * k + (k > 47 ? 28 : 0)) = ble_em_map_off[k];   /* offset-only entries */
     for (unsigned k = 0; k < sizeof ble_em_segs / sizeof ble_em_segs[0]; k++) {
         unsigned i = ble_em_segs[k].idx;
         uint32_t a = (uint32_t)em_buf + ble_em_segs[k].pos;
         R32(0x60031204u + 4 * i + (i > 47 ? 28 : 0)) = ((uint32_t)ble_em_segs[k].em_off >> 2) << 18 | ((a >> 2) & 0x3FFFF);
     }
     for (unsigned k = 0; k < sizeof ble_core_regs / sizeof ble_core_regs[0]; k++) CORE(ble_core_regs[k].off) = ble_core_regs[k].val;
+    R32(0x60031204u + 4 * 7) = (TXBUF >> 2) << 18 | (((uint32_t)tx_buf >> 2) & 0x3FFFF);   /* EM page for the TX payload */
+    CORE(0x2C4) |= 1u << 7;                      /* page-valid mask (pages 0..31; 0x2C8: 32..47, 0x300: 48..): the core
+                                                  * ignores a mapped page whose bit is clear (vendor: r_emi_alloc_em_mapping) */
+    for (int k = 0; k < 45; k++) scan_cs[k] = EM16(CS0 + 2 * k);
     CORE(0x0C) = 0;
     CORE(0x00) = ble_rwblecntl;
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; }
@@ -172,17 +206,52 @@ CORE(0x0C) = INT_END | INT_SKIP;
 
 void ble_hw_scan(uint8_t chan)
 {
+    adv_on = 0;
+    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = scan_cs[k];
     scan_chan = chan;
     last_end = ccount();
     arm();
 }
 
-void ble_hw_stop(void) { scan_chan = 0; }
+void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; }
+
+int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *data, unsigned len, uint32_t interval_us)
+{
+    if (len > 31) return -1;
+    uint32_t ps = irq_lock();
+
+    scan_chan = 0;
+    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_adv_cs[k];
+    EM16(CS0 + 0x16) = chan;                     /* fixed channel, no hop */
+    for (int k = 0; k < 3; k++) EM16(CS0 + 6 + 2 * k) = adva[2 * k] | adva[2 * k + 1] << 8;
+    /* random own address: the vendor sets LINKCNTL bit 7, TxAdd in the header and bit 6 of TX descriptor word 8 */
+    EM16(CS0 + 2) = (EM16(CS0 + 2) & ~0x80u) | (random ? 0x80 : 0);
+    for (int k = 0; k < 9; k++) EM16(TXD + 2 * k) = ble_adv_txdesc[k];
+    EM16(0x14C) = ble_adv_em14c;
+    EM16(TXD + 2) = (uint16_t)((len + 6) << 8 | 0x22 | (random ? 0x40 : 0));   /* ADV_NONCONN_IND (+ the vendor's 0x20) */
+    EM16(TXD + 4) = TXBUF;
+    EM16(TXD + 16) = (EM16(TXD + 16) & ~0x40u) | (random ? 0x40 : 0);
+    memcpy(tx_buf, data, len);
+    for (unsigned k = 0; k < sizeof ble_adv_core_regs / sizeof ble_adv_core_regs[0]; k++)   /* core as the vendor had it advertising */
+        if (ble_adv_core_regs[k].off >= 0x2C0) CORE(ble_adv_core_regs[k].off) = ble_adv_core_regs[k].val;
+    adv_iv = interval_us * 2 / 625;              /* half-slots */
+    if (!adv_iv) adv_iv = 1;
+    for (int e = 0; e < 16; e++) {               /* every exchange-table entry valid, as the vendor leaves them */
+        EM16(16 * e + 0) = 0x281A; EM16(16 * e + 2) = 0; EM16(16 * e + 4) = 0; EM16(16 * e + 6) = 0x270;
+        EM16(16 * e + 8) = CS0 / 2; EM16(16 * e + 10) = 0x030B; EM16(16 * e + 12) = 0x0C00; EM16(16 * e + 14) = 0x0F00;
+    }
+    adv_on = 1;
+    adv_next = clkn() + 16;
+    last_end = ccount();
+    arm_adv();
+    irq_unlock(ps);
+    return 0;
+}
 
 int ble_hw_read(ble_hw_pkt_t *p)
 {
     service();
-    if (scan_chan && ccount() - last_end > 240000u * 50) {   /* no event end for 50 ms: re-arm (a lost start) */
+    if (scan_chan && !adv_on && ccount() - last_end > 240000u * 50) {   /* no event end for 50 ms: re-arm (a lost start) */
         uint32_t ps = irq_lock();
         CORE(0x00) |= 1u << 24;                  /* SCAN_ABORT: a stuck event refuses new starts */
         for (volatile int k = 0; k < 200; k++) {}
@@ -198,20 +267,27 @@ int ble_hw_read(ble_hw_pkt_t *p)
 
 void ble_hw_get_stats(ble_hw_stats_t *s) { *s = st; }
 
+static void wake(void *arg) { (void)arg; }
 int ble_hw_wait(ble_hw_pkt_t *p, uint32_t timeout_us)
 {
+    static swtimer_t to;                         /* wakes waiti at the timeout when no BLE interrupt comes */
     uint32_t t0 = ccount();
+    swt_start(&to, timeout_us, false, wake, 0);
+    int r = 0;
     for (;;) {
-        if (ble_hw_read(p)) return 1;
-        if (ccount() - t0 >= timeout_us * 240u) return 0;
-        __asm__ volatile("waiti 0");             /* sleep until an interrupt (the core's, or the tick) */
+        if (ble_hw_read(p)) { r = 1; break; }
+        if (ccount() - t0 >= timeout_us * 240u) break;
+        __asm__ volatile("waiti 0");
     }
+    swt_stop(&to);
+    return r;
 }
 
 void ble_hw_debug(uint32_t out[6])
 {
-    out[0] = CORE(0x0C); out[1] = CORE(0x14); out[2] = EM16(0); out[3] = clkn(); out[4] = CORE(0x24);
+    out[0] = CORE(0x0C); out[1] = CORE(0x14); out[2] = EM16(16) | (uint32_t)EM16(32) << 16; out[3] = clkn(); out[4] = EM16(18) | (uint32_t)EM16(34) << 16;
     out[5] = CORE(0x2D8);
 }
+
 
 

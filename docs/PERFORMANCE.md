@@ -229,3 +229,11 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | Init | 2.2 ms | — | — |
 
 **Headroom:** 47% of the sent PDUs are caught. One PDU per receive window, plus a 250 µs kick-to-start margin per window.
+
+## BLE advertising (hardware link layer, no vendor code), `examples/ble_adv`
+
+| | esp-ndf `ble_hw_adv` | esp-ndf software TX (`rfctl bleadv`) |
+|---|---|---|
+| Adverts | 50/s at a 20 ms interval (any interval) | ~2,500/s looped from one DAC bank |
+| CPU | 0.044% (one short interrupt per advert) | 0% while looping, but the DAC bank is busy and the radio is held in TX |
+| Received by IDF Bluedroid | yes, ~16/s (scanner covers ch 37 a third of the time) | yes, ~800/s |

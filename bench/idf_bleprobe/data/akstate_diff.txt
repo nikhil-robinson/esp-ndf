@@ -1,0 +1,190 @@
+--- EM
+  em 0002 idf 1636 bare 0c05
+  em 000a idf 030b bare 2bf2
+  em 0010 idf 281a bare 280a
+  em 0012 idf 1678 bare 0150
+  em 0020 idf 281a bare 2802
+  em 0022 idf 16bc bare 0190
+  em 0030 idf 281a bare 0018
+  em 0032 idf 171a bare 0000
+  em 0036 idf 0270 bare 0000
+  em 0038 idf 0200 bare 0000
+  em 003a idf 030b bare 0000
+  em 003c idf 0c00 bare 0000
+  em 003e idf 0f00 bare 0000
+  em 0040 idf 281a bare 0018
+  em 0042 idf 175c bare 0000
+  em 0046 idf 0270 bare 0000
+  em 0048 idf 0200 bare 0000
+  em 004a idf 030b bare 0000
+  em 004c idf 0c00 bare 0000
+  em 004e idf 0f00 bare 0000
+  em 0050 idf 281a bare 0018
+  em 0052 idf 17ae bare 0000
+  em 0056 idf 0270 bare 0000
+  em 0058 idf 0200 bare 0000
+  em 005a idf 030b bare 0000
+  em 005c idf 0c00 bare 0000
+  em 005e idf 0f00 bare 0000
+  em 0060 idf 281a bare 0018
+  em 0062 idf 180c bare 0000
+  em 0066 idf 0270 bare 0000
+  em 0068 idf 0200 bare 0000
+  em 006a idf 030b bare 0000
+  em 006c idf 0c00 bare 0000
+  em 006e idf 0f00 bare 0000
+  em 0070 idf 281a bare 0018
+  em 0072 idf 1866 bare 0000
+  em 0076 idf 0270 bare 0000
+  em 0078 idf 0200 bare 0000
+  em 007a idf 030b bare 0000
+  em 007c idf 0c00 bare 0000
+  em 007e idf 0f00 bare 0000
+  em 0080 idf 281a bare 0018
+  em 0082 idf 18be bare 0000
+  em 0086 idf 0270 bare 0000
+  em 0088 idf 0200 bare 0000
+  em 008a idf 030b bare 0000
+  em 008c idf 0c00 bare 0000
+  em 008e idf 0f00 bare 0000
+  em 0090 idf 281a bare 0018
+  em 0092 idf 13ee bare 0000
+  em 0096 idf 0270 bare 0000
+  em 0098 idf 0200 bare 0000
+  em 009a idf 030b bare 0000
+  em 009c idf 0c00 bare 0000
+  em 009e idf 0f00 bare 0000
+  em 00a0 idf 281a bare 0018
+  em 00a2 idf 1444 bare 0000
+  em 00a6 idf 0270 bare 0000
+  em 00a8 idf 0200 bare 0000
+  em 00aa idf 030b bare 0000
+  em 00ac idf 0c00 bare 0000
+  em 00ae idf 0f00 bare 0000
+  em 00b0 idf 281a bare 0018
+  em 00b2 idf 1486 bare 0000
+  em 00b6 idf 0270 bare 0000
+  em 00b8 idf 0200 bare 0000
+  em 00ba idf 030b bare 0000
+  em 00bc idf 0c00 bare 0000
+  em 00be idf 0f00 bare 0000
+  em 00c0 idf 281a bare 0018
+  em 00c2 idf 14e0 bare 0000
+  em 00c6 idf 0270 bare 0000
+  em 00c8 idf 0200 bare 0000
+  em 00ca idf 030b bare 0000
+  em 00cc idf 0c00 bare 0000
+  em 00ce idf 0f00 bare 0000
+  em 00d0 idf 281a bare 0018
+  em 00d2 idf 1534 bare 0000
+  em 00d6 idf 0270 bare 0000
+  em 00d8 idf 0200 bare 0000
+  em 00da idf 030b bare 0000
+  em 00dc idf 0c00 bare 0000
+  em 00de idf 0f00 bare 0000
+  em 00e0 idf 281a bare 0018
+  em 00e2 idf 158c bare 0000
+  em 00e6 idf 0270 bare 0000
+  em 00e8 idf 0200 bare 0000
+  em 00ea idf 030b bare 0000
+  em 00ec idf 0c00 bare 0000
+  em 00ee idf 0f00 bare 0000
+  em 00f0 idf 281a bare 0018
+  em 00f2 idf 15e4 bare 0000
+  em 00f6 idf 0270 bare 0000
+  em 00f8 idf 0200 bare 0000
+  em 00fa idf 030b bare 0000
+  em 00fc idf 0c00 bare 0000
+  em 00fe idf 0f00 bare 0000
+  em 0406 idf c94a bare 2211
+  em 0408 idf 7ce2 bare 4433
+  em 040a idf 2458 bare c655
+  em 0416 idf 8025 bare 0025
+  em 1402 idf 1222 bare 1162
+  em 140a idf 0000 bare 0d00
+  em 2400 idf 0102 bare 0000
+  em 2402 idf 0806 bare 0000
+  em 2404 idf 4909 bare 0000
+  em 2406 idf 4644 bare 0000
+  em 2408 idf 412d bare 0000
+  em 240a idf 5644 bare 0000
+  em 240c idf 3c4c bare 0000
+  em 240e idf 3fca bare 0000
+  em 2410 idf 3c4c bare 0000
+  em 2412 idf 3fca bare 0000
+  em 2414 idf 6880 bare 0000
+  em 2416 idf 3fcb bare 0000
+  em 2418 idf 000c bare 0000
+--- regs
+  6000e000 idf 05bc046a bare 052f0669
+  6000e004 idf 04000c62 bare 04170063
+  6000e044 idf 00fff7ff bare 00fffdff
+  6000e05c idf 0000016a bare 6000016a
+  6000e080 idf 000006b3 bare 0000030f
+  6000e084 idf 000006ae bare 000002cb
+  6000e088 idf 000006b8 bare 000002cb
+  6000e08c idf 000006b8 bare 000002cb
+  6000e0c0 idf 00000000 bare 00315ddd
+  6000e0c4 idf c14228fe bare c142287c
+  6000e148 idf 00000000 bare 002a88a8
+  6000e168 idf 3e001700 bare 02001700
+  6000e170 idf 007c0000 bare 00000000
+  6001106c idf 00004000 bare 220b4026
+  60011070 idf 00000002 bare 00002222
+  60011078 idf 00000000 bare 8e89bed6
+  6001107c idf 00000000 bare 32000000
+  60011088 idf 00001000 bare 00023030
+  6001116c idf 00004000 bare 220b4026
+  60011170 idf 00000002 bare 00002222
+  60011178 idf 00000000 bare 8e89bed6
+  6001117c idf 00000000 bare 32000000
+  60011188 idf 00001000 bare 00023030
+  6001126c idf 00004000 bare 220b4026
+  60011270 idf 00000002 bare 00002222
+  60011278 idf 00000000 bare 8e89bed6
+  6001127c idf 00000000 bare 32000000
+  60011288 idf 00001000 bare 00023030
+  6001136c idf 00004000 bare 220b4026
+  60011370 idf 00000002 bare 00002222
+  60011378 idf 00000000 bare 8e89bed6
+  6001137c idf 00000000 bare 32000000
+  60011388 idf 00001000 bare 00023030
+  6001146c idf 00004000 bare 220b4026
+  60011470 idf 00000002 bare 00002222
+  60011478 idf 00000000 bare 8e89bed6
+  6001147c idf 00000000 bare 32000000
+  60011488 idf 00001000 bare 00023030
+  6001156c idf 00004000 bare 020b4026
+  60011570 idf 00000002 bare 00002222
+  60011578 idf 00000000 bare 8e89bed6
+  6001157c idf 00000000 bare 32000000
+  60011588 idf 00001000 bare 00023030
+  6001166c idf 00004000 bare 220b4026
+  60011670 idf 00000002 bare 00002222
+  60011678 idf 00000000 bare 8e89bed6
+  6001167c idf 00000000 bare 32000000
+  60011688 idf 00001000 bare 00023030
+  6001176c idf 00004000 bare 020b4026
+  60011770 idf 00000002 bare 00002222
+  60011778 idf 00000000 bare 8e89bed6
+  6001177c idf 00000000 bare 32000000
+  60011788 idf 00001000 bare 00023030
+  6003100c idf 00000000 bare 00000120
+  6003101c idf 00000000 bare 00000150
+  60031020 idf 00000000 bare 0000021e
+  60031060 idf 00000000 bare 00200200
+  600310ec idf 000018fd bare 00008c07
+  60031100 idf 00000000 bare 00000002
+  60031104 idf 00000000 bare 00000150
+  60031108 idf 00000000 bare 00000270
+  60031160 idf 00000000 bare 300000dc
+  60031178 idf 00129eb9 bare 003e1e1e
+  6003117c idf 00194caa bare 0021ee4d
+  600312cc idf 00000000 bare 05030900
+  6003132c idf 40000000 bare 4000000d
+  60031370 idf 00000000 bare 8e89bed6
+  60035000 idf 0042d65e bare 002b67b9
+  6003502c idf 00000002 bare 00000000
+  6003507c idf 2d538769 bare 2eaed328
+  60035094 idf 00000004 bare 00000007
+  6003509c idf 0c800000 bare 00140064

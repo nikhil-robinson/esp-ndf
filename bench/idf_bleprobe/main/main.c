@@ -13,6 +13,9 @@
 #include "esp_cpu.h"
 #include "rf_regi2c.h"
 #include "rf_init.h"
+#ifdef HWSTEP
+#include "../../../drivers/ble/ble_state.h"
+#endif
 #ifndef ONTO
 #define ONTO 1
 #endif
@@ -42,6 +45,7 @@ static void dump(const char *tag)
 }
 
 #define CORE(o) (*(volatile uint32_t *)(0x60031000 + (o)))
+#define R32(a) (*(volatile uint32_t *)(a))
 static uint32_t em_map(uint32_t off)               /* EM offset -> DRAM: the page register with the largest base <= off */
 {
     uint32_t best = 0, bo = 0;
@@ -138,6 +142,8 @@ static void kick_state_dump(void)
     PR("== kstate end\n");
 }
 
+#define EMRD(o) EM16(o)
+#include "kdump.inc"
 void app_main(void)
 {
     const ets_rom_layout_t *l = ets_rom_layout_p;
@@ -153,6 +159,160 @@ void app_main(void)
     esp_bluedroid_enable();
     r_emi_em_base_reg_show();
     dump("idle");
+#ifdef ADVMODE
+    {   /* advertiser instead of scanner: ADV_NONCONN_IND "IDF-ADV", channel 37, 20 ms; then freeze and dump */
+        static uint8_t raw[] = { 2, 1, 6, 8, 9, 'I', 'D', 'F', '-', 'A', 'D', 'V' };
+        esp_ble_gap_config_adv_data_raw(raw, sizeof raw);
+        vTaskDelay(pdMS_TO_TICKS(100));
+#ifdef RANDADDR
+        static uint8_t ra[6] = { 0xC6, 0x55, 0x44, 0x33, 0x22, 0x11 };
+        esp_ble_gap_set_rand_addr(ra);
+        vTaskDelay(pdMS_TO_TICKS(100));
+#endif
+        esp_ble_adv_params_t ap = { .adv_int_min = 0x20, .adv_int_max = 0x20, .adv_type = ADV_TYPE_NONCONN_IND,
+#ifdef RANDADDR
+                                    .own_addr_type = BLE_ADDR_TYPE_RANDOM,
+#else
+                                    .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+#endif
+                                    .channel_map = ADV_CHNL_37, .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY };
+#ifndef NOADV
+        esp_ble_gap_start_advertising(&ap);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        esp_ble_gap_stop_advertising();
+#else
+        (void)ap;
+#endif
+        vTaskDelay(pdMS_TO_TICKS(200));
+        CORE(0x0C) = 0;
+        vTaskDelay(pdMS_TO_TICKS(50));
+#ifndef ADVSTEP
+        state_dump();
+#endif
+        vTaskSuspendAll();
+        portDISABLE_INTERRUPTS();
+#ifdef ADVSTEP
+#if ADVSTEP == 7
+#define SMN 0x400
+#else
+#define SMN 0x200
+#endif
+        {   /* our PHY init under the vendor's BLE state, then restore the BT core/modem registers */
+            static uint32_t sm[0x400], sc[0x100];
+#if ADVSTEP >= 4
+            static const struct { uint32_t base, len; } vb[] = { { 0x60006000, 0x200 }, { 0x6001C000, 0x2000 }, { 0x6000E000, 0x200 }, { 0x60005000, 0x1000 } };
+            static uint32_t vs[(0x200 + 0x2000 + 0x200 + 0x1000) / 4];
+            static uint8_t va[11][32];
+            static const uint8_t ab[] = { 0x61, 0x62, 0x63, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D };
+            { uint32_t *q = vs; for (unsigned b = 0; b < 4; b++) for (uint32_t a = vb[b].base; a < vb[b].base + vb[b].len; a += 4) *q++ = R32(a); }
+            for (unsigned b = 0; b < sizeof ab; b++) for (int r = 0; r < 32; r++) va[b][r] = rf_regi2c_read(ab[b], r);
+#endif
+            uint32_t sclk = R32(0x60026014), srst = R32(0x60026018);
+            for (int k = 0; k < SMN; k++) sm[k] = R32(0x60011000 + 4 * k);
+            for (int k = 0; k < 0x100; k++) sc[k] = CORE(4 * k);
+#if ADVSTEP == 5
+            rf_init_replay_ops(1u << 3);             /* gain memory only */
+#elif ADVSTEP == 6
+            rf_init_replay_ops(0x80);                /* pbus memory only */
+#elif ADVSTEP == 8
+            rf_init_replay_ops(1u << 1);
+#elif ADVSTEP == 9
+            rf_init_replay_ops(1u << 2);
+#elif ADVSTEP == 10
+            rf_init_replay_ops(1u << 0);
+#elif ADVSTEP == 12
+            rf_init_digital_range(DLO, DHI);
+#elif ADVSTEP == 11
+            rf_init_replay_ops(1u << 8);
+#else
+            rf_init_replay();
+#endif
+#if ADVSTEP != 3 && ADVSTEP < 4
+            rf_freq_mem_load();
+#endif
+            rf_pll_result_t pr; rf_pll_set_khz(2402000, &pr);
+#if ADVSTEP >= 2
+            rf_rx_on();
+#endif
+            R32(0x60026014) = sclk; R32(0x60026018) = srst;
+#ifndef SKIPSM
+            for (int k = 0; k < SMN; k++) R32(0x60011000 + 4 * k) = sm[k];
+#endif
+#ifndef SKIPSC
+            for (int k = 1; k < 0x100; k++) {
+                uint32_t o = 4 * k;
+                if (o == 0x10 || o == 0x14 || o == 0x18 || o == 0x1C || o == 0x20 || o == 0x24 || (o >= 0x100 && o < 0x120)) continue;
+                CORE(o) = sc[k];
+            }
+            CORE(0x0C) = 0; CORE(0) = sc[0];
+#endif
+#ifdef HWSTEP
+            if (HWSTEP & 1) {
+                R32(0x6000E0C4) |= 1u << 25;
+                uint32_t c4 = 0;
+                for (unsigned k = 0; k < sizeof ble_vendor_phy / sizeof ble_vendor_phy[0]; k++) {
+                    uint32_t a = ble_vendor_phy[k].addr;
+                    if (a == 0x6000E0C4u) c4 = ble_vendor_phy[k].val; else if (a >= 0x6000E000u && a < 0x6000E200u) R32(a) = ble_vendor_phy[k].val;
+                }
+                R32(0x600060FC) = (R32(0x600060FC) & 0xFFFF00FFu) | 0xC800u;
+                R32(0x6000E0C4) = c4 & ~(1u << 25);
+            }
+            if (HWSTEP & 2) for (unsigned k = 0; k < sizeof ble_vendor_phy / sizeof ble_vendor_phy[0]; k++) {
+                uint32_t a = ble_vendor_phy[k].addr;
+                if (a >= 0x60035000u && a < 0x60035400u && a != 0x60035000u && a != 0x6003507Cu) R32(a) = ble_vendor_phy[k].val;
+            }
+            if (HWSTEP & 4) for (int k = 0; k < 64; k++) { if ((k >= 0x6C / 4 && k <= 0x88 / 4) || k == 0xB0 / 4) continue; R32(0x60011000u + 4 * k) = ble_modem_regs[k]; }
+#ifdef MAPV
+            for (int k = 0x204 / 4; k < 0x2C0 / 4; k++) CORE(4 * k) = sc[k];   /* vendor page map (incl. offset-only entries) */
+#endif
+            if (HWSTEP & 16) {                       /* relocate EM: the generated image into our buffer, pages remapped */
+                static uint32_t mybuf[BLE_EM_WORDS];
+                memcpy(mybuf, ble_em_image, sizeof mybuf);
+                for (unsigned k = 0; k < sizeof ble_em_segs / sizeof ble_em_segs[0]; k++) {
+                    unsigned i = ble_em_segs[k].idx; uint32_t a = (uint32_t)mybuf + ble_em_segs[k].pos;
+                    R32(0x60031204u + 4 * i + (i > 47 ? 28 : 0)) = ((uint32_t)ble_em_segs[k].em_off >> 2) << 18 | ((a >> 2) & 0x3FFFF);
+                }
+                esp_rom_printf("EM relocated to %p\n", mybuf);
+            }
+            if (HWSTEP & 8) { for (unsigned k = 0; k < sizeof ble_core_regs / sizeof ble_core_regs[0]; k++) CORE(ble_core_regs[k].off) = ble_core_regs[k].val; CORE(0x0C) = 0; CORE(0) = ble_rwblecntl; }
+#ifdef SCLO
+            for (int k = SCLO / 4; k < SCHI / 4; k++) {     /* bisect: vendor live core values back in [SCLO, SCHI) */
+                uint32_t o = 4 * k;
+                if (o == 0x10 || o == 0x14 || o == 0x18 || o == 0x1C || o == 0x20 || o == 0x24 || (o >= 0x100 && o < 0x120) || (o >= 0x200 && o < 0x2C0)) continue;
+                CORE(o) = sc[k];
+            }
+#endif
+#endif
+#if ADVSTEP >= 4
+            { uint32_t *q = vs; for (unsigned b = 0; b < 4; b++) for (uint32_t a = vb[b].base; a < vb[b].base + vb[b].len; a += 4, q++)
+                  if (((ADVSTEP >> (b + 2)) & 1) && R32(a) != *q) R32(a) = *q; }
+            if (ADVSTEP & 0x40) for (unsigned b = 0; b < sizeof ab; b++) for (int r = 0; r < 32; r++)
+                if (ab[b] != 0x62 && ab[b] != 0x63 && rf_regi2c_read(ab[b], r) != va[b][r]) rf_regi2c_write(ab[b], r, va[b][r]);
+#endif
+        }
+#endif
+#ifdef AKDUMP
+        portENABLE_INTERRUPTS(); adv_kdump(); portDISABLE_INTERRUPTS();
+#endif
+        static uint32_t log[50][3];
+        int idx = (CORE(0x100) & 15);
+        for (int n = 0; n < 50; n++) {               /* our own advertising events on the vendor-configured core */
+            idx = (idx + 1) & 15;
+            uint32_t ck = clkn() + 16, e = 16 * idx;
+            EM16(e + 0) = 0x2802; EM16(e + 2) = ck & 0xFFFF; EM16(e + 4) = (ck >> 16) & 0xFFF; EM16(e + 6) = 0x270;
+            EM16(e + 8) = 0x200; EM16(e + 10) = 0x030B; EM16(e + 12) = 0x0C00; EM16(e + 14) = 0x0F00;
+            EM16(0x1400) = 0;
+            CORE(0x18) = 0xFFFFFFFF; CORE(0x100) = 0x80000000u | idx;
+            uint32_t t0 = esp_cpu_get_cycle_count();
+            while (esp_cpu_get_cycle_count() - t0 < 240000u * 20) {}
+            log[n][0] = EM16(e); log[n][1] = CORE(0x14); log[n][2] = EM16(0x1400);
+        }
+        portENABLE_INTERRUPTS();
+        for (int n = 0; n < 50; n += 5) esp_rom_printf("kick %d: et %04x raw %08x txd %04x\n", n, (unsigned)log[n][0], (unsigned)log[n][1], (unsigned)log[n][2]);
+        esp_rom_printf("=== done\n");
+        for (;;) {}
+    }
+#endif
     esp_ble_gap_register_callback(cb);
     esp_ble_scan_params_t sp = { .scan_type = BLE_SCAN_TYPE_PASSIVE, .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
                                  .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL, .scan_interval = 0x4000, .scan_window = 0x4000,

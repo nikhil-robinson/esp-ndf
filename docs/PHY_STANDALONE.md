@@ -648,7 +648,28 @@ Inside `rf_init`, the piece is `set_chan_freq_hw_init` → `get_rf_freq_init` �
 - **Handle skips as well as ends:** the interrupt handler masks the core interrupt, handles end and skip (bits 5 and 8), re-arms and unmasks. An unhandled skip leaves the scheduler idle with no further interrupt; that, plus the descriptor race, was why in-handler re-arming first appeared to wedge.
 - **Fine start:** each event starts 250 µs after its kick, via the exchange-table fine start (0x60031020 counts down 623..0 in 0.5 µs units). 150 µs is too soon (every event is skipped); this gives 1,190 PDUs/s against 935 with half-slot starts.
 
+### Hardware advertising (TX) — `ble_hw_adv`, `examples/ble_adv`
+
+The core sends ADV_NONCONN_IND itself (header, CRC, whitening, GFSK). The CPU only schedules the next event from the end-of-event interrupt.
+
+**Measured:**
+- 50 adverts/s at a 20 ms interval, 0.044% CPU, 0 skips.
+- D0's software receiver (`rfctl blerx`) decodes them with the CRC passing.
+- The vendor's Bluedroid scanner (`bench/idf_blescan` on D0, UART build) lists "NDF-HW" C6:55:44:33:22:11 at RSSI −42, about 16/s (it covers each advertising channel a third of the time).
+
+**What it needed**, found from vendor advertising captures (`state_adv_c948.txt`, `state_advrand_c948.txt`) and by bisecting from the working vendor state towards bare metal in `bench/idf_bleprobe`:
+
+1. **Every EM page register must carry its offset**, including unused pages as offset-only entries (the vendor writes 0x2C000000, 0x34000000, …). With zero entries, receive works but every advertising event is skipped, and the scheduler then ignores further kicks. `ble_hw_init` writes the vendor's offsets (`ble_em_map_off`) before mapping the real pages.
+2. **Rotate the exchange-table entries:** one per advert, entries 0..15 as the vendor does. Fine start 0x270 = the start of a half-slot.
+3. **Advertiser control structure** (format 0x04, from the capture):
+   - TX descriptor at EM 0x1400: +2 header (type 2, plus the vendor's 0x20), +4 payload pointer;
+   - payload in a page mapped at EM 0x2400 (page register 7, plus valid bit 7 in 0x600312C4);
+   - EM 0x14C holds the current CS format word (scan 0x0208, advertising 0x0404).
+4. **Core registers as the vendor had them while advertising** (`ble_adv_core_regs`).
+5. **Random own address:** LINKCNTL (CS+2) bit 7, TxAdd (0x40) in the header, and bit 6 of TX descriptor word 8. All three, as the vendor sets them.
+6. **The coex priority word 0x6003509C** must be the BT value 0x00140064 (`ble_hw_init`). The PHY init's 0x0C800000 transmits a corrupted signal: the AA is found with 5+ bit errors and nothing decodes.
+
 **Still open:**
-- TX of advertising from the core (software TX works, §10).
 - Connections.
-- More PDUs per event: chaining receive windows would approach the full 2,500/s.
+- Scannable/connectable advertising (needs RX after TX within the event).
+- More PDUs per receive window: receiving caps at about 1,190 of 2,500 PDUs/s.

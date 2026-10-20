@@ -25,6 +25,8 @@ extern uint32_t rf_gain_shadow[256][2];         /* [row] = { lo, hi } as last wr
  * rows sharing gain codes; receive must be on and tuned. Returns the worst residual |DC| x16. */
 int rf_rx_dc_cal(unsigned rows);
 void rf_init_replay(void);
+void rf_init_replay_ops(unsigned mask);
+void rf_init_digital_range(unsigned lo, unsigned hi);       /* bisect aid: only some op types of the init trace */
 int  rf_rc_cal(void);                           /* RX filter RC code (6A.05) applied to 67.14..1F; done by rf_init_replay */
 void rf_rx_on(void);                            /* receive front end and RX clock on */
 #ifndef RF_LO_DIRECT_MIN_KHZ

@@ -85,7 +85,20 @@ void app_main(void)
 #if VSTEP >= 20 && VSTEP < 21 || VSTEP >= 30 && VSTEP < 40
     esp_bt_controller_enable(ESP_BT_MODE_BLE);
 #endif
-#if VSTEP >= 30 && VSTEP < 40
+#if VSTEP == 31
+    esp_bluedroid_init(); esp_bluedroid_enable();
+    {
+        static uint8_t raw[] = { 2, 1, 6, 8, 9, 'I', 'D', 'F', '-', 'A', 'D', 'V' };
+        esp_ble_gap_config_adv_data_raw(raw, sizeof raw);
+        vTaskDelay(pdMS_TO_TICKS(100));
+        esp_ble_adv_params_t ap = { .adv_int_min = 0x20, .adv_int_max = 0x20, .adv_type = ADV_TYPE_NONCONN_IND,
+                                    .own_addr_type = BLE_ADDR_TYPE_PUBLIC, .channel_map = ADV_CHNL_37, .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY };
+        esp_ble_gap_start_advertising(&ap);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        esp_ble_gap_stop_advertising();
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+#elif VSTEP >= 30 && VSTEP < 40
     esp_bluedroid_init(); esp_bluedroid_enable();
     esp_ble_gap_register_callback(cb);
     esp_ble_scan_params_t sp = { .scan_type = BLE_SCAN_TYPE_PASSIVE, .own_addr_type = BLE_ADDR_TYPE_PUBLIC, .scan_filter_policy = BLE_SCAN_FILTER_ALLOW_ALL,
@@ -129,6 +142,32 @@ void app_main(void)
             for (uint32_t d = 0x1000; d < 0x10C8; d += 0x14) if (EM16(d) & 0x8000) { hit = d; break; }
         hits += hit != 0;
     }
+#ifdef ADVTEST
+    {   /* advertising on the same setup: adv CS, TX descriptor, payload page, rotating ET entries */
+        static uint32_t txb[16];
+        R32(0x60031204u + 4 * 7) = (0x2400u >> 2) << 18 | (((uint32_t)txb >> 2) & 0x3FFFF);
+        CORE(0x2C4) |= 1u << 7;
+        for (int k = 0; k < 45; k++) EM16(0x400 + 2 * k) = ble_adv_cs[k];
+        for (int k = 0; k < 8; k++) EM16(0x1400 + 2 * k) = ble_adv_txdesc[k];
+        EM16(0x1410) = 0x0604;
+        EM16(0x14C) = 0x0404;                       /* EM 0x14C mirrors the CS format word: scan 0x0208, adv 0x0404 */
+        static const uint8_t d[] = { 2, 1, 6, 7, 9, 'N', 'D', 'F', '-', 'H', 'W' };
+        memcpy(txb, d, sizeof d);
+        EM16(0x1402) = (uint16_t)((sizeof d + 6) << 8 | 0x22);
+        int ok = 0, skip = 0, idx = 0;
+        for (int n = 0; n < 20; n++) {
+            idx = (idx + 1) & 15;
+            uint32_t ck = clkn() + 16, e = 16 * idx;
+            EM16(e + 0) = 0x2802; EM16(e + 2) = ck & 0xFFFF; EM16(e + 4) = (ck >> 16) & 0xFFF; EM16(e + 6) = 0x270;
+            EM16(e + 8) = 0x200; EM16(e + 10) = 0x030B; EM16(e + 12) = 0x0C00; EM16(e + 14) = 0x0F00;
+            EM16(0x1400) = 0;
+            CORE(0x18) = 0xFFFFFFFFu; CORE(0x100) = 0x80000000u | idx;
+            uint32_t t0 = esp_cpu_get_cycle_count(); while (esp_cpu_get_cycle_count() - t0 < 240000u * 20) {}
+            int st2 = (EM16(e) >> 3) & 7; ok += st2 == 3; skip += st2 == 2;
+        }
+        hits = ok * 100 + skip;
+    }
+#endif
     portENABLE_INTERRUPTS();
     esp_rom_printf("VSTEP %d: hits %d/10 modem b0 %08x\n=== done\n", VSTEP, hits, (unsigned)R32(0x600110B0));
     for (;;) {}
