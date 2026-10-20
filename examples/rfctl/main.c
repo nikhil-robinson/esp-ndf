@@ -17,11 +17,13 @@
 
 #define R(a) (*(volatile uint32_t *)(a))
 
+static int hann;                                /* "hann 1": Hann-window the bins (spur / skirt work), 0 dB = same tone as rectangular */
 static float bin_db(const uint32_t *w, uint32_t n, float f, float fs)
 {
     float c = cosf(2 * (float)M_PI * f / fs), s = sinf(2 * (float)M_PI * f / fs), re = 0, im = 0, cr = 1, ci = 0;
     for (uint32_t k = 0; k < n; k++) {
         float i = rf_iq_i(w[k]), q = -rf_iq_q(w[k]);
+        if (hann) { float h = 1 - cosf(2 * (float)M_PI * k / n); i *= h; q *= h; }
         re += i * cr + q * ci; im += q * cr - i * ci;
         float t = cr * c - ci * s; ci = ci * c + cr * s; cr = t;
         if ((k & 255) == 255) { float m = 1.0f / sqrtf(cr * cr + ci * ci); cr *= m; ci *= m; }
@@ -144,6 +146,8 @@ static void command(void)
         float lo = (float)atof(v[2]), hi = (float)atof(v[3]), st = n > 4 ? (float)atof(v[4]) : 100e3f, best = -200, bf = 0;
         for (float f = lo; f <= hi; f += st) { float p = bin_db(w, ns, f, 80e6f); if (p > best) { best = p; bf = f; } }
         printf("scan peak %.0f Hz %.1f dB\n", bf, best);
+    } else if (!strcmp(c, "hann") && n > 1) {
+        hann = (int)num(v[1]);
     } else if (!strcmp(c, "est") && n > 1) {
         int32_t i, q, p; rf_bb_est((uint16_t)num(v[1]), &i, &q, &p); printf("est %ld %ld %ld\n", (long)i, (long)q, (long)p);
     } else if (!strcmp(c, "ard") && n > 2) {

@@ -524,3 +524,68 @@ All levels are relative dB at the receiving board (no calibrated power meter or 
     - a CPU `memcpy` runs at 1885 MB/s: 27 µs per 48 KiB unit, so 80, 40 and 16 MS/s all stream gaplessly with every unit copied (1000 units each, lateness ≤ 7 pairs).
   - PSRAM: esp-ndf has no PSRAM driver yet. Even an octal PSRAM (~80–160 MB/s) cannot take 80 MS/s × 4 B (320 MB/s). 16 MS/s (64 MB/s), or 8-bit lanes through the config register (half that), fit octal PSRAM; quad PSRAM (~40 MB/s) fits ≤ 8 MS/s.
   - Lower rates than 16 MS/s: software decimation of the stream (no hardware decimator).
+
+## 10. A.5 to A.8, B and C
+
+### A.6 Timing
+- Capture starts 45 CPU cycles (188 ns) after the run bit (`rfctl lat`).
+- The sample clock is 80.000003 MS/s against SYSTIMER. Both come from the 40 MHz crystal, so a sample index is a drift-free timestamp.
+
+### A.7 Crystal and temperature
+**Temperature sensor driver** (`drivers/tsens`, `include/tsens.h`):
+- Registers: SENS 0x60008850 / 54, clock gate 0x60008904 bit 29.
+- The range DAC is analog register 69.06[3:0]. This explains why 69.06 toggled between inits.
+- Conversion: T = 0.4386·raw − 27.88·offset − 20.52.
+- Range offset 0 (DAC 15) saturates near 91 °C, so `tsens_read_c` switches to DAC 7 above 75 °C.
+- After a range change, the first conversion is stale and must be discarded.
+
+**Crystal offset** (D0 against C9:48, `bench/rfmeas/xtal_vs_temp.csv`, `tools/meas_xtal.py`):
+- The tone frequency comes from the phase slope (`rfctl freq`).
+- D0 reads −2.30 ppm at 84 °C and −1.58 ppm at 113 °C while it transmits, about +0.025 ppm/°C.
+- Trim: offsetting the tune by the measured error leaves about 0.7 kHz at 2.4 GHz.
+
+### C. Characterisation
+All values are relative, at about 10 cm, with no calibrated instruments. Raw data is in `bench/rfmeas/c_*.csv`, from `tools/meas_c.py`. Hann window, N 16383, RBW 7.3 kHz.
+
+**LO skirt** (TX and RX LOs combined, so an upper bound on either):
+
+| Offset | Level |
+|---|---|
+| 20 kHz | ≤ −88 dBc/Hz |
+| 50 kHz | ≤ −104 dBc/Hz |
+| 100–500 kHz | about −95 dBc/Hz |
+
+At ±1 MHz the bins hold the LO leak and the image (see spurs).
+
+**TX spurs** (DAC tone at +2 MHz, no TX DC calibration in this run):
+
+| Spur | Level |
+|---|---|
+| LO leak | −22 dBc |
+| Image | −40 dBc |
+| 2nd harmonic (+4 MHz) | −22 dBc |
+| 3rd harmonic (−6 MHz) | −54 dBc |
+| +6 MHz | −41 dBc |
+
+The DAC SFDR is therefore about 22 dB, set by the 2nd harmonic at amplitude 300. Run `rf_tx_dc_cal` to remove the LO leak.
+
+**ADC:** the noise is 1.2–2.7 LSB RMS against a complex full scale of 512. That gives SNR 46–53 dB, a noise-limited ENOB of 7.3–8.5 bits. This includes front-end noise, so it is a lower bound on the converter.
+
+**PLL lock range:** 2225–2775 MHz on both chips. Cap 369/375 at the bottom, 2 at the top (`c_lock_range.csv`). Below that range, receive goes through the 6/5 divider (`RF_LO_DIRECT_MIN_KHZ`).
+
+**Not measured without instruments:** absolute noise figure, sensitivity in dBm, and IIP3. The datasheet values apply.
+
+**Across temperature:** the crystal is covered above; lock range was measured at about 75 °C only.
+
+### A.5, A.8, B: status
+- **A.5, modem reuse / BLE raw:** not done.
+  - Our radio path is the raw-IQ dump engine plus DAC playback. Custom protocols run as software radio on it.
+  - The Wi-Fi/BLE demodulators are driven by undocumented MAC/modem registers that the blobs own. Reusing them is a separate reverse-engineering project.
+- **A.8, coexistence with native Wi-Fi:** not supported.
+  - Our driver writes the same registers as libphy.
+  - Hand-off would mean re-running the vendor init after our use. Untested.
+- **B:**
+  - Prototypes: `drivers/rf/rf_init.h`, `rf_pll.h`, `rf_dump.h`.
+  - Calibrations are separate calls: `rf_rc_cal`, `rf_rx_dc_cal`, `rf_tx_dc_cal`, and the PLL cap calibration in `rf_pll_set_khz`. RX IQ is not needed (§9); TX IQ is neutral at 0.
+  - OS hooks: only a microsecond delay.
+  - ABI: plain C with no windowed-ABI dependency, so it builds under CALL0 unchanged (not separately tested).
