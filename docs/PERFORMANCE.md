@@ -177,8 +177,8 @@ vector unit is off there).
 
 | Operation | esp-ndf | ESP-IDF (vendor PHY) | Gain | Notes |
 |---|---|---|---|---|
-| PHY bring-up, calibration results reused | **3.14 ms** | 20.6 ms (`RF_CAL_NONE`, stored data) | **6.6×** | ours replays stored results as data; IDF also reads NVS |
-| PHY bring-up vs IDF partial / full calibration | **3.14 ms** | 38–41 ms / 34–45 ms | 11–14× | not like for like until our own calibrations exist |
+| PHY bring-up, calibration results reused | **3.7 ms** | 20.6 ms (`RF_CAL_NONE`, stored data) | **5.6×** | ours replays stored results as data; IDF also reads NVS |
+| PHY bring-up vs IDF partial / full calibration | **3.7 ms** | 38–41 ms / 34–45 ms | 9–12× | not like for like until our own calibrations exist |
 | Same replay, built on IDF | 4.65 ms | — | — | esp-ndf's analog-bus and pbus paths are faster |
 | PLL tune 2437 MHz (cap search + refine) | 402–410 µs | — | — | bit-exact with the vendor (69/69) |
 | Over-the-air link, both boards esp-ndf, no vendor code | tone/off **68 dB** | vendor TX → our RX: 68 dB | same | image −34 dB vs −46 (no TX IQ cal yet) |

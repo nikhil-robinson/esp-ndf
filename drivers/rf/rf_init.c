@@ -1,6 +1,7 @@
 #include "rf_init.h"
 #include "rf_init_replay_c948.h"
 #include "rf_txcal_c948.h"
+#include "rf_pbus_mem.h"
 #include "rf_regi2c.h"
 #include "rf_pll.h"
 #include "rf_dump.h"
@@ -116,6 +117,24 @@ int rf_rc_cal(void)
     return code;
 }
 
+/* pbus memory (libphy set_pbus_mem, called by bb_init): per-state front-end
+ * command lists the hardware applies by itself on TX/RX transitions. They sit in
+ * the gain-memory port at addresses 0x200.. (data 0x600060CC, address
+ * 0x600060C8[17:8], bits 17:16 cleared after each word) with one 16-bit range
+ * field per state in 0x600060E0..F4. Write-only: no register dump shows it, and
+ * without it the transmitter is silent from a power-on (it survives other resets). */
+static void pbus_mem_load(void)
+{
+    for (unsigned k = 0; k < sizeof rf_pbus_mem_ranges / sizeof rf_pbus_mem_ranges[0]; k++)
+        REG(rf_pbus_mem_ranges[k].a) = rf_pbus_mem_ranges[k].v;
+    REG(GAIN_CMD) = (REG(GAIN_CMD) & ~0xFFu) | 0x0F;   /* lane bits as the vendor leaves them (last gain write) */
+    for (unsigned k = 0; k < sizeof rf_pbus_mem / sizeof rf_pbus_mem[0]; k++) {
+        REG(GAIN_DATA) = rf_pbus_mem[k];
+        REG(GAIN_CMD) = (REG(GAIN_CMD) & 0xFFFC00FFu) | (uint32_t)((0x200 + k) & 0x3FF) << 8;
+        REG(GAIN_CMD) &= 0xFFFCFFFFu;
+    }
+}
+
 /* ponytail: replays one chip's traced init (calibration results included);
  * replace op groups with our own calibrations one by one. */
 void rf_init_replay(void)
@@ -136,6 +155,7 @@ void rf_init_replay(void)
         }
     }
     apply_digital();                            /* final values of words the steps rewrote */
+    pbus_mem_load();
     rf_rc_cal();                                /* this chip's RX filter RC code, not the traced one */
 }
 

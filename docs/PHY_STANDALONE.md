@@ -472,16 +472,13 @@ The measured rates include the start. The consumer's budget per unit is about 12
 - **A4, playback position:** no register follows the 40 MS/s play index. 0x60033D58 and 0x60033D80[9:0] change during playback but much more slowly.
 - **A6, clocks:** over 1 s of SYSTIMER, the ring write index runs at 80.000003 MS/s (40.000001 at 40), and the CPU at 240.000010 MHz. All derive from the 40 MHz crystal, so the write index is a sample-exact timer with no drift against the CPU. 0x60033D4C counts about 170 k events per second (not a clock).
 
-- **Open bug, transmit from a true power-on:** on D0 straight after a power cycle, our TX is silent (three runs in a row), while RX works. After one vendor run it works and keeps working across chip and RTC resets. The leftover state lives where software resets do not reach.
-  - Snapshots: `bench/rf_state_data` (cold, and warm after a vendor run), taken with `examples/rf_state` / `rf_state_uart`.
-  - Tried without success: the analog registers that still differ after our init, RTC ANA_CONF bit 18, `BB_I2C_FORCE_PU` (OPTIONS0 bit 7), and the SENS group.
-  - The cold/warm group bisection (`COLD_G` in `examples/rf_ota`) gave inconsistent results.
-  - The board's UART connector drives EN, so a reset through it is a power-on reset (rst 0x1): every run on D0's UART port starts cold. That is reproducible: our TX silent 2/2 from cold; the vendor TX loop makes it work; the next UART reset makes it silent again.
-  - **Vendor init + our TX path works from cold** (+40.7 dB, about 10 dB more than our usual output). **Our init + our TX path fails**, also inside IDF. The gap is in what the vendor init leaves, not in our TX code.
-  - With every readable difference applied after our init, TX is still silent from cold. "Readable" here means:
-    - all 68 digital words in the modem, I2C-master, BB, MAC and FE ranges (`bench/rf_state_data/vendor_words.h`);
-    - all analog registers 0x00..0xFF of blocks 0x60..0x6F;
-    - the analog-bus master's hardware command lists (0x6000E0C0..E170);
-    - the vendor's single parallel write of block 0x6B through bus master 0 (`rom_i2c_paral_write_num`, arrays captured in `trace_c9d0_cold.txt`).
-  - So the missing state is not readable as registers: candidates are the TX power-control loop's internal state (BB 0x6001C838..848 differ), gain memory, or pbus internals.
-  - Next step: trace the vendor init with nested calls kept (the tracer drops calls inside analog-bus primitives) and the TX power-control functions (`tx_pwctrl_*`) hooked, then replay those steps rather than their results.
+- **Fixed: transmit from a true power-on.** The vendor's `bb_init` → `set_pbus_mem` fills a **pbus memory**: per-state front-end command lists (46 words) that the hardware applies on its own at TX/RX transitions.
+  - Port: the gain-memory port at addresses 0x200.. (data 0x600060CC, address 0x600060C8[17:8]), with range fields 0x600060E0..F4.
+  - It is write-only, so no register dump shows it, and it survives every reset except power-on. That hid it, and our TX was silent from cold.
+  - `tools/gen_pbus_mem.py` emulates the function from its disassembly and read-only tables; the range fields it computes match the hardware exactly. Our init now loads it (`pbus_mem_load`, `drivers/rf/rf_pbus_mem.h`).
+  - Result from power-on (D0 on its UART port, every run cold): TX +41 to +45 dB, 3/3. That is about 10 dB more than our earlier output, which had lacked these lists all along.
+  - How it was found:
+    1. Vendor init + our TX worked; our init + our TX did not.
+    2. Layering our replay on the vendor init broke nothing (retune included), so the gap was state the vendor creates that the replay never touches.
+    3. Vendor `rf_init` + `bb_init` after our init restored TX; `rf_init` alone did not.
+    4. Of `bb_init`'s callees, `set_pbus_mem` writes write-only memory.

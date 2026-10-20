@@ -201,6 +201,8 @@ void app_main(void)
     {   /* wide register dump after init (vendor or ours), for the cold-boot comparison */
         static const uint32_t r[][2] = { { 0x60005000, 0x60008000 }, { 0x60011000, 0x60012000 }, { 0x6001C000, 0x60020000 },
                                          { 0x60030000, 0x60040000 }, { 0x6000E000, 0x6000E200 }, { 0x60026000, 0x60026100 } };
+        extern uint32_t rom_pbus_rd(uint32_t row, uint32_t col);
+        for (unsigned row = 0; row < 8; row++) for (unsigned col = 1; col <= 3; col++) printf("pbus %u %u %03lx\n", row, col, (unsigned long)(rom_pbus_rd(row, col) & 0x1FF));
         printf("@wide\n");
         for (unsigned b = 0; b < sizeof r / sizeof r[0]; b++)
             for (uint32_t a = r[b][0]; a < r[b][1]; a += 4) { printf("%08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a); if ((a & 0xFFF) == 0) vTaskDelay(1); }
@@ -234,6 +236,24 @@ void app_main(void)
     }
 #endif
 #if TXLOOP > 9
+#ifdef VFUNC
+    {   /* pieces of the vendor init after ours */
+        extern void phy_get_romfunc_addr(void), register_chipv7_phy_init_param(const void *), rf_init(void), bb_init(void);
+        extern const void *esp_phy_get_init_data(void);
+        phy_get_romfunc_addr();
+        void (**tab)(void) = *(void (***)(void))0x3FCEF3D4;   /* rom_phyFuns, as register_chipv7_phy uses it */
+        tab[0x204 / 4](); tab[0x234 / 4]();
+        register_chipv7_phy_init_param(esp_phy_get_init_data());
+        if (VFUNC & 1) rf_init();
+        if (VFUNC & 2) bb_init();
+        rf_pll_result_t pr; rf_pll_set_khz(2437000, &pr);
+        printf("vendor pieces %d run after our init\n", VFUNC);
+    }
+#endif
+#ifdef ZROWS
+    for (int k = ZROWS; k < 256; k++) rf_gain_mem_write((uint8_t)k, 0, 0);   /* rows our replay never writes */
+    printf("gain rows %d..255 zeroed\n", ZROWS);
+#endif
     {   /* vendor transmit reference: +2 MHz DAC tone, 1 s on / 1 s off, forever */
         const uint32_t n = 2000;
         volatile uint32_t *b = (volatile uint32_t *)RF_DUMP_BANK(1);
