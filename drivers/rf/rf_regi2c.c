@@ -5,7 +5,9 @@
  * bit 25 = busy. Before a read, 0x6000E044 takes ~read_mask(block); selecting
  * master 1 sets 0x6000E048 bits 16:9. */
 #include "rf_regi2c.h"
+#include "ndf.h"
 
+#undef REG
 #define REG(a)        (*(volatile uint32_t *)(a))
 #define I2C_MST(n)    (0x6000E000u + 4u * (n))
 #define I2C_RD_MASK   0x6000E044u
@@ -16,7 +18,7 @@
 static const uint32_t read_mask[13] = { 0x400000, 0x800, 0x200, 0x100, 0x10000, 0x20000, 0x400,
                                         0x8000, 0x40000, 0x2000, 0x1000, 0, 0x4000 };
 
-static unsigned master(uint8_t block)
+RAM_FN static unsigned master(uint8_t block)
 {
     unsigned i = (uint8_t)(block - 0x62);
     unsigned m = (i <= 9 && ((0x227u >> i) & 1)) ? 1 : 0;
@@ -24,9 +26,9 @@ static unsigned master(uint8_t block)
     return m;
 }
 
-static void wait(unsigned m) { while (REG(I2C_MST(m)) & BUSY) {} }
+RAM_FN static void wait(unsigned m) { while (REG(I2C_MST(m)) & BUSY) {} }
 
-uint8_t rf_regi2c_read(uint8_t block, uint8_t reg)
+RAM_FN uint8_t rf_regi2c_read(uint8_t block, uint8_t reg)
 {
     unsigned m = master(block), i = (uint8_t)(block - 0x61);
     wait(m);
@@ -36,7 +38,7 @@ uint8_t rf_regi2c_read(uint8_t block, uint8_t reg)
     return (uint8_t)(REG(I2C_MST(m)) >> 16);
 }
 
-void rf_regi2c_write(uint8_t block, uint8_t reg, uint8_t data)
+RAM_FN void rf_regi2c_write(uint8_t block, uint8_t reg, uint8_t data)
 {
     unsigned m = master(block);
     wait(m);

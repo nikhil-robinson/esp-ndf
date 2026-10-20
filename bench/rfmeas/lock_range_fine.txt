@@ -1,0 +1,21 @@
+c948 path 0 (direct): coarse lockscan path 0: first 2210000 last 2780000 holes 1 cap 382..1 | edges 2207600 .. 2784500 kHz
+c948 path 1 (divider 6/5): coarse lockscan path 1: first 1840000 last 2300000 holes 0 cap 0..0 | edges 1839500 .. 2306000 kHz
+d0 path 0 (direct): coarse lockscan path 0: first 2215000 last 2785000 holes 0 cap 382..1 | edges 2213900 .. 2789800 kHz
+d0 path 1 (divider 6/5): coarse lockscan path 1: first 1845000 last 2300000 holes 0 cap 0..0 | edges 1844800 .. 2306000 kHz
+D0 ['tunetx rc 0 cap 371 locked 1 393 us']
+C948 ['tune rc 0']
+2230000 kHz: tone 43.7 dB, floor -14.6, image 4.4
+D0 ['tunetx rc 0 cap 40 locked 1 792 us']
+C948 ['tune rc 0']
+2700000 kHz: tone 13.9 dB, floor -19.2, image -44.5
+D0 ['tunetx rc 0 cap 1 locked 1 889 us']
+C948 ['tune rc 0']
+2780000 kHz: tone -3.9 dB, floor -35.7, image -33.8
+D0 ['tune rc 0']
+C948 ['tune rc 0']
+2000000 kHz: tone 21.1 dB, floor -17.7, image -20.0
+D0 ['tune rc 0']
+C948 ['tune rc 0']
+1900000 kHz: tone 3.0 dB, floor -28.0, image -25.8
+d0 cold (temp 63.3): direct 2212900..2788300 kHz, divider low edge 1844000 kHz
+d0 hot after 3 min TX (temp 89.8): direct 2211100..2785500 kHz, divider low edge 1842600 kHz

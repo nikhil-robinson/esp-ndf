@@ -210,13 +210,15 @@ static void command(void)
         printf("hop %lu cycles\n", (unsigned long)(ccount() - t));
     } else if (!strcmp(c, "hopmeas") && n > 5) {       /* hopmeas park_khz park_cap khz cap f_hz: hop, capture at once, tone per 256 */
         rf_pll_hop((uint32_t)num(v[1]), (uint16_t)num(v[2]));
+        uint32_t nn = rf_pll_n_of_hz((uint64_t)num(v[3]) * 1000u);
         delay_us(300);
         uint32_t t = ccount();
-        rf_pll_hop((uint32_t)num(v[3]), (uint16_t)num(v[4]));
+        rf_pll_hop_n(nn, (uint16_t)num(v[4]));
         uint32_t hop = ccount() - t;
         rf_dump_burst(RF_DUMP_80M, 8192);
         const uint32_t *w = (const uint32_t *)RF_DUMP_BURST_ADDR;
-        printf("hopmeas %lu cycles:", (unsigned long)hop);
+        extern unsigned rf_pll_hop_writes;
+        printf("hopmeas %lu cycles: writes %02x", (unsigned long)hop, rf_pll_hop_writes);
         for (int k = 0; k < 32; k++) printf(" %.1f", bin_db(w + 256 * k, 256, (float)atof(v[5]), 80e6f));
         printf("\n");
     } else if (!strcmp(c, "pbus") && n > 3) {
@@ -284,6 +286,51 @@ static void command(void)
         ble_adv((int)num(v[1]), (int)num(v[2]), (int)num(v[3]), v[4]);
     } else if (!strcmp(c, "blerx") && n > 2) {        /* blerx chan tries: receive LO tuned to channel - 2 MHz first */
         ble_rx((int)num(v[1]), (int)num(v[2]), n > 3 ? (int)num(v[3]) : -1);   /* qs: Q sign */
+    } else if (!strcmp(c, "xtalppb") && n > 2) {      /* xtalppb ppb khz: LO at khz corrected by ppb (+ = crystal fast), cap kept */
+        int32_t ppb = (int32_t)num(v[1]); uint64_t hz = (uint64_t)num(v[2]) * 1000u;
+        int64_t c = (int64_t)hz - (int64_t)hz * ppb / 1000000000;
+        rf_pll_hop_n(rf_pll_n_of_hz((uint64_t)c), rf_pll_cap());
+        printf("xtalppb %ld\n", (long)ppb);
+    } else if (!strcmp(c, "hopfast") && n > 3) {      /* hopfast khz cap latch(0/1): only frac bytes + cap low (+ latch); time */
+        uint32_t khz = (uint32_t)num(v[1]); uint16_t cap = (uint16_t)num(v[2]); int latch = (int)num(v[3]);
+        uint32_t nn = (uint32_t)((uint64_t)khz * 4u * 65536u / 120000u - 32u * 65536u);
+        uint32_t t0 = ccount();
+        if (latch) rf_regi2c_write(0x63, 0x00, 0x07);
+        rf_regi2c_write(0x63, 0x04, (uint8_t)(nn >> 8));
+        rf_regi2c_write(0x63, 0x05, (uint8_t)nn);
+        if (latch) rf_regi2c_write(0x63, 0x00, 0x17);
+        rf_regi2c_write(0x62, 0x01, (uint8_t)cap);
+        uint32_t t1 = ccount();
+        printf("hopfast %.1f us int %lu\n", (t1 - t0) / 240.0, (unsigned long)(nn >> 16));
+    } else if (!strcmp(c, "i2cspeed") && n > 1) {     /* i2cspeed v: analog-bus SCL periods (0x6000E054 [15:8] [7:0]); time + verify */
+        volatile uint32_t *r54 = (volatile uint32_t *)0x6000E054;
+        printf("E050 %08lx E054 %08lx E058 %08lx E05C %08lx E060 %08lx\n", (unsigned long)*(volatile uint32_t *)0x6000E050, (unsigned long)*r54,
+               (unsigned long)*(volatile uint32_t *)0x6000E058, (unsigned long)*(volatile uint32_t *)0x6000E05C, (unsigned long)*(volatile uint32_t *)0x6000E060);
+        uint32_t val = (uint32_t)num(v[1]);
+        *r54 = (*r54 & 0xFFFF0000u) | val << 8 | val;
+        uint8_t keep = rf_regi2c_read(0x63, 0x05); int bad = 0;
+        uint32_t t0 = ccount();
+        for (int k = 0; k < 100; k++) rf_regi2c_write(0x63, 0x05, (uint8_t)k);
+        uint32_t t1 = ccount();
+        for (int k = 0; k < 50; k++) { rf_regi2c_write(0x63, 0x05, (uint8_t)(k * 37)); if (rf_regi2c_read(0x63, 0x05) != (uint8_t)(k * 37)) bad++; }
+        rf_regi2c_write(0x63, 0x05, keep);
+        rf_pll_result_t pr; int rc = rf_pll_set_khz(2437000, &pr);
+        uint32_t h0 = ccount(); rf_pll_hop(2480000, pr.cap); uint32_t h1 = ccount(); rf_pll_hop(2437000, pr.cap);
+        printf("i2cspeed %lu: write %.2f us, readback errors %d/50, pll rc %d locked %d, hop %.1f us\n", (unsigned long)val,
+               (ccount(), (t1 - t0) / 240.0 / 100), bad, rc, pr.locked, (h1 - h0) / 240.0);
+    } else if (!strcmp(c, "tunehz") && n > 1) {        /* tunehz hz: LO at Hz resolution (both paths) */
+        printf("tunehz rc %d\n", rf_tune_hz((uint64_t)strtoull(v[1], 0, 10)));
+    } else if (!strcmp(c, "lockscan") && n > 4) {    /* lockscan lo_khz hi_khz step_khz path(0 direct, 1 divider): lock edges and holes */
+        uint32_t lo = (uint32_t)num(v[1]), hi = (uint32_t)num(v[2]), stp = (uint32_t)num(v[3]); int path = (int)num(v[4]);
+        uint32_t first = 0, last = 0, holes = 0; int prev = -1; uint16_t cap_first = 0, cap_last = 0;
+        for (uint32_t f = lo; f <= hi; f += stp) {
+            int ok;
+            if (path) ok = rf_tune_rx_khz(f) == 0;
+            else { rf_pll_result_t r; ok = rf_pll_set_khz(f, &r) == 0 && r.locked; if (ok) { if (!first) cap_first = r.cap; cap_last = r.cap; } }
+            if (ok) { if (!first) first = f; else if (prev == 0) holes++; last = f; }
+            prev = ok;
+        }
+        printf("lockscan path %d: first %lu last %lu holes %lu cap %u..%u\n", path, (unsigned long)first, (unsigned long)last, (unsigned long)holes, cap_first, cap_last);
     } else if (!strcmp(c, "hann") && n > 1) {
         hann = (int)num(v[1]);
     } else if (!strcmp(c, "est") && n > 1) {

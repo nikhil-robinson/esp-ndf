@@ -32,7 +32,8 @@ void rf_rx_on(void);                            /* receive front end and RX cloc
 #ifndef RF_LO_DIRECT_MIN_KHZ
 #define RF_LO_DIRECT_MIN_KHZ 2240000u          /* below: receive through the 6/5 LO divider */
 #endif
-int  rf_tune_rx_khz(uint32_t khz);              /* receive LO 1.85..2.76 GHz; 0, or -3 if out of the VCO window */
+int  rf_tune_rx_khz(uint32_t khz);
+int  rf_tune_hz(uint64_t hz);                   /* Hz resolution, both paths (RX and TX: same LO) */              /* receive LO 1.85..2.76 GHz; 0, or -3 if out of the VCO window */
 void rf_rx_gain(int gain);                      /* <0: AGC; else forced index (0..127) */
 
 /* transmit */

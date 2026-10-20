@@ -15,5 +15,13 @@ typedef struct {
 int rf_pll_set_khz(uint32_t khz, rf_pll_result_t *res);
 /* Fast retune (hopping): divider + a cap measured before by rf_pll_set_khz. */
 void rf_pll_hop(uint32_t khz, uint16_t cap);
+/* Hz resolution (step 30 MHz / 65536 = 457.76 Hz on the direct path, rounded) */
+int  rf_pll_set_hz(uint64_t hz, rf_pll_result_t *res);
+void rf_pll_hop_hz(uint64_t hz, uint16_t cap);
+/* fastest hop: N precomputed (the 64-bit division costs ~16 us on this core), only changed bytes written:
+ * 3 bus transactions within a band = ~10 us from IRAM */
+uint32_t rf_pll_n_of_hz(uint64_t hz);
+void rf_pll_hop_n(uint32_t n, uint16_t cap);
+uint16_t rf_pll_cap(void);                  /* VCO cap now in use */
 /* Load the RF frequency memory (per-MHz LO table, 2400..2484) the BLE hardware tunes from; after rf_init_replay. */
 void rf_freq_mem_load(void);

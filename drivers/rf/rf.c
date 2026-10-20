@@ -1,9 +1,11 @@
 /* Public RF API (include/rf.h) over the drivers in this directory: state, limits, units. */
 #include "rf.h"
+#include "ndf.h"
 #include "rf_init.h"
 #include "rf_pll.h"
 #include "rf_dump.h"
 #include "rf_regi2c.h"
+#include "tsens.h"
 #include "sys.h"
 #include "xtensa.h"
 #include <string.h>
@@ -13,6 +15,9 @@ static rf_state_t state = RF_STATE_OFF;
 static uint32_t freq_khz;
 static int tx_db;
 static rf_limits_t lim = { 2400000, 2483500, 0 };
+static int32_t xtal_ppb;                         /* crystal error: +ppb means the crystal runs fast */
+static uint64_t freq_hz;
+static uint32_t st_relocks;
 
 rf_state_t rf_state(void) { return state; }
 void rf_set_limits(const rf_limits_t *l) { lim = *l; }
@@ -23,7 +28,7 @@ int rf_open(void)
     if (state != RF_STATE_OFF) return RF_ERR_STATE;
     rf_init_replay();
     state = RF_STATE_IDLE;
-    int rc = rf_set_freq_khz(2437000);
+    int rc = rf_set_freq_khz(2437000);    /* LO parked mid-band */
     if (rc) return rc;
     rf_rx_on();
     rf_rx_dc_cal(128);                           /* RX DC offsets for every gain row, at this LO */
@@ -44,12 +49,83 @@ int rf_set_freq_khz(uint32_t khz)
     if (state == RF_STATE_OFF) return RF_ERR_STATE;
     if (khz < RF_FREQ_MIN_KHZ || khz > RF_FREQ_MAX_KHZ) return RF_ERR_RANGE;
     if (state == RF_STATE_TX && (khz < lim.tx_min_khz || khz > lim.tx_max_khz)) return RF_ERR_DENIED;
-    int rc = rf_tune_rx_khz(khz);
+    return rf_set_freq_hz((uint64_t)khz * 1000u);
+}
+
+int rf_set_freq_hz(uint64_t hz)
+{
+    if (state == RF_STATE_OFF) return RF_ERR_STATE;
+    if (hz < (uint64_t)RF_FREQ_MIN_KHZ * 1000u || hz > (uint64_t)RF_FREQ_MAX_KHZ * 1000u) return RF_ERR_RANGE;
+    if (state == RF_STATE_TX && (hz < (uint64_t)lim.tx_min_khz * 1000u || hz > (uint64_t)lim.tx_max_khz * 1000u)) return RF_ERR_DENIED;
+    int64_t corr = (int64_t)hz * xtal_ppb / 1000000000;          /* program what the real crystal turns into hz */
+    int rc = rf_tune_hz((uint64_t)((int64_t)hz - corr));
+    if (rc == -3) { rc = rf_tune_hz((uint64_t)((int64_t)hz - corr)); }   /* one retry: a rare failed calibration (measured once in ~10^3) */
     if (rc == -1) return RF_ERR_RANGE;
     if (rc) return RF_ERR_LOCK;
-    freq_khz = khz;
+    freq_hz = hz; freq_khz = (uint32_t)(hz / 1000u);
     return RF_OK;
 }
+uint64_t rf_get_freq_hz(void) { return freq_hz; }
+/* small corrections (< 20 ppm) retune the divider only, keeping the VCO cap: no recalibration, no glitch beyond
+ * the bus writes. The 6/5 divider path is scaled the same way. */
+void rf_set_xtal_ppb(int32_t ppb)
+{
+    xtal_ppb = ppb;
+    if (state == RF_STATE_OFF || !freq_hz) return;
+    int64_t hz = (int64_t)freq_hz - (int64_t)freq_hz * xtal_ppb / 1000000000;
+    if (freq_hz < (uint64_t)RF_LO_DIRECT_MIN_KHZ * 1000u) hz = hz * 6 / 5;
+    rf_pll_hop_n(rf_pll_n_of_hz((uint64_t)hz), rf_pll_cap());
+}
+
+/* open-loop temperature model: the die sensor leads the crystal (first-order lag tau) and crystals are curved,
+ * so ppb = c0 + c1*Tf + c2*Tf^2 on the lagged temperature Tf. Measured limit on D0: ~+-0.4 ppm (transmit-on
+ * transients pull the crystal in ways the die sensor cannot see); use rf_afc_step against a known signal for better. */
+static float tm_c0, tm_c1, tm_c2, tm_tau, tm_tf; static uint64_t tm_last_us; static int tm_on;
+void rf_set_xtal_temp_model(float c0, float c1, float c2, float tau_s) { tm_c0 = c0; tm_c1 = c1; tm_c2 = c2; tm_tau = tau_s; tm_on = 1; tm_last_us = 0; }
+int32_t rf_xtal_track(void)                      /* call ~1 Hz */
+{
+    if (!tm_on) return xtal_ppb;
+    float t = tsens_read_c(); uint64_t now = time_us();
+    if (!tm_last_us || tm_tau <= 0) tm_tf = t;
+    else tm_tf += (1.0f - expf(-(float)(now - tm_last_us) * 1e-6f / tm_tau)) * (t - tm_tf);
+    tm_last_us = now;
+    int32_t ppb = (int32_t)lrintf(tm_c0 + tm_c1 * tm_tf + tm_c2 * tm_tf * tm_tf);
+    if (ppb - xtal_ppb > 5 || xtal_ppb - ppb > 5) rf_set_xtal_ppb(ppb);
+    return xtal_ppb;
+}
+
+/* frequency of a tone near f_guess (Hz from the LO): phase slope over 16 blocks of 1023 samples at 80 MS/s */
+int rf_rx_tone_hz(float f_guess_hz, float *hz)
+{
+    const uint32_t *w; int rc = rf_rx_capture(RF_RATE_80M, 16 * 1023, &w);
+    if (rc) return rc;
+    double ph[16], c = cos(-2 * M_PI * f_guess_hz / 80e6), sn = sin(-2 * M_PI * f_guess_hz / 80e6), cr = 1, ci = 0;
+    for (int b = 0; b < 16; b++) {                 /* one rotator across all blocks: a per-block restart adds a false phase step */
+        double re = 0, im = 0;
+        for (int k = 0; k < 1023; k++) {
+            uint32_t x = w[b * 1023 + k]; double i = rf_sample_i(x), q = rf_sample_q(x);
+            double rot_r = i * cr - q * ci, rot_i = i * ci + q * cr;   /* x * e^{-j 2 pi f0 t} */
+            re += rot_r; im += rot_i;
+            double t = cr * c - ci * sn; ci = ci * c + cr * sn; cr = t;
+        }
+        double m = 1.0 / sqrt(cr * cr + ci * ci); cr *= m; ci *= m;
+        ph[b] = atan2(im, re);
+    }
+    double s = 0;
+    for (int b = 1; b < 16; b++) { double d = ph[b] - ph[b - 1]; while (d > M_PI) d -= 2 * M_PI; while (d < -M_PI) d += 2 * M_PI; s += d; }
+    *hz = f_guess_hz + (float)(s / 15 / (2 * M_PI) * 80e6 / 1023);
+    return RF_OK;
+}
+
+/* automatic frequency control: a known signal measured offset_hz high means our LO is low -> crystal slow */
+int32_t rf_afc_step(float offset_hz, float gain)
+{
+    if (!freq_hz) return xtal_ppb;
+    int32_t d = (int32_t)lrintf(-offset_hz * gain * 1e9f / (float)freq_hz);
+    rf_set_xtal_ppb(xtal_ppb + d);
+    return xtal_ppb;
+}
+int32_t rf_get_xtal_ppb(void) { return xtal_ppb; }
 uint32_t rf_get_freq_khz(void) { return freq_khz; }
 
 int rf_hop_prepare(rf_hop_t *h, uint32_t khz)
@@ -58,16 +134,16 @@ int rf_hop_prepare(rf_hop_t *h, uint32_t khz)
     rf_pll_result_t r;
     if (rf_pll_set_khz(khz, &r)) return RF_ERR_RANGE;
     if (!r.locked) return RF_ERR_LOCK;
-    h->khz = khz; h->cap = r.cap;
+    h->khz = khz; h->cap = r.cap; h->n = rf_pll_n_of_hz((uint64_t)khz * 1000u);
     if (freq_khz) rf_pll_set_khz(freq_khz, &r);  /* back where we were */
     return RF_OK;
 }
 
-int rf_hop(const rf_hop_t *h)
+RAM_FN int rf_hop(const rf_hop_t *h)
 {
     if (state == RF_STATE_OFF) return RF_ERR_STATE;
     if (state == RF_STATE_TX && (h->khz < lim.tx_min_khz || h->khz > lim.tx_max_khz)) return RF_ERR_DENIED;
-    rf_pll_hop(h->khz, h->cap);
+    rf_pll_hop_n(h->n, h->cap);
     freq_khz = h->khz;
     return RF_OK;
 }
@@ -187,3 +263,14 @@ int rf_tx_stop(void)
     state = RF_STATE_IDLE;
     return RF_OK;
 }
+
+/* lock: the VCO control voltage in the comparator window (62.0C[3:2] == 0, the rf_pll rule) */
+int rf_pll_locked(void) { return (rf_regi2c_read(0x62, 0x0C) & 0x0C) == 0; }
+int rf_check_lock(void)                          /* re-tune once if the loop slipped; RF_ERR_LOCK if that fails too */
+{
+    if (state == RF_STATE_OFF) return RF_ERR_STATE;
+    if (rf_pll_locked()) return RF_OK;
+    st_relocks++;
+    return freq_hz ? rf_set_freq_hz(freq_hz) : RF_ERR_LOCK;
+}
+uint32_t rf_relock_count(void) { return st_relocks; }

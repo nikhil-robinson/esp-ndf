@@ -62,6 +62,14 @@ int main(void)
     uint32_t c0 = ccount(); rf_hop(&a); uint32_t c1 = ccount(); rf_hop(&b); uint32_t c2 = ccount();
     printf("hop %lu us, %lu us\n", (unsigned long)((c1 - c0) / 240), (unsigned long)((c2 - c1) / 240));
     check("hop < 60 us", (c1 - c0) / 240 < 60 && (c2 - c1) / 240 < 60);
+    /* lock detection: force the VCO cap far off, detect, recover */
+    check("set 2437 MHz", rf_set_freq_khz(2437000) == RF_OK);
+    check("locked", rf_pll_locked());
+    rf_hop_t bad = { 2437000, 0, 0 }; bad.n = a.n; rf_hop(&bad);        /* cap 0: far out of the window */
+    { extern void rf_regi2c_write(uint8_t, uint8_t, uint8_t); rf_regi2c_write(0x62, 0x01, 0); }
+    delay_us(50);
+    check("unlock detected", !rf_pll_locked());
+    check("rf_check_lock recovers", rf_check_lock() == RF_OK && rf_pll_locked() && rf_relock_count() == 1);
     rf_close();
     check("close", rf_state() == RF_STATE_OFF);
     printf("=== %d failures\n=== done\n", fails);

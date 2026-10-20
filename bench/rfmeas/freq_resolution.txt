@@ -1,0 +1,6 @@
+# LO step test: D0 tunes base+offset (Hz API, rounded to 457.76 Hz LSB); C9:48 measures the tone; paired differences cancel drift
+requested +200.00 Hz (expected 0.0 after rounding): measured -25.6 Hz (sd 20.6)
+requested +457.76 Hz (expected 457.8 after rounding): measured 477.6 Hz (sd 18.3)
+requested +915.53 Hz (expected 915.5 after rounding): measured 953.9 Hz (sd 10.4)
+requested +1831.05 Hz (expected 1831.1 after rounding): measured 1871.3 Hz (sd 5.7)
+requested +4577.60 Hz (expected 4577.6 after rounding): measured 4626.5 Hz (sd 10.6)

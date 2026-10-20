@@ -31,13 +31,30 @@ void rf_set_limits(const rf_limits_t *l);
 void rf_get_limits(rf_limits_t *l);
 
 /* ---- synthesizer --------------------------------------------------------------------------------- */
-#define RF_FREQ_MIN_KHZ 1850000u                 /* receive via the 6/5 LO divider below 2240 MHz (measured lock range) */
-#define RF_FREQ_MAX_KHZ 2775000u
+/* Guaranteed range: both chips, 63..90 C (measured: direct VCO 2207.6/2213.9..2784.5/2788.3 MHz, the 6/5 divider
+ * down to 1839.5/1844.8 MHz; edges move ~-2.5 MHz from 63 to 90 C). RX and TX both work across it (over the air). */
+#define RF_FREQ_MIN_KHZ 1850000u
+#define RF_FREQ_MAX_KHZ 2780000u
 int  rf_set_freq_khz(uint32_t khz);      /* LO for RX and TX; calibrates the VCO (~0.4 ms) */
 uint32_t rf_get_freq_khz(void);
-typedef struct { uint32_t khz; uint16_t cap; } rf_hop_t;
+int  rf_set_freq_hz(uint64_t hz);        /* Hz resolution: steps of 457.76 Hz (direct) / 381.47 Hz (divider), rounded */
+uint64_t rf_get_freq_hz(void);
+/* crystal correction: +ppb = the crystal runs fast; every tune is scaled by it (re-tunes now if open) */
+void rf_set_xtal_ppb(int32_t ppb);
+int32_t rf_get_xtal_ppb(void);
+/* open-loop temperature compensation: ppb = c0 + c1*Tf + c2*Tf^2, Tf = die temperature through a first-order lag
+ * tau_s; rf_xtal_track() applies it (call ~1 Hz). Measured limit ~+-0.4 ppm (docs/RF_API.md). */
+void rf_set_xtal_temp_model(float c0, float c1, float c2, float tau_s);
+int32_t rf_xtal_track(void);
+/* closed loop: measure a known tone (Hz from the LO; RX state) and steer the crystal correction toward it */
+int  rf_rx_tone_hz(float f_guess_hz, float *hz);
+int32_t rf_afc_step(float offset_hz, float gain);     /* returns the new ppb; gain 0.5..1 */
+typedef struct { uint32_t khz; uint32_t n; uint16_t cap; } rf_hop_t;
 int  rf_hop_prepare(rf_hop_t *h, uint32_t khz);   /* calibrate once, keep the cap */
-int  rf_hop(const rf_hop_t *h);          /* retune with a prepared cap (~43 us) */
+int  rf_pll_locked(void);                /* 1: VCO control voltage in window (no lock interrupt found: poll) */
+int  rf_check_lock(void);                /* re-tunes once if unlocked; RF_OK or RF_ERR_LOCK */
+uint32_t rf_relock_count(void);
+int  rf_hop(const rf_hop_t *h);          /* retune with a prepared cap and divider: ~10 us (3 bus writes) within a band */
 
 /* ---- receive --------------------------------------------------------------------------------------- */
 #define RF_GAIN_AGC (-1)

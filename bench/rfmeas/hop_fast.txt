@@ -1,0 +1,7 @@
+# hop with precomputed N from IRAM, changed bytes only (no latch); tone per 3.2 us block right after the hop returns
+2436 -> 2440 MHz: hop 12.9 us, bytes 0e, first blocks 46 46 46 46 46 46
+2436 -> 2440 MHz: hop 12.9 us, bytes 0e, first blocks 46 46 46 46 46 46
+2436 -> 2440 MHz: hop 12.9 us, bytes 0e, first blocks 46 46 46 46 46 46
+2402 -> 2440 MHz: hop 16.4 us, bytes 0f, first blocks 46 46 46 46 46 46
+2402 -> 2440 MHz: hop 16.4 us, bytes 0f, first blocks 46 46 46 46 46 46
+2402 -> 2440 MHz: hop 16.4 us, bytes 0f, first blocks 46 46 46 46 46 46
