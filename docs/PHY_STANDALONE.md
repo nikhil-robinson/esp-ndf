@@ -471,3 +471,9 @@ The measured rates include the start. The consumer's budget per unit is about 12
   - Config bit 24 stores one word per baseband event (64 words took 0.2–33 ms, varying): an event-gated capture, a lead for the energy/packet detector (A2).
 - **A4, playback position:** no register follows the 40 MS/s play index. 0x60033D58 and 0x60033D80[9:0] change during playback but much more slowly.
 - **A6, clocks:** over 1 s of SYSTIMER, the ring write index runs at 80.000003 MS/s (40.000001 at 40), and the CPU at 240.000010 MHz. All derive from the 40 MHz crystal, so the write index is a sample-exact timer with no drift against the CPU. 0x60033D4C counts about 170 k events per second (not a clock).
+
+- **Open bug, transmit from a true power-on:** on D0 straight after a power cycle, our TX is silent (three runs in a row), while RX works. After one vendor run it works and keeps working across chip and RTC resets. The leftover state lives where software resets do not reach.
+  - Snapshots: `bench/rf_state_data` (cold, and warm after a vendor run), taken with `examples/rf_state` / `rf_state_uart`.
+  - Tried without success: the analog registers that still differ after our init, RTC ANA_CONF bit 18, `BB_I2C_FORCE_PU` (OPTIONS0 bit 7), and the SENS group.
+  - The cold/warm group bisection (`COLD_G` in `examples/rf_ota`) gave inconsistent results.
+  - The board's UART connector drives EN, so a reset through it is a power-on reset (rst 0x1). With that cable also connected, a cold state can be reproduced at will.

@@ -9,6 +9,10 @@
 #include "../../drivers/rf/rf_pll.h"
 #include "../../drivers/rf/rf_init.h"
 #include "../../drivers/rf/rf_dump.h"
+#include "../../drivers/rf/rf_regi2c.h"
+#ifdef COLD_G
+#include "../../bench/rf_state_data/cold_groups.h"
+#endif
 
 static float bin_db(uint32_t n, float f)        /* dBFS-ish power of one bin, 80 MS/s */
 {
@@ -23,13 +27,43 @@ static float bin_db(uint32_t n, float f)        /* dBFS-ish power of one bin, 80
     return 10 * log10f((re * re + im * im) / ((float)n * n) + 1e-6f);
 }
 
+#ifndef OTA_TX_MAC
+#define OTA_TX_MAC 0xD0                         /* last MAC byte of the transmitting board */
+#endif
+
 int main(void)
 {
     delay_ms(1500);
     uint32_t mac0 = *(volatile uint32_t *)0x60007044;
-    int tx = (mac0 & 0xFF) == 0xD0 || (mac0 >> 24) == 0xD0;
+    int tx = (mac0 & 0xFF) == OTA_TX_MAC || (mac0 >> 24) == OTA_TX_MAC;
     printf("=== rf_ota mac0 %08lx role %s\n", (unsigned long)mac0, tx ? "TX" : "RX");
+#ifdef COLD_G
+    {   /* restore power-on values of one state group (bisecting what our init misses) */
+        if (COLD_G == 1) for (unsigned k = 0; k < sizeof cold_g1 / sizeof cold_g1[0]; k++) *(volatile uint32_t *)cold_g1[k].a = cold_g1[k].v;
+        if (COLD_G == 2) for (unsigned k = 0; k < sizeof cold_g2 / sizeof cold_g2[0]; k++) *(volatile uint32_t *)cold_g2[k].a = cold_g2[k].v;
+        for (unsigned k = 0; k < sizeof cold_g3 / sizeof cold_g3[0]; k++) {
+            uint8_t b = cold_g3[k].b;
+            int hit = COLD_G == 3 || (COLD_G == 31 && b <= 0x65) || (COLD_G == 32 && b >= 0x66 && b <= 0x6A) || (COLD_G == 33 && b >= 0x6B)
+                      || (COLD_G >= 100 && k == COLD_G - 100);
+            if (hit) rf_regi2c_write(b, cold_g3[k].r, cold_g3[k].v);
+        }
+        printf("cold group %d restored\n", COLD_G);
+    }
+#endif
+#ifdef COLD_SIM
+    {   /* software "cold start": RF analog buses and the modem power domain off, then on */
+        volatile uint32_t *ana = (volatile uint32_t *)0x60008034, *pwc = (volatile uint32_t *)0x60008090;
+        printf("ana_conf before %08lx\n", (unsigned long)*ana);
+        *ana &= ~(1u << 31 | 1u << 30 | 1u << 28 | 1u << 27);
+        *pwc |= 1u << 17;                       /* WIFI_FORCE_PD */
+        delay_ms(200);
+        *pwc &= ~(1u << 17);
+    }
+#endif
     rf_init_replay();
+#ifndef OTA_TX_MAC
+#define OTA_TX_MAC 0xD0                         /* last MAC byte of the transmitting board */
+#endif
 #ifndef RX_KHZ
 #define RX_KHZ (OTA_KHZ - 1000)            /* 1 MHz below: TX leakage at +1, tone at +3, image at -1 MHz */
 #endif
