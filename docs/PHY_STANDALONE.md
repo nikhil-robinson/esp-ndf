@@ -517,3 +517,10 @@ All levels are relative dB at the receiving board (no calibrated power meter or 
   - pbus-memory word 19 (0x0044FFFF) is the TX state's PA enable: only values with bits 7:4 all set transmit.
   - Combined TX + RX response vs frequency: peak around 2380–2420 MHz, −10 dB at about 2320 / 2520 MHz, −35 dB at 2240 / 2700 MHz.
 - **Note:** two sessions came up with no link out of about 30 (cause unknown: TX or RX side). `tools/rfhost.link()` checks the level and re-initialises, logging each case.
+- **A.4, where the samples can go** (`examples/rf_dma`):
+  - The dump engine writes only SRAM banks 0..2 (0x600C101C[3:0]; bank 3 holds ROM data). It has no descriptor interface and cannot target PSRAM.
+  - Moving the stream out:
+    - GDMA memory-to-memory runs at 63 MB/s, so async GDMA per unit keeps up only at 16 MS/s (2/400 copies late);
+    - a CPU `memcpy` runs at 1885 MB/s: 27 µs per 48 KiB unit, so 80, 40 and 16 MS/s all stream gaplessly with every unit copied (1000 units each, lateness ≤ 7 pairs).
+  - PSRAM: esp-ndf has no PSRAM driver yet. Even an octal PSRAM (~80–160 MB/s) cannot take 80 MS/s × 4 B (320 MB/s). 16 MS/s (64 MB/s), or 8-bit lanes through the config register (half that), fit octal PSRAM; quad PSRAM (~40 MB/s) fits ≤ 8 MS/s.
+  - Lower rates than 16 MS/s: software decimation of the stream (no hardware decimator).
