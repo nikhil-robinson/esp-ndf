@@ -295,3 +295,22 @@ Measured (bench/rfmeas/rf_safety.txt):
   5. **Mapping:** all 128 pages at 0x3D000000.
 - **What was missing:** with those flash pads left on the GPIO matrix (as after ROM boot), the PSRAM never answers. Found by diffing all MSPI / IO MUX registers against IDF (bench/idf_psram/state_diff.txt) and by reading the ROM's own `esp_rom_opiflash_exec_cmd` (dumped from the chip).
 - **Speed:** see PERFORMANCE.md (49.5 / 84.6 MB/s, ahead of IDF).
+
+## 6.2 Long and triggered captures (`rf_rx_capture_to`, `rf_rx_capture_trigger`)
+
+Both run on `rf_rx_stream`, so they are gapless. The destination can be any memory, including PSRAM. `RF_FMT_IQ8` packs I and Q to 8 bits each (2 B/sample).
+
+Measured with C9:48 capturing D0's tone (bench/rfmeas/psram_capture.txt):
+
+| Capture | Result |
+|---|---|
+| 16 MS/s, IQ8, 4 194 304 samples into PSRAM (all 8 MB) | **gapless: 262.1 ms of air in 263.1 ms**; tone present at start / middle / end (13 dB), 35–45 dB above an empty bin |
+| 16 MS/s, IQ32 into PSRAM (64 MB/s) | too fast for PSRAM writes (49.5 MB/s): refused with RF_ERR_TIMEOUT after 2 units |
+| 40 MS/s, IQ8 into PSRAM (80 MB/s) | too fast: RF_ERR_TIMEOUT |
+| Triggered, 16 MS/s, 400 000-sample ring, 100 000 pre-trigger | fires; the ring and pre-trigger indices are consistent (trigger − first ≈ pre) |
+
+**Limits**
+
+- **Trigger granularity:** the level is checked on every 16th sample (1 µs at 16 MS/s), so the scan fits the stream's time budget. Spikes shorter than that pass unseen. In this room, ambient 2.4 GHz bursts and short near-full-scale spikes crossed level 90 before the test tone started.
+- **IQ32 at 16 MS/s and anything at 40/80 MS/s** fit internal RAM only (`rf_rx_stream` / `rf_rx_capture`).
+- **DSP helpers:** `include/dsp.h` (FFT, filters); `rf_rx_tone_hz` estimates a tone's frequency.

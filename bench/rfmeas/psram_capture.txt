@@ -1,0 +1,8 @@
+# RF -> PSRAM: gapless captures and a triggered capture (C9:48 psram_test); D0 (rf_cal) tone at 2440 MHz + 1 MHz; trigger level 90
+capture 16 MS/s IQ8: rc 0, 4194304 samples (262.1 ms of air) in 263.1 ms | tone at start 12.6 mid 13.2 end 12.5 dB, off-tone -34.6 dB
+   (rf_stream rc -2 units 2 late_max 612)
+capture 16 MS/s IQ32 into PSRAM: rc -5 (3.6 ms)
+capture 40 MS/s IQ8 into PSRAM: rc -5
+ready for trigger
+trigger check (8-bit scale, level 90 = 22): peak |I|+|Q| in 1000 samples before 243, in 64 from the trigger 45
+trigger rc 0 after 76 ms: first 4277 trig 98552 | 3 ms before trigger -50.3 dB, 3 ms after -54.9 dB

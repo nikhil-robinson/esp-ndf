@@ -280,6 +280,106 @@ int rf_rx_stream(int rate, uint32_t units, rf_rx_cb cb, void *ctx)
     return rc ? RF_ERR_TIMEOUT : RF_OK;
 }
 
+int rf_cap_last_rc; uint32_t rf_cap_last_late, rf_cap_last_units;   /* bench: last capture's rf_stream result */
+typedef struct {
+    uint8_t *dst; uint32_t n, pos; int fmt;       /* pos: samples written (circular when trig mode) */
+    int level; uint32_t pre, post_left, trig_at; int triggered, armed_trig; uint32_t deadline_units, units;
+} cap_t;
+static inline void put(cap_t *c, uint32_t i, uint32_t w)
+{
+    if (c->fmt == RF_FMT_IQ32) ((uint32_t *)c->dst)[i] = w;
+    else ((uint16_t *)c->dst)[i] = (uint16_t)(((w >> 2) & 0xFF) | ((w >> 12) & 0xFF) << 8);   /* I[9:2], Q[19:12] */
+}
+static int cap_fast(cap_t *c, const uint32_t *a, uint32_t na)   /* plain capture: no per-sample branch */
+{
+    uint32_t left = c->n - c->pos, m = na < left ? na : left;
+    if (c->fmt == RF_FMT_IQ32) memcpy((uint32_t *)c->dst + c->pos, a, m * 4);
+    else {
+        uint32_t *o = (uint32_t *)((uint16_t *)c->dst + c->pos), k = 0;
+        if (c->pos & 1) { put(c, c->pos, a[0]); o = (uint32_t *)((uint16_t *)c->dst + c->pos + 1); k = 1; }
+        for (; k + 1 < m; k += 2) {
+            uint32_t w0 = a[k], w1 = a[k + 1];
+            *o++ = ((w0 >> 2) & 0xFF) | ((w0 >> 4) & 0xFF00) | ((w1 << 14) & 0xFF0000) | ((w1 << 12) & 0xFF000000);   /* I8 Q8 | I8 Q8 */
+        }
+        if (k < m) put(c, c->pos + k, a[k]);
+    }
+    c->pos += m;
+    return c->pos >= c->n;
+}
+/* triggered: circular writes in chunks through the fast path; the level is checked on every 16th sample
+ * (1 us at 16 MS/s; a burst shorter than 16 samples can be missed) to stay inside the stream's time budget */
+static int cap_trig(cap_t *c, const uint32_t *a, uint32_t na)
+{
+    uint32_t k = 0;
+    if (!c->triggered) {
+        for (uint32_t j = 0; j < na; j += 16) {
+            uint32_t w = a[j]; int i = rf_sample_i(w), q = rf_sample_i(w >> 10);
+            if ((i < 0 ? -i : i) + (q < 0 ? -q : q) >= c->level) { c->triggered = 1; c->trig_at = (c->pos + j) % c->n; c->post_left = c->n - c->pre + j; break; }
+        }
+    }
+    while (k < na) {                                   /* write [k, na) into the ring, split at the wrap */
+        uint32_t at = c->pos % c->n, room = c->n - at, m = na - k < room ? na - k : room;
+        cap_t t = *c; t.pos = at; t.n = at + m;        /* a linear window of the ring */
+        cap_fast(&t, a + k, m);
+        c->pos += m; k += m;
+    }
+    if (c->triggered) { if (c->post_left <= na) return 1; c->post_left -= na; }
+    return 0;
+}
+static int cap_seg(cap_t *c, const uint32_t *a, uint32_t na)
+{
+    if (!c->armed_trig) return cap_fast(c, a, na);
+    return cap_trig(c, a, na);
+    for (uint32_t k = 0; k < na; k++) {
+        uint32_t w = a[k];
+        if (c->armed_trig && !c->triggered) {
+            int i = rf_sample_i(w), q = rf_sample_i(w >> 10);
+            if ((i < 0 ? -i : i) + (q < 0 ? -q : q) >= c->level) { c->triggered = 1; c->trig_at = c->pos % c->n; c->post_left = c->n - c->pre; }
+        }
+        put(c, c->armed_trig ? c->pos % c->n : c->pos, w);
+        c->pos++;
+        if (c->armed_trig) { if (c->triggered && !--c->post_left) return 1; }
+        else if (c->pos >= c->n) return 1;
+    }
+    return 0;
+}
+static int cap_cb(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx)
+{
+    cap_t *c = ctx;
+    if (cap_seg(c, a, na) || cap_seg(c, b, nb)) return 1;
+    return c->armed_trig && !c->triggered && ++c->units >= c->deadline_units ? 2 : 0;
+}
+static const uint32_t rate_sps[3] = { 80000000u, 40000000u, 16000000u };
+int rf_rx_capture_to(int rate, int fmt, uint32_t n, void *dst)
+{
+    if (state != RF_STATE_RX) return RF_ERR_STATE;
+    if (rate < 0 || rate > 2 || fmt < 0 || fmt > 1 || !n || !dst) return RF_ERR_RANGE;
+    cap_t c = { .dst = dst, .n = n, .fmt = fmt };
+    rf_stream_stats_t st;
+    uint32_t ps = irq_lock();
+    int rc = rf_stream(rates[rate], 0xFFFFFFFFu, cap_cb, &c, &st);   /* until the callback stops it */
+    irq_unlock(ps);
+    rf_cap_last_rc = rc; rf_cap_last_late = st.late_max; rf_cap_last_units = st.units;
+    if ((uint32_t)dst >= 0x3D000000u && (uint32_t)dst < 0x3E000000u) { extern void psram_writeback(void *p, size_t n); psram_writeback(dst, n * (fmt ? 2 : 4)); }
+    return rc ? RF_ERR_TIMEOUT : RF_OK;
+}
+int rf_rx_capture_trigger(int rate, int fmt, int level, uint32_t pre, uint32_t n, void *dst, uint32_t timeout_ms, uint32_t *first, uint32_t *trig)
+{
+    if (state != RF_STATE_RX) return RF_ERR_STATE;
+    if (rate < 0 || rate > 2 || fmt < 0 || fmt > 1 || !n || !dst || pre >= n || level < 1) return RF_ERR_RANGE;
+    cap_t c = { .dst = dst, .n = n, .fmt = fmt, .level = level, .pre = pre, .armed_trig = 1 };
+    c.deadline_units = (uint32_t)((uint64_t)timeout_ms * rate_sps[rate] / 1000 / 12288) + 1;
+    rf_stream_stats_t st;
+    uint32_t ps = irq_lock();
+    int rc = rf_stream(rates[rate], 0xFFFFFFFFu, cap_cb, &c, &st);   /* until the callback stops it */
+    irq_unlock(ps);
+    if ((uint32_t)dst >= 0x3D000000u && (uint32_t)dst < 0x3E000000u) { extern void psram_writeback(void *p, size_t n); psram_writeback(dst, n * (fmt ? 2 : 4)); }
+    if (!c.triggered) return RF_ERR_TIMEOUT;
+    if (first) *first = c.pos >= n ? c.pos % n : 0;
+    if (trig) *trig = c.trig_at;
+    return rc ? RF_ERR_TIMEOUT : RF_OK;
+}
+
 int rf_rx_power(uint16_t n, int32_t *pwr)
 {
     if (state != RF_STATE_RX) return RF_ERR_STATE;

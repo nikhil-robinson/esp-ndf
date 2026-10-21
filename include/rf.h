@@ -90,7 +90,17 @@ int  rf_rx_capture(int rate, uint32_t n, const uint32_t **iq);
 /* gapless stream: cb gets two segments per unit (~12288 words); return nonzero to stop. Interrupts stay masked. */
 typedef int (*rf_rx_cb)(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx);
 int  rf_rx_stream(int rate, uint32_t units, rf_rx_cb cb, void *ctx);
-int  rf_rx_power(uint16_t n, int32_t *pwr);   /* hardware power estimate over n+1 samples (energy detect) */
+int  rf_rx_power(uint16_t n, int32_t *pwr);
+/* long gapless capture into any buffer (internal RAM or PSRAM, see psram.h) via rf_rx_stream.
+ * RF_FMT_IQ32: the raw 32-bit words (4 B/sample); RF_FMT_IQ8: I and Q as signed 8 bit (top 8 of 10 bits, 2 B/sample:
+ * fits PSRAM at 16 MS/s). Returns RF_OK, or RF_ERR_TIMEOUT if the destination could not keep up (a gap). */
+enum { RF_FMT_IQ32 = 0, RF_FMT_IQ8 = 1 };
+int  rf_rx_capture_to(int rate, int fmt, uint32_t n_samples, void *dst);
+/* triggered: capture into a circular buffer of n_samples until a sample with |I|+|Q| >= level arrives, then pre..n
+ * samples later stop. *first = index (in samples) of the oldest sample in dst (the buffer is circular),
+ * *trig = index of the trigger sample. Gives up after timeout_ms without a trigger (RF_ERR_TIMEOUT). */
+int  rf_rx_capture_trigger(int rate, int fmt, int level, uint32_t pre, uint32_t n_samples, void *dst,
+                           uint32_t timeout_ms, uint32_t *first, uint32_t *trig);   /* hardware power estimate over n+1 samples (energy detect) */
 
 /* ---- transmit ------------------------------------------------------------------------------------- */
 int  rf_tx_start(void);                  /* IDLE -> TX (checks the band limit for the current LO) */

@@ -1,0 +1,4 @@
+# does rf_open radiate? C9:48 trigger armed (level 90, 2440 MHz) ; D0 does only close / open, never a tone
+# D0 open at 1.00 s after arming
+# ['open rc 0 source 1 in 6 ms temp 92.4 cal_temp 95.0']
+trigger rc 0 after 77 ms: first 12416 trig 104704 | 3 ms before trigger -38.8 dB, 3 ms after -42.0 dB
