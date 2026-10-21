@@ -1,0 +1,4 @@
+# scheduled send: D0 sends 37 B packets at exact times t0 + k*period (rf_pkt_send_at); C9:48 timestamps the sync word (rf_pkt_t.time_us)
+period 10000 us: D0 sched sent 300 late 0 | rx rc 0 good 301 crcbad 0 | rx intervals n 300 min 2600 max 10001 mean 9975.35 us
+period  2000 us: D0 sched sent 500 late 0 | rx rc 0 good 501 crcbad 0 | rx intervals n 500 min 1999 max 2600 mean 2001.20 us
+period  1000 us: D0 sched sent 500 late 0 | rx rc 0 good 501 crcbad 0 | rx intervals n 500 min 999 max 2600 mean 1003.20 us

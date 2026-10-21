@@ -104,7 +104,7 @@ enum { RF_PKT_1M = 0, RF_PKT_2M = 1, RF_PKT_125K = 2, RF_PKT_500K = 3 };
  * 5:-39 6:-37 7:-34 8:-25 9:-28 10:-25 11:-22 12:-17 13:-14 14:+1 15:0; indices 0..4 emit nothing usable. Sends above the
  * rf_set_limits level (tx_max_db, relative to full scale = index 15) are refused. */
 typedef struct { uint16_t mhz; uint8_t rate; uint8_t flags; uint32_t sync; uint32_t crc_init; uint8_t power; } rf_pkt_cfg_t;
-typedef struct { uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;   /* rssi: dBm (IDF scale, +-1 dB vs it) */
+typedef struct { uint64_t time_us; uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;   /* rssi: dBm (IDF scale); time_us: sync-word time on rf_time_us() */
 /* send: count packets back to back (0 = until rf_pkt_stop); checked against the TX limits */
 int  rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count);
 /* receive: continuously; nothing is ever transmitted (the BT TX state's PA enable is cleared while receiving).
@@ -112,6 +112,10 @@ int  rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsign
 int  rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain);
 int  rf_pkt_read(rf_pkt_t *p);           /* 1 and the oldest packet (ok = CRC good), or 0 */
 int  rf_pkt_busy(void);                  /* a counted send still running */
+/* radio time base (the packet hardware's clock, 0.5 us resolution): available after the first rf_pkt_* call */
+uint64_t rf_time_us(void);
+/* send one packet starting at t_us on rf_time_us() (>= 300 us ahead) */
+int  rf_pkt_send_at(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint64_t t_us);
 /* 1 if sync follows the BLE access-address rules (no run of more than 6 equal bits, at most 24 transitions, at least 2
  * transitions in the top 6 bits, not 4 equal bytes): good correlation properties. Any 32-bit value is accepted. */
 int  rf_pkt_sync_ok(uint32_t sync);

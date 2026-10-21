@@ -231,3 +231,21 @@ Measured with a CW at amplitudes 300 down to 3 (a 40 dB range), target 256:
 **3.5 Tone.** `rf_tx_tone_khz`: DAC-generated CW at ±19 MHz, amplitude 1..511.
 
 **3.6 Power detector.** `rf_pwdet_on` / `rf_pwdet_read` (SAR2, 8 × 13-bit results); `rf_tx_dc_cal` uses it.
+
+## 5. Timing (`rf_time_us`, `rf_pkt_send_at`, `rf_pkt_t.time_us`)
+
+- **Time base:** the packet hardware's own clock (half-slot counter + fine counter, 0.5 µs resolution), on the board's crystal.
+- **Scheduled send:** `rf_pkt_send_at` puts one packet's start on that clock, at least 300 µs ahead (an earlier time returns RF_ERR_TIMEOUT).
+- **Receive timestamps:** received packets carry the sync-word time.
+
+Measured (bench/rfmeas/sched_timing.txt). D0 schedules packets at t0 + k·period; C9:48 timestamps each on its own clock:
+
+| Period | Sent / late | Received | Intervals (after the first) |
+|---|---|---|---|
+| 10 000 µs | 300 / 0 | 300 | 9 999..10 001 µs |
+| 2 000 µs | 500 / 0 | 500 | 1 999..2 001 µs |
+| 1 000 µs | 500 / 0 | 500 | 999..1 001 µs |
+
+- **Accuracy:** scheduling plus timestamping is within ±1 µs, the resolution of the timestamp.
+- **Clock offset:** the two crystals differ by about 2 ppm (5 kHz at 2.46 GHz, bench/rfmeas/board_freq_offset.txt), 20 ns per 10 ms.
+- **Turnaround:** RX → TX on one board is bounded by the 300 µs schedule lead after the packet ends.

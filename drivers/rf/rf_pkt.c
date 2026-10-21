@@ -30,18 +30,22 @@ static int setup(const rf_pkt_cfg_t *c, int8_t *ch)
     return RF_OK;
 }
 
-int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count)
+static int tx_check(const rf_pkt_cfg_t *c, unsigned len)   /* length, power index, band and level limits */
 {
-    int8_t ch; int rc = setup(c, &ch);
-    if (rc) return rc;
-    if (len > 255) return RF_ERR_RANGE;
     static const int8_t rel_db[16] = { -60, -60, -60, -60, -60, -39, -37, -34, -25, -28, -25, -22, -17, -14, 1, 0 };   /* measured */
     uint8_t pw = c->power ? c->power : 11;
-    if (pw < 5 || pw > 15) return RF_ERR_RANGE;
+    if (len > 255 || pw < 5 || pw > 15) return RF_ERR_RANGE;
     rf_limits_t l; rf_get_limits(&l);
     if (c->mhz * 1000u < l.tx_min_khz || c->mhz * 1000u > l.tx_max_khz) return RF_ERR_DENIED;
     if (rel_db[pw] > l.tx_max_db) return RF_ERR_DENIED;
     extern uint16_t ble_hw_raw_t18; ble_hw_raw_t18 = pw;
+    return RF_OK;
+}
+
+int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count)
+{
+    int8_t ch; int rc = setup(c, &ch);
+    if (rc || (rc = tx_check(c, len))) return rc;
     return ble_hw_raw_sendn((uint8_t)ch, c->rate, c->sync, c->crc_init, hdr, data, len, count) ? RF_ERR_RANGE : RF_OK;
 }
 
@@ -68,13 +72,25 @@ int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
 int rf_pkt_read(rf_pkt_t *p)
 {
     unsigned len;
-    if (!ble_hw_raw_read2(p->data, sizeof p->data, &len, &p->status, &p->rssi, &p->hdr)) return 0;
+    uint64_t t;
+    if (!ble_hw_raw_read3(p->data, sizeof p->data, &len, &p->status, &p->rssi, &p->hdr, &t)) return 0;
+    p->time_us = t / 2;
     p->len = (uint8_t)len; p->ok = !(p->status & 0x0F);
     p->rssi = (int8_t)(p->rssi - RF_PKT_RSSI_OFFSET);    /* core value -> dBm on IDF's calibrated scale (measured offset) */
     return 1;
 }
 
 int rf_pkt_busy(void) { return ble_hw_raw_busy(); }
+
+uint64_t rf_time_us(void) { return ready ? ble_hw_now_hu() / 2 : 0; }
+
+int rf_pkt_send_at(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint64_t t_us)
+{
+    int8_t ch; int rc = setup(c, &ch);
+    if (rc || (rc = tx_check(c, len))) return rc;
+    rc = ble_hw_raw_send_at((uint8_t)ch, c->rate, c->sync, c->crc_init, hdr, data, len, t_us * 2);
+    return rc == -2 ? RF_ERR_TIMEOUT : rc ? RF_ERR_RANGE : RF_OK;
+}
 
 void rf_pkt_stop(void)
 {

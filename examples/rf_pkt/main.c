@@ -40,12 +40,14 @@ static void command(void)
         rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint8_t)atoi(v[4]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, 0 };
         int rc = rf_pkt_rx_start(&c, atoi(v[5]));
         if (rc) { printf("rx rc %d\n", rc); return; }
-        static rf_pkt_t p; uint32_t good = 0, crc = 0, wrong = 0, lens = 0, t0 = ccount(), dur = (uint32_t)atoi(v[6]) * 240000u; int32_t rs = 0; uint8_t hdr = 0; uint32_t crcdata = 0, empty = 0; int rmin = 127, rmax = -128;
+        static rf_pkt_t p; uint32_t good = 0, crc = 0, wrong = 0, lens = 0, t0 = ccount(), dur = (uint32_t)atoi(v[6]) * 240000u; int32_t rs = 0; uint8_t hdr = 0; uint32_t crcdata = 0, empty = 0; int rmin = 127, rmax = -128; uint64_t tlast = 0, dsum = 0; uint32_t dmin = 0xFFFFFFFF, dmax = 0, nd = 0;
         while (ccount() - t0 < dur) {
             if (!rf_pkt_read(&p)) continue;
             if (p.status & 1) continue;                /* window ended without a packet */
             if (!p.len) { empty++; continue; }
             if (!p.ok) { crc++; unsigned m = 0; while (m < p.len && p.data[m] == (uint8_t)m) m++; if (p.len && m == p.len) crcdata++; continue; }
+            if (good && p.time_us > tlast) { uint32_t dt = (uint32_t)(p.time_us - tlast); if (dt < dmin) dmin = dt; if (dt > dmax) dmax = dt; dsum += dt; nd++; }
+            tlast = p.time_us;
             good++; rs += p.rssi; lens = p.len; hdr = p.hdr; if (p.rssi < rmin) rmin = p.rssi; if (p.rssi > rmax) rmax = p.rssi;
             for (unsigned k = 0; k < p.len; k++) if (p.data[k] != (uint8_t)k) { wrong++; break; }
         }
@@ -53,6 +55,7 @@ static void command(void)
         rf_pkt_stop();
         printf("rx ctl %08lx\n", (unsigned long)ctl);
         printf("rx empty %lu rssi_min %d rssi_max %d\n", (unsigned long)empty, rmin, rmax);
+        printf("rx intervals n %lu min %lu max %lu mean %.2f us\n", (unsigned long)nd, (unsigned long)dmin, (unsigned long)dmax, nd ? (double)dsum / nd : 0.0);
         printf("rx rc 0 good %lu crcbad %lu crcbad_dataok %lu wrong %lu len %lu hdr %02x rssi %ld\n", (unsigned long)good, (unsigned long)crc, (unsigned long)crcdata, (unsigned long)wrong, (unsigned long)lens, hdr, (long)(good ? rs / (int32_t)good : 0));
     } else if (!strcmp(v[0], "rxpoke") && n > 2) {          /* bench: set one RX CS field (offset) on the next rx */
         extern uint16_t ble_hw_rx_set_off, ble_hw_rx_set_val; ble_hw_rx_set_off = (uint16_t)strtoul(v[1], 0, 0); ble_hw_rx_set_val = (uint16_t)strtoul(v[2], 0, 0); printf("rxpoke\n");
@@ -179,6 +182,17 @@ static void command(void)
         printf("ard %02x\n", rf_regi2c_read((uint8_t)strtoul(v[1], 0, 16), (uint8_t)strtoul(v[2], 0, 16)));
     } else if (!strcmp(v[0], "pbw") && n > 3) {             /* pbw row col value: one PHY-bus word */
         rf_pbus_write((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint16_t)strtoul(v[3], 0, 0)); printf("pbw\n");
+    } else if (!strcmp(v[0], "sched") && n > 3) {           /* sched mhz count period_us: packets at exact times on the radio clock */
+        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), 0, 0, 0x71764129, 0x555555, 0 };
+        rf_pkt_send(&c, 0x5A, payload, 37, 1); while (rf_pkt_busy()) {}               /* sets up the core: time base valid */
+        uint32_t cnt = (uint32_t)atoi(v[2]), per = (uint32_t)atoi(v[3]), late = 0;
+        uint64_t t0 = rf_time_us() + 2000;
+        for (uint32_t k = 0; k < cnt; k++) {
+            while (rf_pkt_busy()) {}
+            if (rf_pkt_send_at(&c, 0x5A, payload, 37, t0 + (uint64_t)k * per)) late++;
+        }
+        while (rf_pkt_busy()) {}
+        printf("sched sent %lu late %lu\n", (unsigned long)(cnt - late), (unsigned long)late);
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

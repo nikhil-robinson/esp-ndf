@@ -44,6 +44,9 @@ int  ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcin
 int  ble_hw_raw_sendn(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint32_t count);
 int  ble_hw_raw_read2(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr);
 int  ble_hw_raw_busy(void);
+int  ble_hw_raw_read3(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr, uint64_t *t_hu);
+uint64_t ble_hw_now_hu(void);
+int  ble_hw_raw_send_at(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint64_t t_hu);
 extern uint32_t ble_hw_raw_flags;
 int  ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit);
 int  ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi);

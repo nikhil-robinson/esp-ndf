@@ -573,8 +573,18 @@ void ble_hw_debug(uint32_t out[6])
  * at each other, in one event that does not end (MAXEVTIME 0xDEAD). Re-kicked if it ever ends. */
 #define RAW_TXD0 0x1400u
 #define RAW_TXD1 0x1420u
+static uint64_t raw_at;                         /* raw send: absolute start time (half-us), 0 = as soon as possible */
 static void raw_kick(void)
 {
+    if (raw_at) {                                /* scheduled: start time T = CLKN * 625 + (624 - fine) */
+        uint64_t T = raw_at; raw_at = 0;
+        EM16(0) = 0x7802;
+        EM16(2) = (uint16_t)(T / 625); EM16(4) = (uint16_t)((T / 625) >> 16) & 0xFFF; EM16(6) = (uint16_t)(624u - (uint32_t)(T % 625));
+        EM16(8) = raw_cs / 2; EM16(10) = 0x03E8; EM16(12) = 0; EM16(14) = 0x0F00;
+        CORE(0x18) = 0xFFFFFFFFu;
+        CORE(0x100) = 0x80000000u;
+        return;
+    }
     uint32_t lead = raw_on == 2 ? BLE_FINE : ble_hw_raw_lead;   /* send: 250 us (as arm()); receive: shorter, to re-arm between packets */
     if (raw_on != 2 && ble_hw_raw_jitter) lead += ccount() % ble_hw_raw_jitter;   /* bench: break phase lock with the sender */
     uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;
@@ -626,6 +636,14 @@ int ble_hw_raw_tx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit,
 int ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len)
 {
     return ble_hw_raw_sendn(ch_idx, rate, sync, crcinit, hdr0, d, len, 0);
+}
+uint64_t ble_hw_now_hu(void) { return now_hu(); }
+/* one packet starting at core time t_hu (half-us, from ble_hw_now_hu); at least ~300 us ahead */
+int ble_hw_raw_send_at(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint64_t t_hu)
+{
+    if (t_hu < now_hu() + 600u) return -2;
+    raw_at = t_hu;
+    return ble_hw_raw_sendn(ch_idx, rate, sync, crcinit, hdr0, d, len, 1);
 }
 int ble_hw_raw_sendn(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint32_t count)
 {
@@ -701,12 +719,17 @@ int ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status,
 }
 int ble_hw_raw_read2(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr)
 {
+    return ble_hw_raw_read3(buf, max, len, status, rssi, hdr, 0);
+}
+int ble_hw_raw_read3(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi, uint8_t *hdr, uint64_t *t_hu)
+{
     static uint32_t d = RING0;
     if (d >= RING0 + raw_rx_n * 0x14) d = RING0;
     for (unsigned k = 0; k < raw_rx_n; k++) {
         if (EM16(d) & 0x8000) {
             uint16_t h = EM16(d + 4);
             *status = EM16(d + 2); *rssi = (int8_t)(EM16(d + 6) & 0xFF); *len = h >> 8; if (hdr) *hdr = (uint8_t)h;
+            if (t_hu) *t_hu = (uint64_t)(EM16(d + 8) | (uint32_t)EM16(d + 10) << 16) * 625u + (624u - (EM16(d + 0x0C) & 0x3FF));   /* sync time */
             unsigned n = *len < max ? *len : max;
             uint16_t pp = EM16(d + 0x12);
             memcpy(buf, pp >= TXBUF && pp < TXBUF + 0x400 ? (const void *)((uint8_t *)tx_buf + (pp - TXBUF)) : (const void *)em_addr(pp), n);
