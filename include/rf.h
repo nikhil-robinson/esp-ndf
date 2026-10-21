@@ -77,7 +77,8 @@ int  rf_rx_power(uint16_t n, int32_t *pwr);   /* hardware power estimate over n+
 
 /* ---- transmit ------------------------------------------------------------------------------------- */
 int  rf_tx_start(void);                  /* IDLE -> TX (checks the band limit for the current LO) */
-int  rf_tx_set_level_db(int db);         /* -25..0 dB relative to full scale (digital gain, ~0.2 dB steps) */
+#define RF_TX_LEVEL_MIN_DB (-25)
+int  rf_tx_set_level_db(int db);         /* -25..0 dB relative to full scale (digital gain; measured table) */
 #define RF_TX_MAX_WORDS 16384u
 /* play n IQ words at 40 MS/s from buf (copied into the DAC bank); loop repeats gaplessly until rf_tx_stop */
 int  rf_tx_play(const uint32_t *buf, uint32_t n, int loop);

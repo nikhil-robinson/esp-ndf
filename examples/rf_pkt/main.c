@@ -159,6 +159,20 @@ static void command(void)
         printf("image gain %d tone %.1f image %.1f rejection %.1f dB\n", db, 10 * log10(a[0] / 4 / 64e6), 10 * log10(a[1] / 4 / 64e6), 10 * log10(a[0] / a[1]));
     } else if (!strcmp(v[0], "lead") && n > 1) {
         extern uint32_t ble_hw_raw_lead, ble_hw_raw_jitter; ble_hw_raw_lead = (uint32_t)atoi(v[1]); ble_hw_raw_jitter = n > 2 ? (uint32_t)atoi(v[2]) : 0; printf("lead\n");
+    } else if (!strcmp(v[0], "level") && n > 1) {           /* level db: rf_tx_set_level_db on the running tone */
+        printf("level rc %d\n", rf_tx_set_level_db(atoi(v[1])));
+    } else if (!strcmp(v[0], "tonedb") && n > 3) {          /* tonedb khz tone_hz gain_db: tone level at a fixed RX gain, mean of 8 captures */
+        rf_pkt_stop(); rf_tx_stop(); rf_set_freq_khz((uint32_t)atoi(v[1])); rf_rx_start(); rf_rx_set_gain_db(atoi(v[3])); delay_us(200);
+        float f = (float)atof(v[2]); double acc = 0; int pk = 0;
+        for (int rep = 0; rep < 8; rep++) {
+            const uint32_t *iq; rf_rx_capture(RF_RATE_40M, 4000, &iq);
+            float w = 2 * 3.14159265f * f / 40e6f, c = cosf(w), sn = sinf(w), re = 1, im = 0, ai = 0, aq = 0;
+            for (int k = 0; k < 4000; k++) { float i = (float)rf_sample_i(iq[k]), q = (float)rf_sample_q(iq[k]); ai += i * re + q * im; aq += q * re - i * im; float t = re * c - im * sn; im = re * sn + im * c; re = t; if (abs((int)i) > pk) pk = abs((int)i); }
+            acc += ((double)ai * ai + (double)aq * aq) / 16e6;
+        }
+        printf("tonedb %.2f peak %d\n", 10 * log10(acc / 8), pk);
+    } else if (!strcmp(v[0], "dig") && n > 1) {             /* dig code: raw TX digital gain byte on the running tone */
+        extern void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig); rf_tx_gain(127, 0, (int8_t)strtol(v[1], 0, 0)); printf("dig\n");
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

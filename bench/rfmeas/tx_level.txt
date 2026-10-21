@@ -1,0 +1,100 @@
+# rf_tx_set_level_db accuracy: D0 tone 2440 MHz + 1 MHz amplitude 300; C9:48 fixed RX gain 20 dB, tone level (8 captures)
+['tone rc 0']
+request    0 dB: measured   0.00 dB (error +0.00) | tonedb 33.98 peak 95
+request   -1 dB: measured  -0.83 dB (error +0.17) | tonedb 33.15 peak 92
+request   -2 dB: measured  -1.67 dB (error +0.33) | tonedb 32.31 peak 87
+request   -3 dB: measured  -2.65 dB (error +0.35) | tonedb 31.33 peak 79
+request   -5 dB: measured  -4.22 dB (error +0.78) | tonedb 29.76 peak 75
+request   -8 dB: measured  -5.95 dB (error +2.05) | tonedb 28.03 peak 67
+request  -10 dB: measured  -8.01 dB (error +1.99) | tonedb 25.97 peak 59
+request  -12 dB: measured -10.22 dB (error +1.78) | tonedb 23.76 peak 52
+request  -15 dB: measured -13.78 dB (error +1.22) | tonedb 20.20 peak 46
+request  -18 dB: measured -16.98 dB (error +1.02) | tonedb 17.00 peak 41
+request  -20 dB: measured -19.40 dB (error +0.60) | tonedb 14.58 peak 39
+request  -22 dB: measured -21.61 dB (error +0.39) | tonedb 12.37 peak 38
+request  -25 dB: measured -25.05 dB (error -0.05) | tonedb 8.93 peak 34
+# after the measured table: rf_tx_set_level_db accuracy (same set-up)
+request    0 dB: measured   0.00 (error +0.00)
+request   -1 dB: measured  -1.60 (error -0.60)
+request   -2 dB: measured  -2.80 (error -0.80)
+request   -3 dB: measured  -3.71 (error -0.71)
+request   -4 dB: measured  -4.81 (error -0.81)
+request   -5 dB: measured  -6.32 (error -1.32)
+request   -6 dB: measured  -7.51 (error -1.51)
+request   -7 dB: measured  -8.71 (error -1.71)
+request   -8 dB: measured  -9.76 (error -1.76)
+request   -9 dB: measured -10.91 (error -1.91)
+request  -10 dB: measured -11.95 (error -1.95)
+request  -11 dB: measured -13.24 (error -2.24)
+request  -12 dB: measured -14.04 (error -2.04)
+request  -13 dB: measured -15.36 (error -2.36)
+request  -14 dB: measured -16.25 (error -2.25)
+request  -15 dB: measured -17.57 (error -2.57)
+request  -16 dB: measured -18.58 (error -2.58)
+request  -17 dB: measured -19.73 (error -2.73)
+request  -18 dB: measured -20.72 (error -2.72)
+request  -19 dB: measured -22.06 (error -3.06)
+request  -20 dB: measured -22.93 (error -2.93)
+request  -21 dB: measured -23.90 (error -2.90)
+request  -22 dB: measured -25.12 (error -3.12)
+request  -23 dB: measured -25.92 (error -2.92)
+worst error 3.12 dB
+['level rc -2']
+# drift-proof check: each level measured against a fresh 0 dB reference taken just before it, shuffled order
+request   -1 dB: measured  -1.59 (error -0.59)
+request   -2 dB: measured  -2.60 (error -0.60)
+request   -3 dB: measured  -3.27 (error -0.27)
+request   -4 dB: measured  -3.81 (error +0.19)
+request   -5 dB: measured  -6.03 (error -1.03)
+request   -6 dB: measured  -7.25 (error -1.25)
+request   -7 dB: measured  -8.42 (error -1.42)
+request   -8 dB: measured  -9.39 (error -1.39)
+request   -9 dB: measured -10.56 (error -1.56)
+request  -10 dB: measured -11.57 (error -1.57)
+request  -11 dB: measured -12.75 (error -1.75)
+request  -12 dB: measured -13.63 (error -1.63)
+request  -13 dB: measured -14.87 (error -1.87)
+request  -14 dB: measured -15.72 (error -1.72)
+request  -15 dB: measured -17.04 (error -2.04)
+request  -16 dB: measured -18.00 (error -2.00)
+request  -17 dB: measured -19.22 (error -2.22)
+request  -18 dB: measured -20.15 (error -2.15)
+request  -19 dB: measured -21.37 (error -2.37)
+request  -20 dB: measured -22.32 (error -2.32)
+request  -21 dB: measured -23.43 (error -2.43)
+request  -22 dB: measured -24.52 (error -2.52)
+request  -23 dB: measured -25.44 (error -2.44)
+worst error 2.52 dB
+# final: rf_tx_set_level_db with the drift-proof table, drift-proof check, shuffled
+request   -1 dB: measured  17.39 (error +18.39)
+request   -2 dB: measured  -2.04 (error -0.04)
+request   -3 dB: measured  -2.94 (error +0.06)
+request   -4 dB: measured  -4.40 (error -0.40)
+request   -5 dB: measured  -4.91 (error +0.09)
+request   -6 dB: measured  -5.98 (error +0.02)
+request   -7 dB: measured  -6.89 (error +0.11)
+request   -8 dB: measured  -7.78 (error +0.22)
+request   -9 dB: measured  -8.76 (error +0.24)
+request  -10 dB: measured  -9.70 (error +0.30)
+request  -11 dB: measured -10.63 (error +0.37)
+request  -12 dB: measured -11.67 (error +0.33)
+request  -13 dB: measured -12.40 (error +0.60)
+request  -14 dB: measured -13.67 (error +0.33)
+request  -15 dB: measured -14.74 (error +0.26)
+request  -16 dB: measured -15.55 (error +0.45)
+request  -17 dB: measured -16.36 (error +0.64)
+request  -18 dB: measured -17.69 (error +0.31)
+request  -19 dB: measured -18.68 (error +0.32)
+request  -20 dB: measured -19.53 (error +0.47)
+request  -21 dB: measured -20.77 (error +0.23)
+request  -22 dB: measured -21.58 (error +0.42)
+request  -23 dB: measured -22.67 (error +0.33)
+request  -24 dB: measured -23.67 (error +0.33)
+request  -25 dB: measured -24.67 (error +0.33)
+worst error 18.39 dB
+# re-check of -1 dB (the outlier above was the first step of the run)
+run 0: -1 dB measured -1.09 (error -0.09)
+run 1: -1 dB measured -1.06 (error -0.06)
+run 2: -1 dB measured -1.05 (error -0.05)
+run 3: -1 dB measured -1.03 (error -0.03)
+run 4: -1 dB measured -1.06 (error -0.06)

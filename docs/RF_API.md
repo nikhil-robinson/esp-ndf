@@ -199,3 +199,10 @@ Measured with a CW at amplitudes 300 down to 3 (a 40 dB range), target 256:
 - **2.4 IQ balance** (bench/rfmeas/rx_image.txt): image rejection is 30.3–41.3 dB across 2402–2480 MHz and ±1–8 MHz offsets. This is a lower bound, because D0's own TX image is included. Any IQ correction the vendor init applies is part of our replayed state (ROM has `rom_iq_corr_enable` / `rom_dc_iq_est`).
 - **2.5 sample formats:** 80 / 40 / 16 MS/s, 10-bit signed I and Q per 32-bit word (`rf_sample_i/q`); gapless streaming at all three rates (§A.4).
 - **2.6 saturation:** the ADC clips at ±512. The datasheet maximum RX input is +5 dBm (Table 6-5); damage was not tested. `rf_rx_autogain` keeps the peak under the clip.
+
+## 3.1 TX level (`rf_tx_set_level_db`)
+
+- **What the level controls.** The level is the digital gain byte (0x60006014..30). Its response was measured against the maximum code 0xF8 taken right before each code, because the chip's output drifts about +1 dB over 2 minutes of continuous tone (bench/rfmeas/tx_drift.txt) and a one-pass sweep is biased by that.
+- **Accuracy.** From the drift-proof table (bench/rfmeas/tx_dig_sweep2.txt), checked the same way in shuffled order, every level from 0 to −25 dB is within 0.64 dB (bench/rfmeas/tx_level.txt). The earlier linear map was off by up to 2 dB.
+- **Code range.** 0xF8 is the maximum, not 0xF0. Codes ≥ 0xFC and positive values fall back to lower output.
+- **Packet engine.** It uses the core's power index instead; see the table in §4.1.

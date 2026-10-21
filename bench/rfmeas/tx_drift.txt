@@ -1,0 +1,19 @@
+# TX output drift: D0 tone held at level 0 (fresh start), C9:48 measures every ~10 s for 3 min
+t     0 s: 33.16 dB
+t     8 s: 32.61 dB
+t    17 s: 32.60 dB
+t    25 s: 32.67 dB
+t    33 s: 32.76 dB
+t    41 s: 32.97 dB
+t    49 s: 33.11 dB
+t    58 s: 33.16 dB
+t    66 s: 33.28 dB
+t    74 s: 33.43 dB
+t    82 s: 33.52 dB
+t    90 s: 33.58 dB
+t    99 s: 33.76 dB
+t   107 s: 33.89 dB
+t   115 s: 33.89 dB
+t   123 s: 33.93 dB
+t   131 s: 34.03 dB
+t   140 s: 34.11 dB

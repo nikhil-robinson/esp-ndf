@@ -242,10 +242,11 @@ int rf_rx_power(uint16_t n, int32_t *pwr)
     return RF_OK;
 }
 
-static uint8_t dig_code(int db)                  /* 0x80 = -25 dB .. 0xF0 = 0 dB (measured, ~linear) */
-{
-    return (uint8_t)(0x80 + (db + 25) * 0x70 / 25);
-}
+/* TX digital gain byte per dB below full level: measured against code 0xF8 (the maximum) taken right before each code,
+ * so the chip's slow output drift (+1 dB over 2 min) cancels (bench/rfmeas/tx_dig_sweep2.txt); table error <= 0.21 dB. */
+static const uint8_t level_code[26] = { 0xF8, 0xF0, 0xEA, 0xE4, 0xDA, 0xD4, 0xD0, 0xCC, 0xC8, 0xC4, 0xC0, 0xBC, 0xB8, 0xB4, 0xB0, 0xAC,
+                                        0xA8, 0xA4, 0xA0, 0x9C, 0x98, 0x94, 0x90, 0x8C, 0x88, 0x84 };
+static uint8_t dig_code(int db) { return level_code[-db]; }
 
 int rf_tx_start(void)
 {
@@ -260,7 +261,7 @@ int rf_tx_start(void)
 
 int rf_tx_set_level_db(int db)
 {
-    if (db < -25 || db > 0) return RF_ERR_RANGE;
+    if (db < RF_TX_LEVEL_MIN_DB || db > 0) return RF_ERR_RANGE;
     if (db > lim.tx_max_db) return RF_ERR_DENIED;
     tx_db = db;
     if (state == RF_STATE_TX) rf_tx_gain(127, 0, (int8_t)dig_code(db));
