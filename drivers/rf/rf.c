@@ -13,7 +13,7 @@
 
 static rf_state_t state = RF_STATE_OFF;
 static uint32_t freq_khz;
-static int tx_db;
+static int tx_db, tx_dc_done;
 static rf_limits_t lim = { 2400000, 2483500, 0 };
 static int32_t xtal_ppb;                         /* crystal error: +ppb means the crystal runs fast */
 static uint64_t freq_hz;
@@ -41,6 +41,7 @@ void rf_close(void)
     if (state == RF_STATE_TX) rf_tx_stop();
     rf_dac_stop();
     rf_pbus_xpd_tx_off();
+    tx_dc_done = 0;
     state = RF_STATE_OFF;
 }
 
@@ -254,6 +255,7 @@ int rf_tx_start(void)
     if (freq_khz < lim.tx_min_khz || freq_khz > lim.tx_max_khz) return RF_ERR_DENIED;
     if (tx_db > lim.tx_max_db) tx_db = lim.tx_max_db;
     rf_tx_on(127, 0);
+    if (!tx_dc_done) { rf_tx_dc_cal(127, 0); tx_dc_done = 1; }   /* LO leakage -18.7 -> -28.4 dBc, holds 2402..2480 (measured); ~56 ms once per open */
     rf_tx_gain(127, 0, (int8_t)dig_code(tx_db));
     state = RF_STATE_TX;
     return RF_OK;

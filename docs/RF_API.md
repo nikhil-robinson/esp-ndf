@@ -206,3 +206,28 @@ Measured with a CW at amplitudes 300 down to 3 (a 40 dB range), target 256:
 - **Accuracy.** From the drift-proof table (bench/rfmeas/tx_dig_sweep2.txt), checked the same way in shuffled order, every level from 0 to −25 dB is within 0.64 dB (bench/rfmeas/tx_level.txt). The earlier linear map was off by up to 2 dB.
 - **Code range.** 0xF8 is the maximum, not 0xF0. Codes ≥ 0xFC and positive values fall back to lower output.
 - **Packet engine.** It uses the core's power index instead; see the table in §4.1.
+
+## 3.2–3.6 Rest of the TX chain
+
+**3.3 TX LO leakage and image** (bench/rfmeas/tx_lo_leak.txt). The receiver sits 2 MHz below D0's LO, so the image, the leak and the tone land at +1, +2 and +3 MHz.
+
+| | Carrier, full level | Image |
+|---|---|---|
+| Uncalibrated | −18.7 dBc | −34..−40 dBc |
+| With `rf_tx_dc_cal` | −28.4 dBc (−27.1 / −29.2 at 2402 / 2480 MHz from one calibration at 2440) | −40 dBc |
+
+- `rf_tx_start` now runs the calibration once per `rf_open`, in about 56 ms. It stops the DAC when it finishes, so it must run before any playback.
+- The leak is a fixed absolute level, so with digital level steps it rises relative to the tone: about −13 dBc at −10 dB and −2 dBc at −20 dB.
+- **No analog attenuator on the DAC path** (bench/rfmeas/tx_6b_*.txt, tx_pbus_gain.txt):
+  - PHY-bus PA / row 4 words have no effect while the hardware owns the front end.
+  - 6B.02 and 6B.04 move the output by only about 6 dB.
+  - 6B.04 = 0x0B..0x0F lowers the carrier more than the tone (0x0D: tone −3.4, carrier −10.4 dB), an optional extra 7 dB of carrier suppression at −3.4 dB of output.
+- The packet engine's power index works on the core's TX gain rows: about 40 dB of range (§4.1).
+
+**3.2 TX state machine.** pbus-memory word 42 bits 7:4 are the BT TX state's PA enable, used to make the packet receiver silent (§4.1). Word 19 is a Wi-Fi state word; clearing word 24 kills receive.
+
+**3.4 DAC rates.** 40 MS/s (loop playback and gapless streaming) and 80 MS/s (`rf_dac_play` rate80).
+
+**3.5 Tone.** `rf_tx_tone_khz`: DAC-generated CW at ±19 MHz, amplitude 1..511.
+
+**3.6 Power detector.** `rf_pwdet_on` / `rf_pwdet_read` (SAR2, 8 × 13-bit results); `rf_tx_dc_cal` uses it.

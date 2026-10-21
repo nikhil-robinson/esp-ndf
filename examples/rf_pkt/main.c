@@ -173,6 +173,12 @@ static void command(void)
         printf("tonedb %.2f peak %d\n", 10 * log10(acc / 8), pk);
     } else if (!strcmp(v[0], "dig") && n > 1) {             /* dig code: raw TX digital gain byte on the running tone */
         extern void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig); rf_tx_gain(127, 0, (int8_t)strtol(v[1], 0, 0)); printf("dig\n");
+    } else if (!strcmp(v[0], "txdc")) {                     /* txdc: our TX LO-leakage calibration on the running tone */
+        uint32_t t0 = ccount(); rf_tx_dc_cal(127, 0); printf("txdc %lu us\n", (unsigned long)((ccount() - t0) / 240));
+    } else if (!strcmp(v[0], "ard") && n > 2) {
+        printf("ard %02x\n", rf_regi2c_read((uint8_t)strtoul(v[1], 0, 16), (uint8_t)strtoul(v[2], 0, 16)));
+    } else if (!strcmp(v[0], "pbw") && n > 3) {             /* pbw row col value: one PHY-bus word */
+        rf_pbus_write((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint16_t)strtoul(v[3], 0, 0)); printf("pbw\n");
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

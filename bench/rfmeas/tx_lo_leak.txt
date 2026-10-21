@@ -1,0 +1,41 @@
+# TX carrier (LO leakage) and image vs tone: D0 tone at LO + 1 MHz, levels 0 / -10 / -20 dB; C9:48 LO 2 MHz below: image +1, LO leak +2, tone +3 MHz
+2402 MHz no cal   level   0: tone 36.2 | carrier -16.6 dBc | image -38.1 dBc
+2402 MHz no cal   level -10: tone 23.3 | carrier -2.4 dBc | image -40.5 dBc
+2402 MHz no cal   level -20: tone 12.9 | carrier 8.1 dBc | image -30.4 dBc
+    []
+2402 MHz txdc cal level   0: tone 35.7 | carrier -16.7 dBc | image -38.6 dBc
+2402 MHz txdc cal level -10: tone 22.9 | carrier -2.4 dBc | image -38.6 dBc
+2402 MHz txdc cal level -20: tone 12.7 | carrier 8.1 dBc | image -31.0 dBc
+2440 MHz no cal   level   0: tone 33.4 | carrier -18.4 dBc | image -36.5 dBc
+2440 MHz no cal   level -10: tone 23.8 | carrier -2.4 dBc | image -36.2 dBc
+2440 MHz no cal   level -20: tone 13.7 | carrier 7.9 dBc | image -33.6 dBc
+    []
+2440 MHz txdc cal level   0: tone 33.4 | carrier -18.2 dBc | image -36.3 dBc
+2440 MHz txdc cal level -10: tone 23.7 | carrier -2.5 dBc | image -36.8 dBc
+2440 MHz txdc cal level -20: tone 13.7 | carrier 7.7 dBc | image -34.0 dBc
+2480 MHz no cal   level   0: tone 30.1 | carrier -18.7 dBc | image -38.1 dBc
+2480 MHz no cal   level -10: tone 21.3 | carrier -2.4 dBc | image -35.9 dBc
+2480 MHz no cal   level -20: tone 11.2 | carrier 8.0 dBc | image -30.4 dBc
+    []
+2480 MHz txdc cal level   0: tone 30.1 | carrier -19.0 dBc | image -38.0 dBc
+2480 MHz txdc cal level -10: tone 21.4 | carrier -2.5 dBc | image -37.0 dBc
+2480 MHz txdc cal level -20: tone 11.3 | carrier 8.1 dBc | image -29.4 dBc
+# (redo with txdc working) TX carrier / image with our TX DC calibration, 2440 MHz
+no cal   level   0: tone 33.6 | carrier -18.7 dBc | image -34.3 dBc
+no cal   level -10: tone 24.2 | carrier -2.3 dBc | image -36.0 dBc
+no cal   level -20: tone 14.0 | carrier 8.1 dBc | image -30.5 dBc
+    ['txdc 57553 us']
+txdc cal level   0: tone -26.7 | carrier 40.2 dBc | image -1.2 dBc
+txdc cal level -10: tone -30.6 | carrier 43.8 dBc | image 2.2 dBc
+txdc cal level -20: tone -26.9 | carrier 40.1 dBc | image -0.2 dBc
+# TX DC cal done right: tone at 2440, txdc, tone restarted (cal kept in the TX rows); then same cal used at 2402 / 2480
+    ['txdc 56194 us']
+cal@2440, now 2440 MHz level   0: tone 33.5 | carrier -28.4 dBc | image -40.4 dBc
+cal@2440, now 2440 MHz level -10: tone 23.8 | carrier -12.7 dBc | image -40.1 dBc
+cal@2440, now 2440 MHz level -20: tone 13.9 | carrier -2.1 dBc | image -26.9 dBc
+cal@2440, now 2402 MHz level   0: tone 35.1 | carrier -27.1 dBc | image -40.4 dBc
+cal@2440, now 2402 MHz level -10: tone 22.3 | carrier -12.6 dBc | image -40.6 dBc
+cal@2440, now 2402 MHz level -20: tone 12.5 | carrier -2.0 dBc | image -26.9 dBc
+cal@2440, now 2480 MHz level   0: tone 30.1 | carrier -29.2 dBc | image -41.5 dBc
+cal@2440, now 2480 MHz level -10: tone 21.2 | carrier -12.8 dBc | image -40.2 dBc
+cal@2440, now 2480 MHz level -20: tone 11.6 | carrier -2.0 dBc | image -27.3 dBc
