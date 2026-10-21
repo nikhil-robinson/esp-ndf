@@ -129,6 +129,20 @@ static void command(void)
             printf("g %3d tone %6.1f total %6.1f peak %3d mem %08lx %08lx\n", g, (double)tone, (double)tot, pk, (unsigned long)rf_gain_shadow[g][0], (unsigned long)rf_gain_shadow[g][1]);
         }
         rf_rx_set_gain(RF_GAIN_AGC);
+    } else if (!strcmp(v[0], "agc") && n > 1) {             /* agc khz: AGC on, read 0x6001C02C a few times + capture peak / tone level at +1 MHz */
+        rf_pkt_stop(); rf_tx_stop();
+        rf_set_freq_khz((uint32_t)atoi(v[1])); rf_rx_start(); rf_rx_set_gain(RF_GAIN_AGC); delay_ms(5);
+        printf("agc reg");
+        for (int k = 0; k < 6; k++) { printf(" %08lx", (unsigned long)*(volatile uint32_t *)0x6001C02C); delay_us(300); }
+        const uint32_t *iq; rf_rx_capture(RF_RATE_40M, 4000, &iq); int pk = 0; double pw = 0;
+        for (int k = 0; k < 4000; k++) { int i = rf_sample_i(iq[k]), q = rf_sample_q(iq[k]); pw += i * i + q * q; if (abs(i) > pk) pk = abs(i); if (abs(q) > pk) pk = abs(q); }
+        printf(" | peak %d total %.1f dB\n", pk, 10 * log10(pw / 4000 + 1e-9));
+    } else if (!strcmp(v[0], "autogain") && n > 2) {        /* autogain khz target: rf_rx_autogain, then the capture peak */
+        rf_pkt_stop(); rf_tx_stop(); rf_set_freq_khz((uint32_t)atoi(v[1])); rf_rx_start();
+        int db = -1; uint32_t t0 = ccount(); int rc = rf_rx_autogain(atoi(v[2]), &db); uint32_t t1 = ccount();
+        const uint32_t *iq; rf_rx_capture(RF_RATE_40M, 4000, &iq); int pk = 0;
+        for (int k = 0; k < 4000; k++) { int i = abs(rf_sample_i(iq[k])), q = abs(rf_sample_q(iq[k])); if (i > pk) pk = i; if (q > pk) pk = q; }
+        printf("autogain rc %d db %d peak %d in %lu us\n", rc, db, pk, (unsigned long)((t1 - t0) / 240));
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

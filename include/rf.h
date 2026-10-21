@@ -60,6 +60,11 @@ int  rf_hop(const rf_hop_t *h);          /* retune with a prepared cap and divid
 #define RF_GAIN_AGC (-1)
 int  rf_rx_start(void);                  /* IDLE -> RX */
 int  rf_rx_set_gain(int index);          /* 0..127 table index, or RF_GAIN_AGC */
+/* gain in dB above the minimum (0..RF_GAIN_DB_MAX, ~1 dB steps; the baseband AGC does not act on raw IQ) */
+#define RF_GAIN_DB_MAX 45
+int  rf_rx_set_gain_db(int db);
+/* set the gain so the capture peak lands near target_peak (16..500 of 511); *db = the chosen gain. RX state. */
+int  rf_rx_autogain(int target_peak, int *db);
 int  rf_rx_set_bandwidth_khz(uint32_t khz);   /* nearest corner >= khz: 7000..11000+ (measured codes) */
 enum { RF_RATE_80M = 0, RF_RATE_40M = 1, RF_RATE_16M = 2 };
 /* one-shot capture of n IQ words (n <= RF_CAPTURE_MAX) at rate; *iq points at the samples (valid until the next capture) */

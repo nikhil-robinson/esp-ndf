@@ -1,0 +1,13 @@
+# raw-IQ AGC: D0 CW at 2440 MHz + 1 MHz with amplitude a; C9:48 AGC on, AGC register 0x6001C02C (31:24 gain, 23 force) and capture level
+amp 300: agc reg 324052ed 324052ed 324052ed 324052ed 324052ed 324052ed | peak 512 total 47.1 dB
+amp  30: agc reg 324052ed 324052ed 324052ed 324052ed 324052ed 324052ed | peak 512 total 52.1 dB
+amp   3: agc reg 324052ed 324052ed 324052ed 324052ed 324052ed 324052ed | peak 512 total 55.1 dB
+amp   1: agc reg 324052ed 324052ed 324052ed 324052ed 324052ed 324052ed | peak 512 total 55.3 dB
+amp   0: agc reg 324052ed 324052ed 324052ed 324052ed 324052ed 324052ed | peak 57 total 26.8 dB
+# rf_rx_autogain(target 256): D0 CW at 2440 MHz + 1 MHz, amplitude a (50 dB range)
+amp 300: autogain rc 0 db 29 peak 258 in 670 us
+amp 100: autogain rc 0 db 32 peak 244 in 670 us
+amp  30: autogain rc 0 db 40 peak 261 in 893 us
+amp  10: autogain rc 0 db 42 peak 247 in 893 us
+amp   3: autogain rc 0 db 43 peak 257 in 893 us
+amp   0: autogain rc 0 db 45 peak 15 in 670 us

@@ -165,6 +165,44 @@ int rf_rx_set_gain(int index)
     return RF_OK;
 }
 
+/* Gain-memory index for each dB of RX gain above index 0 (measured CW sweep, bench/rfmeas/rx_gain_table.csv): steps are
+ * 1 dB +-0.2 except 33 -> 36.6 -> 39.6 (front-end switch to code 0xA4). */
+static const uint8_t gain_idx_of_db[RF_GAIN_DB_MAX + 1] = { 0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 30, 31, 32,
+    35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 45, 46, 46, 46, 46, 47, 47, 48, 49, 50, 51, 52 };
+static int gain_db_now;
+int rf_rx_set_gain_db(int db)
+{
+    if (state == RF_STATE_OFF) return RF_ERR_STATE;
+    if (db < 0 || db > RF_GAIN_DB_MAX) return RF_ERR_RANGE;
+    gain_db_now = db;
+    rf_rx_gain(gain_idx_of_db[db]);
+    return RF_OK;
+}
+
+/* Raw-IQ gain control (the baseband AGC only acts on Wi-Fi packets): capture, compare the peak with target, step the
+ * gain by the difference in dB; up to 6 rounds. */
+int rf_rx_autogain(int target_peak, int *db)
+{
+    if (state != RF_STATE_RX) return RF_ERR_STATE;
+    if (target_peak < 16 || target_peak > 500) return RF_ERR_RANGE;
+    int g = gain_db_now;
+    for (int round = 0; round < 6; round++) {
+        rf_rx_gain(gain_idx_of_db[g]); delay_us(50);
+        const uint32_t *iq;
+        if (rf_rx_capture(RF_RATE_40M, 2048, &iq)) return RF_ERR_TIMEOUT;
+        int pk = 1;
+        for (uint32_t k = 0; k < 2048; k++) { int i = rf_sample_i(iq[k]), q = rf_sample_q(iq[k]); if (i < 0) i = -i; if (q < 0) q = -q; if (i > pk) pk = i; if (q > pk) pk = q; }
+        int step = pk >= 500 ? -10 : (int)lrintf(20 * log10f((float)target_peak / (float)pk));
+        if (step > -2 && step < 2) break;
+        int ng = g + step; if (ng < 0) ng = 0; if (ng > RF_GAIN_DB_MAX) ng = RF_GAIN_DB_MAX;
+        if (ng == g) break;
+        g = ng;
+    }
+    gain_db_now = g; rf_rx_gain(gain_idx_of_db[g]);
+    if (db) *db = g;
+    return RF_OK;
+}
+
 int rf_rx_set_bandwidth_khz(uint32_t khz)        /* 67.04 / 67.05 (I / Q): measured corners, docs/PHY_STANDALONE.md */
 {
     if (state == RF_STATE_OFF) return RF_ERR_STATE;

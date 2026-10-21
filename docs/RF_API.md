@@ -177,3 +177,17 @@ Measured by sweeping all 128 gain-memory indices with a CW from D0, at full leve
 - The packet engine's forced gain codes (pbus row 1 col 2) are not these indices.
 - Hardware AGC (`RF_GAIN_AGC`) is the default.
 - RSSI is reported in dBm on IDF's scale: the core's raw value minus 22 dB, measured against IDF Bluedroid on the same adverts (−69 / −83 dBm vs raw −47 / −60).
+
+## 2.2 Raw-IQ gain control (`rf_rx_set_gain_db`, `rf_rx_autogain`)
+
+The baseband AGC does not act on raw IQ. With it enabled, the gain register stays at 0x32 and the capture clips at every input level (bench/rfmeas/rx_agc.txt); Wi-Fi's AGC only acts on its own packets.
+
+`rf_rx_set_gain_db(0..45)` picks a gain-memory index from the measured map. Steps are 1 dB ± 0.2, except one front-end switch between 33 and 37 dB. `rf_rx_autogain(target, &db)` captures, compares the peak with the target and steps the gain by the difference.
+
+Measured with a CW at amplitudes 300 down to 3 (a 40 dB range), target 256:
+
+| Measure | Result |
+|---|---|
+| Final peak | 244..261 |
+| Time | 670..893 µs |
+| No signal | gain 45, peak 15: the top of the map stays clear of noise clipping |
