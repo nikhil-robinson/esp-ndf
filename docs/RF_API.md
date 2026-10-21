@@ -283,3 +283,15 @@ Measured (bench/rfmeas/rf_safety.txt):
 | Tone, `tx_max_ms` = 500 | gone after 1 s (35.9 → −25.3 dB), state IDLE, expired 1 |
 | Tone, no limit | still on after 1 s (35.5 dB) |
 | 50 cycles of `rf_open`, hop across the band, TX tone, lock check, `rf_close` | 0 failures |
+
+## 6.1 PSRAM (`drivers/psram`, `include/psram.h`)
+
+- **Device:** 8 MB AP Memory octal PSRAM in the ESP32-S3R8 package, on MSPI CS1, driven by our own code.
+- **Bring-up:**
+  1. **Pins:** the flash pads GPIO27–32 (shared CLK and D0–D3) are switched from the GPIO matrix to MSPI function 0, and GPIO33–37 (D4–D7, DQS) to function 4.
+  2. **Clocks:** MSPI core clock 160 MHz, with IDF's input timing.
+  3. **PSRAM registers:** read and written over SPI1 in octal DTR (16-bit commands 0x4040 / 0xC0C0, 32-bit address, 8 dummy), then MR0 is set to fixed latency, read latency code 2.
+  4. **Cache path:** SPI0 commands 0x0000 / 0x8080, read dummy 18, write dummy 8.
+  5. **Mapping:** all 128 pages at 0x3D000000.
+- **What was missing:** with those flash pads left on the GPIO matrix (as after ROM boot), the PSRAM never answers. Found by diffing all MSPI / IO MUX registers against IDF (bench/idf_psram/state_diff.txt) and by reading the ROM's own `esp_rom_opiflash_exec_cmd` (dumped from the chip).
+- **Speed:** see PERFORMANCE.md (49.5 / 84.6 MB/s, ahead of IDF).

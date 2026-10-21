@@ -1,0 +1,2 @@
+psram 8388608, buf 0x3c030b4c
+IDF memcpy SRAM->PSRAM 35.5 MB/s, PSRAM->SRAM 60.9 MB/s (1 MiB, cache write-back not forced)

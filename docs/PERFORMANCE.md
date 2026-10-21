@@ -269,3 +269,15 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 |---|---|---|---|
 | RF open (PHY init + RX DC) | 47 ms | 6 ms | `esp_phy_enable` with stored PHY data: not measured here |
 | First TX (TX DC cal) | 70 ms | 0 ms | — |
+
+## Octal PSRAM (8 MB, in package), `drivers/psram`
+
+All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 bad words.
+
+| | esp-ndf (64 B cache lines) | esp-ndf (32 B) | IDF (`CONFIG_SPIRAM_MODE_OCT`, 80 MHz) |
+|---|---|---|---|
+| memcpy SRAM → PSRAM, 1 MiB | **49.5 MB/s** (incl. explicit write-back) | 35.6 MB/s | 35.5 MB/s |
+| memcpy PSRAM → SRAM, 1 MiB | **84.6 MB/s** | 58.2 MB/s | 60.9 MB/s |
+
+- **Why esp-ndf is faster:** IDF leaves the data cache at 32-byte lines; esp-ndf uses 64-byte lines.
+- **Headroom:** the 80 MHz DTR bus carries 160 MB/s raw.
