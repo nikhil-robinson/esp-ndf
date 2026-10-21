@@ -5,6 +5,7 @@
 #include "rf.h"
 #include "ble_hw.h"
 #include "rf_init.h"
+#include "xtensa.h"
 
 /* Same adverts, same transmitter: IDF Bluedroid reports -69 / -83 dBm where the core's raw value is -47 / -60
  * (bench/rfmeas/sens_idf_vs_ours.txt): 22..23 dB. */
@@ -34,8 +35,13 @@ int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigne
     int8_t ch; int rc = setup(c, &ch);
     if (rc) return rc;
     if (len > 255) return RF_ERR_RANGE;
+    static const int8_t rel_db[16] = { -60, -60, -60, -60, -60, -39, -37, -34, -25, -28, -25, -22, -17, -14, 1, 0 };   /* measured */
+    uint8_t pw = c->power ? c->power : 11;
+    if (pw < 5 || pw > 15) return RF_ERR_RANGE;
     rf_limits_t l; rf_get_limits(&l);
     if (c->mhz * 1000u < l.tx_min_khz || c->mhz * 1000u > l.tx_max_khz) return RF_ERR_DENIED;
+    if (rel_db[pw] > l.tx_max_db) return RF_ERR_DENIED;
+    extern uint16_t ble_hw_raw_t18; ble_hw_raw_t18 = pw;
     return ble_hw_raw_sendn((uint8_t)ch, c->rate, c->sync, c->crc_init, hdr, data, len, count) ? RF_ERR_RANGE : RF_OK;
 }
 
@@ -47,7 +53,7 @@ int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
     if (rc) return rc;
     if (gain > 127) return RF_ERR_RANGE;
     if (ble_hw_raw_rx((uint8_t)ch, c->rate, c->sync, c->crc_init)) return RF_ERR_RANGE;
-    if (c->rate >= RF_PKT_125K || rf_pkt_bench_forced) {                /* coded: hardware-sequenced receive is erratic (0..81% per run, measured);
+    if (rf_pkt_bench_forced) {                   /* bench only: forced front end (fixed gain code: usable only near one level, measured);
                                                   * the front end forced to receive (TX path off, gain code 127) takes every packet */
         rf_pbus_force_mode(1); rf_pbus_xpd_tx_off(); rf_pbus_xpd_rx_on(127);
         rx_forced = 2;

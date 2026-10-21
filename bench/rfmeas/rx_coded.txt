@@ -1,0 +1,123 @@
+# coded receive, hardware path (AGC, PA word 42) vs forced, with the 200 us re-arm lead; exactly 500 packets
+rate 3 len 255 hardware: send rc 0 sent 500 in 2739 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+rate 3 len 255 forced  : send rc 0 sent 500 in 2739 ms | rx rc 0 good 0 crcbad 183 crcbad_dataok 1 wrong 0 len 0 hdr 00 rssi 0
+rate 2 len 100 hardware: send rc 0 sent 500 in 4027 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+rate 2 len 100 forced  : send rc 0 sent 500 in 4027 ms | rx rc 0 good 223 crcbad 16 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -56
+rate 3 len  37 hardware: send rc 0 sent 500 in 995 ms | rx rc 0 good 484 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -67
+rate 3 len  37 forced  : send rc 0 sent 500 in 995 ms | rx rc 0 good 235 crcbad 187 crcbad_dataok 13 wrong 0 len 37 hdr 5a rssi -56
+rate 2 len  37 hardware: send rc 0 sent 500 in 2011 ms | rx rc 0 good 243 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -67
+rate 2 len  37 forced  : send rc 0 sent 500 in 2011 ms | rx rc 0 good 234 crcbad 6 crcbad_dataok 2 wrong 0 len 37 hdr 5a rssi -56
+# long coded packets, hardware path: RX max-time field CS+0x2A / window +0x1A
+CS+0x2a=0x0848 rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0x0848 rate 2 len 100: send rc 0 sent 300 in 2417 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0x4290 rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0x4290 rate 2 len 100: send rc 0 sent 300 in 2417 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0x7fff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0x7fff rate 2 len 100: send rc 0 sent 300 in 2417 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0xffff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2a=0xffff rate 2 len 100: send rc 0 sent 300 in 2417 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x1e=0xffff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x1e=0xffff rate 2 len 100: send rc 0 sent 300 in 2417 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# long coded packets, hardware path: max event time candidates
+CS+0x2e=0xffff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2e=0xffff rate 3 len 100: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2c=0xffff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2c=0xffff rate 3 len 100: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x2e=0x0fff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 288 crcbad 0 crcbad_dataok 0 wrong 0 len 255 hdr 5a rssi -68
+CS+0x2e=0x0fff rate 3 len 100: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x20=0x0001 rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x20=0x0001 rate 3 len 100: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x22=0xffff rate 3 len 255: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+CS+0x22=0xffff rate 3 len 100: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# repeatability: CS+0x2E = 0x0FFF vs default, coded S2 255 B and 100 B, 300 packets, 3 runs each
++0x2E 0x0fff len 255 run 0: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len 255 run 1: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len 255 run 2: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len 100 run 0: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len 100 run 1: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len 100 run 2: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len  37 run 0: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len  37 run 1: rx rc 0 good 0 crcbad 0
++0x2E 0x0fff len  37 run 2: rx rc 0 good 0 crcbad 0
++0x2E None len 255 run 0: rx rc 0 good 0 crcbad 0
++0x2E None len 255 run 1: rx rc 0 good 0 crcbad 0
++0x2E None len 255 run 2: rx rc 0 good 0 crcbad 0
++0x2E None len 100 run 0: rx rc 0 good 0 crcbad 0
++0x2E None len 100 run 1: rx rc 0 good 0 crcbad 0
++0x2E None len 100 run 2: rx rc 0 good 282 crcbad 0
++0x2E None len  37 run 0: rx rc 0 good 0 crcbad 0
++0x2E None len  37 run 1: rx rc 0 good 0 crcbad 0
++0x2E None len  37 run 2: rx rc 0 good 0 crcbad 0
+# coded S2 hardware path with random re-arm jitter (lead 400 + 0..j half-us), 3 runs each, 300 packets
+jitter 200 len 255 run 0: rx rc 0 good 0 crcbad 0
+jitter 200 len 255 run 1: rx rc 0 good 0 crcbad 0
+jitter 200 len 255 run 2: rx rc 0 good 0 crcbad 0
+jitter 200 len 100 run 0: rx rc 0 good 0 crcbad 0
+jitter 200 len 100 run 1: rx rc 0 good 0 crcbad 0
+jitter 200 len 100 run 2: rx rc 0 good 0 crcbad 0
+jitter 200 len  37 run 0: rx rc 0 good 0 crcbad 0
+jitter 200 len  37 run 1: rx rc 0 good 0 crcbad 0
+jitter 200 len  37 run 2: rx rc 0 good 0 crcbad 0
+jitter   0 len 255 run 0: rx rc 0 good 0 crcbad 0
+jitter   0 len 255 run 1: rx rc 0 good 0 crcbad 0
+jitter   0 len 255 run 2: rx rc 0 good 0 crcbad 0
+jitter   0 len 100 run 0: rx rc 0 good 0 crcbad 0
+jitter   0 len 100 run 1: rx rc 0 good 0 crcbad 0
+jitter   0 len 100 run 2: rx rc 0 good 0 crcbad 0
+jitter   0 len  37 run 0: rx rc 0 good 0 crcbad 0
+jitter   0 len  37 run 1: rx rc 0 good 0 crcbad 0
+jitter   0 len  37 run 2: rx rc 0 good 0 crcbad 0
+# is the coded flakiness on the TX side? 4 D0 sessions (fresh reset each), continuous S2 37 B; C9:48 receives 3x per session (hardware path)
+session 0 send rc 0 packets/s 503
+   rx 0: rx rc 0 good 712 crcbad 0
+   rx 1: rx rc 0 good 730 crcbad 0
+   rx 2: rx rc 0 good 732 crcbad 0
+session 1 send rc 0 packets/s 503
+   rx 0: rx rc 0 good 726 crcbad 0
+   rx 1: rx rc 0 good 343 crcbad 0
+   rx 2: rx rc 0 good 721 crcbad 0
+session 2 send rc 0 packets/s 503
+   rx 0: rx rc 0 good 723 crcbad 0
+   rx 1: rx rc 0 good 717 crcbad 0
+   rx 2: rx rc 0 good 487 crcbad 0
+session 3 send rc 0 packets/s 503
+   rx 0: rx rc 0 good 406 crcbad 0
+   rx 1: rx rc 0 good 724 crcbad 0
+   rx 2: rx rc 0 good 722 crcbad 0
+# coded with the receive watchdog (20 ms), receiver started first, counted sends
+rate 3 len 255 run 0: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0
+rate 3 len 255 run 1: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0
+rate 3 len 100 run 0: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0
+rate 3 len 100 run 1: send rc 0 sent 300 in 900 ms | rx rc 0 good 0 crcbad 0
+rate 3 len  37 run 0: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0
+rate 3 len  37 run 1: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0
+rate 2 len 100 run 0: send rc 0 sent 200 in 1612 ms | rx rc 0 good 0 crcbad 0
+rate 2 len 100 run 1: send rc 0 sent 200 in 1612 ms | rx rc 0 good 0 crcbad 0
+rate 2 len 255 run 0: send rc 0 sent 100 in 1799 ms | rx rc 0 good 0 crcbad 0
+rate 2 len 255 run 1: send rc 0 sent 100 in 1799 ms | rx rc 0 good 0 crcbad 0
+rate 2 len  37 run 0: send rc 0 sent 300 in 1208 ms | rx rc 0 good 0 crcbad 0
+rate 2 len  37 run 1: send rc 0 sent 300 in 1208 ms | rx rc 0 good 0 crcbad 0
+# receiver first, then CONTINUOUS coded send (count 0) vs counted 300
+count   0: send rc 0 packets/s 503 cpu 0.000% ctl 0018050f | rx rc 0 good 0 crcbad 0
+count 300: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0
+count   0: send rc 0 packets/s 503 cpu 0.000% ctl 0018050f | rx rc 0 good 0 crcbad 0
+count 300: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0
+# coded, receiver first, auto-restart after 50 ms of silence; counted sends
+rate 3 len 255 run 0: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 3 len 255 run 1: send rc 0 sent 300 in 1644 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 3 len  37 run 0: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 3 len  37 run 1: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 2 len 100 run 0: send rc 0 sent 200 in 1612 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 2 len 100 run 1: send rc 0 sent 200 in 1612 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 2 len  37 run 0: send rc 0 sent 300 in 1208 ms | rx rc 0 good 0 crcbad 0 |  119
+rate 2 len  37 run 1: send rc 0 sent 300 in 1207 ms | rx rc 0 good 0 crcbad 0 |  119
+# coded S2 37 B continuous: does it matter whether C9:48 boots (rf_open calibrations) in silence or during the coded signal?
+A boot in silence, rx during signal: rx rc 0 good 1 crcbad 0
+B boot during signal:                rx rc 0 good 1 crcbad 0
+A boot in silence, rx during signal: rx rc 0 good 1 crcbad 0
+B boot during signal:                rx rc 0 good 1 crcbad 0
+# watchdog + restart OFF: coded S2 37 B, B (boot during signal) and receiver-first counted
+B boot during signal: rx rc 0 good 727 crcbad 0
+B boot during signal: rx rc 0 good 357 crcbad 0
+receiver first, counted 300: send rc 0 sent 300 in 598 ms | rx rc 0 good 280 crcbad 0
+receiver first, counted 300: send rc 0 sent 300 in 598 ms | rx rc 0 good 0 crcbad 0

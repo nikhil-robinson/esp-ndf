@@ -40,7 +40,10 @@ void app_main(void)
         for (;;) vTaskDelay(1000);
     }
     printf("=== rx\n");
-    tp[1] = 0; tp[4] = 0x71764129; tp[5] = PHY_BLE_RATE_1M;
+#ifndef RXRATE
+#define RXRATE PHY_BLE_RATE_1M
+#endif
+    tp[1] = 0; tp[4] = 0x71764129; tp[5] = RXRATE;
     xTaskCreatePinnedToCore(rx_task, "rx", 8192, 0, 5, 0, 1);
     vTaskDelay(30);
     dump("rx 1M sync71764129 ch0");

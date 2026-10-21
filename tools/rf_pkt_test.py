@@ -26,7 +26,9 @@ for mhz, rate, sync, ln in ((2402, 0, '0x71764129', 37), (2420, 0, '0x8E89BED6',
     check('%d MHz rate %d sync %s len %d' % (mhz, rate, sync, ln), r['good'] > 50 and r['wrong'] == 0 and r['len'] == ln and r['hdr'] == 0x5A and r['crcbad'] * 20 < r['good'], '%s | %s' % (t, r))
 for txf, rxf, expect in ((1, 1, 'good'), (1, 0, 'crcbad'), (0, 1, 'good')):
     t, r = link(2440, 0, '0x71764129', 37, txf, rxf)
-    ok = r['good'] > 50 and r['wrong'] == 0 if expect == 'good' else (r['good'] == 0 and r['crcbad_dataok'] > 50)
+    if expect == 'good' and txf | rxf: ok = r['good'] > 50 and r['wrong'] * 100 <= r['good']   # no CRC check: rare bit errors pass (<= 1 %)
+    elif expect == 'good': ok = r['good'] > 50 and r['wrong'] == 0
+    else: ok = r['good'] == 0 and r['crcbad_dataok'] > 50
     check('CRC flag tx %d rx %d (1 = CRC off) -> %s' % (txf, rxf, expect), ok, '%s | %s' % (t, r))
 tx = rfhost.Board(rfhost.D0)
 check('whitening off refused (not supported yet)', tx.cmd('send 2440 0 0x71764129 2 37 0')[0] == 'send rc -2')
@@ -36,9 +38,13 @@ tx.cmd('limits 2400000 2420000')
 check('send at 2440 MHz outside limits denied', tx.cmd('send 2440 0 0x71764129 0 37 0')[0] == 'send rc -4')
 tx = rfhost.Board(rfhost.D0); rx = rfhost.Board(rfhost.C948); res = {}
 th = threading.Thread(target=lambda: res.setdefault('rx', [l for l in rx.cmd('rx 2440 0 0x71764129 0 -1 2500', timeout=30) if l.startswith('rx rc')][0])); th.start(); time.sleep(0.3)
-t = tx.cmd('send 2440 0 0x71764129 0 37 1000', timeout=20)[0]; th.join()
+t = tx.cmd('send 2440 0 0x71764129 0 100 1000', timeout=20)[0]; th.join()   # 740/s: within the ~1000/s receive re-arm limit
 got = int(res['rx'].split()[4])
-check('counted send: 1000 packets sent, >= 990 received', 'sent 1000' in t and 990 <= got <= 1000, '%s | %s' % (t, res['rx']))
+check('counted send: 1000 x 100 B sent, >= 990 received', 'sent 1000' in t and 990 <= got <= 1000, '%s | %s' % (t, res['rx']))
+tx = rfhost.Board(rfhost.D0); tx.cmd('txp 14')
+check('power index 14 (+1 dB) refused at the default 0 dB limit', tx.cmd('send 2440 0 0x71764129 0 37 0')[0] == 'send rc -4')
+tx = rfhost.Board(rfhost.D0); tx.cmd('txp 3')
+check('power index 3 (unusable) refused', tx.cmd('send 2440 0 0x71764129 0 37 0')[0] == 'send rc -2')
 print('=== %d failures' % fails)
 
 # poorly correlating sync words (recorded, not pass/fail): see docs/RF_API.md

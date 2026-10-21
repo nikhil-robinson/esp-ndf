@@ -48,6 +48,7 @@ extern uint32_t ble_hw_raw_flags;
 int  ble_hw_raw_rx(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit);
 int  ble_hw_raw_read(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status, int8_t *rssi);
 uint32_t ble_hw_raw_rxcount(void);
+int  ble_hw_raw_watchdog(uint32_t max_ms);
 void ble_hw_raw_stop(void);
 uint32_t ble_hw_raw_txcount(void);
 uint16_t ble_hw_em_rd(uint32_t off);

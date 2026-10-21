@@ -15,6 +15,7 @@
 
 static char line[96];
 static uint8_t payload[255];
+static uint8_t txpower;                            /* 0 = default */
 
 static void command(void)
 {
@@ -26,7 +27,7 @@ static void command(void)
     }
     if (!n) return;
     if (!strcmp(v[0], "send") && n > 6) {
-        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint8_t)atoi(v[4]), (uint32_t)strtoul(v[3], 0, 0), 0x555555 };
+        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint8_t)atoi(v[4]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, txpower };
         uint32_t cnt = (uint32_t)strtoul(v[6], 0, 0);
         ble_hw_stats_t s0, s1; ble_hw_get_stats(&s0); uint32_t t0 = ccount();
         int rc = rf_pkt_send(&c, 0x5A, payload, (unsigned)atoi(v[5]), cnt);
@@ -36,7 +37,7 @@ static void command(void)
         delay_ms(1000); ble_hw_get_stats(&s1);
         printf("send rc 0 packets/s %lu cpu %.3f%% ctl %08lx\n", (unsigned long)(s1.events - s0.events), (double)(s1.isr_cycles - s0.isr_cycles) / 2.4e6, (unsigned long)*(volatile uint32_t *)0x60031000);
     } else if (!strcmp(v[0], "rx") && n > 6) {
-        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint8_t)atoi(v[4]), (uint32_t)strtoul(v[3], 0, 0), 0x555555 };
+        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint8_t)atoi(v[4]), (uint32_t)strtoul(v[3], 0, 0), 0x555555, 0 };
         int rc = rf_pkt_rx_start(&c, atoi(v[5]));
         if (rc) { printf("rx rc %d\n", rc); return; }
         static rf_pkt_t p; uint32_t good = 0, crc = 0, wrong = 0, lens = 0, t0 = ccount(), dur = (uint32_t)atoi(v[6]) * 240000u; int32_t rs = 0; uint8_t hdr = 0; uint32_t crcdata = 0, empty = 0; int rmin = 127, rmax = -128;
@@ -60,7 +61,7 @@ static void command(void)
     } else if (!strcmp(v[0], "txflip") && n > 2) {          /* bench: XOR bits into one send CS field */
         extern uint16_t ble_hw_tx_flip_off, ble_hw_tx_flip_bits; ble_hw_tx_flip_off = (uint16_t)strtoul(v[1], 0, 0); ble_hw_tx_flip_bits = (uint16_t)strtoul(v[2], 0, 0); printf("txflip\n");
     } else if (!strcmp(v[0], "gainsweep") && n > 4) {       /* gainsweep mhz sync from to: forced RX gain code sweep, good packets per 100 ms */
-        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), 0, 0, (uint32_t)strtoul(v[2], 0, 0), 0x555555 };
+        rf_pkt_cfg_t c = { (uint16_t)atoi(v[1]), 0, 0, (uint32_t)strtoul(v[2], 0, 0), 0x555555, 0 };
         rf_pkt_rx_start(&c, 127);
         static rf_pkt_t p;
         for (int g = atoi(v[3]); g <= atoi(v[4]); g++) {
@@ -74,9 +75,9 @@ static void command(void)
         unsigned i = (unsigned)atoi(v[1]); uint32_t w = rf_pbus_mem_default(i) & (uint32_t)strtoul(v[2], 0, 0);
         rf_pbus_mem_write(i, w); printf("pm %u %08lx\n", i, (unsigned long)w);
     } else if (!strcmp(v[0], "txp") && n > 1) {             /* bench: send CS+0x18 (TX power index) for following sends */
-        extern uint16_t ble_hw_raw_t18; ble_hw_raw_t18 = (uint16_t)strtoul(v[1], 0, 0); printf("txp\n");
+        txpower = (uint8_t)strtoul(v[1], 0, 0); printf("txp\n");
     } else if (!strcmp(v[0], "rxdump") && n > 1) {          /* bench: start rx (2440 MHz, 1M) and dump the BB/AGC + FE blocks as 'r addr val' */
-        rf_pkt_cfg_t c = { 2440, (uint8_t)atoi(v[1]), 0, 0x71764129, 0x555555 };
+        rf_pkt_cfg_t c = { 2440, (uint8_t)atoi(v[1]), 0, 0x71764129, 0x555555, 0 };
         rf_pkt_rx_start(&c, -1); delay_ms(50);
         static const struct { uint32_t b, n; } bl[] = { { 0x6001C000, 0x2000 }, { 0x60006000, 0x200 }, { 0x60005000, 0x1000 }, { 0x6000E000, 0x200 } };
         for (unsigned k = 0; k < 4; k++) for (uint32_t a = bl[k].b; a < bl[k].b + bl[k].n; a += 4) printf("r %08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a);
@@ -86,7 +87,7 @@ static void command(void)
     } else if (!strcmp(v[0], "wr") && n > 2) {
         *(volatile uint32_t *)strtoul(v[1], 0, 0) = (uint32_t)strtoul(v[2], 0, 0); printf("wr\n");
     } else if (!strcmp(v[0], "forced") && n > 1) {
-        extern int rf_pkt_bench_forced; rf_pkt_bench_forced = atoi(v[1]); printf("forced\n");
+        extern int rf_pkt_bench_forced; rf_pkt_bench_forced = atoi(v[1]) == 1; printf("forced\n");
     } else if (!strcmp(v[0], "tone") && n > 2) {            /* tone khz offset_khz: CW at khz + offset (rf.h) */
         rf_pkt_stop(); rf_tx_stop();
         int rc = rf_set_freq_khz((uint32_t)atoi(v[1])); if (!rc) rc = rf_tx_start(); if (!rc) rc = rf_tx_tone_khz(atoi(v[2]), n > 3 ? atoi(v[3]) : 300);
@@ -156,6 +157,8 @@ static void command(void)
             }
         }
         printf("image gain %d tone %.1f image %.1f rejection %.1f dB\n", db, 10 * log10(a[0] / 4 / 64e6), 10 * log10(a[1] / 4 / 64e6), 10 * log10(a[0] / a[1]));
+    } else if (!strcmp(v[0], "lead") && n > 1) {
+        extern uint32_t ble_hw_raw_lead, ble_hw_raw_jitter; ble_hw_raw_lead = (uint32_t)atoi(v[1]); ble_hw_raw_jitter = n > 2 ? (uint32_t)atoi(v[2]) : 0; printf("lead\n");
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

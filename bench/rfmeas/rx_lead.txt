@@ -1,0 +1,8 @@
+# receive re-arm lead (half-us) vs packets received of exactly 1000 (100 B 1M 2440 MHz, 740/s)
+lead 500: rx rc 0 good 908 crcbad 6 crcbad_dataok 1 wrong 0 len 100 hdr 5a rssi -67
+lead 400: rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -67
+lead 300: rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+lead 250: rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+lead 200: rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+lead 150: rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+lead 100: rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0

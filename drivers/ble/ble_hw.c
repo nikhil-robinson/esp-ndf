@@ -319,6 +319,8 @@ static void conn_next(int got, uint64_t sync)
 }
 
 static uint8_t raw_on;
+uint32_t ble_hw_raw_jitter;
+uint32_t ble_hw_raw_lead = 400;                /* raw event kick lead, half-us: 200 us receives 1000/1000 at 740 packets/s, 250 us misses 9 %, <= 150 us is never picked up (bench/rfmeas/rx_lead.txt) */
 static volatile uint32_t raw_left;             /* raw send: packets still to send, 0 = continuous */
 static uint16_t raw_cs = CS0;
 uint8_t ble_hw_raw_fmt = 0x02, ble_hw_raw_tmpl;   /* bench: CS format / template (0 conn, 1 adv) for ble_hw_raw_send */
@@ -342,6 +344,7 @@ static void raw_kick(void);
 static void service(void)
 {
     if (raw_on) {
+        last_end = ccount();
         CORE(0x18) = 0xFFFFFFFFu;
         if (raw_on == 2) {                       /* send the same buffer again, or stop after the requested count */
             st.events++;
@@ -572,8 +575,10 @@ void ble_hw_debug(uint32_t out[6])
 #define RAW_TXD1 0x1420u
 static void raw_kick(void)
 {
-    uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;      /* start 250 us out, as arm() (a 2-half-slot lead is never picked up) */
-    if (cnt > BLE_FINE) f = cnt - BLE_FINE; else { f = cnt + 0x270u - BLE_FINE; t++; }
+    uint32_t lead = raw_on == 2 ? BLE_FINE : ble_hw_raw_lead;   /* send: 250 us (as arm()); receive: shorter, to re-arm between packets */
+    if (raw_on != 2 && ble_hw_raw_jitter) lead += ccount() % ble_hw_raw_jitter;   /* bench: break phase lock with the sender */
+    uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;
+    if (cnt > lead) f = cnt - lead; else { f = cnt + 0x270u - lead; t++; }
     EM16(0) = 0x7802;                                     /* libphy's dump read 0x7812 after the run: status [5:3] must start at 0 */
     EM16(2) = t & 0xFFFF; EM16(4) = (t >> 16) & 0xFFF; EM16(6) = (uint16_t)f;
     EM16(8) = raw_cs / 2; EM16(10) = 0x03E8; EM16(12) = 0; EM16(14) = 0x0F00;
@@ -630,7 +635,7 @@ int ble_hw_raw_sendn(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcin
     scan_chan = 0; adv_on = 0; conn_on = 0;
     for (int k = 0; k < 45; k++) EM16(CS1 + 2 * k) = (ble_hw_raw_tmpl ? ble_adv_cs : ble_conn_cs)[k];
     EM16(CS1) = (uint16_t)((EM16(CS1) & ~0x1Fu) | ble_hw_raw_fmt);
-    EM16(CS1 + 0x18) = ble_hw_raw_t18 != 0xFFFF ? ble_hw_raw_t18 : 0x000B;   /* TX power index; the template's bits 15:13 block TX (measured) */
+    EM16(CS1 + 0x18) = ble_hw_raw_t18 != 0xFFFF ? (uint16_t)(ble_hw_raw_t18 & 0x0FFF) : 0x000B;   /* TX power index; the template's bits 15:13 block TX (measured) */
     EM16(CS1 + 4) = (uint16_t)((EM16(CS1 + 4) & ~0xFu) | rate | rate << 2);
     EM16(CS1 + 0x0C) = sync & 0xFFFF; EM16(CS1 + 0x0E) = sync >> 16;
     EM16(CS1 + 0x10) = crcinit & 0xFFFF; EM16(CS1 + 0x12) = (crcinit >> 16) & 0xFF;
@@ -715,6 +720,22 @@ int ble_hw_raw_read2(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status
     return 0;
 }
 uint32_t ble_hw_raw_rxcount(void) { return CORE(0x374); }
+/* raw receive watchdog: an event started in silence can wait without end (coded rates, measured); call often. If no
+ * event ended for max_ms, abort it and kick a fresh one. Returns 1 if it re-armed. */
+int ble_hw_raw_watchdog(uint32_t max_ms)
+{
+    if (raw_on != 1) return 0;
+    if (ccount() - last_end < max_ms * 240000u) return 0;
+    uint32_t ps = irq_lock();
+    CORE(0x00) |= 1u << 26;                      /* abort the running event */
+    for (volatile int k = 0; k < 2000; k++) {}
+    CORE(0x00) &= ~(1u << 26);
+    st.aborts++;
+    last_end = ccount();
+    raw_kick();
+    irq_unlock(ps);
+    return 1;
+}
 void ble_hw_raw_stop(void) { raw_on = 0; CORE(0x00) |= 1u << 26; }
 int ble_hw_raw_busy(void) { return raw_on != 0; }
 uint32_t ble_hw_raw_txcount(void) { return CORE(0xD4); }

@@ -1,0 +1,17 @@
+# packet-engine TX power index (CS+0x18) vs received power at C9:48 (dBm, IDF scale), 37 B at 2440 MHz, 1 s
+index  0: rx rc 0 good 0 crcbad 109 crcbad_dataok 0 rssi 0 | rssi_min 127 rssi_max -128
+index  1: rx rc 0 good 0 crcbad 122 crcbad_dataok 0 rssi 0 | rssi_min 127 rssi_max -128
+index  2: rx rc 0 good 0 crcbad 104 crcbad_dataok 0 rssi 0 | rssi_min 127 rssi_max -128
+index  3: rx rc 0 good 0 crcbad 86 crcbad_dataok 0 rssi 0 | rssi_min 127 rssi_max -128
+index  4: rx rc 0 good 0 crcbad 220 crcbad_dataok 0 rssi 0 | rssi_min 127 rssi_max -128
+index  5: rx rc 0 good 58 crcbad 657 crcbad_dataok 6 rssi -84 | rssi_min -87 rssi_max -82
+index  6: rx rc 0 good 1014 crcbad 82 crcbad_dataok 0 rssi -82 | rssi_min -84 rssi_max -80
+index  7: rx rc 0 good 1048 crcbad 8 crcbad_dataok 0 rssi -79 | rssi_min -81 rssi_max -77
+index  8: rx rc 0 good 1050 crcbad 9 crcbad_dataok 0 rssi -70 | rssi_min -72 rssi_max -69
+index  9: rx rc 0 good 991 crcbad 7 crcbad_dataok 1 rssi -73 | rssi_min -75 rssi_max -72
+index 10: rx rc 0 good 923 crcbad 12 crcbad_dataok 2 rssi -70 | rssi_min -72 rssi_max -68
+index 11: rx rc 0 good 1038 crcbad 6 crcbad_dataok 2 rssi -67 | rssi_min -69 rssi_max -66
+index 12: rx rc 0 good 987 crcbad 9 crcbad_dataok 4 rssi -62 | rssi_min -65 rssi_max -55
+index 13: rx rc 0 good 1094 crcbad 13 crcbad_dataok 1 rssi -59 | rssi_min -61 rssi_max -52
+index 14: rx rc 0 good 1103 crcbad 9 crcbad_dataok 1 rssi -44 | rssi_min -46 rssi_max -44
+index 15: rx rc 0 good 1078 crcbad 8 crcbad_dataok 1 rssi -45 | rssi_min -47 rssi_max -44
