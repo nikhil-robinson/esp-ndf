@@ -24,8 +24,8 @@ void rf_close(void);                     /* everything off; -> OFF */
 rf_state_t rf_state(void);
 
 /* ---- calibration store -------------------------------------------------------------------------------
- * rf_open loads this chip's stored calibration (RX DC rows, TX DC table, crystal correction; NVS partition "nvs",
- * namespace "rfcal") if the die temperature is within RF_CAL_TEMP_C of when it was made; otherwise it calibrates and
+ * rf_open loads this chip's stored calibration (RX DC rows, TX DC table, crystal correction; one CRC-checked record in
+ * the "phy" data partition) if the die temperature is within RF_CAL_TEMP_C of when it was made; otherwise it calibrates and
  * stores. rf_tx_start runs the TX DC calibration once and stores it. */
 #define RF_CAL_TEMP_C 15.0f
 enum { RF_CAL_LOADED = 1, RF_CAL_RUN = 2, RF_CAL_RUN_SAVED = 3 };
@@ -40,7 +40,10 @@ float rf_temp_c(void);
 /* ---- limits (safety) ----------------------------------------------------------------------------
  * TX is refused outside [tx_min_khz, tx_max_khz] or above tx_max_db (dB relative to full scale).
  * Default: 2400000..2483500 kHz (2.4 GHz ISM), 0 dB. Widening is the caller's legal responsibility. */
-typedef struct { uint32_t tx_min_khz, tx_max_khz; int tx_max_db; } rf_limits_t;
+/* tx_max_ms: longest continuous transmission (rf_tx_start until rf_tx_stop, or a continuous rf_pkt_send); when it
+ * runs out the transmitter is switched off by a timer and the state returns to IDLE. 0 = no limit (default). */
+typedef struct { uint32_t tx_min_khz, tx_max_khz; int tx_max_db; uint32_t tx_max_ms; } rf_limits_t;
+int  rf_tx_expired(void);                /* 1 if the last transmission was ended by tx_max_ms */
 void rf_set_limits(const rf_limits_t *l);
 void rf_get_limits(rf_limits_t *l);
 

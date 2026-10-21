@@ -33,6 +33,21 @@ static void command(void)
             printf(" g%d:%.1f/%.1f", g[k], si / 4096.0, sq / 4096.0);
         }
         rf_rx_set_gain(RF_GAIN_AGC); printf("\n");
+    } else if (!strcmp(v[0], "guard") && n > 1) {        /* guard ms: tx_max_ms */
+        rf_limits_t l; rf_get_limits(&l); l.tx_max_ms = (uint32_t)atoi(v[1]); rf_set_limits(&l); printf("guard\n");
+    } else if (!strcmp(v[0], "state")) {
+        printf("state %d expired %d\n", rf_state(), rf_tx_expired());
+    } else if (!strcmp(v[0], "cycles") && n > 1) {       /* cycles n: open / tx tone / hop / close, n times; failures counted */
+        int bad = 0; uint32_t t0 = ccount();
+        for (int k = 0; k < atoi(v[1]); k++) {
+            if (rf_open()) bad++;
+            if (rf_set_freq_khz(2402000 + 2000u * (uint32_t)(k % 40))) bad++;
+            if (rf_tx_start() || rf_tx_tone_khz(1000, 200)) bad++;
+            if (rf_tx_stop()) bad++;
+            if (!rf_pll_locked()) bad++;
+            rf_close();
+        }
+        printf("cycles %d failures %d in %lu ms\n", atoi(v[1]), bad, (unsigned long)((ccount() - t0) / 240000));
     } else { printf("err unknown\n"); return; }
 }
 

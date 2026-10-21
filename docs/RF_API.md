@@ -254,7 +254,7 @@ Measured (bench/rfmeas/sched_timing.txt). D0 schedules packets at t0 + k·period
 
 `rf_open` loads this chip's stored calibration when it can, instead of recalibrating:
 
-- **What is stored:** RX DC words for all 128 gain rows, the TX DC table and the crystal correction. They live in NVS (partition `nvs`, namespace `rfcal`; flash the partition table with `make partition`), tagged with the MAC and the die temperature.
+- **What is stored:** RX DC words for all 128 gain rows, the TX DC table and the crystal correction, as one CRC-checked record in the `phy` data partition (flash the partition table with `make partition`), tagged with the MAC and the die temperature. It is not kept in NVS, whose 16 KB RAM index would crowd out RF apps.
 - **When it is loaded:** when the MAC matches and the temperature is within 15 °C. Otherwise `rf_open` calibrates and stores.
 - **TX DC:** the first `rf_tx_start` runs the TX DC calibration and stores it.
 - **Temperature trigger:** `rf_cal_check()` recalibrates and stores when the die has moved more than 15 °C.
@@ -263,7 +263,23 @@ Measured on D0 with `tools/rf_cal_test.py` (bench/rfmeas/rf_cal_test.txt), 6/6 p
 
 | | Cold (calibrate + store) | Warm (load) |
 |---|---|---|
-| `rf_open` | 47 ms | **6 ms** |
-| First `rf_tx_start` | 70 ms | **0 ms** |
-| TX carrier | −28.3 dBc | −28.2 dBc |
-| RX DC residual, gains 0..127 | ≤ 2.5 LSB | ≤ 3.3 LSB |
+| `rf_open` | 46 ms | **6 ms** |
+| First `rf_tx_start` | 86 ms | **0 ms** |
+| TX carrier | −27.7 dBc | −27.8 dBc |
+| RX DC residual, gains 0..127 | ≤ 2.0 LSB | ≤ 1.8 LSB |
+
+## 9. Safety
+
+- **Band.** `rf_set_limits` sets `tx_min_khz..tx_max_khz`; the default is 2400–2483.5 MHz. Every TX entry point refuses frequencies outside it: `rf_tx_start`, `rf_pkt_send`, `rf_pkt_send_at`.
+- **Level.** `tx_max_db` (default 0 dB) is checked against `rf_tx_set_level_db` and against the packet power index (measured table).
+- **Time.** `tx_max_ms` (new, default 0 = off) bounds a continuous transmission (`rf_tx_start` .. `rf_tx_stop`, or a continuous `rf_pkt_send`). A timer switches the transmitter off and the state returns to IDLE, with `rf_tx_expired()` = 1.
+- **Recovery.** `rf_check_lock` re-tunes after a lost PLL lock (§1).
+- **Damage.** Not tested; the datasheet maximum RX input is +5 dBm.
+
+Measured (bench/rfmeas/rf_safety.txt):
+
+| Test | Result |
+|---|---|
+| Tone, `tx_max_ms` = 500 | gone after 1 s (35.9 → −25.3 dB), state IDLE, expired 1 |
+| Tone, no limit | still on after 1 s (35.5 dB) |
+| 50 cycles of `rf_open`, hop across the band, TX tone, lock check, `rf_close` | 0 failures |

@@ -1,5 +1,6 @@
 /* Public RF API (include/rf.h) over the drivers in this directory: state, limits, units. */
 #include "rf.h"
+#include "swtimer.h"
 #include "ndf.h"
 #include "rf_init.h"
 #include "rf_pll.h"
@@ -14,12 +15,35 @@
 static rf_state_t state = RF_STATE_OFF;
 static uint32_t freq_khz;
 static int tx_db, tx_dc_done, cal_src;
-static rf_limits_t lim = { 2400000, 2483500, 0 };
+static rf_limits_t lim = { 2400000, 2483500, 0, 0 };
+static swtimer_t tx_guard;
+static volatile int tx_expired;
+static void (*guard_stop)(void);
+static void guard_fn(void *arg)                  /* timer ISR: transmitter off, nothing else touched */
+{
+    (void)arg;
+    if (guard_stop) guard_stop();
+    tx_expired = 1;
+}
+static void dac_guard_stop(void) { rf_dac_stop(); rf_txon(0); }
+void rf_tx_guard(void (*stop)(void))             /* start the tx_max_ms guard for a transmission ended by stop() */
+{
+    tx_expired = 0;
+    if (!lim.tx_max_ms) return;
+    guard_stop = stop;
+    swt_start(&tx_guard, lim.tx_max_ms * 1000u, false, guard_fn, 0);
+}
+void rf_tx_unguard(void) { swt_stop(&tx_guard); }
+int rf_tx_expired(void) { return tx_expired; }
 static int32_t xtal_ppb;                         /* crystal error: +ppb means the crystal runs fast */
 static uint64_t freq_hz;
 static uint32_t st_relocks;
 
-rf_state_t rf_state(void) { return state; }
+rf_state_t rf_state(void)
+{
+    if (tx_expired && state == RF_STATE_TX) { rf_tx_off(); state = RF_STATE_IDLE; }   /* guard fired: finish the switch-off here */
+    return state;
+}
 void rf_set_limits(const rf_limits_t *l) { lim = *l; }
 void rf_get_limits(rf_limits_t *l) { *l = lim; }
 
@@ -279,6 +303,7 @@ int rf_tx_start(void)
     if (!tx_dc_done) { rf_tx_dc_cal(127, 0); tx_dc_done = 1; rf_cal_save(1); }   /* LO leakage -18.7 -> -28.4 dBc, holds 2402..2480 (measured); ~56 ms, then stored */
     rf_tx_gain(127, 0, (int8_t)dig_code(tx_db));
     state = RF_STATE_TX;
+    rf_tx_guard(dac_guard_stop);
     return RF_OK;
 }
 
@@ -293,7 +318,7 @@ int rf_tx_set_level_db(int db)
 
 int rf_tx_play(const uint32_t *buf, uint32_t n, int loop)
 {
-    if (state != RF_STATE_TX) return RF_ERR_STATE;
+    if (rf_state() != RF_STATE_TX) return RF_ERR_STATE;
     if (!n || n > RF_TX_MAX_WORDS) return RF_ERR_RANGE;
     rf_dac_stop();
     memcpy((void *)RF_DUMP_BANK(1), buf, n * 4);
@@ -315,7 +340,7 @@ int rf_tx_stream(uint32_t units, rf_tx_cb cb, void *ctx)
 
 int rf_tx_tone_khz(int offset_khz, int amplitude)
 {
-    if (state != RF_STATE_TX) return RF_ERR_STATE;
+    if (rf_state() != RF_STATE_TX) return RF_ERR_STATE;
     if (offset_khz < -19000 || offset_khz > 19000 || amplitude < 1 || amplitude > 511) return RF_ERR_RANGE;
     /* whole cycles in the buffer: n samples at 40 MS/s hold an integer number of periods (offset multiple of 2.5 kHz) */
     uint32_t n = 16000;                          /* 400 us: offsets in steps of 2.5 kHz loop seamlessly */
@@ -332,6 +357,7 @@ int rf_tx_tone_khz(int offset_khz, int amplitude)
 int rf_tx_stop(void)
 {
     if (state != RF_STATE_TX) return RF_ERR_STATE;
+    rf_tx_unguard();
     rf_dac_stop();
     rf_tx_off();
     state = RF_STATE_IDLE;

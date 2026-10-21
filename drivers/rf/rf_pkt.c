@@ -46,7 +46,10 @@ int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigne
 {
     int8_t ch; int rc = setup(c, &ch);
     if (rc || (rc = tx_check(c, len))) return rc;
-    return ble_hw_raw_sendn((uint8_t)ch, c->rate, c->sync, c->crc_init, hdr, data, len, count) ? RF_ERR_RANGE : RF_OK;
+    if (ble_hw_raw_sendn((uint8_t)ch, c->rate, c->sync, c->crc_init, hdr, data, len, count)) return RF_ERR_RANGE;
+    extern void rf_tx_guard(void (*stop)(void));
+    if (!count) rf_tx_guard(ble_hw_raw_stop);    /* continuous: ended by tx_max_ms if a limit is set */
+    return RF_OK;
 }
 
 static int rx_forced;
@@ -95,6 +98,7 @@ int rf_pkt_send_at(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsi
 void rf_pkt_stop(void)
 {
     if (!ready) return;
+    extern void rf_tx_unguard(void); rf_tx_unguard();
     ble_hw_raw_stop();
     if (rx_forced == 1) { rf_pbus_mem_write(42, rf_pbus_mem_default(42)); rf_rx_gain(-1); }
     if (rx_forced == 2) rf_pbus_force_mode(0);

@@ -1,0 +1,7 @@
+# safety: tx_max_ms guard (D0 rf_cal; C9:48 rf_pkt measures the tone) and open/close/TX cycles
+open rc 0 source 2 in 38 ms temp 69.0 cal_temp -273.0
+tone rc 0 tx_start 80 ms
+limit 500 ms, tone on : 35.9 dB  state 3 expired 0
+limit 500 ms, after 1s: -25.3 dB  state 1 expired 1
+no limit, after 1s   : 35.5 dB  state 3 expired 0
+cycles 50 failures 0 in 6202 ms
