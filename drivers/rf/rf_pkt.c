@@ -6,6 +6,9 @@
 #include "ble_hw.h"
 #include "rf_init.h"
 
+/* Same adverts, same transmitter: IDF Bluedroid reports -69 / -83 dBm where the core's raw value is -47 / -60
+ * (bench/rfmeas/sens_idf_vs_ours.txt): 22..23 dB. */
+#define RF_PKT_RSSI_OFFSET 22
 static int ready;
 static int8_t chan_of(uint16_t mhz)                 /* core channel index: 37 = 2402, 0..10 = 2404..2424, 38 = 2426, 11..36 = 2428..2478, 39 = 2480 */
 {
@@ -61,6 +64,7 @@ int rf_pkt_read(rf_pkt_t *p)
     unsigned len;
     if (!ble_hw_raw_read2(p->data, sizeof p->data, &len, &p->status, &p->rssi, &p->hdr)) return 0;
     p->len = (uint8_t)len; p->ok = !(p->status & 0x0F);
+    p->rssi = (int8_t)(p->rssi - RF_PKT_RSSI_OFFSET);    /* core value -> dBm on IDF's calibrated scale (measured offset) */
     return 1;
 }
 

@@ -11,6 +11,7 @@
 #include "../../drivers/rf/rf_regi2c.h"
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 static char line[96];
 static uint8_t payload[255];
@@ -88,7 +89,7 @@ static void command(void)
         extern int rf_pkt_bench_forced; rf_pkt_bench_forced = atoi(v[1]); printf("forced\n");
     } else if (!strcmp(v[0], "tone") && n > 2) {            /* tone khz offset_khz: CW at khz + offset (rf.h) */
         rf_pkt_stop(); rf_tx_stop();
-        int rc = rf_set_freq_khz((uint32_t)atoi(v[1])); if (!rc) rc = rf_tx_start(); if (!rc) rc = rf_tx_tone_khz(atoi(v[2]), 300);
+        int rc = rf_set_freq_khz((uint32_t)atoi(v[1])); if (!rc) rc = rf_tx_start(); if (!rc) rc = rf_tx_tone_khz(atoi(v[2]), n > 3 ? atoi(v[3]) : 300);
         printf("tone rc %d\n", rc);
     } else if (!strcmp(v[0], "tonerx") && n > 2) {          /* tonerx khz guess_hz: measured tone frequency from the LO, Hz */
         rf_pkt_stop(); rf_tx_stop();
@@ -109,6 +110,25 @@ static void command(void)
         int rc = ble_hw_adv(37, a, 1, d, sizeof d, (uint32_t)atoi(v[1]));
         ble_hw_em_wr(0x418, (uint16_t)((ble_hw_em_rd(0x418) & 0xFF00) | (atoi(v[2]) & 0xFF)));
         printf("adv rc %d\n", rc);
+    } else if (!strcmp(v[0], "gaincurve") && n > 2) {       /* gaincurve khz tone_hz: tone level (dB) at every RX gain index + the gain-memory words */
+        rf_pkt_stop(); rf_tx_stop();
+        rf_set_freq_khz((uint32_t)atoi(v[1])); rf_rx_start();
+        float f = (float)atof(v[2]);
+        extern uint32_t rf_gain_shadow[256][2];
+        for (int g = 0; g < 128; g++) {
+            rf_rx_set_gain(g); delay_us(200);
+            const uint32_t *iq; rf_rx_capture(RF_RATE_40M, 4000, &iq);
+            float c = cosf(2 * 3.14159265f * f / 40e6f), sn = sinf(2 * 3.14159265f * f / 40e6f), re = 1, im = 0, ai = 0, aq = 0; double pw = 0; int pk = 0;
+            for (int k = 0; k < 4000; k++) {
+                float i = (float)rf_sample_i(iq[k]), q = (float)rf_sample_q(iq[k]);
+                ai += i * re + q * im; aq += q * re - i * im;
+                float t = re * c - im * sn; im = re * sn + im * c; re = t;
+                pw += (double)i * i + (double)q * q; if (abs((int)i) > pk) pk = abs((int)i); if (abs((int)q) > pk) pk = abs((int)q);
+            }
+            float tone = 10 * log10f((ai * ai + aq * aq) / 16e6f + 1e-9f), tot = 10 * log10f((float)(pw / 4000) + 1e-9f);
+            printf("g %3d tone %6.1f total %6.1f peak %3d mem %08lx %08lx\n", g, (double)tone, (double)tot, pk, (unsigned long)rf_gain_shadow[g][0], (unsigned long)rf_gain_shadow[g][1]);
+        }
+        rf_rx_set_gain(RF_GAIN_AGC);
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

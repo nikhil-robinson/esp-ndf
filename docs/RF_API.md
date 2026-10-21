@@ -148,3 +148,32 @@ Conclusions:
 
 **Open items**
 - **Whitening off.** No clean switch found yet.
+
+## 2.1 RX gain stages
+
+Measured by sweeping all 128 gain-memory indices with a CW from D0, at full level and 30 dB down (bench/rfmeas/rx_gain_curve*.txt, parsed in rx_gain_table.csv).
+
+**How gain memory is organised**
+
+- Indices 0..82 are the Wi-Fi RX gain table. Indices 83..127 are a second, shorter table, the BT table; that is why the packet engine tops out at index 127.
+- **Front-end code** (low word bits 31:24) selects the LNA/mixer setting. Gain relative to code 0x40, at baseband code 0, from the unclipped points:
+
+  | 0x40 | 0x08 | 0x0C | 0xC4 | 0x1C | 0xD0 | 0xDC | 0xA0 | 0xA4 | 0xE4 / 0xF0 / 0xFC |
+  |---|---|---|---|---|---|---|---|---|---|
+  | 0 | +5.1 | +13.0 | +15.5 | +17.3 | +19.8 | +22.9 | +28.6 | about +37 | higher (clipped at this input) |
+
+- **Baseband (VGA) code** (low word bits 23:16): 0x00..0x0A gives 0..5 dB in 1 dB steps (bit pattern ×2). 0x10 continues at +6 dB, 0x12..0x1A up to +11 dB.
+- **Low word bits 15:0 and the high word:** per-entry DC correction and further stage bits. `rf_rx_dc_cal` writes the DC words.
+
+**Saturation and noise**
+
+- The 10-bit ADC clips at ±512.
+- With the weak tone, the total 40 MHz power runs about 20 dB above the tone: noise plus the surrounding 2.4 GHz traffic.
+- From Wi-Fi index 55 up, the ADC clips on that alone, with no signal needed.
+- The BT table stops at index 127 (front end 0xA0, peak 190 on noise), just below clipping. That is a sensible ceiling for a 1 MHz channel.
+
+**Forced gain in packet receive**
+
+- The packet engine's forced gain codes (pbus row 1 col 2) are not these indices.
+- Hardware AGC (`RF_GAIN_AGC`) is the default.
+- RSSI is reported in dBm on IDF's scale: the core's raw value minus 22 dB, measured against IDF Bluedroid on the same adverts (−69 / −83 dBm vs raw −47 / −60).

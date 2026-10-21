@@ -95,7 +95,7 @@ enum { RF_PKT_1M = 0, RF_PKT_2M = 1, RF_PKT_125K = 2, RF_PKT_500K = 3 };
 #define RF_PKT_CRC_OFF    1u
 #define RF_PKT_WHITEN_OFF 2u
 typedef struct { uint16_t mhz; uint8_t rate; uint8_t flags; uint32_t sync; uint32_t crc_init; } rf_pkt_cfg_t;
-typedef struct { uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;
+typedef struct { uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;   /* rssi: dBm (IDF scale, +-1 dB vs it) */
 /* send: count packets back to back (0 = until rf_pkt_stop); checked against the TX limits */
 int  rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count);
 /* receive: continuously; nothing is ever transmitted (the BT TX state's PA enable is cleared while receiving).
