@@ -13,7 +13,7 @@
 
 static rf_state_t state = RF_STATE_OFF;
 static uint32_t freq_khz;
-static int tx_db, tx_dc_done;
+static int tx_db, tx_dc_done, cal_src;
 static rf_limits_t lim = { 2400000, 2483500, 0 };
 static int32_t xtal_ppb;                         /* crystal error: +ppb means the crystal runs fast */
 static uint64_t freq_hz;
@@ -31,9 +31,30 @@ int rf_open(void)
     int rc = rf_set_freq_khz(2437000);    /* LO parked mid-band */
     if (rc) return rc;
     rf_rx_on();
-    rf_rx_dc_cal(128);                           /* RX DC offsets for every gain row, at this LO */
+    int txv = 0;
+    cal_src = RF_CAL_LOADED;
+    if (!rf_cal_load(&txv)) {                    /* stored for this chip and temperature? else calibrate and store */
+        rf_rx_dc_cal(128);                       /* RX DC offsets for every gain row, at this LO */
+        cal_src = rf_cal_save(0) ? RF_CAL_RUN : RF_CAL_RUN_SAVED;
+    } else if (txv) tx_dc_done = 1;
     rf_rx_gain(RF_GAIN_AGC);
     return RF_OK;
+}
+
+int rf_cal_source(void) { return cal_src; }
+
+/* temperature trigger: recalibrate (RX DC now, TX DC at the next rf_tx_start) and store when the die moved more than
+ * RF_CAL_TEMP_C since the stored calibration. Call from time to time in IDLE. Returns 1 if it recalibrated. */
+int rf_cal_check(void)
+{
+    if (state != RF_STATE_IDLE) return 0;
+    float d = rf_temp_c() - rf_cal_temp_c();
+    if (d < RF_CAL_TEMP_C && d > -RF_CAL_TEMP_C) return 0;
+    uint32_t khz = freq_khz;
+    rf_set_freq_khz(2437000); rf_rx_on(); rf_rx_dc_cal(128); rf_rx_gain(RF_GAIN_AGC);
+    tx_dc_done = 0; rf_cal_save(0);
+    rf_set_freq_khz(khz);
+    return 1;
 }
 
 void rf_close(void)
@@ -255,7 +276,7 @@ int rf_tx_start(void)
     if (freq_khz < lim.tx_min_khz || freq_khz > lim.tx_max_khz) return RF_ERR_DENIED;
     if (tx_db > lim.tx_max_db) tx_db = lim.tx_max_db;
     rf_tx_on(127, 0);
-    if (!tx_dc_done) { rf_tx_dc_cal(127, 0); tx_dc_done = 1; }   /* LO leakage -18.7 -> -28.4 dBc, holds 2402..2480 (measured); ~56 ms once per open */
+    if (!tx_dc_done) { rf_tx_dc_cal(127, 0); tx_dc_done = 1; rf_cal_save(1); }   /* LO leakage -18.7 -> -28.4 dBc, holds 2402..2480 (measured); ~56 ms, then stored */
     rf_tx_gain(127, 0, (int8_t)dig_code(tx_db));
     state = RF_STATE_TX;
     return RF_OK;

@@ -220,6 +220,9 @@ static uint16_t txcal[5][4];                   /* RAM copy of rf_txcal_wifi: rf_
 static uint16_t txcal2 = 0;
 void rf_tx_set_iq(uint16_t v) { txcal2 = v & 0x7FF; }
 static int txcal_init;
+static void txcal_ensure(void) { if (!txcal_init) { for (int r = 0; r < 5; r++) for (int k = 0; k < 4; k++) txcal[r][k] = rf_txcal_wifi[r][k]; txcal_init = 1; } }
+void rf_txcal_get(uint16_t out[5][4]) { txcal_ensure(); for (int r = 0; r < 5; r++) for (int k = 0; k < 4; k++) out[r][k] = txcal[r][k]; }
+void rf_txcal_set(const uint16_t in[5][4]) { txcal_init = 1; for (int r = 0; r < 5; r++) for (int k = 0; k < 4; k++) txcal[r][k] = in[r][k]; }
 static unsigned wifi_class(uint16_t bb) { return bb == 128 ? 1 : bb == 32 ? 3 : bb == 160 ? 4 : bb == 256 ? 2 : 0; }   /* rom_txbbgain_to_index */
 
 void rf_tx_gain(uint8_t gain, uint16_t bb, int8_t dig)

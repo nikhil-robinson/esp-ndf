@@ -262,3 +262,10 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | CPU per packet sent | one short interrupt (not measurable) | stack + controller task |
 | Send rate, 37 B at 1M | 1,180 packets/s | — |
 | Headroom | receive re-arm ~0.5 ms limits short packets to ~1000/s; fixed RX gain (AGC: section 2) | |
+
+## RF bring-up time with the calibration store
+
+| | esp-ndf cold | esp-ndf warm (stored calibration) | IDF |
+|---|---|---|---|
+| RF open (PHY init + RX DC) | 47 ms | 6 ms | `esp_phy_enable` with stored PHY data: not measured here |
+| First TX (TX DC cal) | 70 ms | 0 ms | — |

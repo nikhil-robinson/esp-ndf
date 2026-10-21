@@ -1,0 +1,11 @@
+cold : open rc 0 source 3 in 47 ms temp 58.9 cal_temp 58.8 | tone rc 0 tx_start 70 ms | tone 36.1 carrier -28.3 dBc
+        dcres g0:-0.2/0.4 g30:-0.7/0.6 g60:-2.5/0.6 g90:0.9/-0.0 g127:-0.7/0.5
+PASS cold open calibrates and stores (source 3)  
+warm : open rc 0 source 1 in 6 ms temp 60.6 cal_temp 62.8 | tone rc 0 tx_start 0 ms | tone 36.0 carrier -28.2 dBc
+        dcres g0:-0.5/0.4 g30:-1.2/-0.4 g60:-3.3/-1.1 g90:0.4/-0.2 g127:-2.5/-0.8
+PASS warm open loads (source 1)  
+PASS warm open faster than cold  6 vs 47 ms
+PASS warm tx_start skips the TX DC cal  0 vs 70 ms
+PASS carrier after load within 3 dB of after cal  -28.2 vs -28.3 dBc
+PASS RX DC residual after load as good as after cal (max within +3 LSB)  max 3.3 vs 2.5
+=== 0 failures

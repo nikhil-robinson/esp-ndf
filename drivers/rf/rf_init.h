@@ -46,7 +46,9 @@ void rf_txon(int on);                           /* force the transmitter on with
 void rf_tx_on(uint8_t gain, uint16_t bb);       /* tone off, TX front end on, gain, forced on */
 void rf_tx_off(void);
 void rf_tx_dc_cal(uint8_t gain, uint16_t bb);   /* our TX LO-leakage calibration (power detector); after rf_tx_on */
-void rf_tx_dc_reset(void);                      /* neutral TX DC words */
+void rf_tx_dc_reset(void);
+void rf_txcal_get(uint16_t out[5][4]);        /* TX DC/IQ RAM table (rf_tx_dc_cal results) */
+void rf_txcal_set(const uint16_t in[5][4]);                      /* neutral TX DC words */
 void rf_tx_set_iq(uint16_t v);                  /* TX IQ word: gain [4:0], phase [10:5], signed; default 0 */
 void rf_loopback(int on, uint16_t pa, uint16_t rxg);   /* internal TX -> RX path; pa 0xFFFF: switch and clocks only */
 void rf_pwdet_on(void);                         /* TX power detector via SAR2 */

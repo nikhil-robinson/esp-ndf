@@ -23,6 +23,20 @@ int  rf_open(void);                      /* power, init, calibrations; -> IDLE *
 void rf_close(void);                     /* everything off; -> OFF */
 rf_state_t rf_state(void);
 
+/* ---- calibration store -------------------------------------------------------------------------------
+ * rf_open loads this chip's stored calibration (RX DC rows, TX DC table, crystal correction; NVS partition "nvs",
+ * namespace "rfcal") if the die temperature is within RF_CAL_TEMP_C of when it was made; otherwise it calibrates and
+ * stores. rf_tx_start runs the TX DC calibration once and stores it. */
+#define RF_CAL_TEMP_C 15.0f
+enum { RF_CAL_LOADED = 1, RF_CAL_RUN = 2, RF_CAL_RUN_SAVED = 3 };
+int  rf_cal_source(void);                /* how the last rf_open got its calibration */
+int  rf_cal_check(void);                 /* temperature trigger (IDLE): recalibrate + store when moved > RF_CAL_TEMP_C; 1 if it did */
+int  rf_cal_save(int tx_valid);
+int  rf_cal_load(int *tx_valid);
+int  rf_cal_erase(void);
+float rf_cal_temp_c(void);
+float rf_temp_c(void);
+
 /* ---- limits (safety) ----------------------------------------------------------------------------
  * TX is refused outside [tx_min_khz, tx_max_khz] or above tx_max_db (dB relative to full scale).
  * Default: 2400000..2483500 kHz (2.4 GHz ISM), 0 dB. Widening is the caller's legal responsibility. */
