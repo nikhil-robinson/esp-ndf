@@ -191,3 +191,10 @@ Measured with a CW at amplitudes 300 down to 3 (a 40 dB range), target 256:
 | Final peak | 244..261 |
 | Time | 670..893 µs |
 | No signal | gain 45, peak 15: the top of the map stays clear of noise clipping |
+
+## 2.3–2.6 Rest of the RX chain
+
+- **2.3 filter:** `rf_rx_set_bandwidth_khz` (measured corners, §A.2). The packet engine's BT path does its own channel filtering.
+- **2.4 IQ balance** (bench/rfmeas/rx_image.txt): image rejection is 30.3–41.3 dB across 2402–2480 MHz and ±1–8 MHz offsets. This is a lower bound, because D0's own TX image is included. Any IQ correction the vendor init applies is part of our replayed state (ROM has `rom_iq_corr_enable` / `rom_dc_iq_est`).
+- **2.5 sample formats:** 80 / 40 / 16 MS/s, 10-bit signed I and Q per 32-bit word (`rf_sample_i/q`); gapless streaming at all three rates (§A.4).
+- **2.6 saturation:** the ADC clips at ±512. The datasheet maximum RX input is +5 dBm (Table 6-5); damage was not tested. `rf_rx_autogain` keeps the peak under the clip.

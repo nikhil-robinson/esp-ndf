@@ -1,0 +1,7 @@
+# RX image rejection: D0 CW at LO + off; C9:48 measures +off (tone) and -off (image) after autogain
+2440 MHz +1000 kHz amp 30: image gain 36 tone 16.8 image -13.5 rejection 30.3 dB
+2440 MHz +3000 kHz amp 30: image gain 35 tone 15.7 image -18.9 rejection 34.6 dB
+2440 MHz +8000 kHz amp 30: image gain 35 tone 14.7 image -16.1 rejection 30.8 dB
+2402 MHz +1000 kHz amp 30: image gain 40 tone 15.9 image -20.7 rejection 36.6 dB
+2480 MHz +1000 kHz amp 30: image gain 40 tone 18.3 image -16.4 rejection 34.7 dB
+2440 MHz +1000 kHz amp 300: image gain 27 tone 25.9 image -15.4 rejection 41.3 dB
