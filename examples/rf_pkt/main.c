@@ -8,6 +8,7 @@
 #include "rf.h"
 #include "ble_hw.h"
 #include "../../drivers/rf/rf_init.h"
+#include "../../drivers/rf/rf_regi2c.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -78,6 +79,8 @@ static void command(void)
         rf_pkt_rx_start(&c, -1); delay_ms(50);
         static const struct { uint32_t b, n; } bl[] = { { 0x6001C000, 0x2000 }, { 0x60006000, 0x200 }, { 0x60005000, 0x1000 }, { 0x6000E000, 0x200 } };
         for (unsigned k = 0; k < 4; k++) for (uint32_t a = bl[k].b; a < bl[k].b + bl[k].n; a += 4) printf("r %08lx %08lx\n", (unsigned long)a, (unsigned long)*(volatile uint32_t *)a);
+        static const uint8_t ab[] = { 0x61, 0x62, 0x63, 0x66, 0x67, 0x68, 0x69, 0x6A, 0x6B, 0x6C, 0x6D };
+        for (unsigned b = 0; b < sizeof ab; b++) for (int r = 0; r < 32; r++) printf("a %02x %02x %02x\n", ab[b], r, rf_regi2c_read(ab[b], (uint8_t)r));
         rf_pkt_stop();
     } else if (!strcmp(v[0], "wr") && n > 2) {
         *(volatile uint32_t *)strtoul(v[1], 0, 0) = (uint32_t)strtoul(v[2], 0, 0); printf("wr\n");
@@ -98,6 +101,14 @@ static void command(void)
         const uint32_t *iq; int rc = rf_rx_capture(RF_RATE_16M, RF_CAPTURE_MAX, &iq);
         printf("iqcap rc %d\n", rc);
         for (uint32_t k = 0; k < RF_CAPTURE_MAX; k += 16) { for (uint32_t j = k; j < k + 16 && j < RF_CAPTURE_MAX; j++) printf("%05lx", (unsigned long)(iq[j] & 0xFFFFF)); printf("\n"); }
+    } else if (!strcmp(v[0], "awr") && n > 3) {             /* awr block reg val: analog register write */
+        rf_regi2c_write((uint8_t)strtoul(v[1], 0, 16), (uint8_t)strtoul(v[2], 0, 16), (uint8_t)strtoul(v[3], 0, 16)); printf("awr\n");
+    } else if (!strcmp(v[0], "adv") && n > 2) {             /* adv interval_us txpwr: hardware ADV_NONCONN_IND "NDF" on ch 37 (reference for the IDF scanner) */
+        static int bi; if (!bi) { ble_hw_init(); bi = 1; }
+        static const uint8_t a[6] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0xC6 }, d[] = { 2, 1, 6, 4, 9, 'N', 'D', 'F' };
+        int rc = ble_hw_adv(37, a, 1, d, sizeof d, (uint32_t)atoi(v[1]));
+        ble_hw_em_wr(0x418, (uint16_t)((ble_hw_em_rd(0x418) & 0xFF00) | (atoi(v[2]) & 0xFF)));
+        printf("adv rc %d\n", rc);
     } else if (!strcmp(v[0], "stop")) {
         rf_pkt_stop(); printf("stop\n");
     } else if (!strcmp(v[0], "limits") && n > 2) {

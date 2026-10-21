@@ -1,0 +1,12 @@
+none                       power  5: rx rc 0 good 2 crcbad 652 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+none                       power 11: rx rc 0 good 775 crcbad 101 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -46
+pll loop 62.08-0a 63.01    power  5: rx rc 0 good 4 crcbad 657 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -66
+pll loop 62.08-0a 63.01    power 11: rx rc 0 good 758 crcbad 109 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -46
+6b block                   power  5: rx rc 0 good 5 crcbad 604 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -57
+6b block                   power 11: rx rc 0 good 876 crcbad 80 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -39
+61.04-06                   power  5: rx rc 0 good 0 crcbad 662 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+61.04-06                   power 11: rx rc 0 good 728 crcbad 119 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -46
+rx filter 67               power  5: rx rc 0 good 0 crcbad 649 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+rx filter 67               power 11: rx rc 0 good 765 crcbad 113 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -46
+66.08 6d                   power  5: rx rc 0 good 1 crcbad 666 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -67
+66.08 6d                   power 11: rx rc 0 good 781 crcbad 99 crcbad_dataok 2 wrong 0 len 200 hdr 5a rssi -46

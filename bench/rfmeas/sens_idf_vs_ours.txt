@@ -1,0 +1,17 @@
+# IDF sibling: sensitivity. D0 = our hardware advertiser, ch 37, every 2 ms (500/s), TX power index p. C9:48 = IDF Bluedroid scanner (all 3 channels: ~1/3 of time on 37)
+D0 ['adv rc 0']
+IDF power 11: NDF/s [172, 166, 171, 173, 161, 174, 158, 184, 157] (mean 168 = 101% of the 1/3 share) rssi -66
+D0 ['adv rc 0']
+IDF power  8: NDF/s [181, 158, 179, 157, 177, 164, 168, 173, 165] (mean 169 = 101% of the 1/3 share) rssi -69
+D0 ['adv rc 0']
+IDF power  5: NDF/s [19, 17, 15, 16, 22, 20, 12, 15, 17] (mean 17 = 10% of the 1/3 share) rssi -83
+D0 ['adv rc 0']
+IDF power  3: NDF/s [0, 0, 0, 0, 0, 0, 0, 0, 0] (mean 0 = 0% of the 1/3 share) rssi 0
+D0 ['adv rc 0']
+IDF power  1: NDF/s [0, 0, 0, 0, 0, 0, 0, 0, 0] (mean 0 = 0% of the 1/3 share) rssi 0
+# ours: the same adverts (500/s on ch 37), rf_pkt rx at 2402 MHz, sync 0x8E89BED6, 2 s; CRC-good count (100 % = 1000)
+ours power 11: rx rc 0 good 1071 crcbad 7 crcbad_dataok 0 wrong 1071 len 14 hdr 62 rssi -44  -> 107%
+ours power  8: rx rc 0 good 1068 crcbad 17 crcbad_dataok 0 wrong 1068 len 14 hdr 62 rssi -47  -> 107%
+ours power  5: rx rc 0 good 249 crcbad 628 crcbad_dataok 0 wrong 249 len 14 hdr 62 rssi -60  -> 25%
+ours power  3: rx rc 0 good 36 crcbad 83 crcbad_dataok 0 wrong 36 len 32 hdr 60 rssi -59  -> 4%
+ours power  1: rx rc 0 good 52 crcbad 77 crcbad_dataok 0 wrong 52 len 12 hdr c3 rssi -61  -> 5%

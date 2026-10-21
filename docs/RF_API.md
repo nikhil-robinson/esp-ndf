@@ -131,7 +131,20 @@ Packets are framed, CRC'd, whitened and stored by the radio's packet hardware, w
 
 The forced front end (fixed gain code) was 1000/1000 at RSSI −20 and fails at −33: a fixed gain is not usable. The 46 configuration words that differ from the vendor's BLE scanning state were each tried at −64 dBm (no improvement); the vendor test transmitter is no reference (DTM packets are not whitened). Lower TX power makes reception worse (−64 dBm: ~0 %), so this is a sensitivity problem of our receive set-up, not overload. Our earlier hardware BLE scanner received 91 % at this distance too.
 
-**Open items**
+**Sensitivity against IDF (IDF-sibling rule)** (bench/rfmeas/sens_idf_vs_ours.txt). D0 sends our hardware adverts on channel 37, 500/s, at TX power index p. C9:48 receives them first with IDF's Bluedroid scanner (rotating over all 3 channels, so the result is normalised to its 1/3 share), then with our `rf_pkt` receiver:
 
-- **Receive sensitivity.** ~90 % at −45 dBm, ~0 % at −64 dBm (BLE parts reach about −95 dBm). The cause is in the receive chain set-up (gain stages, AGC thresholds, DC), not the framing: every stored byte is exact. Section 2.
+| Power index | IDF scanner | ours |
+|---|---|---|
+| 11 | 100 % (IDF RSSI −66) | 100 % (7 CRC-bad of 1078) |
+| 8 | 100 % (−69) | 100 % |
+| 5 | 10 % (−83) | 25 % |
+| 3 / 1 | 0 % | only other devices' adverts |
+
+Conclusions:
+- **Sensitivity matches or beats the vendor stack.** The losses at low power come from the transmitter at power indexes ≤ 5, which are very weak; they are not a fault in our receiver.
+- **Long packets lose more at the same level.** 200 bytes give 2–15 % CRC errors at index 11 depending on frequency, which is expected, because packet error rate grows with length.
+- **Settings that changed nothing.** None of the 46 differing configuration words, nor the vendor analog groups for the PLL loop, RX filter or blocks 61/66/6D, changed reception on either side.
+- **Block 0x6B is a TX output block.** The vendor BT values raise our TX output by about 7 dB; this goes to section 3, TX chain.
+
+**Open items**
 - **Whitening off.** No clean switch found yet.
