@@ -11,6 +11,8 @@
 #define R(a) (*(volatile uint32_t *)(a))
 static volatile uint32_t tp[7];
 static void tx_task(void *a) { esp_phy_test_start_stop(3); esp_phy_ble_tx(tp[0], tp[1], tp[2], tp[3], tp[4], tp[5], tp[6]); vTaskDelete(NULL); }
+static volatile int wrate;
+static void wtx_task(void *a) { esp_phy_test_start_stop(3); esp_phy_wifi_tx(6, wrate, 0, 100, 1000, 0); vTaskDelete(NULL); }   /* ch 6, 100 B, every 1 ms, continuous */
 static void rx_task(void *a) { esp_phy_test_start_stop(3); esp_phy_ble_rx(tp[1], tp[4], tp[5]); vTaskDelete(NULL); }
 static void dump(const char *name)
 {
@@ -31,12 +33,26 @@ void app_main(void)
     uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_WIFI_STA);
     esp_phy_rftest_config(1);
     esp_phy_rftest_init();
-    if (mac[5] == 0xD0) {                                    /* reference transmitter: vendor BLE TX test, power level from TXPWR, 2460 MHz (chan 29), 200 B PRBS9 */
-#ifndef TXPWR
-#define TXPWR 5
-#endif
-        tp[0] = TXPWR; tp[1] = 29; tp[2] = 200; tp[3] = PHY_BLE_TYPE_prbs9; tp[4] = 0x71764129; tp[5] = PHY_BLE_RATE_1M; tp[6] = 0;
-        printf("=== tx pwr %d\n", TXPWR); xTaskCreatePinnedToCore(tx_task, "tx", 8192, 0, 5, 0, 1);
+    if (mac[5] == 0xD0) {                                    /* reference: libphy Wi-Fi TX test, ch 6, 11b 1M, 100 B every 1 ms */
+        wrate = PHY_RATE_1M; xTaskCreatePinnedToCore(wtx_task, "wtx", 8192, 0, 5, 0, 1);
+        printf("=== wifi tx running\n");
+        vTaskDelay(100);
+        for (uint32_t a = 0x60033000; a < 0x60035000; a += 4) printf("r %08lx %08lx\n", (unsigned long)a, (unsigned long)R(a));
+        for (uint32_t a = 0x6001c000; a < 0x6001e000; a += 4) printf("r %08lx %08lx\n", (unsigned long)a, (unsigned long)R(a));   /* baseband (absolute TX state) */
+        for (uint32_t a = 0x60006000; a < 0x60006200; a += 4) printf("r %08lx %08lx\n", (unsigned long)a, (unsigned long)R(a));   /* front end */
+        uint32_t p0 = R(0x60033d08), p1 = R(0x600342f8), hs = R(0x60034300), cf = R(0x60033d04);
+        printf("plcp0 %08lx plcp1 %08lx htsig %08lx conf %08lx\n", (unsigned long)p0, (unsigned long)p1, (unsigned long)hs, (unsigned long)cf);
+        uint32_t d = 0x3FC00000u | (p0 & 0xFFFFF);
+        for (int k = 0; k < 4 && d >= 0x3FC80000u && d < 0x3FD00000u; k++) {
+            printf("desc %08lx: %08lx %08lx %08lx %08lx\n", (unsigned long)d, (unsigned long)R(d), (unsigned long)R(d + 4), (unsigned long)R(d + 8), (unsigned long)R(d + 12));
+            uint32_t b = R(d + 4), len = R(d) & 0xFFF;
+            printf("data %08lx len %lu:", (unsigned long)b, (unsigned long)len);
+            for (uint32_t j = 0; j < len && j < 128 && b >= 0x3FC80000u && b < 0x3FD00000u; j++) printf(" %02x", *(volatile uint8_t *)(b + j));
+            printf("\n");
+            if (!(R(d + 8))) { break; }
+            d = R(d + 8);
+        }
+        printf("=== done\n");
         for (;;) vTaskDelay(1000);
     }
     printf("=== rx\n");
