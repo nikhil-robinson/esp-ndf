@@ -1,0 +1,7 @@
+# D0 tone at 2460 MHz + 1 MHz; C9:48 tuned to 2460 MHz measures it: (measured - 1 MHz) = frequency offset between the boards
+['tone rc 0']
+['tonerx rc 0 hz 995516']
+['tonerx rc 0 hz 996100']
+['tonerx rc 0 hz 995364']
+['tonerx rc 0 hz 994513']
+['tonerx rc 0 hz 995089']

@@ -31,9 +31,12 @@ void app_main(void)
     uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_WIFI_STA);
     esp_phy_rftest_config(1);
     esp_phy_rftest_init();
-    if (mac[5] == 0xD0) {                                    /* long-packet test: 200 bytes PRBS9 on 2404 MHz (TX chan 1) */
-        tp[0] = 8; tp[1] = 1; tp[2] = 200; tp[3] = PHY_BLE_TYPE_prbs9; tp[4] = 0x71764129; tp[5] = PHY_BLE_RATE_1M; tp[6] = 0;
-        printf("=== tx len 200 chan 1\n"); xTaskCreatePinnedToCore(tx_task, "tx", 8192, 0, 5, 0, 1);
+    if (mac[5] == 0xD0) {                                    /* reference transmitter: vendor BLE TX test, power level from TXPWR, 2460 MHz (chan 29), 200 B PRBS9 */
+#ifndef TXPWR
+#define TXPWR 5
+#endif
+        tp[0] = TXPWR; tp[1] = 29; tp[2] = 200; tp[3] = PHY_BLE_TYPE_prbs9; tp[4] = 0x71764129; tp[5] = PHY_BLE_RATE_1M; tp[6] = 0;
+        printf("=== tx pwr %d\n", TXPWR); xTaskCreatePinnedToCore(tx_task, "tx", 8192, 0, 5, 0, 1);
         for (;;) vTaskDelay(1000);
     }
     printf("=== rx\n");

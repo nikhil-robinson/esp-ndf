@@ -1,0 +1,3 @@
+power 11: burst 420 us, level rms 338 (noise 203) | +dev 5817 kHz sd 881 | -dev -767 kHz sd 209 | bits near 0 (<60 kHz): 0.1%
+power  8: burst 189 us, level rms 353 (noise 145) | +dev 188 kHz sd 273 | -dev -159 kHz sd 167 | bits near 0 (<60 kHz): 31.4%
+power  5: burst 548 us, level rms 246 (noise 140) | +dev 667 kHz sd 193 | -dev -5320 kHz sd 2160 | bits near 0 (<60 kHz): 0.0%

@@ -98,8 +98,8 @@ typedef struct { uint16_t mhz; uint8_t rate; uint8_t flags; uint32_t sync; uint3
 typedef struct { uint8_t hdr, len; int8_t rssi; uint8_t ok; uint16_t status; uint8_t data[255]; } rf_pkt_t;
 /* send: count packets back to back (0 = until rf_pkt_stop); checked against the TX limits */
 int  rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigned len, uint32_t count);
-/* receive: continuously; the front end is held in receive (nothing is ever transmitted). gain: forced RX gain code
- * (127 measured good at bench distance; fixed gain, no AGC yet: RX chain work, docs/RF_API.md) */
+/* receive: continuously; nothing is ever transmitted (the BT TX state's PA enable is cleared while receiving).
+ * gain: RF_GAIN_AGC (-1) for hardware AGC, or 0..127 to hold the AGC at one gain */
 int  rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain);
 int  rf_pkt_read(rf_pkt_t *p);           /* 1 and the oldest packet (ok = CRC good), or 0 */
 int  rf_pkt_busy(void);                  /* a counted send still running */

@@ -135,6 +135,15 @@ static void pbus_mem_load(void)
     }
 }
 
+/* one pbus-memory word (index into rf_pbus_mem); word 19 is the TX state's PA enable (bits 7:4 all set = transmit) */
+void rf_pbus_mem_write(unsigned idx, uint32_t v)
+{
+    REG(GAIN_DATA) = v;
+    REG(GAIN_CMD) = (REG(GAIN_CMD) & 0xFFFC00FFu) | (uint32_t)((0x200 + idx) & 0x3FF) << 8;
+    REG(GAIN_CMD) &= 0xFFFCFFFFu;
+}
+uint32_t rf_pbus_mem_default(unsigned idx) { return idx < sizeof rf_pbus_mem / sizeof rf_pbus_mem[0] ? rf_pbus_mem[idx] : 0; }
+
 /* ponytail: replays one chip's traced init (calibration results included);
  * replace op groups with our own calibrations one by one. */
 void rf_init_replay(void)

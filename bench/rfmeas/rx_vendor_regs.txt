@@ -1,0 +1,39 @@
+None: rx rc 0 good 1 crcbad 652 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+('0x6001c02c', '0x364052ed'): rx rc 0 good 2 crcbad 659 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -66
+('0x6001c084', '0x02b89ff4'): rx rc 0 good 1 crcbad 626 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -64
+('0x6001c08c', '0x03fff9ff'): rx rc 0 good 0 crcbad 668 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+('0x6001c090', '0xd8ab2a0a'): rx rc 0 good 3 crcbad 654 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -66
+('0x6001d008', '0x00003000'): rx rc 0 good 3 crcbad 642 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+('0x6001d048', '0x6'): rx rc 0 good 4 crcbad 664 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -64
+('0x6001d04c', '0x0'): rx rc 0 good 5 crcbad 663 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+('0x6001d090', '0xfdf01e00'): rx rc 0 good 3 crcbad 662 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -66
+('0x6000e05c', '0xe000016a'): rx rc 0 good 2 crcbad 671 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -67
+('0x6000e170', '0x007c0000'): rx rc 0 good 2 crcbad 623 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -67
+('0x6000e168', '0x3e001700'): rx rc 0 good 4 crcbad 658 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+('0x6000607c', '0xff7d1f40'): rx rc 0 good 4 crcbad 654 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -65
+('0x600060c0', '0xb0f07813'): rx rc 0 good 6 crcbad 591 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -65
+('0x600060c4', '0x00005040'): rx rc 0 good 1 crcbad 626 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -67
+# vendor libphy BLE TX (D0) at power level 5, 2460 MHz, 200 B PRBS9 -> our rf_pkt rx (CRC-good count; data is PRBS so wrong = all)
+rx rc 0 good 0 crcbad 771 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# vendor libphy BLE TX (D0) at power level 8, 2460 MHz, 200 B PRBS9 -> our rf_pkt rx (CRC-good count; data is PRBS so wrong = all)
+rx rc 0 good 0 crcbad 778 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# our TX at power index p -> C9:48 receive: hardware mode (AGC) vs forced front end (gain code 127); 1000 x 200 B 1M 2460 MHz
+power  5 hardware: rx rc 0 good 0 crcbad 612 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+power  5 forced  : rx rc 0 good 0 crcbad 0 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+power  8 hardware: rx rc 0 good 815 crcbad 60 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -49
+power  8 forced  : rx rc 0 good 0 crcbad 235 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+power 11 hardware: rx rc 0 good 735 crcbad 124 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -46
+power 11 forced  : rx rc 0 good 0 crcbad 786 crcbad_dataok 0 wrong 0 len 0 hdr 00 rssi 0
+# forced vs hardware receive by frequency and length; 1000 packets, default TX power
+2440 MHz  37 B hardware: rx rc 0 good 922 crcbad 3 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -45
+2440 MHz  37 B forced  : rx rc 0 good 275 crcbad 555 crcbad_dataok 27 wrong 0 len 37 hdr 5a rssi -33
+2460 MHz  37 B hardware: rx rc 0 good 724 crcbad 103 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -46
+2460 MHz  37 B forced  : rx rc 0 good 0 crcbad 619 crcbad_dataok 1 wrong 0 len 0 hdr 00 rssi 0
+2440 MHz 200 B hardware: rx rc 0 good 880 crcbad 19 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -45
+2440 MHz 200 B forced  : rx rc 0 good 8 crcbad 840 crcbad_dataok 2 wrong 0 len 200 hdr 5a rssi -33
+2460 MHz 200 B hardware: rx rc 0 good 758 crcbad 115 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -46
+2460 MHz 200 B forced  : rx rc 0 good 0 crcbad 660 crcbad_dataok 1 wrong 0 len 0 hdr 00 rssi 0
+2420 MHz 200 B hardware: rx rc 0 good 899 crcbad 18 crcbad_dataok 0 wrong 0 len 200 hdr 5a rssi -45
+2420 MHz 200 B forced  : rx rc 0 good 0 crcbad 787 crcbad_dataok 3 wrong 0 len 0 hdr 00 rssi 0
+2402 MHz 200 B hardware: rx rc 0 good 873 crcbad 14 crcbad_dataok 1 wrong 0 len 200 hdr 5a rssi -45
+2402 MHz 200 B forced  : rx rc 0 good 1 crcbad 805 crcbad_dataok 2 wrong 0 len 200 hdr 5a rssi -34

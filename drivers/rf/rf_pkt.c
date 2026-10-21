@@ -1,6 +1,6 @@
 /* Hardware packet engine (rf.h, "packets"). The ESP32-S3's link-layer core is used only as a framer / deframer:
  * send = its connection-master format with no connection (one packet per event, re-kicked from the end interrupt);
- * receive = its connection-slave format (takes up to 255 bytes) with the front end forced to receive, so the reply
+ * receive = its connection-slave format (takes up to 255 bytes) with the BT TX state PA enable cleared, so the reply
  * the core would send is never radiated. How every setting was found: docs/RF_API.md, bench/rfmeas/raw_link.txt. */
 #include "rf.h"
 #include "ble_hw.h"
@@ -37,13 +37,21 @@ int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigne
 }
 
 static int rx_forced;
+int rf_pkt_bench_forced;                         /* bench: forced front end for every rate */
 int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
 {
     int8_t ch; int rc = setup(c, &ch);
     if (rc) return rc;
-    if (gain < 0 || gain > 127) return RF_ERR_RANGE;
+    if (gain > 127) return RF_ERR_RANGE;
     if (ble_hw_raw_rx((uint8_t)ch, c->rate, c->sync, c->crc_init)) return RF_ERR_RANGE;
-    rf_pbus_force_mode(1); rf_pbus_xpd_tx_off(); rf_pbus_xpd_rx_on((uint16_t)gain);   /* receive only: TX path held off */
+    if (c->rate >= RF_PKT_125K || rf_pkt_bench_forced) {                /* coded: hardware-sequenced receive is erratic (0..81% per run, measured);
+                                                  * the front end forced to receive (TX path off, gain code 127) takes every packet */
+        rf_pbus_force_mode(1); rf_pbus_xpd_tx_off(); rf_pbus_xpd_rx_on(127);
+        rx_forced = 2;
+        return RF_OK;
+    }
+    rf_rx_gain(gain);                            /* < 0: hardware AGC; else the AGC held at this gain */
+    rf_pbus_mem_write(42, rf_pbus_mem_default(42) & ~0xF0u);   /* receive only: the BT TX state PA enable (pbus memory word 42, bits 7:4) cleared; RX states and AGC untouched */
     rx_forced = 1;
     return RF_OK;
 }
@@ -62,7 +70,9 @@ void rf_pkt_stop(void)
 {
     if (!ready) return;
     ble_hw_raw_stop();
-    if (rx_forced) { rf_pbus_force_mode(0); rx_forced = 0; }
+    if (rx_forced == 1) { rf_pbus_mem_write(42, rf_pbus_mem_default(42)); rf_rx_gain(-1); }
+    if (rx_forced == 2) rf_pbus_force_mode(0);
+    rx_forced = 0;
 }
 
 int rf_pkt_sync_ok(uint32_t s)

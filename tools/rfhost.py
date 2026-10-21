@@ -4,7 +4,7 @@
 import serial, time
 
 C948 = '/dev/serial/by-path/pci-0000:05:00.3-usb-0:2:1.0-port0'   # CH340 UART (both boards on CH340: by physical port)
-D0 = '/dev/serial/by-path/pci-0000:05:00.4-usb-0:2:1.0-port0'
+D0 = '/dev/serial/by-path/pci-0000:05:00.4-usb-0:1:1.0-port0'   # C9:D0 (moved to port 1 on 2026-10-22)
 
 
 class Board:

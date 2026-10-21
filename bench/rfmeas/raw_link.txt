@@ -701,3 +701,37 @@ force 300 txgain(0,0,None): D0 events/s 390 heard 0 | sync 79 time 0 len 0 crc 1
 force 511 txgain(0,0,None): D0 events/s 390 heard 0 | sync 79 time 0 len 0 crc 32; packets with any byte wrong 0 | ok 593 bad 111
 force 393 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
 force 388 txgain(0,0,None): D0 events/s 390 heard 0 | sync 249 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 249
+# test-mode RX (format 0x0A, silent, hardware AGC) length cap: core 0xD0..0xDC values; D0 rf_pkt send 100 B (good sync)
+['send rc 0 packets/s 740 cpu 0.000% ctl 0018050f']
+core 0x0=0x0: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd0=0x80000ff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd0=0x80001ff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd0=0x88000000: sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 62 bad 0
+core 0xd8=0xff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xdc=0xff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd4=0xff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd8=0xff00ff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xdc=0xffffffff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+core 0xd8=0xffffffff: sync 62 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 0 bad 62
+# (redo on channel index 17 = 2440 MHz) test-mode RX length cap vs core test regs; D0 sends 100 B
+['send rc 0 packets/s 740 cpu 0.000% ctl 0018050f']
+core 0x0=0x0: pkt len 100 st 1020 rssi -44: 02 e5 80 11 00 00 00 00 .. 00 00 00 00 | sync 62 time 0 len 0 crc 0; packets with any byte wrong 283 | ok 283 bad 62
+core 0xd0=0x88000000: pkt len 0 st 1000 rssi -44: | sync 0 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 62 bad 0
+core 0xd0=0x80000ff: pkt len 100 st 1020 rssi -44: 02 e5 80 11 00 00 00 00 .. 00 00 00 00 | sync 61 time 0 len 0 crc 0; packets with any byte wrong 283 | ok 283 bad 61
+core 0xd0=0x80001ff: pkt len 100 st 1020 rssi -45: 02 e6 80 12 00 00 00 00 .. 00 00 00 00 | sync 61 time 0 len 1 crc 0; packets with any byte wrong 283 | ok 283 bad 62
+core 0xd0=0x8000064: pkt len 100 st 1020 rssi -44: 02 e5 80 11 00 00 00 00 .. 00 00 00 00 | sync 61 time 0 len 1 crc 0; packets with any byte wrong 283 | ok 283 bad 62
+core 0xd8=0xff: pkt len 100 st 1020 rssi -45: 02 e5 80 12 00 00 00 00 .. 00 00 00 00 | sync 60 time 0 len 1 crc 0; packets with any byte wrong 283 | ok 283 bad 61
+core 0xdc=0xff: pkt len 100 st 1020 rssi -45: 02 e5 80 12 00 00 00 00 .. 00 00 00 00 | sync 61 time 0 len 0 crc 0; packets with any byte wrong 282 | ok 282 bad 61
+core 0xd4=0xff: pkt len 100 st 1020 rssi -45: 02 e5 80 12 00 00 00 00 .. 00 00 00 00 | sync 61 time 0 len 0 crc 0; packets with any byte wrong 283 | ok 283 bad 61
+txpwr 0x0b: D0 rawsend rc 0 events/s 287 heard 574 | sync 178 time 0 len 0 crc 1; packets with any byte wrong 0 | ok 738 bad 179
+txpwr 0x00: D0 rawsend rc 0 events/s 300 heard 535 | sync 184 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 729 bad 184
+txpwr 0x01: D0 rawsend rc 0 events/s 305 heard 523 | sync 188 time 0 len 0 crc 1; packets with any byte wrong 0 | ok 719 bad 189
+txpwr 0x0f: D0 rawsend rc 0 events/s 287 heard 574 | sync 180 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 740 bad 180
+txpwr 0x10: D0 rawsend rc 0 events/s 321 heard 528 | sync 209 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 743 bad 209
+txpwr 0x1f: D0 rawsend rc 0 events/s 287 heard 574 | sync 179 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 740 bad 179
+txpwr 0x20: D0 rawsend rc 0 events/s 341 heard 519 | sync 217 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 743 bad 217
+txpwr 0x3f: D0 rawsend rc 0 events/s 287 heard 572 | sync 180 time 0 len 0 crc 0; packets with any byte wrong 0 | ok 738 bad 180
+txpwr 0x40: D0 rawsend rc 0 events/s 335 heard 520 | sync 209 time 0 len 0 crc 2; packets with any byte wrong 0 | ok 727 bad 211
+txpwr 0x7f: D0 rawsend rc 0 events/s 284 heard 561 | sync 180 time 0 len 0 crc 6; packets with any byte wrong 0 | ok 720 bad 186
+txpwr 0x80: D0 rawsend rc 0 events/s 308 heard 552 | sync 198 time 0 len 0 crc 3; packets with any byte wrong 0 | ok 743 bad 201
+txpwr 0xff: D0 rawsend rc 0 events/s 287 heard 566 | sync 179 time 0 len 0 crc 4; packets with any byte wrong 0 | ok 728 bad 183

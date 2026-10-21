@@ -95,7 +95,8 @@ Packets are framed, CRC'd, whitened and stored by the radio's packet hardware, w
 |---|---|
 | Send | Connection-master control-structure format 0x02 with no connection. One packet per event, re-kicked from the end interrupt. CS+0x18 holds the TX power only, because the template's bits 15:13 block transmit. |
 | Receive | Connection-slave format 0x03; this is the only format found that takes packets up to 255 bytes. Max length 0xFF at CS+0x28, one packet per event, two of our own 256-byte buffers. |
-| Receive-only | The slave format always answers (D0 hears 574 replies). Holding the front end in forced receive (TX path off, gain code 127) stops every reply (D0 hears 0) and still receives every packet. |
+| Receive-only | The slave format always answers (D0 hears 574 replies); neither control-structure bits nor the TX power index stop it. pbus-memory word 42 (bits 7:4) is the BT TX state's PA enable: cleared during receive, every reply stops (D0 sends at its full rate and is never acknowledged) while the hardware receive sequence and AGC keep working (bench/rfmeas/pbus_pa_hunt.txt). Word 24 kills receive; word 19 is not the BT PA. |
+| Coded rates | Hardware-sequenced receive of coded packets is erratic (0..81 % per run). Coded uses the front end forced to receive (gain code 127, TX path off): it works only near the level that code suits (41 % / 50 % at the 2026-10-22 bench geometry). Proper gain selection is RX-chain work. |
 | Global switches (RWBLECNTL) | Bit 9 = advertising filter, which caps at 37 bytes; turned off. Bit 13 = CRC off, on both sides. Bit 19 on the transmitter = header byte sent exactly as given. Bits 17/18 (CRC/whitening on other RW cores) do nothing here. Bit 14 scrambles part of the frame and is not a clean whitening switch, so whitening-off is refused for now. |
 | Test-mode formats (libphy) | 0x1C TX test sends only built-in patterns (PRBS9, 0x55, 0xF0). 0x0A RX test caps at 37 bytes. |
 
@@ -118,7 +119,19 @@ Packets are framed, CRC'd, whitened and stored by the radio's packet hardware, w
 | Send rate, 37 bytes at 1M | 1,180 packets/s |
 | Receive rate | about 1,000 short packets/s (the re-arm takes about 0.5 ms); every packet of 100 bytes or more |
 
+**Receive quality, hardware AGC, 1M (2026-10-22, boards re-plugged, RSSI −45 dBm)** (bench/rfmeas/rx_vendor_regs.txt):
+
+| Frequency / length | Received of 1000 | CRC-bad |
+|---|---|---|
+| 2440 MHz / 37 B | 922 | 3 |
+| 2440 / 200 | 880 | 19 |
+| 2420 / 200 | 899 | 18 |
+| 2402 / 200 | 873 | 14 |
+| 2460 / 37 and 200 | 724 / 758 | 103 / 115 |
+
+The forced front end (fixed gain code) was 1000/1000 at RSSI −20 and fails at −33: a fixed gain is not usable. The 46 configuration words that differ from the vendor's BLE scanning state were each tried at −64 dBm (no improvement); the vendor test transmitter is no reference (DTM packets are not whitened). Lower TX power makes reception worse (−64 dBm: ~0 %), so this is a sensitivity problem of our receive set-up, not overload. Our earlier hardware BLE scanner received 91 % at this distance too.
+
 **Open items**
 
-- **Run-to-run receive quality.** Some runs lose 30–40% of packets, or get 1–15% CRC errors, at the fixed forced gain. The cause is in the receive chain (gain, DC), not the framing: even in those runs every received byte is exact. This moves to section 2 (RX chain, AGC under forced receive).
+- **Receive sensitivity.** ~90 % at −45 dBm, ~0 % at −64 dBm (BLE parts reach about −95 dBm). The cause is in the receive chain set-up (gain stages, AGC thresholds, DC), not the framing: every stored byte is exact. Section 2.
 - **Whitening off.** No clean switch found yet.

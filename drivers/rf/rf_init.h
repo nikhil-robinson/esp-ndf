@@ -28,6 +28,8 @@ void rf_init_replay(void);
 void rf_init_replay_ops(unsigned mask);
 void rf_init_digital_range(unsigned lo, unsigned hi);       /* bisect aid: only some op types of the init trace */
 int  rf_rc_cal(void);                           /* RX filter RC code (6A.05) applied to 67.14..1F; done by rf_init_replay */
+void rf_pbus_mem_write(unsigned idx, uint32_t v);   /* one per-state front-end word (19: TX PA enable, bits 7:4) */
+uint32_t rf_pbus_mem_default(unsigned idx);
 void rf_rx_on(void);                            /* receive front end and RX clock on */
 #ifndef RF_LO_DIRECT_MIN_KHZ
 #define RF_LO_DIRECT_MIN_KHZ 2240000u          /* below: receive through the 6/5 LO divider */
