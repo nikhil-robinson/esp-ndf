@@ -148,6 +148,14 @@ int  rf_pkt_send_at(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, uns
 int  rf_pkt_sync_ok(uint32_t sync);
 void rf_pkt_stop(void);
 
+/* ---- raw 802.11 through the Wi-Fi MAC (channel 6), no vendor stack (4.2) ----------------------------
+ * Our own code builds the frame, drives the MAC TX/RX descriptor path, and brings up the calibrated
+ * carrier and front end. init once, then tx/rx. See docs/PENDING.md and bench/rfmeas/wifi_tx_42.txt. */
+int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
+int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11 frame (10..1600 B) */
+int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */
+int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next received frame -> out; returns length, 0 on timeout */
+
 /* ---- samples ------------------------------------------------------------------------------------- */
 /* IQ word: I bits 9:0, Q bits 19:10, signed 10-bit. rf_sample_q returns the true-spectrum Q (the raw Q bits are inverted). */
 static inline int rf_sample_i(uint32_t w) { return (int32_t)(w << 22) >> 22; }

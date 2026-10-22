@@ -314,3 +314,26 @@ Measured with C9:48 capturing D0's tone (bench/rfmeas/psram_capture.txt):
 - **Trigger granularity:** the level is checked on every 16th sample (1 µs at 16 MS/s), so the scan fits the stream's time budget. Spikes shorter than that pass unseen. In this room, ambient 2.4 GHz bursts and short near-full-scale spikes crossed level 90 before the test tone started.
 - **IQ32 at 16 MS/s and anything at 40/80 MS/s** fit internal RAM only (`rf_rx_stream` / `rf_rx_capture`).
 - **DSP helpers:** `include/dsp.h` (FFT, filters); `rf_rx_tone_hz` estimates a tone's frequency.
+
+## 4.2 Raw 802.11 over the Wi-Fi MAC (`rf_wifi_tx`, `rf_wifi_rx`)
+
+`drivers/rf/rf_wifi.c`, example `examples/rf_wifi`, host driver `tools/rf_wifi_test.py`.
+Builds and sends / receives 802.11 frames directly through the Wi-Fi MAC descriptor
+path on channel 6 (2437 MHz) — our own code, no vendor Wi-Fi stack.
+
+| Call | What it does |
+|------|--------------|
+| `rf_wifi_tx_init()` | carrier on ch 6 + TX front end (calibrated RF path), replay the captured absolute baseband/FE/MAC transmit state |
+| `rf_wifi_tx(frame, len)` | DMA one frame (10..1600 B) through the MAC; `RF_OK` when the TX state machine completes |
+| `rf_wifi_rx_init()` | carrier on ch 6 + RX front end, replay the RX state, arm our own 4-descriptor ring |
+| `rf_wifi_rx(out, max, timeout_ms)` | next received frame into `out` (control header stripped); returns length, 0 on timeout |
+
+The absolute register state (`drivers/rf/rf_wifi_regs.h`) was captured from a reference
+transmit/receive (`bench/idf_phyble`, `bench/idf_wifisniff`); both the digital config **and**
+the calibrated carrier/front end are required — digital config alone transmits nothing.
+
+**Measured** (two boards, shielded enclosure; `bench/rfmeas/wifi_tx_42.txt`, `wifi_rx_42.txt`):
+one board `rf_wifi_tx` continuously, the other `rf_wifi_rx` — 5906/5906 received frames were
+ours (len 100, rssi ~−46 dBm, ~984/s), addr2 = the lab source id `02:4e:44:46:00:01`.
+Descriptor: TX word0 `0xC0000000|len<<12|len`; RX word0/word3 `0x80640000|bufsize` (owner bit 31),
+the MAC clears the owner and writes the length when a frame lands. RX control header is 48 B.
