@@ -337,3 +337,24 @@ one board `rf_wifi_tx` continuously, the other `rf_wifi_rx` — 5906/5906 receiv
 ours (len 100, rssi ~−46 dBm, ~984/s), addr2 = the lab source id `02:4e:44:46:00:01`.
 Descriptor: TX word0 `0xC0000000|len<<12|len`; RX word0/word3 `0x80640000|bufsize` (owner bit 31),
 the MAC clears the owner and writes the length when a frame lands. RX control header is 48 B.
+
+## 4.3 802.15.4 O-QPSK by DAC waveform (`rf_154_build`)
+
+`drivers/rf/rf_154.c`, example `examples/rf_154`, host `tools/rf_154_test.py`.
+The S3 has no 802.15.4 radio, so `rf_154_build(psdu, len, out, max)` synthesises the
+O-QPSK/DSSS baseband at 40 MS/s (2 Mchip/s, 32-chip PN per 4-bit symbol, half-sine pulse,
+Q offset half a chip) for preamble+SFD+PHR+PSDU; play it with `rf_tx_play` (looped) on
+channel 11 (2405 MHz). Transmit only.
+
+**Verified** (`bench/rfmeas/wifi_154_43.txt`): captured on the sibling board at 16 MS/s,
+matched-filtered, chips correlated against the PN table — a run of 8 identical symbols at
+full 32/32 chip correlation = the preamble (4 zero octets), i.e. a valid O-QPSK/DSSS signal.
+
+## 4.4 Correlator trigger (`rf_corr_trigger`)
+
+`drivers/rf/rf_corr.c`. `rf_corr_trigger(iq, n, refI, refQ, rlen, &off, &mag)` slides a
+reference complex waveform over a captured IQ window and returns the sync alignment (trigger
+sample `off`) and the peak-to-mean power ratio (×256). Triggers on a known sync *pattern*,
+unlike the energy-level trigger `rf_rx_capture_trigger`. The `rf_pkt` `corr` command
+correlates a capture against a 4-symbol 802.15.4 preamble: ratio 30 with the signal present
+vs 17.6 silent, with a defined trigger offset (`bench/rfmeas/corr_trigger_44.txt`).
