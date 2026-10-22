@@ -75,10 +75,14 @@ IQ, matched-filter, correlate chips vs the PN table — a run of 8 identical
 symbols at full 32/32 correlation = the preamble (`bench/rfmeas/wifi_154_43.txt`).
 No 15.4 receiver on these boards, so transmit only.
 
-## 4.4 — Correlator triggers
+## 4.4 — Correlator triggers  (DONE)
 
-Use the receive path's correlator to trigger capture on a known sync pattern.
-Builds on the capture work already in `rf.c` (`rf_rx_capture_trigger`).
+`rf_corr_trigger` (`drivers/rf/rf_corr.c`, in `rf.h`): slide-correlate a captured
+IQ window against a reference waveform; returns the sync alignment (trigger
+sample offset) and peak-to-mean ratio. Complements `rf_rx_capture_trigger`
+(energy level) with pattern selectivity. `rf_pkt` `corr` command demonstrates it
+against a 4-symbol 802.15.4 preamble: signal ratio 30 vs 17.6 silent
+(`bench/rfmeas/corr_trigger_44.txt`).
 
 ## 7 — Power and front end
 
