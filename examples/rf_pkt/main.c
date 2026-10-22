@@ -109,6 +109,18 @@ static void command(void)
         const uint32_t *iq; int rc = rf_rx_capture(RF_RATE_16M, RF_CAPTURE_MAX, &iq);
         printf("iqcap rc %d\n", rc);
         for (uint32_t k = 0; k < RF_CAPTURE_MAX; k += 16) { for (uint32_t j = k; j < k + 16 && j < RF_CAPTURE_MAX; j++) printf("%05lx", (unsigned long)(iq[j] & 0xFFFFF)); printf("\n"); }
+    } else if (!strcmp(v[0], "ptime")) {                    /* 7: power-state transition timing (us) */
+        rf_pkt_stop(); rf_tx_stop(); rf_close();
+        uint32_t a = ccount(); rf_open();           uint32_t t_open = (ccount() - a) / 240;
+        rf_set_freq_khz(2437000);
+        a = ccount(); rf_rx_start();                uint32_t t_rx = (ccount() - a) / 240;
+        rf_pkt_stop();
+        a = ccount(); rf_tx_start();                uint32_t t_tx = (ccount() - a) / 240;
+        rf_tx_stop();
+        a = ccount(); rf_close();                   uint32_t t_close = (ccount() - a) / 240;
+        rf_open(); rf_set_freq_khz(2437000);         /* leave it ready */
+        printf("ptime off->idle %lu us, idle->rx %lu us, idle->tx %lu us, ->off %lu us\n",
+               (unsigned long)t_open, (unsigned long)t_rx, (unsigned long)t_tx, (unsigned long)t_close);
     } else if (!strcmp(v[0], "corr")) {                     /* 4.4: capture at 2405 MHz, correlator-trigger on the 15.4 preamble */
         rf_pkt_stop(); rf_tx_stop();
         rf_set_freq_khz(2405000); rf_rx_start(); rf_rx_set_gain(RF_GAIN_AGC);

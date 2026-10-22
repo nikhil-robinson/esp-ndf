@@ -1,0 +1,10 @@
+# 10: received link check vs TX power index, 2440 MHz, 1M, two boards (rf_pkt).
+# RSSI here is AGC-corrected (absolute dBm), so it does not resolve the TX output step per index;
+# the authoritative TX output level vs index (relative dB) is the table in docs/PERFORMANCE.md /
+# the level_code characterization (rf.c), measured with a fixed-gain spectral reading.
+# This run only confirms the link closes across indices (good packets received): RSSI ~ -76 dBm.
+idx 5  good 98
+idx 6  good 179
+idx 8  good 194
+idx 10 good 183
+idx 12 good 210

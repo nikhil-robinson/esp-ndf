@@ -84,17 +84,19 @@ sample offset) and peak-to-mean ratio. Complements `rf_rx_capture_trigger`
 against a 4-symbol 802.15.4 preamble: signal ratio 30 vs 17.6 silent
 (`bench/rfmeas/corr_trigger_44.txt`).
 
-## 7 — Power and front end
+## 7 — Power and front end  (firmware-controllable part done)
 
-- Power-state control and measured current in each state.
-- Bluetooth hand-off (sharing the radio with the other core cleanly).
-- External antenna / PA switch control.
+Power-state machine (OFF/IDLE/RX/TX) and transition timing measured
+(`bench/rfmeas/power_states_7.txt`, `docs/PERFORMANCE.md` §7). Remaining items
+need the RF lab's instruments / board hardware, not reachable over serial:
+supply current per state (current meter), Bluetooth hand-off with a live BT
+stack, external antenna / PA switch (GPIO hook only — no switch on the DevKit).
 
-## 10 — Characterization
+## 10 — Characterization  (consolidated)
 
-Full sweep: frequency accuracy, output level vs index, receive sensitivity,
-across the band and over temperature. Roll the numbers into
-`docs/PERFORMANCE.md`.
+Summarised in `docs/PERFORMANCE.md` §10: sensitivity (beats IDF), TX level vs
+index, frequency/timing (±1 µs, hop < 60 µs, PLL lock recovery), RSSI offset,
+and the raw PHYs (4.2/4.3/4.4). Open: coded-rate catch rate, whitening-off.
 
 ## Open items to note (not blocking)
 
