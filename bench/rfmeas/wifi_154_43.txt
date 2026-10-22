@@ -1,0 +1,9 @@
+# 4.3 - IEEE 802.15.4 O-QPSK by DAC waveform (transmit only; the S3 has no 802.15.4 radio)
+# D0 (examples/rf_154): rf_154_build synthesises the O-QPSK/DSSS baseband (2 Mchip/s, 32-chip PN per
+#   4-bit symbol, half-sine pulse, Q offset half a chip) for preamble+SFD+PHR+PSDU, plays it at 40 MS/s
+#   via rf_tx_play (looped) on channel 11 (2405 MHz). Waveform built in PSRAM. 14100 samples.
+# C9:48 (rf_pkt iqcap): capture IQ at 16 MS/s; host (tools/rf_154_test.py) matched-filters and
+#   correlates recovered chips against the PN table.
+# Result: a run of 8 identical symbols at full 32/32 chip correlation = the 15.4 preamble
+#   (4 zero octets). Confirms the synthesised waveform is a valid 802.15.4 O-QPSK/DSSS signal on air.
+# Limitation: transmit only; no 802.15.4 receiver on these boards, so verified by IQ capture + demod.

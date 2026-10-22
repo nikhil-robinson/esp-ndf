@@ -156,6 +156,11 @@ int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11
 int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */
 int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next received frame -> out; returns length, 0 on timeout */
 
+/* ---- 802.15.4 O-QPSK by DAC waveform (4.3) ---------------------------------------------------------
+ * The S3 has no 802.15.4 radio; this synthesises the O-QPSK/DSSS baseband at 40 MS/s to play through
+ * the TX DAC (rf_tx_play). Transmit only. Returns the IQ sample count, 0 if it won't fit in max. */
+uint32_t rf_154_build(const uint8_t *psdu, unsigned len, uint32_t *out, uint32_t max);
+
 /* ---- samples ------------------------------------------------------------------------------------- */
 /* IQ word: I bits 9:0, Q bits 19:10, signed 10-bit. rf_sample_q returns the true-spectrum Q (the raw Q bits are inverted). */
 static inline int rf_sample_i(uint32_t w) { return (int32_t)(w << 22) >> 22; }
