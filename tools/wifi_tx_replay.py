@@ -4,7 +4,7 @@ frame through the MAC TX descriptor path and report the TX state-machine status.
 
 Baseband/FE are not in the snapshot as absolute values (only deltas), so this drives the
 MAC side only: the milestone here is the MAC accepting the descriptor and advancing.
-Run bench/idf_wifisniff on C9:48 to see if anything is received."""
+Run bench/idf_wifirx on C9:48 to see if anything is received."""
 import sys, time, serial
 
 PORT = '/dev/ttyUSB1'                     # D0

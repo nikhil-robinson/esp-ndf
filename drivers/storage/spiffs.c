@@ -169,19 +169,19 @@ static int reindex(uint16_t id, uint32_t span, uint32_t old, uint32_t new)
 /* Reclaim the block with the most deleted pages: move live pages, erase. */
 static int gc(void)
 {
-    int32_t victim = -1, best = 0;
+    int32_t reclaim = -1, best = 0;
     for (uint32_t b = 0; b < nblk; b++) {
         int d = 0;
         for (int e = 0; e < ENT; e++) d += lu[b * ENT + e] == DELETED;
-        if (d > best) { best = d; victim = b; }
+        if (d > best) { best = d; reclaim = b; }
     }
-    if (victim < 0) return FAT_ENOSPC;
+    if (reclaim < 0) return FAT_ENOSPC;
     uint8_t buf[PG];
     for (int e = 0; e < ENT; e++) {
-        uint32_t p = pix_of(victim, e);
+        uint32_t p = pix_of(reclaim, e);
         uint16_t v = *lu_of(p);
         if (v == FREE || v == DELETED) continue;
-        int32_t n = alloc(true, victim);
+        int32_t n = alloc(true, reclaim);
         if (n < 0) return FAT_ENOSPC;
         if (partition_read(part, p * PG, buf, PG) || lu_set(n, v) || partition_write(part, n * PG, buf, PG))
             return FAT_EIO;
@@ -189,8 +189,8 @@ static int gc(void)
         else if (reindex(v, rd16(buf + 2), p, n)) return FAT_EIO;
         if (page_delete(p)) return FAT_EIO;
     }
-    if (cur_blk == (uint32_t)victim) cur_blk = (victim + 1) % nblk;
-    return erase_block(victim);
+    if (cur_blk == (uint32_t)reclaim) cur_blk = (reclaim + 1) % nblk;
+    return erase_block(reclaim);
 }
 
 /* ---- mount / format ------------------------------------------------------ */
