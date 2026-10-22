@@ -65,11 +65,15 @@ were ours, len 100, ~984/s (`bench/rfmeas/wifi_rx_42.txt`). RX ring: descriptors
 word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes length;
 48 B control header, length word at header offset 44.
 
-## 4.3 — 802.15.4
+## 4.3 — 802.15.4  (DONE, transmit only)
 
-The ESP32-S3 has no 802.15.4 radio. Only a DAC-waveform transmit is possible
-(generate the modulated waveform and play it out). Scope this as transmit-only
-and note the limitation.
+`drivers/rf/rf_154.c` (`rf_154_build` in `rf.h`), `examples/rf_154`,
+`tools/rf_154_test.py`. Synthesises the O-QPSK/DSSS baseband (2 Mchip/s, 32-chip
+PN per 4-bit symbol, half-sine pulse, Q offset half a chip) and plays it at
+40 MS/s via `rf_tx_play` on channel 11. Verified on the sibling board: capture
+IQ, matched-filter, correlate chips vs the PN table — a run of 8 identical
+symbols at full 32/32 correlation = the preamble (`bench/rfmeas/wifi_154_43.txt`).
+No 15.4 receiver on these boards, so transmit only.
 
 ## 4.4 — Correlator triggers
 

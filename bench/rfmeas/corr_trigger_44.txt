@@ -1,0 +1,10 @@
+# 4.4 - correlator trigger: trigger on a known sync pattern, not just energy level.
+# rf_corr_trigger (drivers/rf/rf_corr.c): slide-correlate a captured IQ window against a reference
+#   complex waveform; returns the sync alignment (trigger sample offset) and peak-to-mean power ratio.
+# rf_pkt `corr` command: capture at 2405 MHz / 16 MS/s, correlate against a 4-symbol 802.15.4
+#   preamble reference (symbol 0 PN, half-sine O-QPSK).
+# D0 transmitting the 15.4 preamble (examples/rf_154) vs silent:
+#   SIGNAL: trigger_off 3693  ratio 30.06
+#   SILENT: trigger_off 5760  ratio 17.64   (residual = ambient 2.4 GHz; lower in the Faraday cage)
+# The known-sync correlation gives a markedly higher confidence ratio and a defined trigger offset,
+# distinct from the energy-level trigger (rf_rx_capture_trigger).
