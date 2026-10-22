@@ -1,0 +1,18 @@
+# 7 - power states and transitions (rf.h state machine: OFF -> IDLE -> RX/TX)
+# Measured on one board (rf_pkt `ptime`), cold path (rf_close first, so the TX DC cal re-runs):
+#   OFF -> IDLE (rf_open, modem power domain + resets + cal load): 42183 us
+#   IDLE -> RX (rf_rx_start):                                        109 us
+#   IDLE -> TX (rf_tx_start, incl. TX DC calibration):             44295 us
+#   -> OFF (rf_close, modem domain off):                               2 us
+# Warm path (calibration cached from the phy-partition store, RF 8/9): rf_open ~6 ms,
+#   first rf_tx_start ~0 ms (see docs/PERFORMANCE.md calibration section).
+#
+# Power domains: rf_open powers the modem domain and brings up the synthesiser/front end;
+#   rf_close turns everything off (OFF state). RX and TX front ends are enabled/disabled per state.
+#
+# NOT measurable over serial (need the RF lab's instruments / board hardware):
+# - Supply current in each state: requires a current meter / power analyser on the board supply.
+# - Bluetooth hand-off: rf_close releases the modem domain so the BT controller can own the radio;
+#   clean concurrent time-sharing with a live BT stack is future work.
+# - External antenna / PA switch: GPIO-controlled; the DevKit has no external switch/PA to verify,
+#   so only the control hook can be provided here, not an on-air measurement.

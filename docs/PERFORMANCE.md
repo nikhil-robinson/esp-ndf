@@ -281,3 +281,38 @@ All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 
 
 - **Why esp-ndf is faster:** IDF leaves the data cache at 32-byte lines; esp-ndf uses 64-byte lines.
 - **Headroom:** the 80 MHz DTR bus carries 160 MB/s raw.
+
+## 7. Power states (`rf_open` / `rf_close`, `rf_state`)
+
+State machine OFF → IDLE → RX / TX. Transition timing (one board, `rf_pkt` `ptime`):
+
+| Transition | Cold (cal re-run) | Warm (cal cached, RF 8/9) |
+|------------|-------------------|---------------------------|
+| OFF → IDLE (`rf_open`) | 42 ms | ~6 ms |
+| IDLE → RX (`rf_rx_start`) | 109 µs | 109 µs |
+| IDLE → TX (`rf_tx_start`, incl. TX DC cal) | 44 ms | ~0 ms (cal cached) |
+| → OFF (`rf_close`) | 2 µs | 2 µs |
+
+`rf_open` powers the modem domain and brings up the synthesiser/front end; `rf_close`
+turns everything off. Data: `bench/rfmeas/power_states_7.txt`.
+
+**Needs lab instrumentation (not reachable over serial):** supply current per state (current
+meter on the board supply); Bluetooth hand-off with a live BT stack (`rf_close` releases the
+modem domain so the BT controller can own the radio — clean concurrent sharing is future work);
+external antenna / PA switch (GPIO hook only — the DevKit has no external switch/PA to verify).
+
+## 10. Characterization (summary)
+
+Consolidated from the measured results across this work:
+
+- **Receive sensitivity:** our receiver beats IDF (25 % vs 10 % packet reception at TX power
+  index 5, same link) — RF 1 / sensitivity data.
+- **TX output level vs power index:** relative-dB table in the `level_code` characterization
+  (`rf.c`); monotonic over indices 5..15 (≈ −39 dB at 5 to 0 dB at 15). TX output drifts ≈ +1 dB
+  over 2 min (warm-up).
+- **Frequency / timing:** radio time base `rf_time_us`; scheduled send accurate to ±1 µs over
+  300–500 packets; hop < 60 µs; PLL lock detection + recovery (`rf_check_lock`).
+- **RSSI:** AGC-corrected absolute dBm, offset −22 dB relative to the IDF scale.
+- **Raw PHYs:** 802.11 TX+RX through the Wi-Fi MAC (4.2), 802.15.4 O-QPSK by DAC waveform (4.3),
+  correlator trigger on a known sync (4.4) — all verified on the two-board bench.
+- **Open:** coded-rate (S2/S8) receive catch rate varies 0–97 % per run; whitening-off not located.
