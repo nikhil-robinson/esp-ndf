@@ -33,7 +33,7 @@ pattern is used only so one board can count the frames from the other.
     htsig `0x6400`, conf `0x1000`.
 ### Transmit — DONE
 
-The counter board decodes our frames (len 100, rssi ~−46 dBm, ~195/s limited by
+The companion receive board decodes our frames (len 100, rssi ~−46 dBm, ~195/s limited by
 the host serial loop, not the radio). How it works:
 
 - `examples/rf_pkt` gained three commands: `rd addr [n]` (read words),
@@ -45,7 +45,7 @@ the host serial loop, not the radio). How it works:
   (`0x6001c000`), front-end (`0x60006000`) and MAC (`0x60033000`) register state
   from `bench/idf_phyble/wifi_tx_state2.txt`, then fire in a loop.
 - The frame's addr2 is set to the lab source id `02:4e:44:46:00:01` so the counter
-  board (`bench/idf_wifisniff`, channel 6) tallies it. Result in
+  board (`bench/idf_wifirx`, channel 6) counts it. Result in
   `bench/rfmeas/wifi_tx_42.txt`.
 - Key registers: PLCP0 `0x60033d08` (descriptor low 20 bits | `0xC0000000` start),
   descriptor word0 `0xC0000000|len<<12|len`, word1 buffer, word2 next;

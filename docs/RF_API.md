@@ -329,7 +329,7 @@ path on channel 6 (2437 MHz) — our own code, no vendor Wi-Fi stack.
 | `rf_wifi_rx(out, max, timeout_ms)` | next received frame into `out` (control header stripped); returns length, 0 on timeout |
 
 The absolute register state (`drivers/rf/rf_wifi_regs.h`) was captured from a reference
-transmit/receive (`bench/idf_phyble`, `bench/idf_wifisniff`); both the digital config **and**
+transmit/receive (`bench/idf_phyble`, `bench/idf_wifirx`); both the digital config **and**
 the calibrated carrier/front end are required — digital config alone transmits nothing.
 
 **Measured** (two boards, shielded enclosure; `bench/rfmeas/wifi_tx_42.txt`, `wifi_rx_42.txt`):

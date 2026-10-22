@@ -1,0 +1,2 @@
+# reference: D0 libphy esp_phy_wifi_tx (ch 6, 11b 1M, 100 B, 1 ms); C9:48 IDF receive counter
+receiver ready ch 6

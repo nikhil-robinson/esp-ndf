@@ -1,7 +1,7 @@
 # 4.2 - 802.11 frame driven through the Wi-Fi MAC from our own code (no vendor stack)
 # D0 (rf_pkt + tools/wifi_tx_replay.py): replay captured baseband/FE/MAC absolute state,
 #   build descriptor + 100 B frame (addr2 = lab id 02:4e:44:46:00:01), fire via PLCP0 start bit.
-# C9:48 (bench/idf_wifisniff): channel 6, tallies frames with that source id.
+# C9:48 (bench/idf_wifirx): channel 6, counts frames with that source id.
 # Result: counter decodes our frames, len 100, rssi ~ -46 dBm. MAC TX state machine completes (0x60033c3c bit1).
 t 0: frames/s 224, ours/s 194 (rssi -46 rate 0 len 100)
 t 5: frames/s 234, ours/s 195 (rssi -46 rate 0 len 100)

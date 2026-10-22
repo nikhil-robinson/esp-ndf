@@ -70,7 +70,7 @@
     movi    \YH, 0
     beqz    a10, \back
     movi    a10, 1
-    or      a9, a9, a10              /* jam into g's sticky bit */
+    or      a9, a9, a10              /* fold into g's sticky bit */
     j       \back
 .endm
 

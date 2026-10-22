@@ -23,7 +23,7 @@ Each such step is marked, and none of them is done by esp-ndf code or tests.
   partition.** It does not protect against someone who can also dump the
   `nvs_keys` partition: without flash encryption, that partition is
   plaintext on the same chip.
-- The key has to be somewhere the attacker can't read. There are two ways,
+- The key has to be somewhere untrusted code on the chip cannot read. There are two ways,
   and IDF uses the same two:
   1. **Flash encryption.** The ROM loader decrypts the image, and
      `nvs_keys` is stored encrypted. The keys are protected by a key in

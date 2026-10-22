@@ -169,5 +169,5 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [ ] IDF siblings still missing: ADC continuous, LCD, RTC hold through reset
 - [ ] Box-3 microphones (ES7210 over I2S TDM) end to end
-- [ ] Long-run soak test (24 h) of the full suite with power-cut injection
+- [ ] Long-run soak test (24 h) of the full suite with power-cut fault testing
 - [ ] Per-driver API docs + porting guide (rule 3: other chip families)

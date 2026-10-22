@@ -3,7 +3,7 @@
 descriptor ring, and report frames the MAC DMAs into our buffers. One serial session."""
 import sys, time, serial
 PORT = '/dev/ttyUSB0'                     # C9:48
-STATE = 'bench/idf_wifisniff/wifi_rx_state.txt'
+STATE = 'bench/idf_wifirx/wifi_rx_state.txt'
 SKIP = {0x60033088, 0x6003308c, 0x60033090, 0x60033094, 0x60033098,   # RX ring heads (wrx sets)
         0x60033c34, 0x60033c3c, 0x60033c40}
 RANGES = [(0x60006000, 0x60006200), (0x6001c000, 0x6001e000), (0x60033000, 0x60035000)]

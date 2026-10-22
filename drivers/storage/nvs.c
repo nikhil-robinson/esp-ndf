@@ -161,32 +161,32 @@ static void ncache_clear(void);
 static int gc(void)
 {
     ncache_clear();
-    int victim = -1, best = 0;
+    int reclaim = -1, best = 0;
     for (int p = 0; p < npages; p++) {
         if (pg[p].state != ST_FULL) continue;
         int er = 0;
         for (int e = 0; e < ENTRIES; e++) er += est(p, e) == 0;
-        if (er > best) { best = er; victim = p; }
+        if (er > best) { best = er; reclaim = p; }
     }
     int dst = -1;
     for (int p = 0; p < npages; p++) if (pg[p].state == ST_EMPTY) { dst = p; break; }
-    if (victim < 0 || dst < 0) return NVS_NO_SPACE;
-    if (page_state(victim, ST_FREEING) || activate(dst)) return NVS_ERR;
+    if (reclaim < 0 || dst < 0) return NVS_NO_SPACE;
+    if (page_state(reclaim, ST_FREEING) || activate(dst)) return NVS_ERR;
     uint8_t buf[32];
     for (int i = 0; i < nidx; i++) {
-        if (idx[i].page != victim) continue;
+        if (idx[i].page != reclaim) continue;
         int e = pg[dst].next;
         for (int s = 0; s < idx[i].span; s++) {
-            if (ent_rd(addr_of(victim, idx[i].idx + s), buf, 32) ||
+            if (ent_rd(addr_of(reclaim, idx[i].idx + s), buf, 32) ||
                 ent_wr(addr_of(dst, e + s), buf, 32)) return NVS_ERR;
         }
         if (set_state(dst, 0, e, e + idx[i].span, 2)) return NVS_ERR;
         pg[dst].next += idx[i].span;
         idx[i].page = dst; idx[i].idx = e;
     }
-    if (partition_erase(part, victim * PAGE, PAGE)) return NVS_ERR;
-    pg[victim].state = ST_EMPTY;
-    for (int k = 0; k < 8; k++) pg[victim].bitmap[k] = ~0u;
+    if (partition_erase(part, reclaim * PAGE, PAGE)) return NVS_ERR;
+    pg[reclaim].state = ST_EMPTY;
+    for (int k = 0; k < 8; k++) pg[reclaim].bitmap[k] = ~0u;
     return 0;
 }
 
