@@ -17,38 +17,6 @@ static char line[96];
 static uint8_t payload[255];
 static uint8_t txpower;                            /* 0 = default */
 
-/* --- 4.2: drive the Wi-Fi MAC transmit descriptor path directly (no vendor stack) ---
- * Frame + descriptor captured from a vendor-PHY transmit (bench/idf_phyble/wifi_tx_state.txt);
- * addr2 (bytes 10..15) set to the lab source id 02:4e:44:46:00:01 so the counter board tallies it.
- * The baseband / MAC config registers are replayed from the host (wr) before calling this. */
-static __attribute__((aligned(16))) uint8_t wifi_frame[100] = {
-    0x88,0x01,0x2c,0x00, 0x18,0xfe,0x34,0x01,0x02,0x03, 0x02,0x4e,0x44,0x46,0x00,0x01,
-    0xff,0xff,0xff,0xff,0xff,0xff, 0x60,0x47,0x00,0x00, 0xaa,0xaa,0x03,0x00,0x00,0x00,0x08,0x06,
-    0x6b,0x01,0x08,0x02,0x04,0x0b,0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,0x30,0x31,0x32,0x33,
-    0x34,0x35,0x36,0x37,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f,0x40,0x41,0x42,0x43,0x44,0x45,
-    0x46,0x47,0x48,0x49,0x4a,0x4b,0x4c,0x4d,0x4e,0x4f,0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,
-    0x58,0x59,0x5a,0x5b,0x5c,0x5d,0x5e,0x5f,0x60,0x61,0x62,0x63 };
-static __attribute__((aligned(16))) uint32_t wifi_desc[4];
-
-void wifi_tx_fire(void)
-{
-    wifi_desc[0] = 0xC0000000u | (100u << 12) | 100u;      /* owner | EOF | size<<12 | len */
-    wifi_desc[1] = (uint32_t)wifi_frame;
-    wifi_desc[2] = (uint32_t)wifi_desc;                    /* next: self (single frame) */
-    wifi_desc[3] = 0;
-    *(volatile uint32_t *)0x600342f8 = 100;               /* PLCP1: length */
-    *(volatile uint32_t *)0x60034300 = 0x6400;            /* HTSIG (captured) */
-    *(volatile uint32_t *)0x60033d04 = 0x1000;            /* CONF: TX enable */
-    *(volatile uint32_t *)0x60033c34 |= 2;
-    *(volatile uint32_t *)0x60033c40 |= 3;
-    *(volatile uint32_t *)0x60033d08 = ((uint32_t)wifi_desc & 0xFFFFF) | 0xC0000000u;   /* PLCP0: desc + start */
-    uint32_t t0 = ccount(), st;
-    do { st = *(volatile uint32_t *)0x60033c3c; } while (!(st & 2) && ccount() - t0 < 240000000u / 100);
-    printf("wtx desc %08lx st %08lx d08 %08lx c3c %08lx\n",
-           (unsigned long)(uint32_t)wifi_desc, (unsigned long)st,
-           (unsigned long)*(volatile uint32_t *)0x60033d08, (unsigned long)*(volatile uint32_t *)0x60033c3c);
-}
-
 static void command(void)
 {
     char *v[10]; int n = 0;
@@ -124,12 +92,6 @@ static void command(void)
     } else if (!strcmp(v[0], "rd") && n > 1) {              /* rd addr [count]: read count words from addr */
         uint32_t a = strtoul(v[1], 0, 0), cnt = n > 2 ? strtoul(v[2], 0, 0) : 1;
         for (uint32_t i = 0; i < cnt; i++) printf("r %08lx %08lx\n", (unsigned long)(a + 4 * i), (unsigned long)*(volatile uint32_t *)(a + 4 * i));
-    } else if (!strcmp(v[0], "wtx")) {                      /* fire one 802.11 frame through the Wi-Fi MAC TX path */
-        extern void wifi_tx_fire(void); wifi_tx_fire();
-    } else if (!strcmp(v[0], "wup")) {                      /* carrier on ch6 + TX front end before the Wi-Fi replay */
-        int a = rf_set_freq_khz(2437000), b = rf_tx_start();
-        extern void rf_tone_off(void); rf_tone_off();       /* free the DAC path for the baseband modem */
-        printf("wup freq %d tx %d\n", a, b);
     } else if (!strcmp(v[0], "forced") && n > 1) {
         extern int rf_pkt_bench_forced; rf_pkt_bench_forced = atoi(v[1]) == 1; printf("forced\n");
     } else if (!strcmp(v[0], "tone") && n > 2) {            /* tone khz offset_khz: CW at khz + offset (rf.h) */

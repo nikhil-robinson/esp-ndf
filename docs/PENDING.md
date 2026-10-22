@@ -54,14 +54,16 @@ the host serial loop, not the radio). How it works:
 - Note: both the absolute baseband/FE state AND the calibrated carrier/front-end
   (`wup`) are required — digital config alone transmits nothing.
 
-### Still to do for 4.2
+### 4.2 DONE (end to end)
 
-- Receive side: take an 802.11 frame off the MAC into our own buffers (RX
-  descriptors mirror the TX ones; the reference RX state is dumped further down
-  in `bench/idf_phyble/main/main.c`).
-- Fold the transmit into a clean `rf_wifi_tx(frame, len)` in `drivers/rf`,
-  expose in `include/rf.h`, document in `docs/RF_API.md`. Right now the register
-  replay is host-side; the absolute state table should move into firmware.
+Receive and the firmware API are complete. `drivers/rf/rf_wifi.c` +
+`drivers/rf/rf_wifi_regs.h` (generated register tables), exposed in `include/rf.h`
+as `rf_wifi_tx_init` / `rf_wifi_tx` / `rf_wifi_rx_init` / `rf_wifi_rx`, example
+`examples/rf_wifi`, host driver `tools/rf_wifi_test.py`, documented in
+`docs/RF_API.md`. Firmware-only path (no host replay): 5906/5906 received frames
+were ours, len 100, ~984/s (`bench/rfmeas/wifi_rx_42.txt`). RX ring: descriptors
+word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes length;
+48 B control header, length word at header offset 44.
 
 ## 4.3 — 802.15.4
 

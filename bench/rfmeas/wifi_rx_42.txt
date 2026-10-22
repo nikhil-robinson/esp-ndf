@@ -1,0 +1,15 @@
+# 4.2 - receive 802.11 frames into our own buffers from our own code (no vendor stack)
+# C9:48 (rf_pkt + tools/wifi_rx_replay.py): replay captured RX config, our own 4-descriptor
+#   ring + buffers, point MAC RX base regs 0x60033088..98 at it, poll for the MAC clearing owner.
+# Ambient channel 6: 142 frames in 3 s DMA'd into our buffers.
+# Full loop (D0 transmits our tagged frame -> C9:48 receives): buffer = 44 B control header, then
+#   the 802.11 frame: 88 01 .. addr2 = 02 4e 44 46 00 01 (our lab id). Confirmed.
+# RX descriptor: word0=word3 = 0x80640000|bufsize (owner bit31); MAC clears bit31 / sets bit30 (EOF)
+#   and writes length when filled. Buffer: deadbeef marker overwritten by a 44 B rx control header.
+rx w c0090200 ... buf [44 B hdr] 88 01 ce 46 18 fe 34 01 02 03 02 4e 44 46 00 01 ff ff ff ff ff ff ...
+#
+# Firmware-only path (drivers/rf/rf_wifi.c, examples/rf_wifi, tools/rf_wifi_test.py):
+# D0 rf_wifi_tx continuously, C9:48 rf_wifi_rx. No host register replay, no vendor stack.
+# got 5906 ours 5906 in 6000 ms (~984/s): every received frame was ours, len 100,
+# 88 01 ce 46 18 fe 34 01 02 03 | 02 4e 44 46 00 01 | ff ff ff ff ff ff | 60 47 ...
+# RX control header is 48 B; frame length is the word at header offset 44 (& 0xFFF).
