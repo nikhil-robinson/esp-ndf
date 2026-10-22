@@ -161,6 +161,13 @@ int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next rece
  * the TX DAC (rf_tx_play). Transmit only. Returns the IQ sample count, 0 if it won't fit in max. */
 uint32_t rf_154_build(const uint8_t *psdu, unsigned len, uint32_t *out, uint32_t max);
 
+/* ---- correlator trigger (4.4) ----------------------------------------------------------------------
+ * Trigger on a known sync pattern (not just energy): slide-correlate a captured IQ window against a
+ * reference complex waveform (refI/refQ, rlen taps). *peak_off = sync alignment (the trigger sample),
+ * *peak_mag = peak power; returns the peak-to-mean power ratio x256 (detection confidence). */
+int32_t rf_corr_trigger(const uint32_t *iq, uint32_t n, const int8_t *refI, const int8_t *refQ,
+                        uint32_t rlen, uint32_t *peak_off, int64_t *peak_mag);
+
 /* ---- samples ------------------------------------------------------------------------------------- */
 /* IQ word: I bits 9:0, Q bits 19:10, signed 10-bit. rf_sample_q returns the true-spectrum Q (the raw Q bits are inverted). */
 static inline int rf_sample_i(uint32_t w) { return (int32_t)(w << 22) >> 22; }

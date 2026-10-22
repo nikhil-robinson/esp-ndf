@@ -109,6 +109,18 @@ static void command(void)
         const uint32_t *iq; int rc = rf_rx_capture(RF_RATE_16M, RF_CAPTURE_MAX, &iq);
         printf("iqcap rc %d\n", rc);
         for (uint32_t k = 0; k < RF_CAPTURE_MAX; k += 16) { for (uint32_t j = k; j < k + 16 && j < RF_CAPTURE_MAX; j++) printf("%05lx", (unsigned long)(iq[j] & 0xFFFFF)); printf("\n"); }
+    } else if (!strcmp(v[0], "corr")) {                     /* 4.4: capture at 2405 MHz, correlator-trigger on the 15.4 preamble */
+        rf_pkt_stop(); rf_tx_stop();
+        rf_set_freq_khz(2405000); rf_rx_start(); rf_rx_set_gain(RF_GAIN_AGC);
+        const uint32_t *iq; int rc = rf_rx_capture(RF_RATE_16M, RF_CAPTURE_MAX, &iq);
+        static int8_t rI[1024], rQ[1024]; const uint32_t pn0 = 0xD9C3522Eu;   /* 8-symbol preamble (symbol 0) */
+        for (int k = 0; k < 1024; k++) rI[k] = rQ[k] = 0;
+        for (int sy = 0; sy < 4; sy++) for (int c = 0; c < 32; c++) {
+            int s = (pn0 >> c) & 1 ? 1 : -1; int8_t *d = (c & 1) ? rQ : rI; int base = sy * 256 + c * 8;
+            for (int t = 0; t < 16 && base + t < 1024; t++) d[base + t] = (int8_t)(s * 100 * sinf((float)M_PI * t / 16));
+        }
+        uint32_t off; int64_t mag; int32_t r = rf_corr_trigger(iq, RF_CAPTURE_MAX, rI, rQ, 1024, &off, &mag);
+        printf("corr rc %d trigger_off %lu ratio %ld.%02ld\n", rc, (unsigned long)off, (long)(r / 256), (long)((r % 256) * 100 / 256));
     } else if (!strcmp(v[0], "awr") && n > 3) {             /* awr block reg val: analog register write */
         rf_regi2c_write((uint8_t)strtoul(v[1], 0, 16), (uint8_t)strtoul(v[2], 0, 16), (uint8_t)strtoul(v[3], 0, 16)); printf("awr\n");
     } else if (!strcmp(v[0], "adv") && n > 2) {             /* adv interval_us txpwr: hardware ADV_NONCONN_IND "NDF" on ch 37 (reference for the IDF scanner) */
