@@ -57,6 +57,7 @@ print('USB Serial/JTAG back:', bool(port))
 if port:
     c = opn(port, 3); end = time.time() + 6
     while time.time() < end:
-        l = c.readline().decode(errors='replace').strip()
+        try: l = c.readline().decode(errors='replace').strip()
+        except serial.SerialException: break
         if l: print('device:', l)
         if l.startswith('otg rc'): break

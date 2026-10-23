@@ -15,19 +15,19 @@ static void otg_run(uint32_t secs)
 {
     printf("otg: PHY to OTG for %lu s\n", (unsigned long)secs); delay_ms(50);   /* let the line reach the host */
     int rc = usb_dev_start();
-    static uint8_t buf[4096] __attribute__((aligned(4)));
+    static uint8_t buf[8128] __attribute__((aligned(4)));
+    for (uint32_t k = 0; k < sizeof buf; k++) buf[k] = (uint8_t)k;   /* pattern source, made once */
     uint32_t t0 = time_ms(), mode = 0, left = 0, pos = 0, got = 0, err = 0, have = 0; uint8_t hdr[5];
     while (rc == 0 && time_ms() - t0 < secs * 1000) {
         usb_dev_poll();
         if (!usb_cdc_ready()) continue;
         if (mode == 1) {                                     /* streaming to the host */
             if (!left) { mode = 0; continue; }
-            uint32_t n = left < sizeof buf ? left : sizeof buf;
-            for (uint32_t k = 0; k < n; k++) buf[k] = (uint8_t)(pos + k);
+            uint32_t n = left < 7936 ? left : 7936;      /* 31 x 256: the pattern stays continuous across chunks */
             if (usb_cdc_write(buf, n)) { pos += n; left -= n; }
             continue;
         }
-        uint8_t in[64]; size_t n = usb_cdc_read(in, sizeof in);
+        static uint8_t in[512]; size_t n = usb_cdc_read(in, sizeof in);
         for (size_t k = 0; k < n; k++) {
             if (mode == 2) {                                 /* receiving from the host */
                 if (in[k] != (uint8_t)got) err++;

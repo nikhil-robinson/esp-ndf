@@ -1,7 +1,7 @@
 /* USB OTG full-speed device, CDC-ACM (usb.h). DWC2 core in slave (FIFO) mode, polled.
  * Registers per TRM ch. 32 (DWC2 OTG_FS); PHY switch per ch. 10 (RTC_CNTL_USB_CONF) and ch. 33.
  * Endpoints: EP0 control, EP1 IN bulk (data to host), EP2 OUT bulk (data from host), EP3 IN interrupt (CDC
- * notifications; required by the class, never used). FIFO RAM 256 words: RX 100, EP0 TX 16, EP1 TX 128, EP3 TX 12. */
+ * notifications; required by the class, never used). FIFO RAM 256 words: RX 72, EP0 TX 16, EP1 TX 160, EP3 TX 8. */
 #include "usb.h"
 #include "clk.h"
 #include "gpio.h"
@@ -64,8 +64,17 @@
 #define EP_OUT          2
 #define EP_NOTIFY       3
 #define MPS             64
-#define TX_MAX          4096u                   /* bytes per usb_cdc_write (64 packets; the packet count field is 7 bits) */
-#define RX_RING         2048u                   /* power of 2 */
+#define TX_MAX          8128u                   /* bytes per transfer: 127 packets (the packet count field is 7 bits) */
+#define RX_RING         8192u                   /* power of 2 */
+#ifndef USB_TRDT
+#define USB_TRDT        5u                      /* GUSBCFG turnaround (PHY clocks) */
+#endif
+#ifndef RXF_W
+#define RXF_W           72u                     /* FIFO RAM (256 words): RX, then EP0 TX 16, bulk IN TX, notify TX */
+#endif
+#ifndef TXF1_W
+#define TXF1_W          160u                    /* bulk IN: 10 packets */
+#endif
 
 /* ---- descriptors ---- */
 static const uint8_t dev_desc[18] = {
@@ -92,8 +101,8 @@ static uint8_t setup[8] __attribute__((aligned(4)));
 static uint8_t line_coding[7] = { 0x00, 0xC2, 0x01, 0x00, 0, 0, 8 };   /* 115200 8N1 (the host may set anything) */
 static uint8_t ep0_buf[256] __attribute__((aligned(4)));
 static const uint8_t *ep0_src; static uint32_t ep0_left; static bool ep0_zlp, ep0_out_data;
-static uint8_t tx_buf[TX_MAX] __attribute__((aligned(4)));
-static uint32_t tx_words, tx_pushed; static volatile bool tx_busy; static bool tx_zlp;
+static uint8_t tx_buf[2][TX_MAX] __attribute__((aligned(4)));   /* double buffer: one on the bus, one being filled */
+static uint32_t tx_len[2], tx_words, tx_pushed; static int tx_cur = -1, tx_q = -1; static bool tx_full_end;
 static uint8_t rx_ring[RX_RING]; static uint32_t rx_head, rx_tail; static bool rx_armed;
 static bool configured, started;
 static usb_stats_t st;
@@ -137,7 +146,7 @@ static void rx_arm(void)
 {
     uint32_t pk = (RX_RING - (rx_head - rx_tail)) / MPS;   /* packets the ring can take */
     if (!pk) { rx_armed = false; return; }        /* full: NAK until read */
-    if (pk > 16) pk = 16;
+    if (pk > 32) pk = 32;
     R(DOEPTSIZ(EP_OUT)) = pk << 19 | pk * MPS;
     R(DOEPCTL(EP_OUT)) |= EP_ENA | EP_CNAK;
     rx_armed = true;
@@ -149,7 +158,7 @@ static void set_configuration(int cfg)
     R(DIEPCTL(EP_IN)) = EP_SD0PID | 1u << 22 | 2u << 18 | EP_ACTIVE | MPS;      /* bulk, TX FIFO 1 */
     R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;    /* interrupt, TX FIFO 2 */
     R(DOEPCTL(EP_OUT)) = EP_SD0PID | 2u << 18 | EP_ACTIVE | MPS;                /* bulk */
-    tx_busy = false; rx_head = rx_tail = 0; rx_arm();
+    tx_cur = tx_q = -1; rx_head = rx_tail = 0; rx_arm();
 }
 static void handle_setup(void)
 {
@@ -188,7 +197,7 @@ static void handle_setup(void)
 
 static void bus_reset(void)
 {
-    st.resets++; configured = false; tx_busy = false;
+    st.resets++; configured = false; tx_cur = tx_q = -1;
     R(DCFG) &= ~(0x7Fu << 4);
     for (int n = 0; n < 4; n++) R(DOEPCTL(n)) |= EP_SNAK;
     R(DAINTMSK) = 0xFFFFFFFFu; R(DIEPMSK) = INT_XFRC; R(DOEPMSK) = INT_XFRC | INT_STUP;
@@ -197,13 +206,22 @@ static void bus_reset(void)
     ep0_out_arm();
 }
 
+static void tx_push(void);
+static void tx_start(int b)
+{
+    uint32_t n = tx_len[b];
+    tx_cur = b; tx_words = (n + 3) / 4; tx_pushed = 0; tx_full_end = n % MPS == 0;
+    R(DIEPTSIZ(EP_IN)) = (n + MPS - 1) / MPS << 19 | n;
+    R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK;
+    tx_push();
+}
 static void tx_push(void)                         /* whole packets only: the core sends what a complete packet write leaves */
 {
     while (tx_pushed < tx_words) {
         uint32_t n = tx_words - tx_pushed;
         if (n > MPS / 4) n = MPS / 4;
         if ((R(DTXFSTS(EP_IN)) & 0xFFFF) < n) return;
-        const uint32_t *w = (const uint32_t *)tx_buf + tx_pushed;
+        const uint32_t *w = (const uint32_t *)tx_buf[tx_cur] + tx_pushed;
         for (uint32_t k = 0; k < n; k++) REG(FIFO(EP_IN)) = w[k];
         tx_pushed += n;
     }
@@ -220,8 +238,12 @@ void usb_dev_poll(void)
         if (pk == 6) fifo_read(setup, 8);                                         /* SETUP data */
         else if (pk == 2 && ep == 0) fifo_read(ep0_buf, n);                       /* control OUT data */
         else if (pk == 2 && ep == EP_OUT) {                                       /* bulk OUT data -> ring */
-            uint8_t tmp[MPS] __attribute__((aligned(4))); fifo_read(tmp, n);
-            for (uint32_t k = 0; k < n; k++) rx_ring[(rx_head + k) & (RX_RING - 1)] = tmp[k];
+            uint32_t at = rx_head & (RX_RING - 1);
+            if (at + n <= RX_RING) fifo_read(rx_ring + at, n);    /* straight into the ring */
+            else {                                    /* a short packet earlier left this one across the end */
+                uint8_t tmp[MPS]; fifo_read(tmp, n);
+                memcpy(rx_ring + at, tmp, RX_RING - at); memcpy(rx_ring, tmp + RX_RING - at, n - (RX_RING - at));
+            }
             rx_head += n; st.rx_bytes += n;
         } else if (n) { uint8_t tmp[MPS] __attribute__((aligned(4))); fifo_read(tmp, n); }   /* drop */
     }
@@ -247,12 +269,16 @@ void usb_dev_poll(void)
         }
         if (d & (1u << EP_IN)) {
             uint32_t i = R(DIEPINT(EP_IN)); R(DIEPINT(EP_IN)) = i;
-            if ((i & INT_XFRC) && tx_zlp) { tx_zlp = false; R(DIEPTSIZ(EP_IN)) = 1u << 19; R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK; }   /* end on a full packet: ZLP closes the host's read */
-            else if (i & INT_XFRC) { tx_busy = false; st.tx_xfers++; }
+            if ((i & INT_XFRC) && tx_cur >= 0) {
+                st.tx_xfers++;
+                if (tx_q >= 0) { int b = tx_q; tx_q = -1; tx_start(b); }                    /* next buffer at once: no idle slot */
+                else if (tx_full_end) { tx_full_end = false; tx_words = tx_pushed = 0; R(DIEPTSIZ(EP_IN)) = 1u << 19; R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK; }   /* stream pauses on a full packet: ZLP closes the host's read */
+                else tx_cur = -1;
+            }
         }
         if (d & (1u << EP_NOTIFY)) R(DIEPINT(EP_NOTIFY)) = R(DIEPINT(EP_NOTIFY));
     }
-    if (tx_busy) tx_push();
+    if (tx_cur >= 0) tx_push();
     if (configured && !rx_armed) rx_arm();
 }
 
@@ -270,7 +296,7 @@ int usb_dev_start(void)
 
     uint32_t t = 0;
     while (!(R(GRSTCTL) & BIT(31))) if (++t > 1000000) return -1;   /* AHB idle */
-    R(GUSBCFG) |= BIT(30) | BIT(6) | 5u << 10;        /* force device mode, full-speed serial PHY, turnaround 5 */
+    R(GUSBCFG) = (R(GUSBCFG) & ~(0xFu << 10)) | BIT(30) | BIT(6) | (uint32_t)USB_TRDT << 10;   /* force device mode, full-speed serial PHY, turnaround */
     R(GRSTCTL) |= BIT(0);                             /* core soft reset */
     for (t = 0; R(GRSTCTL) & BIT(0); ) if (++t > 1000000) return -2;
     for (t = 0; !(R(GRSTCTL) & BIT(31)); ) if (++t > 1000000) return -3;
@@ -279,16 +305,16 @@ int usb_dev_start(void)
     R(PCGCCTL) = 0;
     R(DCTL) |= BIT(1);                                /* stay disconnected while configuring */
     R(DCFG) = (R(DCFG) & ~0x7FFu) | 3u;               /* full speed, internal 48 MHz PHY; address 0 */
-    R(GRXFSIZ) = 100;
-    R(GNPTXFSIZ) = 16u << 16 | 100;
-    R(DIEPTXF(1)) = 128u << 16 | 116;
-    R(DIEPTXF(2)) = 12u << 16 | 244;
+    R(GRXFSIZ) = RXF_W;
+    R(GNPTXFSIZ) = 16u << 16 | RXF_W;
+    R(DIEPTXF(1)) = TXF1_W << 16 | (RXF_W + 16);
+    R(DIEPTXF(2)) = (256u - RXF_W - 16 - TXF1_W) << 16 | (RXF_W + 16 + TXF1_W);
     R(GRSTCTL) = 0x10u << 6 | BIT(5) | BIT(4);
     while (R(GRSTCTL) & (BIT(5) | BIT(4))) {}
     R(GINTSTS) = 0xFFFFFFFFu;
     R(GINTMSK) = GINT_USBRST | GINT_ENUMDNE | GINT_RXFLVL | GINT_IEPINT | GINT_OEPINT;
     R(GAHBCFG) = 0;                                   /* slave mode, interrupt line unused (polled) */
-    memset(&st, 0, sizeof st); configured = false; tx_busy = false; rx_head = rx_tail = 0;
+    memset(&st, 0, sizeof st); configured = false; tx_cur = tx_q = -1; rx_head = rx_tail = 0;
     started = true;
     R(DCTL) &= ~BIT(1);                               /* connect: D+ pull-up on */
     return 0;
@@ -305,26 +331,24 @@ void usb_dev_stop(void)
 }
 
 bool usb_cdc_ready(void) { return configured; }
-bool usb_cdc_tx_idle(void) { return !tx_busy; }
+bool usb_cdc_tx_idle(void) { return tx_cur < 0; }
 
 size_t usb_cdc_read(void *buf, size_t max)
 {
-    uint8_t *p = buf; size_t n = 0;
-    while (n < max && rx_tail != rx_head) p[n++] = rx_ring[rx_tail++ & (RX_RING - 1)];
+    size_t n = rx_head - rx_tail; if (n > max) n = max;
+    size_t at = rx_tail & (RX_RING - 1), first = RX_RING - at < n ? RX_RING - at : n;
+    memcpy(buf, rx_ring + at, first); memcpy((uint8_t *)buf + first, rx_ring, n - first);
+    rx_tail += n;
     return n;
 }
 
 size_t usb_cdc_write(const void *buf, size_t n)
 {
-    if (!configured || tx_busy || !n) return 0;
+    if (!configured || tx_q >= 0 || !n) return 0;       /* both buffers in use */
     if (n > TX_MAX) n = TX_MAX;
-    memcpy(tx_buf, buf, n);
-    uint32_t pk = (uint32_t)(n + MPS - 1) / MPS;
-    tx_words = (uint32_t)(n + 3) / 4; tx_pushed = 0; tx_busy = true; tx_zlp = n % MPS == 0;
-    R(DIEPTSIZ(EP_IN)) = pk << 19 | (uint32_t)n;
-    R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK;
-    st.tx_bytes += n;
-    tx_push();
+    int b = tx_cur < 0 ? 0 : 1 - tx_cur;
+    memcpy(tx_buf[b], buf, n); tx_len[b] = (uint32_t)n; st.tx_bytes += n;
+    if (tx_cur < 0) tx_start(b); else tx_q = b;
     return n;
 }
 

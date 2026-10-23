@@ -1,0 +1,10 @@
+ok
+CDC device: /dev/serial/by-id/usb-esp-ndf_esp-ndf_CDC-ACM_0001-if00 after 0.60 s
+echo 372 bytes: OK
+download 4000000 bytes in 3.472 s = 1152 KB/s, pattern OK
+upload 4000000 bytes in 4.087 s = 979 KB/s, device received 4000000 errors 0
+USB Serial/JTAG back: True
+device: rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)
+device: load:0x3fc8d960,len:0x7d8
+device: load:0x40378000,len:0x5960
+device: usb_cdc ready

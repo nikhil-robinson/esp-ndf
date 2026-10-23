@@ -291,6 +291,25 @@ All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 
 
 12.7x / 12.1x faster (`bench/idf_dsp/fird_result.txt`, same board). ESP-DSP cannot keep up with the 16 MS/s stream (15 cycles per sample available); ours runs gapless for 1 M output samples into PSRAM. Pieces: PIE unpack `dsp_unpack_iq10` 2.14 cycles/sample (C: 9.01), fused I+Q dot `dsp_dot2_s16` (one call, straight-line 64- and 48-element blocks, verified bit-exact against `dsp_dot_s16`). Floor: unpack 2.1 + the MACs (2T/D per sample at 8 per vector instruction: 1.5 at decim 8) = ~3.6 cycles; the rest is 128-bit load latency and per-chunk overhead.
 
+## USB OTG full-speed device, CDC-ACM, `drivers/usb/usb_dev.c` vs ESP-IDF TinyUSB
+
+Same board (C9:48), same host port (xHCI root port, 12M), same host script (`tools/usb_cdc_test.py`, run by
+`tools/usb_cmp.sh`), 4 MB each way, byte-exact pattern check, 3 runs each (`bench/usb_cdc/data/cmp.txt`).
+IDF sibling `bench/idf_usbcdc` at its full-performance settings: `-O2` (COMPILER_OPTIMIZATION_PERF), assertions off,
+logging off, CPU 240 MHz, FreeRTOS 1 kHz, TinyUSB (DMA mode) task priority 24 on core 0, test task priority 23 on
+core 1, CDC TX/RX buffers 8 / 4 KB. Ours: `-O2`, 240 MHz, polled, slave (FIFO) mode.
+
+| | download (device -> host) | upload (host -> device) |
+|---|---|---|
+| **ours** | **1152 KB/s** | **978-979 KB/s** |
+| ESP-IDF TinyUSB | 870-873 KB/s | 505 KB/s |
+| ratio | **1.32x** | **1.94x** |
+
+Floor: full-speed bulk carries at most 19 x 64 B per 1 ms frame = 1216 KB/s. Ours gets exactly 18 packets per frame
+(95 %) on this host; FIFO depth (128 / 160 words), turnaround (TRDT 3..9) and the host read path (pyserial, raw
+`os.read`) all give the same 1152 KB/s, so the remaining slot is the host controller's schedule for this port.
+Upload ~15 packets per frame: headroom left (DMA mode next). The ESP32-S3 has no high-speed USB (TRM 32.1).
+
 ## 7. Power states (`rf_open` / `rf_close`, `rf_state`)
 
 State machine OFF → IDLE → RX / TX. Transition timing (one board, `rf_pkt` `ptime`):
