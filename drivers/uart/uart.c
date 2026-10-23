@@ -23,10 +23,7 @@
 #define I_RXTOUT  BIT(8)
 #define I_TXDONE  BIT(14)
 
-#ifndef NDF_UART_RING
-#define NDF_UART_RING 2048                            /* per direction, power of 2; an app can lower it (ndf_config.h) */
-#endif
-#define RING NDF_UART_RING
+#define RING NDF_UART_RING                            /* per direction, power of 2 (ndf_config.h) */
 typedef struct {
     uint8_t rx[RING], tx[RING];
     volatile uint32_t rh, rt, th, tt;                 /* head = write, tail = read */

@@ -1,14 +1,18 @@
-/* USB OTG full-speed device, CDC-ACM (usb.h). DWC2 core in slave (FIFO) mode, polled.
+/* USB OTG full-speed device, CDC-ACM (usb.h). DWC2 core in buffer-DMA mode (the core moves every packet between RAM
+ * and its FIFOs; the CPU only programs transfers), polled.
  * Registers per TRM ch. 32 (DWC2 OTG_FS); PHY switch per ch. 10 (RTC_CNTL_USB_CONF) and ch. 33.
  * Endpoints: EP0 control, EP1 IN bulk (data to host), EP2 OUT bulk (data from host), EP3 IN interrupt (CDC
- * notifications; required by the class, never used). FIFO RAM 256 words: RX 72, EP0 TX 16, EP1 TX 160, EP3 TX 8. */
+ * notifications; required by the class, never used). FIFO RAM 256 words: RX, EP0 TX, EP1 TX, EP3 TX, DMA endpoint info (see RXF_W).
+ * DMA buffers are in internal SRAM, 4-byte aligned (no data cache there: nothing to flush). */
 #include "usb.h"
+#include "soc.h"
 #include "clk.h"
 #include "gpio.h"
 #include "sys.h"
+#include "xtensa.h"
 #include <string.h>
 
-#define OTG             0x60080000u
+#define OTG             USB_OTG_BASE
 #define R(o)            REG(OTG + (o))
 #define GOTGCTL         0x000
 #define GAHBCFG         0x008
@@ -16,9 +20,9 @@
 #define GRSTCTL         0x010
 #define GINTSTS         0x014
 #define GINTMSK         0x018
-#define GRXSTSP         0x020
 #define GRXFSIZ         0x024
 #define GNPTXFSIZ       0x028
+#define GDFIFOCFG       0x05C                   /* DMA mode: endpoint-info base in FIFO RAM [31:16], FIFO depth [15:0] */
 #define DIEPTXF(n)      (0x104 + 4 * ((n) - 1))
 #define DCFG            0x800
 #define DCTL            0x804
@@ -29,14 +33,13 @@
 #define DIEPCTL(n)      (0x900 + 0x20 * (n))
 #define DIEPINT(n)      (0x908 + 0x20 * (n))
 #define DIEPTSIZ(n)     (0x910 + 0x20 * (n))
-#define DTXFSTS(n)      (0x918 + 0x20 * (n))
 #define DOEPCTL(n)      (0xB00 + 0x20 * (n))
 #define DOEPINT(n)      (0xB08 + 0x20 * (n))
 #define DOEPTSIZ(n)     (0xB10 + 0x20 * (n))
+#define DIEPDMA(n)      (0x914 + 0x20 * (n))
+#define DOEPDMA(n)      (0xB14 + 0x20 * (n))
 #define PCGCCTL         0xE00
-#define FIFO(n)         (OTG + 0x1000u * ((n) + 1))
 
-#define GINT_RXFLVL     BIT(4)
 #define GINT_USBRST     BIT(12)
 #define GINT_ENUMDNE    BIT(13)
 #define GINT_IEPINT     BIT(18)
@@ -49,32 +52,18 @@
 #define EP_ACTIVE       BIT(15)
 #define INT_XFRC        BIT(0)
 #define INT_STUP        BIT(3)
-
-#define RTC_USB_CONF    0x60008120u             /* bit 20: software selects the PHY, bit 19: PHY to OTG */
-#define USB_WRAP_CONF   0x60039000u
-#define SIG_IDDIG       58
-#define SIG_AVALID      59
-#define SIG_BVALID      60
-#define SIG_VBUSVALID   61
-#define SIG_SESSEND     62
-#define MATRIX_ONE      0x38
-#define MATRIX_ZERO     0x3C
+#define INT_STSPHSRX    BIT(5)                  /* DMA mode: this transfer-complete is a control status stage */
+#define INT_STPKTRX     BIT(15)                 /* DMA mode: this transfer-complete belongs to a SETUP packet */
 
 #define EP_IN           1
 #define EP_OUT          2
 #define EP_NOTIFY       3
 #define MPS             64
 #define TX_MAX          8128u                   /* bytes per transfer: 127 packets (the packet count field is 7 bits) */
-#define RX_RING         8192u                   /* power of 2 */
-#ifndef USB_TRDT
-#define USB_TRDT        5u                      /* GUSBCFG turnaround (PHY clocks) */
-#endif
-#ifndef RXF_W
-#define RXF_W           72u                     /* FIFO RAM (256 words): RX, then EP0 TX 16, bulk IN TX, notify TX */
-#endif
-#ifndef TXF1_W
-#define TXF1_W          160u                    /* bulk IN: 10 packets */
-#endif
+#define RXB             2048u                   /* bulk OUT DMA buffer: 32 packets, two in ping-pong (4 KB: no gain) */
+#define RXF_W           104u                    /* FIFO RAM split (256 words): RX, EP0 TX 16, bulk IN TX, notify TX 8, */
+#define TXF1_W          112u                    /* and the top 2 x endpoints words for the core's DMA endpoint info (GDFIFOCFG) */
+#define EPINFO_W        (2u * USB_OTG_EPS)      /* as TinyUSB's dwc2 driver */
 
 /* ---- descriptors ---- */
 static const uint8_t dev_desc[18] = {
@@ -97,38 +86,44 @@ static const uint8_t cfg_desc[67] = {
 static const char *const strings[] = { "esp-ndf", "esp-ndf CDC-ACM", "0001" };
 
 /* ---- state ---- */
-static uint8_t setup[8] __attribute__((aligned(4)));
+static uint8_t setup[8];
+static uint8_t setup_dma[8] __attribute__((aligned(4)));         /* DMA target: one SETUP */
+static uint8_t ep0_rx[MPS] __attribute__((aligned(4)));          /* control OUT data stage */
 static uint8_t line_coding[7] = { 0x00, 0xC2, 0x01, 0x00, 0, 0, 8 };   /* 115200 8N1 (the host may set anything) */
 static uint8_t ep0_buf[256] __attribute__((aligned(4)));
 static const uint8_t *ep0_src; static uint32_t ep0_left; static bool ep0_zlp, ep0_out_data;
 static uint8_t tx_buf[2][TX_MAX] __attribute__((aligned(4)));   /* double buffer: one on the bus, one being filled */
-static uint32_t tx_len[2], tx_words, tx_pushed; static int tx_cur = -1, tx_q = -1; static bool tx_full_end;
-static uint8_t rx_ring[RX_RING]; static uint32_t rx_head, rx_tail; static bool rx_armed;
+static uint32_t tx_len[2]; static int tx_cur = -1, tx_q = -1; static bool tx_full_end;
+static uint8_t rx_buf[2][RXB] __attribute__((aligned(4)));      /* bulk OUT ping-pong; the core DMA-writes the armed one */
+static uint32_t rx_len[2]; static bool rx_full[2]; static int rx_arm_b = -1, rx_rd; static uint32_t rx_pos;
 static bool configured, started;
 static usb_stats_t st;
 
-static void fifo_write(int ep, const void *src, uint32_t n)
+static void fifo_flush(void)                      /* all TX FIFOs and the RX FIFO; bounded (1 ms) */
 {
-    const uint8_t *p = src;
-    for (uint32_t k = 0; k < n; k += 4) { uint32_t w; memcpy(&w, p + k, 4); REG(FIFO(ep)) = w; }   /* caller's buffer has 4-byte slack */
+    R(GRSTCTL) = 0x10u << 6 | BIT(5) | BIT(4);
+    uint64_t t = time_us();
+    while ((R(GRSTCTL) & (BIT(5) | BIT(4))) && time_us() - t < 1000) {}
 }
-static void fifo_read(void *dst, uint32_t n)
-{
-    uint8_t *p = dst;
-    for (uint32_t k = 0; k < n; k += 4) { uint32_t w = REG(FIFO(0)); uint32_t m = n - k < 4 ? n - k : 4; memcpy(p + k, &w, m); }
-}
-
 static void ep0_out_arm(void)
 {
-    R(DOEPTSIZ(0)) = 3u << 29 | 1u << 19 | MPS;   /* 3 back-to-back SETUPs, one packet */
+    if (R(DOEPCTL(0)) & EP_ENA) return;            /* already waiting (core rev >= 3.00a keeps it enabled) */
+    R(DOEPTSIZ(0)) = 1u << 29 | 1u << 19 | 8;     /* one SETUP of 8 bytes */
+    R(DOEPDMA(0)) = (uint32_t)setup_dma;
+    R(DOEPCTL(0)) |= EP_ENA | EP_CNAK;
+}
+static void ep0_out_data_arm(void)                /* control OUT data stage (SET_LINE_CODING) into ep0_rx */
+{
+    R(DOEPDMA(0)) = (uint32_t)ep0_rx;
+    R(DOEPTSIZ(0)) = 1u << 19 | MPS;
     R(DOEPCTL(0)) |= EP_ENA | EP_CNAK;
 }
 static void ep0_chunk(void)
 {
     uint32_t n = ep0_left < MPS ? ep0_left : MPS;
+    R(DIEPDMA(0)) = (uint32_t)ep0_src;            /* ep0_buf + k * 64: aligned */
     R(DIEPTSIZ(0)) = 1u << 19 | n;
     R(DIEPCTL(0)) |= EP_ENA | EP_CNAK;
-    if (n) fifo_write(0, ep0_src, n);
     ep0_src += n; ep0_left -= n;
     if (n < MPS) ep0_zlp = false;                 /* a short packet ends the data stage */
 }
@@ -139,17 +134,27 @@ static void ep0_send(const void *data, uint32_t len, uint32_t wlength)
     ep0_src = ep0_buf; ep0_left = len; ep0_zlp = len < wlength && len % MPS == 0;
     ep0_chunk();
 }
-static void ep0_status_in(void) { R(DIEPTSIZ(0)) = 1u << 19; R(DIEPCTL(0)) |= EP_ENA | EP_CNAK; }
+static void ep0_status_in(void)                  /* ZLP; the DMA address must still be aligned (the core advanced it by the last length) */
+{
+    R(DIEPDMA(0)) = (uint32_t)ep0_buf; R(DIEPTSIZ(0)) = 1u << 19; R(DIEPCTL(0)) |= EP_ENA | EP_CNAK;
+}
 static void ep0_stall(void) { R(DIEPCTL(0)) |= EP_STALL; R(DOEPCTL(0)) |= EP_STALL; st.stalls++; }
 
-static void rx_arm(void)
+static void rx_arm(int b)                         /* hand one OUT buffer to the core */
 {
-    uint32_t pk = (RX_RING - (rx_head - rx_tail)) / MPS;   /* packets the ring can take */
-    if (!pk) { rx_armed = false; return; }        /* full: NAK until read */
-    if (pk > 32) pk = 32;
-    R(DOEPTSIZ(EP_OUT)) = pk << 19 | pk * MPS;
+    rx_arm_b = b;
+    R(DOEPDMA(EP_OUT)) = (uint32_t)rx_buf[b];
+    R(DOEPTSIZ(EP_OUT)) = (RXB / MPS) << 19 | RXB;
     R(DOEPCTL(EP_OUT)) |= EP_ENA | EP_CNAK;
-    rx_armed = true;
+}
+static void rx_done(void)                         /* transfer complete (32 packets or a short one) */
+{
+    int b = rx_arm_b;
+    uint32_t n = RXB - (R(DOEPTSIZ(EP_OUT)) & 0x7FFFF);
+    st.rx_bytes += n; rx_arm_b = -1;
+    if (!n) { rx_arm(b); return; }                /* zero-length packet: nothing to keep */
+    rx_len[b] = n; rx_full[b] = true;
+    if (!rx_full[1 - b]) rx_arm(1 - b);           /* the other buffer at once; else NAK until read */
 }
 static void set_configuration(int cfg)
 {
@@ -158,7 +163,7 @@ static void set_configuration(int cfg)
     R(DIEPCTL(EP_IN)) = EP_SD0PID | 1u << 22 | 2u << 18 | EP_ACTIVE | MPS;      /* bulk, TX FIFO 1 */
     R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;    /* interrupt, TX FIFO 2 */
     R(DOEPCTL(EP_OUT)) = EP_SD0PID | 2u << 18 | EP_ACTIVE | MPS;                /* bulk */
-    tx_cur = tx_q = -1; rx_head = rx_tail = 0; rx_arm();
+    tx_cur = tx_q = -1; rx_full[0] = rx_full[1] = false; rx_rd = 0; rx_pos = 0; rx_arm(0);
 }
 static void handle_setup(void)
 {
@@ -197,68 +202,50 @@ static void handle_setup(void)
 
 static void bus_reset(void)
 {
-    st.resets++; configured = false; tx_cur = tx_q = -1;
+    st.resets++; configured = false; tx_cur = tx_q = -1; rx_arm_b = -1;
     R(DCFG) &= ~(0x7Fu << 4);
     for (int n = 0; n < 4; n++) R(DOEPCTL(n)) |= EP_SNAK;
     R(DAINTMSK) = 0xFFFFFFFFu; R(DIEPMSK) = INT_XFRC; R(DOEPMSK) = INT_XFRC | INT_STUP;
-    R(GRSTCTL) = 0x10u << 6 | BIT(5) | BIT(4);    /* flush all TX FIFOs and the RX FIFO */
-    while (R(GRSTCTL) & (BIT(5) | BIT(4))) {}
+    fifo_flush();
     ep0_out_arm();
 }
 
-static void tx_push(void);
 static void tx_start(int b)
 {
     uint32_t n = tx_len[b];
-    tx_cur = b; tx_words = (n + 3) / 4; tx_pushed = 0; tx_full_end = n % MPS == 0;
+    tx_cur = b; tx_full_end = n % MPS == 0;
+    R(DIEPDMA(EP_IN)) = (uint32_t)tx_buf[b];
     R(DIEPTSIZ(EP_IN)) = (n + MPS - 1) / MPS << 19 | n;
     R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK;
-    tx_push();
-}
-static void tx_push(void)                         /* whole packets only: the core sends what a complete packet write leaves */
-{
-    while (tx_pushed < tx_words) {
-        uint32_t n = tx_words - tx_pushed;
-        if (n > MPS / 4) n = MPS / 4;
-        if ((R(DTXFSTS(EP_IN)) & 0xFFFF) < n) return;
-        const uint32_t *w = (const uint32_t *)tx_buf[tx_cur] + tx_pushed;
-        for (uint32_t k = 0; k < n; k++) REG(FIFO(EP_IN)) = w[k];
-        tx_pushed += n;
-    }
 }
 
 void usb_dev_poll(void)
 {
     if (!started) return;
-    uint32_t s = R(GINTSTS);
+    uint32_t c0 = ccount(), s = R(GINTSTS);
+    if (!(s & (GINT_USBRST | GINT_ENUMDNE | GINT_IEPINT | GINT_OEPINT))) return;   /* nothing to do (not counted) */
     if (s & GINT_USBRST) { R(GINTSTS) = GINT_USBRST; bus_reset(); }
     if (s & GINT_ENUMDNE) { R(GINTSTS) = GINT_ENUMDNE; R(DIEPCTL(0)) &= ~3u; ep0_out_arm(); }   /* EP0 64 bytes */
-    while (R(GINTSTS) & GINT_RXFLVL) {
-        uint32_t x = R(GRXSTSP), ep = x & 0xF, n = (x >> 4) & 0x7FF, pk = (x >> 17) & 0xF;
-        if (pk == 6) fifo_read(setup, 8);                                         /* SETUP data */
-        else if (pk == 2 && ep == 0) fifo_read(ep0_buf, n);                       /* control OUT data */
-        else if (pk == 2 && ep == EP_OUT) {                                       /* bulk OUT data -> ring */
-            uint32_t at = rx_head & (RX_RING - 1);
-            if (at + n <= RX_RING) fifo_read(rx_ring + at, n);    /* straight into the ring */
-            else {                                    /* a short packet earlier left this one across the end */
-                uint8_t tmp[MPS]; fifo_read(tmp, n);
-                memcpy(rx_ring + at, tmp, RX_RING - at); memcpy(rx_ring, tmp + RX_RING - at, n - (RX_RING - at));
-            }
-            rx_head += n; st.rx_bytes += n;
-        } else if (n) { uint8_t tmp[MPS] __attribute__((aligned(4))); fifo_read(tmp, n); }   /* drop */
-    }
     if (s & GINT_OEPINT) {
         uint32_t d = R(DAINT) >> 16;
         if (d & 1) {
             uint32_t i = R(DOEPINT(0)); R(DOEPINT(0)) = i;
-            if (i & INT_STUP) { handle_setup(); ep0_out_arm(); }
-            else if ((i & INT_XFRC) && ep0_out_data) {                            /* SET_LINE_CODING data arrived */
-                memcpy(line_coding, ep0_buf, 7); ep0_out_data = false; ep0_status_in(); ep0_out_arm();
+            if (i & INT_STUP) {                       /* SETUP done (as TinyUSB): drop a pending EP0 IN, take the packet */
+                if (R(DIEPCTL(0)) & EP_ENA) { R(DIEPCTL(0)) |= EP_SNAK | BIT(30); ep0_left = 0; ep0_zlp = false; }   /* EPDIS */
+                memcpy(setup, setup_dma, 8);
+                handle_setup();
+                if (ep0_out_data) ep0_out_data_arm(); else ep0_out_arm();
+            } else if (i & (INT_STPKTRX | INT_STSPHSRX)) {                      /* SETUP / status bookkeeping: nothing to do */
+            } else if ((i & INT_XFRC) && ep0_out_data) {
+                if (MPS - (R(DOEPTSIZ(0)) & 0x7F)) {      /* data stage, only if bytes arrived: in DMA mode the SETUP stage */
+                    memcpy(line_coding, ep0_rx, 7);       /* also ends with a transfer-complete */
+                    ep0_out_data = false; ep0_status_in(); ep0_out_arm();
+                }
             } else if (i & INT_XFRC) ep0_out_arm();                               /* status stage of a control IN */
         }
         if (d & (1u << EP_OUT)) {
             uint32_t i = R(DOEPINT(EP_OUT)); R(DOEPINT(EP_OUT)) = i;
-            if (i & INT_XFRC) rx_arm();
+            if ((i & INT_XFRC) && rx_arm_b >= 0) rx_done();
         }
     }
     if (s & GINT_IEPINT) {
@@ -266,20 +253,20 @@ void usb_dev_poll(void)
         if (d & 1) {
             uint32_t i = R(DIEPINT(0)); R(DIEPINT(0)) = i;
             if ((i & INT_XFRC) && (ep0_left || ep0_zlp)) ep0_chunk();
+            else if (i & INT_XFRC) ep0_out_arm();     /* IN data / status done: wait for the next SETUP */
         }
         if (d & (1u << EP_IN)) {
             uint32_t i = R(DIEPINT(EP_IN)); R(DIEPINT(EP_IN)) = i;
             if ((i & INT_XFRC) && tx_cur >= 0) {
                 st.tx_xfers++;
                 if (tx_q >= 0) { int b = tx_q; tx_q = -1; tx_start(b); }                    /* next buffer at once: no idle slot */
-                else if (tx_full_end) { tx_full_end = false; tx_words = tx_pushed = 0; R(DIEPTSIZ(EP_IN)) = 1u << 19; R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK; }   /* stream pauses on a full packet: ZLP closes the host's read */
+                else if (tx_full_end) { tx_full_end = false; R(DIEPDMA(EP_IN)) = (uint32_t)tx_buf[0]; R(DIEPTSIZ(EP_IN)) = 1u << 19; R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK; }   /* stream pauses on a full packet: ZLP closes the host's read */
                 else tx_cur = -1;
             }
         }
         if (d & (1u << EP_NOTIFY)) R(DIEPINT(EP_NOTIFY)) = R(DIEPINT(EP_NOTIFY));
     }
-    if (tx_cur >= 0) tx_push();
-    if (configured && !rx_armed) rx_arm();
+    st.poll_cycles += ccount() - c0;
 }
 
 int usb_dev_start(void)
@@ -287,19 +274,19 @@ int usb_dev_start(void)
     if (started) return 0;
     periph_enable(PERIPH_USB);
     REG(USB_WRAP_CONF) = BIT(31) | BIT(18) | BIT(0);   /* reg clock, pad enable, internal PHY, session-end forced low */
-    gpio_in_signal(MATRIX_ONE, SIG_IDDIG, false);     /* B-device */
-    gpio_in_signal(MATRIX_ZERO, SIG_AVALID, false);
-    gpio_in_signal(MATRIX_ONE, SIG_BVALID, false);    /* no VBUS sense pin: session always valid */
-    gpio_in_signal(MATRIX_ONE, SIG_VBUSVALID, false);
-    gpio_in_signal(MATRIX_ZERO, SIG_SESSEND, false);
+    gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_IDDIG, false);     /* B-device */
+    gpio_in_signal(GPIO_MATRIX_ZERO, SIG_USB_AVALID, false);
+    gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_BVALID, false);    /* no VBUS sense pin: session always valid */
+    gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_VBUSVALID, false);
+    gpio_in_signal(GPIO_MATRIX_ZERO, SIG_USB_SESSEND, false);
     REG(RTC_USB_CONF) |= BIT(20) | BIT(19);           /* PHY to OTG: USB Serial/JTAG leaves the bus here */
 
-    uint32_t t = 0;
-    while (!(R(GRSTCTL) & BIT(31))) if (++t > 1000000) return -1;   /* AHB idle */
-    R(GUSBCFG) = (R(GUSBCFG) & ~(0xFu << 10)) | BIT(30) | BIT(6) | (uint32_t)USB_TRDT << 10;   /* force device mode, full-speed serial PHY, turnaround */
+    uint64_t t = time_us();                           /* every wait below is bounded: 10 ms */
+    while (!(R(GRSTCTL) & BIT(31))) if (time_us() - t > 10000) return -1;   /* AHB idle */
+    R(GUSBCFG) = (R(GUSBCFG) & ~(0xFu << 10)) | BIT(30) | BIT(6) | 5u << 10;   /* force device mode, full-speed serial PHY, turnaround 5 (3..9 measured: no effect) */
     R(GRSTCTL) |= BIT(0);                             /* core soft reset */
-    for (t = 0; R(GRSTCTL) & BIT(0); ) if (++t > 1000000) return -2;
-    for (t = 0; !(R(GRSTCTL) & BIT(31)); ) if (++t > 1000000) return -3;
+    for (t = time_us(); R(GRSTCTL) & BIT(0); ) if (time_us() - t > 10000) return -2;
+    for (t = time_us(); !(R(GRSTCTL) & BIT(31)); ) if (time_us() - t > 10000) return -3;
     delay_ms(25);                                     /* mode change settles */
     R(GOTGCTL) |= BIT(7) | BIT(6);                    /* B-session valid override */
     R(PCGCCTL) = 0;
@@ -308,13 +295,13 @@ int usb_dev_start(void)
     R(GRXFSIZ) = RXF_W;
     R(GNPTXFSIZ) = 16u << 16 | RXF_W;
     R(DIEPTXF(1)) = TXF1_W << 16 | (RXF_W + 16);
-    R(DIEPTXF(2)) = (256u - RXF_W - 16 - TXF1_W) << 16 | (RXF_W + 16 + TXF1_W);
-    R(GRSTCTL) = 0x10u << 6 | BIT(5) | BIT(4);
-    while (R(GRSTCTL) & (BIT(5) | BIT(4))) {}
+    R(DIEPTXF(2)) = 8u << 16 | (RXF_W + 16 + TXF1_W);
+    R(GDFIFOCFG) = (USB_OTG_FIFO_WORDS - EPINFO_W) << 16 | (USB_OTG_FIFO_WORDS - EPINFO_W);   /* DMA info area at the top; before DMAEN */
+    fifo_flush();
     R(GINTSTS) = 0xFFFFFFFFu;
-    R(GINTMSK) = GINT_USBRST | GINT_ENUMDNE | GINT_RXFLVL | GINT_IEPINT | GINT_OEPINT;
-    R(GAHBCFG) = 0;                                   /* slave mode, interrupt line unused (polled) */
-    memset(&st, 0, sizeof st); configured = false; tx_cur = tx_q = -1; rx_head = rx_tail = 0;
+    R(GINTMSK) = GINT_USBRST | GINT_ENUMDNE | GINT_IEPINT | GINT_OEPINT;
+    R(GAHBCFG) = BIT(5) | 3u << 1;                    /* buffer DMA, INCR4 bursts; interrupt line unused (polled) */
+    memset(&st, 0, sizeof st); configured = false; tx_cur = tx_q = -1; rx_arm_b = -1;
     started = true;
     R(DCTL) &= ~BIT(1);                               /* connect: D+ pull-up on */
     return 0;
@@ -335,10 +322,22 @@ bool usb_cdc_tx_idle(void) { return tx_cur < 0; }
 
 size_t usb_cdc_read(void *buf, size_t max)
 {
-    size_t n = rx_head - rx_tail; if (n > max) n = max;
-    size_t at = rx_tail & (RX_RING - 1), first = RX_RING - at < n ? RX_RING - at : n;
-    memcpy(buf, rx_ring + at, first); memcpy((uint8_t *)buf + first, rx_ring, n - first);
-    rx_tail += n;
+    uint8_t *p = buf; size_t n = 0; uint32_t c0 = ccount();
+    while (n < max) {
+        int b = rx_rd; uint32_t avail;
+        if (rx_full[b]) avail = rx_len[b];
+        else if (rx_arm_b == b) avail = RXB - (R(DOEPTSIZ(EP_OUT)) & 0x7FFFF);   /* packets the core already wrote */
+        else break;
+        if (rx_pos >= avail) {
+            if (!rx_full[b]) break;               /* waiting for the core */
+            rx_full[b] = false; rx_pos = 0; rx_rd = 1 - b;
+            if (rx_arm_b < 0) rx_arm(b);          /* was NAKing: this buffer is free again */
+            continue;
+        }
+        uint32_t m = avail - rx_pos; if (m > max - n) m = (uint32_t)(max - n);
+        memcpy(p + n, rx_buf[b] + rx_pos, m); rx_pos += m; n += m;
+    }
+    if (n) st.poll_cycles += ccount() - c0;
     return n;
 }
 
@@ -347,8 +346,10 @@ size_t usb_cdc_write(const void *buf, size_t n)
     if (!configured || tx_q >= 0 || !n) return 0;       /* both buffers in use */
     if (n > TX_MAX) n = TX_MAX;
     int b = tx_cur < 0 ? 0 : 1 - tx_cur;
+    uint32_t c0 = ccount();
     memcpy(tx_buf[b], buf, n); tx_len[b] = (uint32_t)n; st.tx_bytes += n;
     if (tx_cur < 0) tx_start(b); else tx_q = b;
+    st.poll_cycles += ccount() - c0;
     return n;
 }
 

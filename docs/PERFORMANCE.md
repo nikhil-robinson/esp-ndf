@@ -297,18 +297,24 @@ Same board (C9:48), same host port (xHCI root port, 12M), same host script (`too
 `tools/usb_cmp.sh`), 4 MB each way, byte-exact pattern check, 3 runs each (`bench/usb_cdc/data/cmp.txt`).
 IDF sibling `bench/idf_usbcdc` at its full-performance settings: `-O2` (COMPILER_OPTIMIZATION_PERF), assertions off,
 logging off, CPU 240 MHz, FreeRTOS 1 kHz, TinyUSB (DMA mode) task priority 24 on core 0, test task priority 23 on
-core 1, CDC TX/RX buffers 8 / 4 KB. Ours: `-O2`, 240 MHz, polled, slave (FIFO) mode.
+core 1, CDC TX/RX buffers 8 / 4 KB. Ours: `-O2`, 240 MHz, polled, buffer-DMA mode (`bench/usb_cdc/data/cmp_dma.txt`).
 
-| | download (device -> host) | upload (host -> device) |
-|---|---|---|
-| **ours** | **1152 KB/s** | **978-979 KB/s** |
-| ESP-IDF TinyUSB | 870-873 KB/s | 505 KB/s |
-| ratio | **1.32x** | **1.94x** |
+| | download (device -> host) | upload (host -> device) | USB CPU while moving data |
+|---|---|---|---|
+| **ours (DMA)** | **1152 KB/s** | **994-995 KB/s** | **~0.9 %** of one core (driver cycles counted) |
+| ours (slave/FIFO, previous) | 1152 KB/s | 978-979 KB/s | CPU copies every word |
+| ESP-IDF TinyUSB | 867-870 KB/s | 505 KB/s | ~25 % of core 0 (TinyUSB task + ISR; idle-loop probe) |
+| ratio | **1.32x** | **1.97x** | **~27x less CPU** |
+
+CPU: ours = cycles the driver spends working (polls with an event, read/write copies) over the transfer time; IDF =
+1 - (rate of a priority-1 counter task on core 0 during the transfers / its idle rate), core 0 holding TinyUSB.
 
 Floor: full-speed bulk carries at most 19 x 64 B per 1 ms frame = 1216 KB/s. Ours gets exactly 18 packets per frame
 (95 %) on this host; FIFO depth (128 / 160 words), turnaround (TRDT 3..9) and the host read path (pyserial, raw
 `os.read`) all give the same 1152 KB/s, so the remaining slot is the host controller's schedule for this port.
-Upload ~15 packets per frame: headroom left (DMA mode next). The ESP32-S3 has no high-speed USB (TRM 32.1).
+Upload ~15.5 packets per frame (994-1006 KB/s; 4 MB runs give 994-996, a 1 MB run 1006): the OUT path re-arms per
+2 KB buffer (4 KB measured no better). The ESP32-S3 has no high-speed USB (TRM 32.1). DMA-mode details (SETUP bit 15 /
+status bit 5, endpoint-info area at the top of FIFO RAM via GDFIFOCFG, one-SETUP EP0 arm) follow TinyUSB's dcd_dwc2.c.
 
 ## 7. Power states (`rf_open` / `rf_close`, `rf_state`)
 

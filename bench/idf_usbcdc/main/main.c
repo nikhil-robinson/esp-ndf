@@ -12,12 +12,17 @@
 #include "tusb_cdc_acm.h"
 #include "soc/rtc_cntl_reg.h"
 
+static volatile uint32_t spin;                            /* core-0 load probe: lowest-priority counter */
+static void spin_task(void *arg) { for (;;) spin++; }
+#define RESULT ((volatile uint32_t *)0x50001000u)          /* RTC slow memory: read back with esptool read_mem */
 static uint8_t buf[7936];                                /* 31 x 256: pattern continuous across chunks */
 
 static void test_task(void *arg)
 {
     for (uint32_t k = 0; k < sizeof buf; k++) buf[k] = (uint8_t)k;   /* pattern source, made once (as ours) */
-    vTaskDelay(pdMS_TO_TICKS(3000));                         /* time for the host to see USB-JTAG and flash */
+    vTaskDelay(pdMS_TO_TICKS(2000));                         /* time for the host to see USB-JTAG and flash */
+    uint32_t b0 = spin; vTaskDelay(pdMS_TO_TICKS(1000)); uint32_t base = spin - b0;   /* core-0 idle rate per second */
+    uint32_t s0 = 0, t_s0 = 0;
     const tinyusb_config_t tc = { 0 };
     tinyusb_driver_install(&tc);
     tinyusb_config_cdcacm_t ac = { .usb_dev = TINYUSB_USBDEV_0, .cdc_port = TINYUSB_CDC_ACM_0, .rx_unread_buf_sz = 512 };
@@ -39,12 +44,14 @@ static void test_task(void *arg)
         for (size_t k = 0; k < n; k++) {
             if (mode == 2) {
                 if (in[k] != (uint8_t)got) err++;
-                if (++got == left) { uint32_t r[2] = { got, err }; mode = 0; tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)r, 8); tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, 0); }
+                if (++got == left) { uint32_t r[2] = { got, err }; mode = 0;
+                    uint32_t ms = (uint32_t)(esp_timer_get_time() / 1000) - t_s0, sp = spin - s0;   /* download + upload span */
+                    RESULT[1] = base; RESULT[2] = sp; RESULT[3] = ms; RESULT[0] = 0x49444631u; tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, (uint8_t *)r, 8); tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, 0); }
                 continue;
             }
             if (have || in[k] == 'S' || in[k] == 'U') {
                 hdr[have++] = in[k];
-                if (have == 5) { uint32_t c; memcpy(&c, hdr + 1, 4); have = 0; if (hdr[0] == 'S') { mode = 1; left = c; pos = 0; } else { mode = 2; left = c; got = err = 0; } }
+                if (have == 5) { uint32_t c; memcpy(&c, hdr + 1, 4); have = 0; if (hdr[0] == 'S') { mode = 1; left = c; pos = 0; s0 = spin; t_s0 = (uint32_t)(esp_timer_get_time() / 1000); } else { mode = 2; left = c; got = err = 0; } }
                 continue;
             }
             tinyusb_cdcacm_write_queue(TINYUSB_CDC_ACM_0, &in[k], 1); tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, 0);
@@ -57,5 +64,7 @@ static void test_task(void *arg)
 
 void app_main(void)
 {
+    RESULT[0] = 0;
+    xTaskCreatePinnedToCore(spin_task, "spin", 2048, NULL, 1, NULL, 0);          /* core 0 with the TinyUSB task (24) */
     xTaskCreatePinnedToCore(test_task, "usbtest", 8192, NULL, 23, NULL, 1);   /* core 1, priority 23 (TinyUSB: 24 on core 0) */
 }

@@ -19,6 +19,7 @@
 
 /* ---- RTC_CNTL (TRM ch. 10) ---------------------------------------------- */
 #define RTC_BASE           0x60008000
+#define RTC_USB_CONF       (RTC_BASE + 0x120)      /* b20 software selects the USB PHY, b19 PHY to OTG (0: USB Serial/JTAG) */
 #define RTC_OPTIONS0       (RTC_BASE + 0x000)
 #define RTC_WDTCONFIG0     (RTC_BASE + 0x098)
 #define RTC_WDTWPROTECT    (RTC_BASE + 0x0B0)
@@ -77,3 +78,16 @@
 #define SYSTIMER_INT_CLR     (SYSTIMER_BASE + 0x6C)
 #define SYSTIMER_INT_ST      (SYSTIMER_BASE + 0x70)
 #define SRC_SYSTIMER_TARGET0 57
+
+/* USB OTG (DWC2 OTG_FS, TRM ch. 32) */
+#define USB_OTG_BASE       0x60080000
+#define USB_WRAP_CONF      0x60039000              /* b31 reg clock, b18 pad enable, b2 PHY sel, b0/b1 session-end override/value */
+#define USB_OTG_EPS        6                       /* endpoints incl. EP0, of which 5 IN; FIFO RAM 256 words */
+#define USB_OTG_FIFO_WORDS 256
+#define SIG_USB_IDDIG      58                      /* GPIO matrix input signals */
+#define SIG_USB_AVALID     59
+#define SIG_USB_BVALID     60
+#define SIG_USB_VBUSVALID  61
+#define SIG_USB_SESSEND    62
+#define GPIO_MATRIX_ONE    0x38                    /* constant-1 / constant-0 matrix inputs */
+#define GPIO_MATRIX_ZERO   0x3C

@@ -60,4 +60,4 @@ if port:
         try: l = c.readline().decode(errors='replace').strip()
         except serial.SerialException: break
         if l: print('device:', l)
-        if l.startswith('otg rc'): break
+        if 'usb_cdc ready' in l or l.startswith('otg rc'): break

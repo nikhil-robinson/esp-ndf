@@ -49,6 +49,7 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_LOG_LEVEL`<br>Log level | ndf_config.h | `NDF_LOG_INFO` | `NDF_LOG_NONE` none<br>`NDF_LOG_ERROR` error<br>`NDF_LOG_WARN` warning<br>`NDF_LOG_INFO` info<br>`NDF_LOG_DEBUG` debug | LOGx() calls above this level compile to nothing: no code, no strings in the image. |
 | `NDF_PANIC_RESTART`<br>Restart after a panic | ndf_config.h | `n` | y / n | After a fault, failed NDF_ASSERT or watchdog report (registers + backtrace) the chip halts so a debugger can attach. On: it restarts instead (field devices). |
 | `NDF_ASSERT_ENABLE`<br>NDF_ASSERT checks | ndf_config.h | `y` | y / n | Off: NDF_ASSERT() compiles to nothing. |
+| `NDF_UART_RING`<br>UART software ring (bytes) | ndf_config.h | `2048` | 64 – 16384 | Per direction and per port (3 ports), power of 2. Lower it when RAM is tight (an app using the RF dump engine must end below 0x3FCB0000); a small TX ring only makes printf wait. |
 
 ## Storage
 

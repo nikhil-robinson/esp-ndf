@@ -37,6 +37,11 @@
 #define NDF_CONSOLE_RX_PIN      44
 #endif
 
+/* ---- UART driver ------------------------------------------------------------ */
+#ifndef NDF_UART_RING
+#define NDF_UART_RING           2048    /* software ring per direction and port, power of 2 */
+#endif
+
 /* ---- boot ------------------------------------------------------------------- */
 #ifndef NDF_BOOT_BANNER
 #define NDF_BOOT_BANNER         0       /* 1: print chip/flash/clock/reset info before main() */

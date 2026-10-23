@@ -1,0 +1,6 @@
+IDF run 1 download 4000000 bytes in 4.599 s = 870 KB/s, pattern OK upload 4000000 bytes in 7.926 s = 505 KB/s, device received 4000000 errors 0
+ IDF run 2 download 4000000 bytes in 4.613 s = 867 KB/s, pattern OK upload 4000000 bytes in 7.925 s = 505 KB/s, device received 4000000 errors 0
+ IDF run 3 download 4000000 bytes in 4.599 s = 870 KB/s, pattern OK upload 4000000 bytes in 7.923 s = 505 KB/s, device received 4000000 errors 0
+ ndf run 1 download 4000000 bytes in 3.472 s = 1152 KB/s, pattern OK upload 4000000 bytes in 4.023 s = 994 KB/s, device received 4000000 errors 0
+ ndf run 2 download 4000000 bytes in 3.472 s = 1152 KB/s, pattern OK upload 4000000 bytes in 4.023 s = 994 KB/s, device received 4000000 errors 0
+ ndf run 3 download 4000000 bytes in 3.472 s = 1152 KB/s, pattern OK upload 4000000 bytes in 4.019 s = 995 KB/s, device received 4000000 errors 0

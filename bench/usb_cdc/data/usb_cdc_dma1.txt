@@ -1,0 +1,7 @@
+CDC device: /dev/serial/by-id/usb-esp-ndf_esp-ndf_CDC-ACM_0001-if00 after 0.60 s
+echo 372 bytes: FAIL (81 back)
+   first difference at None: sent  back 
+download 0 bytes in 5.004 s = 0 KB/s, pattern FAIL
+upload stage failed: write failed: [Errno 5] Input/output error
+USB Serial/JTAG back: True
+device: last otg: rc 0 resets 2 setups 18 stalls 3 rx 382 tx 83 driver_cpu 0.00% of 25000 ms

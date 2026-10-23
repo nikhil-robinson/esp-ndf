@@ -10,14 +10,22 @@
 #include <string.h>
 
 static char line[64];
+/* last run's counters in RTC slow memory: survives the chip reset the host's port open causes (bench only) */
+#define LAST ((volatile uint32_t *)0x50001000u)   /* RTC slow memory is 0x50000000..0x50001FFF */
+#define LAST_MAGIC 0x55534231u
 
+static uint32_t win_t0, win_ms;
+static void write_wait(const void *p, size_t n)     /* bounded by the OTG window: the PHY always comes back on time */
+{
+    while (!usb_cdc_write(p, n) && time_ms() - win_t0 < win_ms) usb_dev_poll();
+}
 static void otg_run(uint32_t secs)
 {
     printf("otg: PHY to OTG for %lu s\n", (unsigned long)secs); delay_ms(50);   /* let the line reach the host */
     int rc = usb_dev_start();
     static uint8_t buf[8128] __attribute__((aligned(4)));
     for (uint32_t k = 0; k < sizeof buf; k++) buf[k] = (uint8_t)k;   /* pattern source, made once */
-    uint32_t t0 = time_ms(), mode = 0, left = 0, pos = 0, got = 0, err = 0, have = 0; uint8_t hdr[5];
+    win_t0 = time_ms(); win_ms = secs * 1000; uint32_t t0 = win_t0, mode = 0, left = 0, pos = 0, got = 0, err = 0, have = 0; uint8_t hdr[5];
     while (rc == 0 && time_ms() - t0 < secs * 1000) {
         usb_dev_poll();
         if (!usb_cdc_ready()) continue;
@@ -33,7 +41,7 @@ static void otg_run(uint32_t secs)
                 if (in[k] != (uint8_t)got) err++;
                 if (++got == left) {
                     uint32_t r[2] = { got, err }; mode = 0;
-                    while (!usb_cdc_write(r, 8)) usb_dev_poll();
+                    write_wait(r, 8);
                 }
                 continue;
             }
@@ -45,20 +53,28 @@ static void otg_run(uint32_t secs)
                 }
                 continue;
             }
-            while (!usb_cdc_write(&in[k], 1)) usb_dev_poll();   /* echo */
+            write_wait(&in[k], 1);                       /* echo */
         }
     }
-    usb_stats_t s; usb_get_stats(&s);
+    usb_stats_t s; usb_get_stats(&s); uint32_t win_ms = time_ms() - t0;
     usb_dev_stop();
+    LAST[1] = (uint32_t)rc; LAST[2] = s.resets; LAST[3] = s.setups; LAST[4] = s.stalls; LAST[5] = s.rx_bytes;
+    LAST[6] = s.tx_bytes; LAST[7] = (uint32_t)(s.poll_cycles / 1000); LAST[8] = win_ms; LAST[0] = LAST_MAGIC;
     delay_ms(1500);                                          /* USB Serial/JTAG re-enumerates on the host */
-    printf("otg rc %d resets %lu setups %lu stalls %lu rx %lu tx %lu xfers %lu\n", rc, (unsigned long)s.resets,
+    printf("otg rc %d resets %lu setups %lu stalls %lu rx %lu tx %lu xfers %lu driver_cpu %.2f%% of %lu ms\n", rc, (unsigned long)s.resets,
            (unsigned long)s.setups, (unsigned long)s.stalls, (unsigned long)s.rx_bytes, (unsigned long)s.tx_bytes,
-           (unsigned long)s.tx_xfers);
+           (unsigned long)s.tx_xfers, (double)s.poll_cycles / ((double)win_ms * 240e3) * 100, (unsigned long)win_ms);
 }
 
 int main(void)
 {
     delay_ms(300);
+    if (LAST[0] == LAST_MAGIC) {
+        printf("last otg: rc %ld resets %lu setups %lu stalls %lu rx %lu tx %lu driver_cpu %.2f%% of %lu ms\n", (long)LAST[1],
+               (unsigned long)LAST[2], (unsigned long)LAST[3], (unsigned long)LAST[4], (unsigned long)LAST[5], (unsigned long)LAST[6],
+               (double)LAST[7] * 1000 / ((double)LAST[8] * 240e3) * 100, (unsigned long)LAST[8]);
+        LAST[0] = 0;
+    }
     printf("usb_cdc ready\n");
     int k = 0;
     for (;;) {

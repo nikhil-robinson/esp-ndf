@@ -76,6 +76,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
                   'debugger can attach. On: it restarts instead (field devices).'),
         dict(key='NDF_ASSERT_ENABLE', type='bool', default=True, target='h', label='NDF_ASSERT checks',
              help='Off: NDF_ASSERT() compiles to nothing.'),
+        dict(key='NDF_UART_RING', type='int', default=2048, target='h', label='UART software ring (bytes)', range=(64, 16384),
+             help='Per direction and per port (3 ports), power of 2. Lower it when RAM is tight (an app using the RF dump '
+                  'engine must end below 0x3FCB0000); a small TX ring only makes printf wait.'),
     ]),
     ('menu', 'Storage', [
         dict(key='NDF_VFS_MAX_MOUNTS', type='int', default=4, target='h', label='VFS: mounted file systems', range=(1, 16),

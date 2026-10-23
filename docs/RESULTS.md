@@ -695,3 +695,18 @@ examples/core_test (DEVKIT) vs bench/idf_periph [core]:
 - printf: exact decimal digits for every double at any precision (64-bit path when exact, big integers otherwise, ~2 KB stack only for those values); round half to even on exact ties; %a/%A (hex floats, rounded), %o, %n, # flag, hh/h/j/L modifiers, %p as 0x...; 68 + 10 + 1 reference cases match C.
 - Exact panic backtrace: tools/mkunwind.py turns the ELF's .debug_frame (DWARF CFI) into a compact table appended to app.bin after the ROM image (flash only, 0 RAM); arch/xtensa/unwind.c walks frames with it, crossing interrupt frames through EPCn and the saved frame. sys_test: watchdog trace = report -> wdt_isr -> _l3_entry -> stalled loop (main.c:107) -> main -> start; fault trace = main.c:118 -> start. No stale entries. Stack scan kept as fallback for images without the table.
 - periph_test: core-0 stack 12 KB (app.mk) to fit the larger runtime.
+
+## USB OTG full-speed device, CDC-ACM (`examples/usb_cdc` vs `bench/idf_usbcdc`, 2026-10-24)
+
+The IDF sibling is its own project (not `bench/idf_periph/t_usb.c`): TinyUSB takes the shared USB PHY away from the
+USB-JTAG console and needs the `esp_tinyusb` component, like the RF siblings. Same board, port and host script
+(`tools/usb_cmp.sh`); both at -O2 / 240 MHz, IDF at its full-performance settings (see PERFORMANCE.md).
+
+| | esp-ndf | ESP-IDF TinyUSB |
+|---|---|---|
+| enumerates as CDC-ACM, echo 372 B | OK | OK |
+| download 4 MB, byte-exact | **1152 KB/s** | 867-870 KB/s |
+| upload 4 MB, byte-exact, device-side count | **994-995 KB/s**, 0 errors | 505 KB/s, 0 errors |
+| USB CPU while moving data | **~0.9 %** | ~25 % of core 0 |
+
+Functional results agree (enumeration, echo, exact data both ways, device counts). Buffer-DMA driver.
