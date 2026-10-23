@@ -1,0 +1,85 @@
+/* ESP32-S3 image (run through the C preprocessor; NDF_XIP, NDF_XIP_ADDR, NDF_XIP_SIZE from the Makefile).
+ * RAM part: loaded from flash 0x0 by the ROM loader. Every fetch is single-cycle SRAM -> deterministic.
+ * SRAM1 is one memory seen twice: IRAM 0x4037_8000 == DRAM 0x3FC8_8000 (offset 0x6F_0000). Code goes first;
+ * data starts right after the code's DRAM alias, so no RAM is wasted on a fixed split. Stay below 0x3FCE9000:
+ * the ROM loader's own data lives above it. (0x40370000-0x40377FFF is the instruction cache's SRAM0.)
+ * Flash part (NDF_XIP 1 = libraries, 2 = also the application and storage): code at 0x42000000 + NDF_XIP_ADDR
+ * through the instruction cache, its read-only data right after it at 0x3C000000 + (same flash offset); written
+ * to flash as build/<app>/xip.bin. The MMU maps flash page i to both buses (soc/esp32s3/cache.c). */
+ENTRY(_start0)
+
+MEMORY
+{
+    iram (RWX) : ORIGIN = 0x40378000, LENGTH = 0x3FCE9000 - 0x3FC88000
+    dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = 0x3FCE9000 - 0x3FC88000
+    irom (RX)  : ORIGIN = 0x42000000 + NDF_XIP_ADDR, LENGTH = NDF_XIP_SIZE
+    drom (R)   : ORIGIN = 0x3C000000 + NDF_XIP_ADDR, LENGTH = NDF_XIP_SIZE
+}
+
+/* Libraries never called from interrupts, flash operations or the panic path. Kept in RAM on purpose: printf
+ * (panic report with the cache off), string (memcpy/memset everywhere), heap, ringbuf, div64, dsp, float, fpu. */
+#define XIP_LIB(S) *lib/strtod.c.o(S) *lib/bigint.c.o(S) *lib/stdlib.c.o(S) *lib/math.c.o(S) *lib/mathf.c.o(S) \
+                   *lib/double.c.o(S) *lib/md5.c.o(S) *lib/crc32.c.o(S) *lib/musl?*.c.o(S)
+#define XIP_ALL(S) *examples?*.o(S) *drivers/storage?*.o(S)   /* "?" for the slash: no comment opener for cpp */
+
+SECTIONS
+{
+#if NDF_XIP
+    .flash.text : {
+        _flash_text_start = ABSOLUTE(.);
+        *(.flash.text .flash.text.*)                       /* FLASH_FN */
+        XIP_LIB(.literal .literal.* .text .text.*)
+#if NDF_XIP == 2
+        XIP_ALL(.literal .literal.* .text .text.*)
+#endif
+        . = ALIGN(16);
+        _flash_text_end = ABSOLUTE(.);
+    } > irom
+
+    .flash.rodata ORIGIN(drom) + SIZEOF(.flash.text) : {   /* same flash offset as the end of the code */
+        _flash_rodata_start = ABSOLUTE(.);
+        XIP_LIB(.rodata .rodata.*)
+#if NDF_XIP == 2
+        XIP_ALL(.rodata .rodata.*)
+#endif
+        . = ALIGN(16);
+        _flash_rodata_end = ABSOLUTE(.);
+    } > drom
+#else
+    _flash_text_start = 0; _flash_text_end = 0;
+#endif
+
+    .text : {
+        KEEP(*(.vectors))                 /* first: VECBASE = 0x40378000, 1 KB aligned */
+        *(.iram.literal .iram.text .iram.text.*)
+        *(.literal .literal.* .text .text.*)
+        . = ALIGN(16);
+        _text_end = .;
+    } > iram
+
+    _data_origin = _text_end - 0x6F0000;  /* DRAM alias of the end of code */
+
+    .data _data_origin : {
+        *(.rodata .rodata.* .data .data.* .sdata .sdata.*)
+        _data_end = .;
+    } > dram
+
+    .bss (NOLOAD) : ALIGN(16) {
+        _bss_start = .;
+        *(.bss .bss.* .sbss .sbss.* COMMON)
+        . = ALIGN(4);
+        _bss_end = .;                     /* stacks stay outside the zeroed range */
+        . = ALIGN(16); . += NDF_STACK0_SIZE; _stack0_top = .;   /* sizes from app.mk (--defsym) */
+        . = ALIGN(16); . += NDF_STACK1_SIZE; _stack1_top = .;
+    } > dram
+
+    .rfmark (NOLOAD) : { *(.rfmark) }    /* non-empty only if the RF dump engine is linked (drivers/rf/rf_dump.c) */
+
+    /DISCARD/ : { *(.comment .note.* .eh_frame .xt.prop .xt.prop.* .xtensa.info) }
+}
+
+ASSERT(_vector_table == 0x40378000, "vector table must be first in IRAM")
+ASSERT(!NDF_BOOT_FAST || _data_end <= 0x3FCE8000, "fast boot: the loaded image must end below the loader (0x3FCE8000)")
+ASSERT(_stack1_top <= 0x3FCE9000, "RAM full: code + data + stacks exceed SRAM below the ROM loader area")
+/* the baseband dump engine writes SRAM banks 0x3FCB0000..0x3FCDFFFF (drivers/rf/rf_dump.c) */
+ASSERT(SIZEOF(.rfmark) == 0 || _stack1_top <= 0x3FCB0000, "RF dump engine in use: code + data + stacks must end below 0x3FCB0000")

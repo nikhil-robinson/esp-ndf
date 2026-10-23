@@ -1,0 +1,3 @@
+IDF run 1: magic 544f4f42 reset -> app_main 3630 us
+IDF run 2: magic 544f4f42 reset -> app_main 1399 us
+IDF run 3: magic 544f4f42 reset -> app_main 1399 us

@@ -23,8 +23,11 @@ void rf_dac_stop(void)
     REG(BANK_SEL) &= ~15u;
 }
 
+/* linked in only together with the dump engine: the linker script checks its size (SRAM banks the engine writes) */
+const uint8_t rf_dump_ram_marker __attribute__((section(".rfmark"), used)) = 1;
 int rf_dump_burst(uint32_t rate, uint32_t n)
 {
+    __asm__ volatile("" :: "r"(&rf_dump_ram_marker));          /* reference: kept exactly when this function is */
     volatile uint32_t *w = (volatile uint32_t *)RF_DUMP_BURST_ADDR;
     if (n > RF_DUMP_MAX) n = RF_DUMP_MAX;
     for (uint32_t i = 0; i < n; i++) w[i] = UNWRITTEN;

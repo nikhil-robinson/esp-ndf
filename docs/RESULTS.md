@@ -710,3 +710,15 @@ USB-JTAG console and needs the `esp_tinyusb` component, like the RF siblings. Sa
 | USB CPU while moving data | **~0.9 %** | ~25 % of core 0 |
 
 Functional results agree (enumeration, echo, exact data both ways, device counts). Buffer-DMA driver.
+
+## Code from flash (XIP) and boot (`examples/xip_test`, `examples/boot_time` vs `bench/idf_xip`, `bench/idf_boot`, 2026-10-24)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| same kernels in RAM and flash give the same result | yes | yes |
+| flash erase + write while code runs from flash, readback | exact, core 1 stalled meanwhile | exact |
+| libc_test / sys_test with libraries in flash | ALL PASS (watchdog report, fault backtraces from flash code, restarts) | - |
+| reset -> main, cold path (ROM + our loader) | 6.18 ms | 35.5 ms |
+| reset -> main, warm (software/watchdog reset), no ROM code | **0.81 ms** (XIP=lib 0.85) | 35.5 ms |
+| esptool still connects with the RTC stage installed (its reset goes to the ROM) | yes | yes |
+

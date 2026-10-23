@@ -316,6 +316,53 @@ Upload ~15.5 packets per frame (994-1006 KB/s; 4 MB runs give 994-996, a 1 MB ru
 2 KB buffer (4 KB measured no better). The ESP32-S3 has no high-speed USB (TRM 32.1). DMA-mode details (SETUP bit 15 /
 status bit 5, endpoint-info area at the top of FIFO RAM via GDFIFOCFG, one-SETUP EP0 arm) follow TinyUSB's dcd_dwc2.c.
 
+## Boot time and code from flash (XIP)
+
+**Boot, chip reset -> main** (`examples/boot_time` vs `bench/idf_boot`, same board; both sides run the same RTC-timer
+code `bench/boot/rtc_boot.h`: the RTC timer keeps counting through a software system reset, calibrated against the
+system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image validation skipped, logs off).
+
+| | reset -> main |
+|---|---|
+| ESP-IDF (2nd-stage bootloader, `app_main`) | 35 510 - 35 520 us |
+| esp-ndf, ROM loads the whole RAM image (before) | 21 708 - 22 080 us |
+| + ROM log off for warm resets (RTC_CNTL_STORE4 flag, no eFuse) | 15 938 - 15 947 us |
+| esp-ndf fast boot, cold path (ROM -> 2 KB loader: PLL, QIO through the cache, copies the app) | 6 184 - 6 185 us |
+| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **809 - 818 us** |
+| esp-ndf warm boot, no ROM, XIP=lib | 854 - 860 us |
+| ratio (warm, no ROM) | **43x faster** |
+
+Breakdown of the 6.18 ms: ROM fixed work ~4.24 ms (not ours: mask ROM before any of our code), ROM loading our 2016-byte
+loader ~1.05 ms (the ROM loads at 0.52 us per byte: 102 KB of extra RAM data cost +53 ms), loader 0.85 ms (PLL lock +
+22 KB copied at QIO through the data cache), app init 32 us (the loader already set the clock). Floor: ~4.2 ms (ROM);
+headroom ~1 ms in loader size. IDF's own "1.4 ms" app_main timestamp is not reset-based: IDF re-bases the system
+timer during startup (esp_timer_impl_systimer.c), so only the RTC-timer method is comparable. Measured with software
+resets; a power-on adds the supply ramp. 
+**ROM-free warm boot** (TRM 10.6): RTC_CNTL_RESET_STATE bit 13 = 0 points the CPU reset vector at RTC slow memory
+0x50000000 instead of the ROM. The flash loader (cold path) installs the RTC stage (`build/<app>/rtcboot.bin`, from
+flash 0x1000): a jump at 0x50000000 (slow memory, ~5 us per access) into the stage in RTC fast memory 0x600FE000. The
+stage takes only our own warm resets (cause 3/12 software, 7/8 timer group, 9/16 RTC watchdog); anything else
+(esptool's USB-JTAG/USB-UART reset 21/22, force-download flag) is handed to the ROM, power-on/EN resets select the
+ROM in hardware. It sets what the ROM would have (diffed register by register against the state after the ROM):
+SPI0 DIO read setup, flash pads GPIO29-32 to SPI, data-cache SRAM connect, EXTMEM_CACHE_MMU_OWNER; the BBPLL and
+core voltage are analog (RTC domain) and still locked, so only the clock muxes are set. Split of the 0.81 ms:
+reset -> stage 15 us, clock ~70 us, image copy (22 KB, QIO 80 MHz through the cache) ~690 us, app init 19-32 us.
+Floor: flash bandwidth for the copy (~0.55 ms at QIO 80 MHz for 22 KB); headroom: skip re-copying unchanged IRAM
+code on warm resets (SRAM is kept through a system reset), or a smaller RAM image (XIP=all).
+
+
+**Code from flash** (`examples/xip_test` vs `bench/idf_xip`, the same 64 generated kernels `bench/xip/xip_kern.c`,
+23.8 KB of code, compiled into both; IDF at -O2 / 240 MHz / QIO 80 MHz):
+
+| cycles per kernel call | RAM | flash, warm | flash, cold |
+|---|---|---|---|
+| **esp-ndf** (32 KB instruction cache, 8-way, 32 B lines) | 142 | **142** | 3515 |
+| ESP-IDF (16 KB default) | 143 | 3520 | 3527 |
+
+A working set between 16 and 32 KB runs at RAM speed from flash on esp-ndf (24.8x faster than IDF's default); cold
+is flash-bandwidth bound on both. Flash erase + 256 B write while core 1 runs flash code: ours 49.7 ms (core 1
+stalled, 0 runs during the operation, 0 wrong results), IDF 57.9 ms.
+
 ## 7. Power states (`rf_open` / `rf_close`, `rf_state`)
 
 State machine OFF → IDLE → RX / TX. Transition timing (one board, `rf_pkt` `ptime`):

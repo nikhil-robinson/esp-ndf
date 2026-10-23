@@ -1,5 +1,6 @@
 /* ESP32-S3 bring-up: watchdogs, core 1, delays, faults. Clocks: clk.c.
  * No ROM calls: everything is direct register access. */
+#include "cache.h"
 #include "sys.h"
 #include "system.h"
 #include "soc.h"
@@ -79,34 +80,53 @@ static void rtc_domain_reset(void)
     REG_FIELD(0x60008110, 10, 15, 0);                                     /* touch pad map empty */
 }
 
+static uint64_t boot_t0, boot_t1;             /* system timer (16 MHz, counts from chip reset) at entry / at main */
+void sys_boot_times(uint32_t *rom_us, uint32_t *init_us)
+{
+    if (rom_us) *rom_us = (uint32_t)(boot_t0 / 16);
+    if (init_us) *init_us = (uint32_t)((boot_t1 - boot_t0) / 16);
+}
+
 void sys_start0(void)
 {
+    uint64_t t0 = time_ticks();                 /* first thing: ROM boot + image load ends here */
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
+    boot_t0 = t0;
+#if NDF_BOOT_ROM_LOG_OFF
+    REG_SET(RTC_BASE + 0xC0, BIT(0) | BIT(16));   /* RTC_CNTL_STORE4: ROM skips its boot log on the next reset (no eFuse; power-on clears it) */
+#endif
 #if NDF_BOOT_WDT_OFF
     wdt_off();
 #endif
 #if NDF_BOOT_RTC_RESET
     rtc_domain_reset();
 #endif
-    clk_bbpll_init();
-    clk_cpu_set_mhz(NDF_CPU_MHZ);
+    if (!NDF_BOOT_LOAD_ADDR || clk_cpu_sync() != NDF_CPU_MHZ * 1000000u) {   /* the fast-boot loader already did it */
+        clk_bbpll_init();
+        clk_cpu_set_mhz(NDF_CPU_MHZ);
+    }
+#if NDF_XIP
+    cache_xip_init();                       /* before any code in flash runs */
+#endif
     periph_enable(PERIPH_SYSTIMER);
     console_init();
     irq_enable_all();                       /* individual sources stay off until attached */
 #if NDF_BOOT_BANNER
     sys_print_info();
 #endif
+    boot_t1 = time_ticks();
     main();
     for (;;) {}
 }
 
 extern char _text_end[], _stack0_top[], _stack1_top[];
 #define TEXT_LO 0x40378000u
-#define I2D(a)  ((const volatile uint8_t *)((a) - 0x6F0000))  /* IRAM code read through the DRAM alias */
+#define I2D(a)  ((const volatile uint8_t *)((a) >= 0x42000000u ? (a) - 0x06000000u   /* flash code via the data bus */ \
+                                                                 : (a) - 0x6F0000))     /* IRAM code via the DRAM alias */
 
 static bool is_ret_addr(uint32_t w)                 /* w follows a call0 / callx0 in our code */
 {
-    if (w < TEXT_LO + 3 || w >= (uint32_t)_text_end) return false;
+    if (!cache_is_code_addr(w - 3)) return false;
     const volatile uint8_t *i = I2D(w - 3);
     return (i[0] & 0x3F) == 0x05 || (i[0] == 0xC0 && !(i[1] & 0xF0) && !i[2]);
 }

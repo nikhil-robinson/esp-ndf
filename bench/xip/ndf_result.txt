@@ -1,0 +1,6 @@
+xip_test active 1, 64 kernels, flash code 23792 bytes
+PASS results RAM a2ed6cda flash a2ed6cda
+cycles per call: RAM 142, flash warm 142, flash cold 3515
+PASS rodata: "read-only data, read through the data cache" at 0x3fc930a4
+PASS flash erase 0 write 0 readback ok in 49715 us; core 1: 2632 runs, 0 during the flash operation, bad 0
+xip_test done

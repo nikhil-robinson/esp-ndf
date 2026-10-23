@@ -37,12 +37,29 @@
 #define NDF_CONSOLE_RX_PIN      44
 #endif
 
+/* ---- code from flash (build option XIP in app.mk; the Makefile passes these) ---------------------------- */
+#define NDF_XIP_OFF             0       /* everything in internal RAM */
+#define NDF_XIP_LIB             1       /* libraries that never run in interrupts or flash operations in flash */
+#define NDF_XIP_ALL             2       /* also the application and the storage stacks */
+#ifndef NDF_XIP
+#define NDF_XIP                 NDF_XIP_LIB
+#endif
+#ifndef NDF_XIP_ADDR
+#define NDF_XIP_ADDR            0x300000
+#endif
+#ifndef NDF_ICACHE_KB
+#define NDF_ICACHE_KB           32      /* 16 or 32: instruction cache (SRAM0 0x40370000.., below the image) */
+#endif
+
 /* ---- UART driver ------------------------------------------------------------ */
 #ifndef NDF_UART_RING
 #define NDF_UART_RING           2048    /* software ring per direction and port, power of 2 */
 #endif
 
 /* ---- boot ------------------------------------------------------------------- */
+#ifndef NDF_BOOT_ROM_LOG_OFF
+#define NDF_BOOT_ROM_LOG_OFF    1       /* ROM boot log off for resets after the first boot (RTC flag, not an eFuse) */
+#endif
 #ifndef NDF_BOOT_BANNER
 #define NDF_BOOT_BANNER         0       /* 1: print chip/flash/clock/reset info before main() */
 #endif

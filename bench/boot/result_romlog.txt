@@ -1,0 +1,6 @@
+ndf XIP=off run 1: ok reset -> main 16323 us (cal 105441)
+ndf XIP=off run 2: ok reset -> main 16315 us (cal 105685)
+ndf XIP=off run 3: ok reset -> main 16322 us (cal 105859)
+ndf XIP=lib run 1: ok reset -> main 15942 us (cal 105407)
+ndf XIP=lib run 2: ok reset -> main 15938 us (cal 105685)
+ndf XIP=lib run 3: ok reset -> main 15947 us (cal 105790)

@@ -137,6 +137,8 @@ class Config:
             return True, ''
         if isinstance(dep, tuple):
             k, v = dep
+            if isinstance(v, str) and v.startswith('!'):        # ('KEY', '!value'): any value but that one
+                return self.opts[k].value != v[1:], 'needs %s != %s' % (k, v[1:])
             return self.opts[k].value == v, 'needs %s = %s' % (k, v)
         return bool(self.opts[dep].value), 'needs %s' % dep
 

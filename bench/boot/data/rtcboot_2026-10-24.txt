@@ -1,0 +1,7 @@
+# examples/boot_time, C9:48 devkit, RTC boot stage (ROM-free warm boot), reset -> main (RTC timer, bench/boot/rtc_boot.h)
+XIP=off run 1..5: 818 814 815 809 817 us (system timer at app entry 779 us, app init 19 us)
+XIP=lib run 1..3: 860 854 854 us
+BOOT_TRACE split (XIP=off, trace adds ~100 us): stage entry 14.9 us, clock done 87 us, QIO decided 97 us, jump 886 us
+steps: stage ran from RTC slow memory 4.6 ms -> copied to IRAM 3.8 ms -> run from RTC fast memory 1.30 ms
+       -> skip BBPLL calibration on warm reset 1.05 ms -> skip core-voltage step 0.92 ms (trace) / 0.81 ms
+esptool chip_id after: connects (cause 21 handed to the ROM)

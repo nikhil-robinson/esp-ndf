@@ -21,5 +21,6 @@ void     periph_reset(periph_t p);       /* pulse reset, keep clock */
 /* CPU: 240/160/80 (PLL) or 40 (XTAL). APB stays 80 MHz on PLL, = CPU on XTAL. */
 int      clk_cpu_set_mhz(uint32_t mhz);
 uint32_t clk_cpu_hz(void);
+uint32_t clk_cpu_sync(void);             /* re-read the CPU clock from the hardware (after a boot loader set it) */
 uint32_t clk_apb_hz(void);
 #define  CLK_XTAL_HZ  40000000u

@@ -4,6 +4,7 @@
  * flash_read: no RAM cost. Interrupt frames are crossed by recognising a
  * return into a level-n entry stub: the interrupted PC is EPCn and the
  * register frame sits at sp (layout of vectors.S SAVE). */
+#include "cache.h"
 #include "unwind.h"
 #include "flash.h"
 #include "ndf.h"
@@ -24,8 +25,8 @@ static bool find_table(void)
     if (tbl) return true;
     if (nfde == 0xFFFF) return false;    /* looked before: none */
     uint8_t h[24];
-    if (flash_read(0, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
-    uint32_t off = 24;
+    if (flash_read(NDF_BOOT_LOAD_ADDR, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
+    uint32_t off = NDF_BOOT_LOAD_ADDR + 24;   /* image start: 0x0, or the fast-boot load offset */
     for (int i = 0; i < h[1]; i++) {
         uint32_t seg[2];
         if (flash_read(off, seg, 8)) { nfde = 0xFFFF; return false; }
@@ -108,7 +109,7 @@ bool ndf_unwind(uint32_t pc, uint32_t sp, uint32_t a0, uint32_t a15, void (*emit
             else { if (!in_ram(cfa + best.ra_off, sp)) return true; ra = rd32(cfa + best.ra_off); }
             if (best.a15_off != IN_REG && in_ram(cfa + best.a15_off, sp)) a15 = rd32(cfa + best.a15_off);
         }
-        if (ra < TEXT_LO + 3 || ra >= (uint32_t)_text_end) return true;   /* bottom of the stack */
+        if (!cache_is_code_addr(ra - 3)) return true;                       /* bottom of the stack */
         pc = ra - 3;                     /* the call instruction */
         sp = cfa;
         a0_ok = false;

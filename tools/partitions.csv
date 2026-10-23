@@ -6,3 +6,4 @@ nvs_keys, data, nvs_keys, 0x97000, 0x1000
 nvs_enc,  data, nvs,     0x98000,  0x6000
 fat,      data, fat,     0x100000, 0x100000
 spiffs,   data, spiffs,  0x200000, 0x100000
+xip,      data, 0x40,    0x300000, 0x100000   # code from flash (XIP_ADDR / XIP_SIZE)

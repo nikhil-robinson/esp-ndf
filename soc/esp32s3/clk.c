@@ -41,6 +41,13 @@ void periph_reset(periph_t p)
 }
 
 uint32_t clk_cpu_hz(void) { return cpu_hz; }
+uint32_t clk_cpu_sync(void)                    /* cpu_hz from the hardware (a loader may have set the clock) */
+{
+    uint32_t sel = (REG(SYSTEM_SYSCLK_CONF) >> 10) & 3;
+    if (sel == 1) cpu_hz = (REG(SYSTEM_CPU_PER) & 3) == 2 ? 240000000u : (REG(SYSTEM_CPU_PER) & 3) == 1 ? 160000000u : 80000000u;
+    else if (sel == 0) cpu_hz = 40000000u / ((REG(SYSTEM_SYSCLK_CONF) & 0x3FF) + 1);
+    return cpu_hz;
+}
 uint32_t clk_apb_hz(void) { return cpu_hz >= 80000000 ? 80000000 : cpu_hz; }
 
 static void spin_us(uint32_t us)           /* cpu_hz must be current */

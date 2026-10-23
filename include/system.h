@@ -27,3 +27,5 @@ int         sys_reset_cause(int core);
 const char *sys_reset_cause_str(int cause);
 void        sys_print_info(void);          /* one-screen summary on the console */
 NORETURN void sys_restart(void);           /* full digital system reset (RTC domain kept) */
+/* boot time: chip reset -> our first instruction (ROM boot + image load), and our init until main() */
+void        sys_boot_times(uint32_t *rom_us, uint32_t *init_us);

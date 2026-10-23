@@ -13,3 +13,5 @@ int      flash_erase_sector(uint32_t addr);           /* addr rounded down to 4 
 int      flash_write(uint32_t addr, const void *buf, size_t len);   /* area must be erased */
 int      flash_read_lines(void);                       /* 2 = dual, 4 = quad (after first read) */
 bool     flash_cached(void);                           /* reads go through the data cache (fast path) */
+bool     flash_cache_map(void);                        /* map the whole flash through the MMU (used by cache.c) */
+/* With code from flash (NDF_XIP), erase/write pause flash code: call them from core 0 (core 1 is stalled meanwhile). */

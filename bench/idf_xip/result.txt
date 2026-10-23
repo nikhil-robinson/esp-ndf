@@ -1,0 +1,1 @@
+IDF magic 49584950 same 1 RAM 143 warm 3520 cold 3527 cycles/call; erase+write 57872 us err 0

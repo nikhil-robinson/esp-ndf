@@ -17,6 +17,7 @@
 #define READ_ONCE(x)      (*(const volatile __typeof__(x) *)&(x))
 #define WRITE_ONCE(x, v)  (*(volatile __typeof__(x) *)&(x) = (v))
 
-#define RAM_FN   __attribute__((section(".iram.text"), noinline))
+#define RAM_FN   __attribute__((section(".iram.text"), noinline))   /* always in internal RAM */
+#define FLASH_FN __attribute__((section(".flash.text"), noinline))  /* in flash (executed through the cache) when NDF_XIP != 0 */
 #define NORETURN __attribute__((noreturn))
 #define ALWAYS_INLINE static inline __attribute__((always_inline))

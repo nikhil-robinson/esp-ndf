@@ -30,6 +30,7 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
+| `NDF_BOOT_ROM_LOG_OFF`<br>ROM boot log off after first boot | ndf_config.h | `y` | y / n | Sets the RTC flag the ROM checks (RTC_CNTL_STORE4 bits 0/16, as IDF esp_rom_disable_logging): every reset after the first boot skips the ROM banner. No eFuse is burned; a power-on brings the log back. |
 | `NDF_BOOT_BANNER`<br>Print system banner | ndf_config.h | `n` | y / n | Before main(): chip revision, MAC, CPU/APB clocks, flash id/size/mode and read path, and the reset cause of each core. |
 | `NDF_BOOT_WDT_OFF`<br>Stop ROM watchdogs at boot | ndf_config.h | `y` | y / n | The ROM leaves the RTC and timer-group watchdogs armed. esp-ndf stops them; a watchdog driver is on the TODO list. |
 | `NDF_BOOT_RTC_RESET`<br>Reset RTC pads/touch at boot | ndf_config.h | `y` | y / n | The RTC domain survives resets: pads left in RTC mux and a running touch scanner would leak into the new boot. Pads under hold (rtcio_hold) are kept. |
@@ -38,6 +39,10 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
+| `XIP`<br>Code from flash (XIP) | app.mk | `lib` | `off` off: everything in internal RAM<br>`lib` libraries in flash<br>`all` libraries, application and storage in flash | Code in flash runs through the 32 KB instruction cache (deterministic only on cache hits). Drivers, interrupt paths, printf, string, heap, DSP kernels and the flash driver always stay in RAM. Mark a function RAM_FN to keep it in RAM, FLASH_FN to put it in flash. Level 4/5 handlers run during flash writes and must be in RAM. |
+| `XIP_ADDR`<br>Code blob flash offset | app.mk | `3145728` | 65536 – 15728640 | 64 KB aligned; the xip partition. make flash writes build/<app>/xip.bin there. |
+| `XIP_SIZE`<br>Code blob size limit | app.mk | `1048576` | 65536 – 8388608 | Build fails if the blob (code + read-only data in flash) is larger. |
+| `NDF_ICACHE_KB`<br>Instruction cache size | ndf_config.h | `32` | `32` 32 KB (SRAM0 fully)<br>`16` 16 KB | IDF default is 16 KB. The image starts at 0x40378000, so all 32 KB of SRAM0 are free for it. |
 | `STACK0_SIZE`<br>Core 0 stack (bytes) | app.mk | `16384` | 2048 – 131072 | Stack of main() and core 0 interrupt handlers. Reserved after .bss in internal RAM. |
 | `STACK1_SIZE`<br>Core 1 stack (bytes) | app.mk | `16384` | 1024 – 131072 | Stack of the function started with cpu1_start() and core 1 interrupt handlers. |
 

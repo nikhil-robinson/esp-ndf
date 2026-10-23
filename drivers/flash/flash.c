@@ -1,6 +1,7 @@
 /* SPI NOR via SPI1 user commands (TRM ch. 30, SPI_MEM). 1-bit transfers,
  * up to 64 data bytes per transaction through W0..W15. */
 #include "flash.h"
+#include "cache.h"
 #include "xtensa.h"
 #include "sys.h"
 #include <string.h>
@@ -130,10 +131,13 @@ static void mm_init(void)
 {
     detect_lines();
 #if SOC_HAS_FLASH_CACHE
-    if (read_lines == 4 && NDF_FLASH_READ == NDF_FLASH_READ_AUTO) {
-        REG(S0 + 0x08) = (REG(S0 + 0x08) & ~(BIT(14) | BIT(20) | BIT(23))) | BIT(13) | BIT(24);   /* QIO */
-        REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;                                         /* 6 dummy clocks */
-        REG(S0 + 0x20) = 7u << 28 | 0xEB;                                                       /* cache command */
+    bool quad = read_lines == 4;
+    if ((quad && NDF_FLASH_READ == NDF_FLASH_READ_AUTO) || NDF_XIP) {   /* code from flash needs the mapping in any mode */
+        if (quad) {
+            REG(S0 + 0x08) = (REG(S0 + 0x08) & ~(BIT(14) | BIT(20) | BIT(23))) | BIT(13) | BIT(24);   /* QIO */
+            REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;                                         /* 6 dummy clocks */
+            REG(S0 + 0x20) = 7u << 28 | 0xEB;                                                       /* cache command */
+        }                                                                                           /* else ROM's DIO */
         REG_CLR(DCACHE_CTRL, BIT(0));
         REG(DCACHE_CTRL) = (REG(DCACHE_CTRL) & ~(3u << 3)) | 2u << 3;                           /* 64-byte lines */
         uint32_t pages = flash_size() >> 16;
@@ -211,8 +215,10 @@ out:
 int flash_erase_sector(uint32_t addr)
 {
     if (addr >= 16u << 20) return -1;
-    if (wait_ready(10) || op(0x06, 0, 0, 0, 0, 0, 0) || op(0x20, 24, addr & ~(FLASH_SECTOR - 1), 0, 0, 0, 0)) return -1;
+    uint32_t g = cache_flash_op_begin();                      /* no code may run from flash meanwhile (XIP) */
+    if (wait_ready(10) || op(0x06, 0, 0, 0, 0, 0, 0) || op(0x20, 24, addr & ~(FLASH_SECTOR - 1), 0, 0, 0, 0)) { cache_flash_op_end(g, addr, FLASH_SECTOR); return -1; }
     int r = wait_ready(500);                                  /* datasheet max ~400 ms */
+    cache_flash_op_end(g, addr & ~(FLASH_SECTOR - 1), FLASH_SECTOR);
     if (mm > 0) dcache_invalidate_range(addr & ~(FLASH_SECTOR - 1), FLASH_SECTOR);   /* cached old contents */
     return r;
 }
@@ -222,16 +228,19 @@ int flash_write(uint32_t addr, const void *buf, size_t len)
     if (addr + len > 16u << 20) return -1;
     uint32_t a0 = addr; size_t l0 = len;
     const uint8_t *b = buf;
+    uint32_t g = cache_flash_op_begin();
     while (len) {
         /* stay inside one 256-byte page and one 64-byte transaction */
         size_t n = FLASH_PAGE - (addr & (FLASH_PAGE - 1));
         if (n > 64) n = 64;
         if (n > len) n = len;
-        if (op(0x06, 0, 0, 0, 0, 0, 0) || op(0x02, 24, addr, b, n, 0, 0) || wait_ready(10)) { if (mm > 0) dcache_invalidate_range(a0, l0); return -1; }
+        if (op(0x06, 0, 0, 0, 0, 0, 0) || op(0x02, 24, addr, b, n, 0, 0) || wait_ready(10)) { cache_flash_op_end(g, a0, l0); if (mm > 0) dcache_invalidate_range(a0, l0); return -1; }
         addr += n; b += n; len -= n;
     }
+    cache_flash_op_end(g, a0, l0);
     if (mm > 0) dcache_invalidate_range(a0, l0);
     return 0;
 }
 int flash_read_lines(void) { return read_lines; }
 bool flash_cached(void) { if (!mm) mm_init(); return mm > 0; }
+bool flash_cache_map(void) { return flash_cached(); }

@@ -49,6 +49,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              depends=('NDF_CONSOLE', 'NDF_CONSOLE_UART0'), help='-1: no input.'),
     ]),
     ('menu', 'Boot', [
+        dict(key='NDF_BOOT_ROM_LOG_OFF', type='bool', default=True, target='h', label='ROM boot log off after first boot',
+             help='Sets the RTC flag the ROM checks (RTC_CNTL_STORE4 bits 0/16, as IDF esp_rom_disable_logging): every '
+                  'reset after the first boot skips the ROM banner. No eFuse is burned; a power-on brings the log back.'),
         dict(key='NDF_BOOT_BANNER', type='bool', default=False, target='h', label='Print system banner',
              help='Before main(): chip revision, MAC, CPU/APB clocks, flash id/size/mode and read path, and the reset '
                   'cause of each core.'),
@@ -60,6 +63,19 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
                   'new boot. Pads under hold (rtcio_hold) are kept.'),
     ]),
     ('menu', 'Memory', [
+        dict(key='XIP', type='choice', default='lib', target='mk', label='Code from flash (XIP)',
+             choices=[('off', 'off: everything in internal RAM'), ('lib', 'libraries in flash'), ('all', 'libraries, application and storage in flash')],
+             help='Code in flash runs through the 32 KB instruction cache (deterministic only on cache hits). Drivers, '
+                  'interrupt paths, printf, string, heap, DSP kernels and the flash driver always stay in RAM. Mark a '
+                  'function RAM_FN to keep it in RAM, FLASH_FN to put it in flash. Level 4/5 handlers run during flash '
+                  'writes and must be in RAM.'),
+        dict(key='XIP_ADDR', type='int', default=0x300000, target='mk', label='Code blob flash offset', range=(0x10000, 0xF00000),
+             depends=('XIP', '!off'), help='64 KB aligned; the xip partition. make flash writes build/<app>/xip.bin there.'),
+        dict(key='XIP_SIZE', type='int', default=0x100000, target='mk', label='Code blob size limit', range=(0x10000, 0x800000),
+             depends=('XIP', '!off'), help='Build fails if the blob (code + read-only data in flash) is larger.'),
+        dict(key='NDF_ICACHE_KB', type='choice', default='32', target='h', label='Instruction cache size',
+             choices=[('32', '32 KB (SRAM0 fully)'), ('16', '16 KB')], depends=('XIP', '!off'),
+             help='IDF default is 16 KB. The image starts at 0x40378000, so all 32 KB of SRAM0 are free for it.'),
         dict(key='STACK0_SIZE', type='int', default=16384, target='mk', label='Core 0 stack (bytes)', range=(2048, 131072),
              help='Stack of main() and core 0 interrupt handlers. Reserved after .bss in internal RAM.'),
         dict(key='STACK1_SIZE', type='int', default=16384, target='mk', label='Core 1 stack (bytes)', range=(1024, 131072),

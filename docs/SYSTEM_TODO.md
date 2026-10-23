@@ -22,14 +22,14 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A6 Math library (libm, fast math) | partial |
 | | A7 Multi-core | partial |
 | | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **none** |
-| **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | partial |
+| **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
 | | B2 Memory map: RTC memory, PSRAM heap, capabilities | partial |
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
 | | B4 GDMA | partial |
 | | B5 Memory protection (PMS), World Controller | **none** |
 | **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | partial |
 | | C2 Reset, restart, reset causes | done |
-| | C3 Boot: 2nd-stage loader, app partitions, OTA | **none** |
+| | C3 Boot: 2nd-stage loader, app partitions, OTA | partial: fast-boot loader + ROM-free warm boot (0.81 ms) done, OTA open |
 | | C4 Interrupt matrix | done |
 | | C5 System timer, timer groups, software timers | done |
 | | C6 Watchdogs (RTC, super, TG1, XTAL32K) | partial: TG0 only |
