@@ -67,8 +67,8 @@ documented instruction cookbook (measured cycle counts, alignment rules, the S3 
 - FIR (int16/float, any length), decimating FIR as a general API, IIR biquad (DF1/DF2), cascades
 - vector math: mul, scale, MAC, abs, clip, min/max, sum (int8/int16/float)
 - matrix: add, mul (int8/int16/float, any shape), transpose
-- convolution / correlation, moving average, peak detection
-- Reference: `espressif__esp-dsp/modules/` (fft, fir, iir, dotprod, math, matrix, conv).
+- convolution / correlation, DCT, Kalman filter (ESP-DSP has an EKF for IMU fusion), moving average, peak detection
+- Reference: `espressif__esp-dsp/modules/` (fft, fir, iir, dotprod, math, matrix, conv, dct, kalman, windows).
 
 **A5 AI / NN library — none.** An ESP-NN equivalent on PIE, benchmarked layer by layer against ESP-NN on the same
 shapes:
