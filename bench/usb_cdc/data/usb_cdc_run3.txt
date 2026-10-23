@@ -1,0 +1,16 @@
+ok
+CDC device: /dev/serial/by-id/usb-esp-ndf_esp-ndf_CDC-ACM_0001-if00 after 0.60 s
+echo 372 bytes: OK
+download 3584 bytes in 10.011 s = 0 KB/s, pattern FAIL
+upload stage failed: device reports readiness to read but returned no data (device disconnected or multiple access on port?)
+USB Serial/JTAG back: True
+device: ESP-ROM:esp32s3-20210327
+device: Build:Mar 27 2021
+device: rst:0x15 (USB_UART_CHIP_RESET),boot:0x9 (SPI_FAST_FLASH_BOOT)
+device: Saved PC:0x40379802
+device: SPIWP:0xee
+device: mode:DIO, clock div:1
+device: load:0x3fc8d870,len:0x7d0
+device: load:0x40378000,len:0x5870
+device: entry 0x40378810
+device: usb_cdc ready

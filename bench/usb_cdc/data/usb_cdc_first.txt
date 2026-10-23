@@ -1,0 +1,18 @@
+otg: PHY to OTG for 25 s
+CDC device: /dev/serial/by-id/usb-esp-ndf_esp-ndf_CDC-ACM_0001-if00 after 0.60 s
+echo 380 bytes: FAIL (380 back)
+download 3263 bytes in 10.009 s = 0 KB/s, pattern FAIL
+Traceback (most recent call last):
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 621, in write
+    n = os.write(self.fd, d)
+OSError: [Errno 5] Input/output error
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nikhil/esp-ndf/tools/usb_cdc_test.py", line 36, in <module>
+    t = time.time(); p.write(b'U' + struct.pack('<I', NBYTES)); p.write(pat[:NBYTES]); r = p.read(8); dt = time.time() - t
+                                                                ~~~~~~~^^^^^^^^^^^^^^
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 655, in write
+    raise SerialException('write failed: {}'.format(e))
+serial.serialutil.SerialException: write failed: [Errno 5] Input/output error

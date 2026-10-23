@@ -1,0 +1,20 @@
+ok
+CDC device: /dev/serial/by-id/usb-esp-ndf_esp-ndf_CDC-ACM_0001-if00 after 0.60 s
+echo 380 bytes: FAIL (380 back)
+   sent b' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFG' 
+   back b' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFG'
+download 2048 bytes in 10.010 s = 0 KB/s, pattern FAIL
+Traceback (most recent call last):
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 621, in write
+    n = os.write(self.fd, d)
+OSError: [Errno 19] No such device
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nikhil/esp-ndf/tools/usb_cdc_test.py", line 46, in <module>
+    t = time.time(); p.write(b'U' + struct.pack('<I', NBYTES)); p.write(pat[:NBYTES]); r = p.read(8); dt = time.time() - t
+                                                                ~~~~~~~^^^^^^^^^^^^^^
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 655, in write
+    raise SerialException('write failed: {}'.format(e))
+serial.serialutil.SerialException: write failed: [Errno 19] No such device
