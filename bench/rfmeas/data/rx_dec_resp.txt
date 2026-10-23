@@ -1,0 +1,28 @@
+decim 8 (2 MS/s, 48 taps) deccap rc 0 us 1216 late 0:
+     100 kHz  measured    0.0  theory    0.0 dB
+     300 kHz  measured    1.6  theory   -0.2 dB
+     500 kHz  measured    0.2  theory   -1.5 dB
+     600 kHz  measured   -2.7  theory   -2.8 dB
+     750 kHz  measured   -5.4  theory   -6.0 dB
+     900 kHz  measured  -11.9  theory  -11.3 dB
+    1100 kHz  measured  -23.9  theory  -23.0 dB
+    1300 kHz  measured  -51.7  theory  -50.2 dB
+    1500 kHz  measured  -59.5  theory  -59.8 dB
+    2300 kHz  measured  -57.7  theory  -82.8 dB
+    3300 kHz  measured  -58.6  theory  -75.8 dB
+    5300 kHz  measured  -61.6  theory  -74.0 dB
+decim 16 (1 MS/s, 128 taps) deccap rc 0 us 1393 late 0:
+     100 kHz  measured    0.0  theory    0.0 dB
+     200 kHz  measured    0.7  theory   -0.2 dB
+     300 kHz  measured    0.2  theory   -2.0 dB
+     400 kHz  measured   -4.6  theory   -8.1 dB
+     500 kHz  measured  -16.5  theory  -21.9 dB
+     650 kHz  measured  -23.4  theory  -52.4 dB
+     800 kHz  measured  -43.6  theory  -79.0 dB
+    1150 kHz  measured  -26.6  theory  -68.5 dB
+    1300 kHz  measured  -40.3  theory  -78.2 dB
+    2300 kHz  measured  -35.6  theory  -87.2 dB
+    3300 kHz  measured  -49.4  theory  -93.8 dB
+    5300 kHz  measured  -32.4  theory -103.9 dB
+long run decim 8, 400000 samples: deccap rc 0 us 201142 late 1
+long run decim 16, 400000 samples: deccap rc 0 us 401261 late 1

@@ -1,0 +1,7 @@
+default                                                      68 |  29 last 94000001 resets 29
+default                                                      74 |  26 last 99000001 resets 26
+default                                                      73 |  27 last 95000001 resets 27
+rate 2 20 windows good: [16, 17, 17, 18, 18, 17, 16, 18, 18, 17, 16, 18, 18, 17, 17, 18, 18, 18, 17, 17] resets 3
+rate 2 6 s window: ['rx events 0 isr 347 aborts 0 intstat 00000000 intraw 00000011 nosync 11 last bb0000c1 resets 11', 'rx rc 0 good 336 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -66']
+rate 3 20 windows good: [42, 49, 49, 47, 49, 50, 49, 47, 42, 50, 48, 40, 42, 51, 49, 46, 49, 44, 50, 47] resets 4
+rate 3 6 s window: ['rx events 0 isr 946 aborts 0 intstat 00000000 intraw 00000011 nosync 7 last 750000c1 resets 7', 'rx rc 0 good 939 crcbad 0 crcbad_dataok 0 wrong 0 len 255 hdr 5a rssi -66']

@@ -1,0 +1,4 @@
+default                                                      0 |  92 last 98000001
+wd 10                                                        0 |  1 last 9d000001
+wd 5                                                         0 |  1 last 9d000001
+wd 15                                                        0 |  1 last 94000001

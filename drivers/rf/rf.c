@@ -9,6 +9,7 @@
 #include "tsens.h"
 #include "sys.h"
 #include "xtensa.h"
+#include "dsp.h"
 #include <string.h>
 #include <math.h>
 
@@ -377,6 +378,73 @@ int rf_rx_capture_trigger(int rate, int fmt, int level, uint32_t pre, uint32_t n
     if (!c.triggered) return RF_ERR_TIMEOUT;
     if (first) *first = c.pos >= n ? c.pos % n : 0;
     if (trig) *trig = c.trig_at;
+    return rc ? RF_ERR_TIMEOUT : RF_OK;
+}
+
+/* Decimating channel filter on the 16 MS/s stream (rf.h rf_rx_capture_dec): Hamming-window FIR (48 taps at D 8, 128 at
+ * D 16: what fits the ~15 cycles per input sample at 16 MS/s), computed only at the output points. D = 8 or 16 keeps every window 16-byte aligned. */
+#define DEC_CH 1024u                                   /* input samples per filter pass */
+typedef struct {
+    int16_t bi[128 + DEC_CH] __attribute__((aligned(16))), bq[128 + DEC_CH] __attribute__((aligned(16)));
+    int16_t h[128] __attribute__((aligned(16)));
+    uint32_t T, D, fill, n, pos;
+    int16_t *dst;
+} dec_t;
+static dec_t dec;
+static void dec_taps(dec_t *d)
+{
+    float fc = 0.75f / (float)d->D / 2, sum = 0, t[128];   /* cutoff (-6 dB) at 0.75 x the output Nyquist */
+    for (uint32_t k = 0; k < d->T; k++) {
+        float x = (float)k - (float)(d->T - 1) / 2;
+        float s = x == 0 ? 2 * fc : sinf(2 * 3.14159265f * fc * x) / (3.14159265f * x);
+        t[k] = s * (0.54f - 0.46f * cosf(2 * 3.14159265f * (float)k / (float)(d->T - 1))); sum += t[k];
+    }
+    for (uint32_t k = 0; k < d->T; k++) d->h[k] = (int16_t)lrintf(t[k] / sum * 32767);   /* unity DC gain, Q15 */
+}
+static int dec_seg(dec_t *d, const uint32_t *a, uint32_t na)
+{
+    for (uint32_t k = 0; k < na; ) {
+        uint32_t m = DEC_CH - d->fill < na - k ? DEC_CH - d->fill : na - k;
+        int16_t *pi = d->bi + d->T + d->fill, *pq = d->bq + d->T + d->fill;
+        if (!(((uint32_t)(a + k) | (uint32_t)pi | (uint32_t)pq) & 15) && !(m & 7)) dsp_unpack_iq10(a + k, pi, pq, (int)m);
+        else for (uint32_t j = 0; j < m; j++) { uint32_t w = a[k + j]; pi[j] = (int16_t)((int32_t)(w << 22) >> 22); pq[j] = (int16_t)((int32_t)(w << 12) >> 22); }
+        k += m; d->fill += m;
+        if (d->fill < DEC_CH) break;
+        for (uint32_t e = d->D; e <= DEC_CH; e += d->D) {             /* window [e, e + T) ends at a decimation point */
+            int32_t r[2]; dsp_dot2_s16(d->bi + e, d->bq + e, d->h, (int)d->T, r);
+            d->dst[2 * d->pos] = (int16_t)(r[0] >> 15); d->dst[2 * d->pos + 1] = (int16_t)(-(r[1] >> 15));   /* raw Q is inverted */
+            if (++d->pos >= d->n) return 1;
+        }
+        memcpy(d->bi, d->bi + DEC_CH, d->T * 2); memcpy(d->bq, d->bq + DEC_CH, d->T * 2);
+        d->fill = 0;
+    }
+    return 0;
+}
+static int dec_cb(const uint32_t *a, uint32_t na, const uint32_t *b, uint32_t nb, void *ctx)
+{
+    return dec_seg(ctx, a, na) || dec_seg(ctx, b, nb);
+}
+uint32_t rf_dec_bench(uint32_t decim, const uint32_t *in, uint32_t n_in, int16_t *dst, uint32_t n_out)   /* bench: cycles for n_in samples */
+{
+    dec_t *d = &dec;
+    if (d->D != decim) { d->D = decim; d->T = decim == 8 ? 48 : 128; dec_taps(d); }
+    d->fill = 0; d->pos = 0; d->n = n_out; d->dst = dst;
+    uint32_t t0 = ccount(); dec_seg(d, in, n_in); return ccount() - t0;
+}
+int rf_rx_capture_dec(uint32_t decim, uint32_t n, int16_t *dst)
+{
+    if (state != RF_STATE_RX) return RF_ERR_STATE;
+    if ((decim != 8 && decim != 16) || !n || !dst) return RF_ERR_RANGE;
+    dec_t *d = &dec;
+    if (d->D != decim) { d->D = decim; d->T = decim == 8 ? 48 : 128; dec_taps(d); }
+    memset(d->bi, 0, sizeof d->bi); memset(d->bq, 0, sizeof d->bq);
+    d->fill = 0; d->pos = 0; d->n = n; d->dst = dst;
+    rf_stream_stats_t st;
+    uint32_t ps = irq_lock();
+    int rc = rf_stream(RF_DUMP_16M, 0xFFFFFFFFu, dec_cb, d, &st);
+    irq_unlock(ps);
+    rf_cap_last_rc = rc; rf_cap_last_late = st.late_max; rf_cap_last_units = st.units;
+    if ((uint32_t)dst >= 0x3D000000u && (uint32_t)dst < 0x3E000000u) { extern void psram_writeback(void *p, size_t n); psram_writeback(dst, n * 4); }
     return rc ? RF_ERR_TIMEOUT : RF_OK;
 }
 

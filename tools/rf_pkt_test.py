@@ -30,8 +30,10 @@ for txf, rxf, expect in ((1, 1, 'good'), (1, 0, 'crcbad'), (0, 1, 'good')):
     elif expect == 'good': ok = r['good'] > 50 and r['wrong'] == 0
     else: ok = r['good'] == 0 and r['crcbad_dataok'] > 50
     check('CRC flag tx %d rx %d (1 = CRC off) -> %s' % (txf, rxf, expect), ok, '%s | %s' % (t, r))
-tx = rfhost.Board(rfhost.D0)
-check('whitening off refused (not supported yet)', tx.cmd('send 2440 0 0x71764129 2 37 0')[0] == 'send rc -2')
+t, r = link(2440, 0, '0x71764129', 37, 3, 3)                   # whitening + CRC off on both: literal frame round-trips
+check('whitening off both ends: header / length literal', r['good'] > 50 and r['hdr'] == 0x5A and r['len'] == 37, '%s | %s' % (t, r))
+t, r = link(2440, 0, '0x71764129', 37, 3, 1)                   # off on TX only: RX dewhitens literal bytes -> 0x5A ^ 0x19
+check('whitening off TX only: header arrives as 0x43', r['good'] > 50 and r['hdr'] == 0x43, '%s | %s' % (t, r))
 tx = rfhost.Board(rfhost.D0)
 check('send at 2500 MHz denied', tx.cmd('send 2500 0 0x71764129 0 37 0')[0].startswith('send rc -2'), '(range)')
 tx.cmd('limits 2400000 2420000')

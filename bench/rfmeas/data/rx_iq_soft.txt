@@ -1,0 +1,3 @@
+2404 MHz: peak 221  image rejection raw 51.2  blind 58.0  tone-beta 347.7 dB  (|beta| 0.0028 arg -92.2 deg)
+2440 MHz: peak 198  image rejection raw 44.6  blind 39.8  tone-beta 320.2 dB  (|beta| 0.0059 arg 76.9 deg)
+2478 MHz: peak 177  image rejection raw 42.0  blind 54.1  tone-beta 335.4 dB  (|beta| 0.0079 arg -83.2 deg)

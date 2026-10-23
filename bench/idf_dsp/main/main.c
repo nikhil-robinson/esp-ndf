@@ -39,5 +39,20 @@ void app_main(void)
         t = TIME(memcpy(dst, src, sizeof src));
         if (k) printf("  memcpy (newlib/ROM) 16 KB:                  %lu (%lu MB/s)\n", t, 16384u * 240 / t);
     }
+    /* decimating FIR (sibling of rf_rx_capture_dec): I and Q as two dsps_fird_s16 instances, 4096 inputs */
+    static int16_t ii[4096] __attribute__((aligned(16))), qq[4096] __attribute__((aligned(16))), oi[512], oq[512];
+    static int16_t h[128] __attribute__((aligned(16))), dli[128 + 16] __attribute__((aligned(16))), dlq[128 + 16] __attribute__((aligned(16)));
+    for (int i = 0; i < 4096; i++) { x = x * 1103515245u + 12345u; ii[i] = (int16_t)(x >> 22); x = x * 1103515245u + 12345u; qq[i] = (int16_t)(x >> 22); }
+    for (int i = 0; i < 128; i++) h[i] = 256;
+    static const int cfg[2][2] = { { 8, 48 }, { 16, 128 } };
+    for (int c = 0; c < 2; c++) {
+        fir_s16_t fi, fq; int D = cfg[c][0], T = cfg[c][1];
+        dsps_fird_init_s16(&fi, h, dli, T, D, 0, 15); dsps_fird_init_s16(&fq, h, dlq, T, D, 0, 15);
+        for (int k = 0; k < 2; k++) {
+            t = TIME({ dsps_fird_s16(&fi, ii, oi, 4096); dsps_fird_s16(&fq, qq, oq, 4096);   /* len = input samples */ });
+            if (k) printf("  dsps_fird_s16 I+Q decim %d, %d taps: %.2f cycles/input sample (filter only, int16 input)\n", D, T, t / 4096.0);
+        }
+        dsps_fird_s16_aexx_free(&fi); dsps_fird_s16_aexx_free(&fq);
+    }
     printf("=== done ===\n");
 }

@@ -1,0 +1,13 @@
+wr 0x60026018 8;wr 0x60026018 0;bleinit 0x30 before [4, 0, 0] | ['wr', 'wr', 'bleinit 0'] | after [11, 0, 0, 0]
+wr 0x60026018 512;wr 0x60026018 0;bleinit 0x30 before [17, 18, 17, 14, 0, 0] | ['wr', 'wr', 'bleinit 0'] | after [17, 17, 17, 17]
+wr 0x60026018 1024;wr 0x60026018 0;bleinit 0x30 before [16, 3, 0, 0] | ['wr', 'wr', 'bleinit 0'] | after [0, 0, 0, 0]
+Traceback (most recent call last):
+  File "/home/nikhil/esp-ndf/tools/../bench/rfmeas/coded_revive.py", line 11, in <module>
+    out = [o for a in act.split(';') for o in rx.cmd(a, timeout=30)]
+                                              ~~~~~~^^^^^^^^^^^^^^^
+  File "/home/nikhil/esp-ndf/tools/rfhost.py", line 41, in cmd
+    raise TimeoutError(line)
+TimeoutError: wr 0x60026018 2048
+bit 11 (RW_BTMAC_REG_RST): serial timeout, CPU hang
+wr 0x60026018 512;wr 0x60026018 0;bleinit 0x20 before [5, 0, 0] | ['wr', 'wr', 'bleinit 0'] | after [17, 5, 0, 0]
+wr 0x60026018 512;wr 0x60026018 0;bleinit 0x30 before [16, 0, 0] | ['wr', 'wr', 'bleinit 0'] | after [18, 17, 17, 17]

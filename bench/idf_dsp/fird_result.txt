@@ -1,0 +1,9 @@
+=== ESP-DSP on the same sizes (cycles per call) ===
+  dsps_dotprod_s16 x1024 (int16 out, shift 15): 1072
+  dsps_add_s16 x1024:                          554
+  dsps_dotprod_f32 x1024:                      1582
+  dsps_memcpy 16 KB:                          2083 (1887 MB/s)
+  memcpy (newlib/ROM) 16 KB:                  10274 (382 MB/s)
+  dsps_fird_s16 I+Q decim 8, 48 taps: 149.54 cycles/input sample (filter only, int16 input)
+  dsps_fird_s16 I+Q decim 16, 128 taps: 134.82 cycles/input sample (filter only, int16 input)
+=== done ===

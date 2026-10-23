@@ -1,0 +1,6 @@
+2404 B +3 MHz: raw 43.8  beta(A) 47.1  blind(A) 49.9 dB
+2404 C +5 MHz: raw 38.9  beta(A) 38.4  blind(A) 37.6 dB
+2440 B +3 MHz: raw 30.4  beta(A) 26.8  blind(A) 30.3 dB
+2440 C +5 MHz: raw 34.1  beta(A) 44.2  blind(A) 34.8 dB
+2478 B +3 MHz: raw 42.5  beta(A) 39.1  blind(A) 57.1 dB
+2478 C +5 MHz: raw 42.9  beta(A) 39.5  blind(A) 55.8 dB

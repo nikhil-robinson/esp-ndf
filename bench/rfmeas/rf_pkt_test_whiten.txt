@@ -1,0 +1,21 @@
+PASS 2402 MHz rate 0 sync 0x71764129 len 37  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 1394, 'crcbad': 5, 'crcbad_dataok': 0, 'wrong': 0, 'len': 37, 'hdr': 90, 'rssi': -66}
+PASS 2420 MHz rate 0 sync 0x8E89BED6 len 100  send rc 0 packets/s 736 cpu 0.000% | {'rc': 0, 'good': 883, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -66}
+FAIL 2460 MHz rate 0 sync 0x71764129 len 200  send rc 0 packets/s 463 cpu 0.000% | {'rc': 0, 'good': 457, 'crcbad': 85, 'crcbad_dataok': 1, 'wrong': 0, 'len': 200, 'hdr': 90, 'rssi': -66}
+PASS 2480 MHz rate 0 sync 0x71764129 len 255  send rc 0 packets/s 384 cpu 0.000% | {'rc': 0, 'good': 456, 'crcbad': 5, 'crcbad_dataok': 0, 'wrong': 0, 'len': 255, 'hdr': 90, 'rssi': -67}
+PASS 2426 MHz rate 1 sync 0x71764129 len 255  send rc 0 packets/s 655 cpu 0.000% | {'rc': 0, 'good': 776, 'crcbad': 9, 'crcbad_dataok': 0, 'wrong': 0, 'len': 255, 'hdr': 90, 'rssi': -69}
+FAIL 2404 MHz rate 2 sync 0x71764129 len 100  send rc 0 packets/s 124 cpu 0.000% | {'rc': 0, 'good': 0, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 0, 'hdr': 0, 'rssi': 0}
+FAIL 2478 MHz rate 3 sync 0x71764129 len 255  send rc 0 packets/s 182 cpu 0.000% | {'rc': 0, 'good': 0, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 0, 'hdr': 0, 'rssi': 0}
+PASS 2440 MHz rate 0 sync 0x71764129 len 1  send rc 0 packets/s 1767 cpu 0.000% | {'rc': 0, 'good': 1414, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 1, 'hdr': 90, 'rssi': -64}
+PASS CRC flag tx 1 rx 1 (1 = CRC off) -> good  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 1404, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 37, 'hdr': 90, 'rssi': -65}
+PASS CRC flag tx 1 rx 0 (1 = CRC off) -> crcbad  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 0, 'crcbad': 1405, 'crcbad_dataok': 1405, 'wrong': 0, 'len': 0, 'hdr': 0, 'rssi': 0}
+PASS CRC flag tx 0 rx 1 (1 = CRC off) -> good  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 1405, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 37, 'hdr': 90, 'rssi': -65}
+PASS whitening off both ends: header / length literal  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 1405, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 1049, 'len': 37, 'hdr': 90, 'rssi': -65}
+PASS whitening off TX only: header arrives as 0x43  send rc 0 packets/s 1171 cpu 0.000% | {'rc': 0, 'good': 699, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 699, 'len': 73, 'hdr': 67, 'rssi': -64}
+PASS send at 2500 MHz denied  (range)
+PASS send at 2440 MHz outside limits denied  
+PASS counted send: 1000 x 100 B sent, >= 990 received  send rc 0 sent 1000 in 1360 ms | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -65
+PASS power index 14 (+1 dB) refused at the default 0 dB limit  
+PASS power index 3 (unusable) refused  
+=== 3 failures
+INFO sync 0x12345678 len 100: {'rc': 0, 'good': 882, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -66}
+INFO sync 0xA5A5F00F len 100: {'rc': 0, 'good': 883, 'crcbad': 0, 'crcbad_dataok': 0, 'wrong': 0, 'len': 100, 'hdr': 90, 'rssi': -65}

@@ -44,4 +44,14 @@ void dsp_set128(void *dst, const void *pattern16, size_t n)
     for (size_t i = 0; i < n / 4; i++) d[i] = p[i & 3];
 }
 
+void dsp_unpack_iq10(const uint32_t *in, int16_t *i, int16_t *q, int n)
+{
+    for (int k = 0; k < n; k++) { uint32_t w = in[k]; i[k] = (int16_t)((int32_t)(w << 22) >> 22); q[k] = (int16_t)((int32_t)(w << 12) >> 22); }
+}
+
+void dsp_dot2_s16(const int16_t *a, const int16_t *b, const int16_t *h, int n, int32_t out[2])
+{
+    out[0] = dsp_dot_s16(a, h, n); out[1] = dsp_dot_s16(b, h, n);
+}
+
 #endif

@@ -136,4 +136,146 @@ dsp_copy128u:
     ee.vst.128.ip q2, a2, 16
 1:
 2:  ret
+
+/* void dsp_unpack_iq10(const uint32_t *in, int16_t *i, int16_t *q, int n)
+ * RF dump words (I bits 9:0, Q bits 19:10, signed 10 bit) -> sign-extended int16 I and Q (raw Q, not negated).
+ * n multiple of 8, all pointers 16-byte aligned. Per 8 words: shift each 32-bit lane left then arithmetic right
+ * (EE.VSL.32 / EE.VSR.32 by SAR), then keep the low halves (EE.VUNZIP.16). */
+    .global dsp_unpack_iq10
+    .align 4
+dsp_unpack_iq10:
+    srli        a5, a5, 3
+    beqz        a5, 2f
+    wsr         a5, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a5, 1f
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q1, a2, 16
+    ssai        22
+    ee.vsl.32   q2, q0
+    ee.vsl.32   q3, q1
+    ee.vsr.32   q2, q2
+    ee.vsr.32   q3, q3
+    ee.vunzip.16 q2, q3
+    ee.vst.128.ip q2, a3, 16
+    ssai        12
+    ee.vsl.32   q4, q0
+    ee.vsl.32   q5, q1
+    ssai        22
+    ee.vsr.32   q4, q4
+    ee.vsr.32   q5, q5
+    ee.vunzip.16 q4, q5
+    ee.vst.128.ip q4, a4, 16
+1:
+2:  ret
+
+/* void dsp_dot2_s16(const int16_t *a, const int16_t *b, const int16_t *h, int n, int32_t out[2])
+ * out[0] = a.h, out[1] = b.h (40-bit accumulator, saturated to 32 bits). n multiple of 16, aligned.
+ * Straight-line 64-element blocks (8 vector MACs, loads one step ahead), then 16-element steps; n == 48 has its own straight-line path. */
+    .global dsp_dot2_s16
+    .align 4
+dsp_dot2_s16:
+    mov         a7, a4
+    movi        a10, 48
+    bne         a5, a10, 5f               /* n == 48: straight line, no loops */
+    movi        a10, 0
+    ee.zero.accx
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vmulas.s16.accx q2, q3
+    ee.srs.accx a11, a10, 0
+    s32i        a11, a6, 0
+    mov         a4, a7
+    ee.zero.accx
+    ee.vld.128.ip q0, a3, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a3, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a3, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vmulas.s16.accx q2, q3
+    ee.srs.accx a11, a10, 0
+    s32i        a11, a6, 4
+    ret
+5:
+    srli        a8, a5, 6                 /* 64-element blocks */
+    extui       a9, a5, 4, 2              /* remaining 16-element steps */
+    movi        a10, 0
+    ee.zero.accx
+    wsr         a8, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a8, 1f
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a2, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a2, 16, q0, q1
+    ee.vmulas.s16.accx q2, q3
+1:  wsr         a9, lbeg
+    loopnez     a9, 2f
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q2, a2, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx q0, q1
+    ee.vmulas.s16.accx q2, q3
+2:  ee.srs.accx a11, a10, 0
+    s32i        a11, a6, 0
+    mov         a4, a7
+    ee.zero.accx
+    wsr         a8, lbeg                  /* S3 quirk: LBEG must change (see Makefile) */
+    loopnez     a8, 3f
+    ee.vld.128.ip q0, a3, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a3, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a3, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vld.128.ip q1, a4, 16
+    ee.vmulas.s16.accx.ld.ip q0, a3, 16, q2, q3
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx.ld.ip q2, a3, 16, q0, q1
+    ee.vmulas.s16.accx q2, q3
+3:  wsr         a9, lbeg
+    loopnez     a9, 4f
+    ee.vld.128.ip q0, a3, 16
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q2, a3, 16
+    ee.vld.128.ip q3, a4, 16
+    ee.vmulas.s16.accx q0, q1
+    ee.vmulas.s16.accx q2, q3
+4:  ee.srs.accx a11, a10, 0
+    s32i        a11, a6, 4
+    ret
 #endif /* SOC_CPU_HAS_PIE */

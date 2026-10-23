@@ -23,10 +23,9 @@ static int setup(const rf_pkt_cfg_t *c, int8_t *ch)
 {
     if (rf_state() == RF_STATE_OFF) return RF_ERR_STATE;
     if (!c || c->rate > RF_PKT_500K || (*ch = chan_of(c->mhz)) < 0) return RF_ERR_RANGE;
-    if (c->flags & RF_PKT_WHITEN_OFF) return RF_ERR_RANGE;   /* no clean whitening switch found yet (docs/RF_API.md) */
     if (!ready) { if (ble_hw_init()) return RF_ERR_STATE; ready = 1; }
     rf_pkt_stop();
-    ble_hw_raw_flags = c->flags & RF_PKT_CRC_OFF;
+    ble_hw_raw_flags = c->flags & (RF_PKT_CRC_OFF | RF_PKT_WHITEN_OFF);
     return RF_OK;
 }
 
@@ -53,6 +52,8 @@ int rf_pkt_send(const rf_pkt_cfg_t *c, uint8_t hdr, const uint8_t *data, unsigne
 }
 
 static int rx_forced;
+static rf_pkt_cfg_t rx_cfg; static int8_t rx_ch; static int rx_agc;
+uint32_t rf_pkt_core_resets;                     /* coded-timeout recoveries (bench) */
 int rf_pkt_bench_forced;                         /* bench: forced front end for every rate */
 int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
 {
@@ -60,6 +61,7 @@ int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
     if (rc) return rc;
     if (gain > 127) return RF_ERR_RANGE;
     if (ble_hw_raw_rx((uint8_t)ch, c->rate, c->sync, c->crc_init)) return RF_ERR_RANGE;
+    rx_cfg = *c; rx_ch = ch; rx_agc = gain < 0 && !rf_pkt_bench_forced;
     if (rf_pkt_bench_forced) {                   /* bench only: forced front end (fixed gain code: usable only near one level, measured);
                                                   * the front end forced to receive (TX path off, gain code 127) takes every packet */
         rf_pbus_force_mode(1); rf_pbus_xpd_tx_off(); rf_pbus_xpd_rx_on(127);
@@ -72,13 +74,21 @@ int rf_pkt_rx_start(const rf_pkt_cfg_t *c, int gain)
     return RF_OK;
 }
 
+uint32_t rf_pkt_bench_wd_ms;                    /* bench: receive watchdog timeout (0 = off) */
 int rf_pkt_read(rf_pkt_t *p)
 {
     unsigned len;
+    if (rf_pkt_bench_wd_ms) ble_hw_raw_watchdog(rf_pkt_bench_wd_ms);
     uint64_t t;
     if (!ble_hw_raw_read3(p->data, sizeof p->data, &len, &p->status, &p->rssi, &p->hdr, &t)) return 0;
     p->time_us = t / 2;
     p->len = (uint8_t)len; p->ok = !(p->status & 0x0F);
+    if ((p->status & 1) && rx_agc && rx_cfg.rate >= RF_PKT_125K) {   /* coded window timeout with the AGC running: the
+                                                  * core never syncs again until reset (ble_hw_core_reset); reset, re-arm */
+        ble_hw_core_reset();
+        ble_hw_raw_rx((uint8_t)rx_ch, rx_cfg.rate, rx_cfg.sync, rx_cfg.crc_init);
+        rf_pkt_core_resets++;
+    }
     p->rssi = (int8_t)(p->rssi - RF_PKT_RSSI_OFFSET);    /* core value -> dBm on IDF's calibrated scale (measured offset) */
     return 1;
 }
@@ -102,7 +112,7 @@ void rf_pkt_stop(void)
     ble_hw_raw_stop();
     if (rx_forced == 1) { rf_pbus_mem_write(42, rf_pbus_mem_default(42)); rf_rx_gain(-1); }
     if (rx_forced == 2) rf_pbus_force_mode(0);
-    rx_forced = 0;
+    rx_forced = 0; rx_agc = 0;
 }
 
 int rf_pkt_sync_ok(uint32_t s)

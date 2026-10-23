@@ -1,0 +1,6 @@
+0 ['rx events 0 isr 340 aborts 0 intstat 00000000 intraw 00000011', 'rx intervals n 115 min 16115 max 16117 mean 16115.62 us', 'rx rc 0 good 116 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -65']
+   next 300 ms windows: [0, 0, 0, 0]
+1 ['rx events 0 isr 329 aborts 0 intstat 00000000 intraw 00000011', 'rx intervals n 30 min 16115 max 24175 mean 16384.23 us', 'rx rc 0 good 31 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -66']
+   next 300 ms windows: [0, 0, 0, 0]
+2 ['rx events 0 isr 326 aborts 0 intstat 00000000 intraw 00000011', 'rx intervals n 20 min 16115 max 24175 mean 18130.10 us', 'rx rc 0 good 21 crcbad 0 crcbad_dataok 0 wrong 0 len 100 hdr 5a rssi -65']
+   next 300 ms windows: [0, 0, 0, 0]

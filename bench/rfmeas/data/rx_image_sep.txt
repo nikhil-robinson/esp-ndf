@@ -1,0 +1,5 @@
+2404 MHz  separated: image gain 25 tone 20.0 image -27.9 rejection 47.9 dB  |  same LO: image gain 25 tone 20.9 image -19.0 rejection 39.9 dB
+2420 MHz  separated: image gain 25 tone 16.7 image -25.4 rejection 42.1 dB  |  same LO: image gain 25 tone 18.6 image -18.6 rejection 37.2 dB
+2440 MHz  separated: image gain 28 tone 12.3 image -27.2 rejection 39.5 dB  |  same LO: image gain 28 tone 15.3 image -20.5 rejection 35.9 dB
+2460 MHz  separated: image gain 34 tone 3.1 image -22.9 rejection 26.0 dB  |  same LO: image gain 34 tone 7.7 image -24.9 rejection 32.6 dB
+2478 MHz  separated: image gain 34 tone -5.7 image -25.0 rejection 19.2 dB  |  same LO: image gain 34 tone -7.9 image -23.2 rejection 15.3 dB

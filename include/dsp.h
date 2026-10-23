@@ -9,6 +9,8 @@
 #define DSP_ALIGN __attribute__((aligned(16)))
 
 int32_t dsp_dot_s16(const int16_t *a, const int16_t *b, int n);          /* n % 16 == 0 */
+void    dsp_unpack_iq10(const uint32_t *in, int16_t *i, int16_t *q, int n);   /* RF IQ words -> int16 I, raw Q; n % 8 == 0, aligned */
+void    dsp_dot2_s16(const int16_t *a, const int16_t *b, const int16_t *h, int n, int32_t out[2]);   /* a.h, b.h; n % 16 == 0 */
 void    dsp_add_s16_sat(int16_t *dst, const int16_t *a, const int16_t *b, int n);  /* n % 16 == 0 */
 void    dsp_copy128(void *dst, const void *src, size_t n);                /* n % 32 == 0 */
 float   dsp_dot_f32(const float *a, const float *b, int n);              /* n % 4 == 0 */

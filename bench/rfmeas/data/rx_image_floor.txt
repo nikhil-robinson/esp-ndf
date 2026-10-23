@@ -1,0 +1,3 @@
+2404 tone on: image gain 25 tone 22.9 image -25.5 rejection 48.4 dB | tone off: image gain 45 tone -24.4 image -21.6 rejection -2.8 dB
+2440 tone on: image gain 27 tone 24.1 image -22.6 rejection 46.7 dB | tone off: image gain 45 tone -24.3 image -26.0 rejection 1.7 dB
+2478 tone on: image gain 40 tone 26.0 image -17.6 rejection 43.6 dB | tone off: image gain 45 tone -29.5 image -24.0 rejection -5.5 dB

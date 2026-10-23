@@ -12,3 +12,5 @@ bench/idf_blescan/build*/
 bench/idf_blescan/sdkconfig
 bench/idf_blescan/sdkconfig.old
 bench/idf_rftrace/buildbt/
+build_*/
+managed_components/

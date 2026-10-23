@@ -1,0 +1,21 @@
+gfsk 500 kbit/s dev 125 len 8: gfsk 15520
+gfsk 500 kbit/s dev 250 len 8: gfsk 15520
+gfsk 250 kbit/s dev 62 len 2: gfsk 16160
+gfsk 250 kbit/s dev 125 len 2: gfsk 16160
+Traceback (most recent call last):
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 621, in write
+    n = os.write(self.fd, d)
+OSError: [Errno 5] Input/output error
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/nikhil/esp-ndf/tools/../bench/rfmeas/demod_modes.py", line 8, in <module>
+    print('gfsk %d kbit/s dev %d len %d:' % (rate, dev, ln), tx.cmd('gfsk 2440 %d %d %d 200 %d' % (rate, dev, ln, gap), timeout=30)[0], flush=True)
+                                                             ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nikhil/esp-ndf/tools/rfhost.py", line 28, in cmd
+    self.s.write((line + '\n').encode())
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/nikhil/.local/lib/python3.13/site-packages/serial/serialposix.py", line 655, in write
+    raise SerialException('write failed: {}'.format(e))
+serial.serialutil.SerialException: write failed: [Errno 5] Input/output error

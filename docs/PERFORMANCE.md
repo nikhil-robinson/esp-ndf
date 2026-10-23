@@ -282,6 +282,15 @@ All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 
 - **Why esp-ndf is faster:** IDF leaves the data cache at 32-byte lines; esp-ndf uses 64-byte lines.
 - **Headroom:** the 80 MHz DTR bus carries 160 MB/s raw.
 
+## Decimating channel filter, `rf_rx_capture_dec` (16 MS/s -> 2 / 1 MS/s)
+
+| | ours (`rf_rx_capture_dec`, incl. unpacking the RF words) | ESP-DSP `dsps_fird_s16` (aes3, I + Q, int16 input, filter only) |
+|---|---|---|
+| decim 8, 48 taps | **11.8 cycles / input sample** | 149.5 |
+| decim 16, 128 taps | **11.1** | 134.8 |
+
+12.7x / 12.1x faster (`bench/idf_dsp/fird_result.txt`, same board). ESP-DSP cannot keep up with the 16 MS/s stream (15 cycles per sample available); ours runs gapless for 1 M output samples into PSRAM. Pieces: PIE unpack `dsp_unpack_iq10` 2.14 cycles/sample (C: 9.01), fused I+Q dot `dsp_dot2_s16` (one call, straight-line 64- and 48-element blocks, verified bit-exact against `dsp_dot_s16`). Floor: unpack 2.1 + the MACs (2T/D per sample at 8 per vector instruction: 1.5 at decim 8) = ~3.6 cycles; the rest is 128-bit load latency and per-chunk overhead.
+
 ## 7. Power states (`rf_open` / `rf_close`, `rf_state`)
 
 State machine OFF → IDLE → RX / TX. Transition timing (one board, `rf_pkt` `ptime`):
@@ -315,4 +324,5 @@ Consolidated from the measured results across this work:
 - **RSSI:** AGC-corrected absolute dBm, offset −22 dB relative to the IDF scale.
 - **Raw PHYs:** 802.11 TX+RX through the Wi-Fi MAC (4.2), 802.15.4 O-QPSK by DAC waveform (4.3),
   correlator trigger on a known sync (4.4) — all verified on the two-board bench.
-- **Open:** coded-rate (S2/S8) receive catch rate varies 0–97 % per run; whitening-off not located.
+- RX image rejection, measured with D0's TX image moved out of the bin: 45–62 dB (was quoted 30–41 dB, TX image included); no RX IQ correction needed (a static software correction gains 0–2 dB at best; `bench/rfmeas/data/rx_iq_static.txt`).
+- Coded-rate (S2/S8) receive is now steady: a window timeout with the AGC running left the link-layer core unable to sync; a core reset (SYSCON bit 9) + reload after each such timeout fixes it. S8 16–18 per 300 ms window over 20 windows (was 0–19, dying after 1–10), S2 40–51; silence-first start 68–74 of 150 (was 0); 6 s window S8 336 / S2 939 good, 0 CRC-bad (`bench/rfmeas/data/coded_fix.txt`). Whitening-off found (RWBLECNTL bit 14).

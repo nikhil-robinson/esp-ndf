@@ -1,0 +1,7 @@
+0x6000607C = ffbd1f21
+gain   0 phase   0: image gain 28 tone 22.8 image -21.9 rejection 44.6 dB (reg f8001f21)
+gain   8 phase   0: image gain 28 tone 23.5 image -21.0 rejection 44.5 dB (reg f8081f21)
+gain  -8 phase   0: image gain 28 tone 23.7 image -21.0 rejection 44.8 dB (reg f8181f21)
+gain   0 phase  16: image gain 28 tone 23.7 image -22.9 rejection 46.6 dB (reg fa001f21)
+gain   0 phase -16: image gain 28 tone 24.0 image -20.8 rejection 44.8 dB (reg fe001f21)
+gain  15 phase  31: image gain 28 tone 24.1 image -22.6 rejection 46.7 dB (reg fbef1f21)

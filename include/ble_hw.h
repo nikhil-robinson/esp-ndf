@@ -20,6 +20,7 @@ typedef struct {
 } ble_hw_stats_t;
 
 int  ble_hw_init(void);                /* after rf_init_replay(); 0 on success */
+void ble_hw_core_reset(void);          /* core reset + reload (clears the coded-timeout no-sync state); raw engine stopped */
 void ble_hw_scan(uint8_t chan);        /* continuous passive scan on one advertising channel (37, 38, 39) */
 void ble_hw_stop(void);
 /* Advertise ADV_NONCONN_IND (AdvA + up to 31 bytes AdvData) from the core every interval_us on one channel. */

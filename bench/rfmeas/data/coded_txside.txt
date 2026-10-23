@@ -1,0 +1,6 @@
+rate 2, TX running ~1 s, fresh RX boot: [19, 9, 0]
+rate 2, TX running >7 s, fresh RX boot: [18, 18, 18]
+  tx stats: ['r 60031000 0018050f']
+rate 0, TX running ~1 s, fresh RX boot: [220, 0, 220]
+rate 0, TX running >7 s, fresh RX boot: [0, 221, 0]
+  tx stats: ['r 60031000 0018050f']

@@ -329,15 +329,16 @@ uint32_t ble_hw_rx_set_val32;
 uint8_t ble_hw_rx_libphy, ble_hw_rx_big = 1, ble_hw_rx_fmt = 3;   /* receive: format 0x03 takes up to 255 bytes; 2 own buffers */
 uint16_t ble_hw_rx_t18 = 0xE000;
 static unsigned raw_rx_n = RING_N;
-uint32_t ble_hw_raw_flags;                     /* bit 0: CRC off */
+uint32_t ble_hw_raw_flags;                     /* bit 0: CRC off, bit 1: whitening off */
 uint16_t ble_hw_tx_flip_off, ble_hw_tx_flip_bits;   /* bench: XOR into the send CS */
 /* RWBLECNTL on this core (measured, bench/rfmeas/rf_pkt_test.txt): bit 13 = CRC off (TX sends no valid CRC, RX ignores it),
+ * bit 14 = whitening off (header, length and payload sent / taken literally; bench/rfmeas/whiten_b14.txt),
  * bit 19 = the header byte's bits 2..4 are not rewritten (sequence numbers off), bit 9 = advertising filter (37-byte cap).
- * Bits 17 / 18 (whitening / CRC on other RW cores) change nothing here; bit 14 scrambles part of the frame (not a clean
- * whitening switch). */
+ * Bits 17 / 18 (whitening / CRC on other RW cores) change nothing here. */
 static void raw_flags(int tx)                 /* bit 19 on the receiver loses packets (measured): transmitter only */
 {
-    CORE(0x00) = (CORE(0x00) & ~(1u << 13 | 1u << 9 | 1u << 19)) | (ble_hw_raw_flags & 1u) << 13 | (tx ? 1u << 19 : 0);
+    CORE(0x00) = (CORE(0x00) & ~(1u << 13 | 1u << 14 | 1u << 9 | 1u << 19)) | (ble_hw_raw_flags & 1u) << 13 | (ble_hw_raw_flags & 2u) << 13
+                | (tx ? 1u << 19 : 0);
 }
 uint32_t ble_hw_raw_d0, ble_hw_raw_poke_off, ble_hw_raw_poke_or;   /* bench: extra bits before the next raw TX kick */
 static void raw_kick(void);
@@ -392,16 +393,21 @@ static void service(void)
     CORE(0x0C) = BLE_MASK;
 }
 
-int ble_hw_init(void)
+/* init steps: 1 LO table, 2 modem clocks / resets released, 4 coex grant, 8 BT sequencer, 16 modem, 32 EM + core */
+static void init_steps(uint32_t m)
 {
-    rf_freq_mem_load();                          /* per-MHz LO table the core tunes from */
+    if (m & 1) rf_freq_mem_load();               /* per-MHz LO table the core tunes from */
+    if (m & 2) {
     R32(0x60026014) = 0xFFFFDFDFu;               /* modem clocks incl. BT (SYSCON) */
     R32(0x60026018) = 0;
+    }
+    if (m & 4)
     for (unsigned k = 0; k < sizeof ble_vendor_phy / sizeof ble_vendor_phy[0]; k++) {
         uint32_t a = ble_vendor_phy[k].addr;     /* coex arbiter: grant the radio to BT (page 0; 3 mirrors) */
         if (a >= 0x60035000u && a < 0x60035400u && a != 0x60035000u && a != 0x6003507Cu) R32(a) = ble_vendor_phy[k].val;
     }
     /* BT baseband / analog-bus sequencer 0x6000E000: loaded while E0C4 bit 25 is held (libbtbb does the same) */
+    if (m & 8) {
     R32(0x6000E0C4) |= 1u << 25;
     uint32_t c4 = 0;
     for (unsigned k = 0; k < sizeof ble_vendor_phy / sizeof ble_vendor_phy[0]; k++) {
@@ -411,10 +417,13 @@ int ble_hw_init(void)
     }
     R32(0x600060FC) = (R32(0x600060FC) & 0xFFFF00FFu) | 0xC800u;
     R32(0x6000E0C4) = c4 & ~(1u << 25);
+    }
+    if (m & 16)
     for (int k = 0; k < 64; k++) {               /* 0x6C..0x88, 0xB0 are run-time state (captured mid-scan): leave them */
         if ((k >= 0x6C / 4 && k <= 0x88 / 4) || k == 0xB0 / 4) continue;
         R32(0x60011000u + 4 * k) = ble_modem_regs[k];
     }
+    if (!(m & 32)) return;
     memcpy(em_buf, ble_em_image, sizeof em_buf);
     for (int k = 0; k < 56; k++) R32(0x60031204u + 4 * k + (k > 47 ? 28 : 0)) = ble_em_map_off[k];   /* offset-only entries */
     for (unsigned k = 0; k < sizeof ble_em_segs / sizeof ble_em_segs[0]; k++) {
@@ -431,8 +440,25 @@ int ble_hw_init(void)
     CORE(0x00) = ble_rwblecntl;
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; }
     CORE(0x18) = 0xFFFFFFFFu;
-CORE(0x0C) = INT_END | INT_SKIP;
+    CORE(0x0C) = INT_END | INT_SKIP;
+}
+int ble_hw_init(void)
+{
+    init_steps(0xFF);
     return irq_attach(SRC_RWBLE, 1, isr, 0) < 0 ? -1 : 0;
+}
+/* Link-layer core reset (SYSCON WIFI_RST_EN bit 9, RW_BTMAC_RST) and reload of modem + core. A coded-rate receive
+ * window that times out while the AGC runs leaves the core unable to sync on any rate (events still end, status 0x01)
+ * until this reset; rf_open, ble_hw_init, the watchdog abort or any single AGC / modem / core word do not clear it
+ * (bench/rfmeas/data/coded_revive*.txt). */
+void ble_hw_core_reset(void)
+{
+    uint32_t ps = irq_lock();
+    raw_on = 0;
+    R32(0x60026018) |= 1u << 9;
+    R32(0x60026018) &= ~(1u << 9);
+    init_steps(16 | 32);
+    irq_unlock(ps);
 }
 
 void ble_hw_scan(uint8_t chan)
@@ -638,6 +664,7 @@ int ble_hw_raw_send(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcini
     return ble_hw_raw_sendn(ch_idx, rate, sync, crcinit, hdr0, d, len, 0);
 }
 uint64_t ble_hw_now_hu(void) { return now_hu(); }
+uint16_t ble_hw_em16(uint32_t off) { return EM16(off); }   /* bench: exchange-memory read */
 /* one packet starting at core time t_hu (half-us, from ble_hw_now_hu); at least ~300 us ahead */
 int ble_hw_raw_send_at(uint8_t ch_idx, uint8_t rate, uint32_t sync, uint32_t crcinit, uint8_t hdr0, const uint8_t *d, unsigned len, uint64_t t_hu)
 {

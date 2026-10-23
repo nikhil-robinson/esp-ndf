@@ -96,12 +96,10 @@ stack, external antenna / PA switch (GPIO hook only — no switch on the DevKit)
 
 Summarised in `docs/PERFORMANCE.md` §10: sensitivity (beats IDF), TX level vs
 index, frequency/timing (±1 µs, hop < 60 µs, PLL lock recovery), RSSI offset,
-and the raw PHYs (4.2/4.3/4.4). Open: coded-rate catch rate, whitening-off.
+and the raw PHYs (4.2/4.3/4.4). Coded-rate catch rate and whitening-off: done.
 
 ## Open items to note (not blocking)
 
-- Coded-rate receive catch rate varies 0–97 % per run; cause not yet found.
-- Whitening-off control not located (left as-is).
 - Receive RSSI is offset −22 dB relative to the IDF reading.
 - Transmit output drifts about +1 dB over 2 minutes.
 

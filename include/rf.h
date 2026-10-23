@@ -82,7 +82,7 @@ int  rf_rx_set_gain(int index);          /* 0..127 table index, or RF_GAIN_AGC *
 int  rf_rx_set_gain_db(int db);
 /* set the gain so the capture peak lands near target_peak (16..500 of 511); *db = the chosen gain. RX state. */
 int  rf_rx_autogain(int target_peak, int *db);
-int  rf_rx_set_bandwidth_khz(uint32_t khz);   /* nearest corner >= khz: 7000..11000+ (measured codes) */
+int  rf_rx_set_bandwidth_khz(uint32_t khz);   /* analog: nearest corner >= khz: 7000..11000+ (no narrower setting exists); narrow channels: rf_rx_capture_dec */
 enum { RF_RATE_80M = 0, RF_RATE_40M = 1, RF_RATE_16M = 2 };
 /* one-shot capture of n IQ words (n <= RF_CAPTURE_MAX) at rate; *iq points at the samples (valid until the next capture) */
 #define RF_CAPTURE_MAX 16383u
@@ -99,6 +99,10 @@ int  rf_rx_capture_to(int rate, int fmt, uint32_t n_samples, void *dst);
 /* triggered: capture into a circular buffer of n_samples until a sample with |I|+|Q| >= level arrives, then pre..n
  * samples later stop. *first = index (in samples) of the oldest sample in dst (the buffer is circular),
  * *trig = index of the trigger sample. Gives up after timeout_ms without a trigger (RF_ERR_TIMEOUT). */
+/* decimated capture: the 16 MS/s stream through a channel filter (-6 dB at +/-0.375 x output rate, Hamming FIR of 8*decim
+ * taps) and decimated by 8 (2 MS/s, ~1.2 MHz wide) or 16 (1 MS/s, ~0.6 MHz wide), centred on the LO. n output samples,
+ * I and Q as int16 pairs (4 B/sample; PSRAM is fine). Gapless; RF_ERR_TIMEOUT if the filter fell behind. */
+int  rf_rx_capture_dec(uint32_t decim, uint32_t n, int16_t *dst);
 int  rf_rx_capture_trigger(int rate, int fmt, int level, uint32_t pre, uint32_t n_samples, void *dst,
                            uint32_t timeout_ms, uint32_t *first, uint32_t *trig);   /* hardware power estimate over n+1 samples (energy detect) */
 
@@ -121,7 +125,8 @@ int  rf_tx_stop(void);                   /* TX -> IDLE */
  * GFSK packets framed, CRC'd, whitened and stored by the radio's packet hardware (the ESP32-S3 link-layer core used
  * as a plain packet engine: no advertising, connections or any BLE protocol). On air: preamble, sync word (any 32 bits),
  * header byte, length byte, 0..255 payload bytes, 24-bit CRC (init crc_init; RF_PKT_CRC_OFF: none sent / none checked).
- * Whitening is always on, seeded by the channel (RF_PKT_WHITEN_OFF is refused: no clean switch found yet).
+ * Whitening is on by default, seeded by the channel; RF_PKT_WHITEN_OFF sends / takes header, length and payload literally
+ * (both ends must agree; long runs of equal bits then cost bit errors: the 0,1,2.. test payload loses ~74 % of packets).
  * Receive: one packet per hardware event, re-armed in ~0.5 ms: about 1000 short packets/s, every long packet.
  * Frequencies: 2402..2480 MHz in 2 MHz steps. Rates 1M, 2M, coded S8 (125 kbit/s), coded S2 (500 kbit/s). */
 enum { RF_PKT_1M = 0, RF_PKT_2M = 1, RF_PKT_125K = 2, RF_PKT_500K = 3 };

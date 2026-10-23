@@ -1,0 +1,6 @@
+bit None: send rc 0 sent 1000 in 853 ms | rx ctl 0010250f | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -64
+bit 14: send rc 0 sent 1000 in 853 ms | rx ctl 0010650f | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 755 len 37 hdr 5a rssi -64
+bit 12: send rc 0 sent 1000 in 853 ms | rx ctl 0010350f | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -64
+bit 17: send rc 0 sent 1000 in 853 ms | rx ctl 0012250f | rx rc 0 good 999 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -64
+bit 18: send rc 0 sent 1000 in 853 ms | rx ctl 0014250f | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -64
+bit 20: send rc 0 sent 1000 in 853 ms | rx ctl 0010250f | rx rc 0 good 1000 crcbad 0 crcbad_dataok 0 wrong 0 len 37 hdr 5a rssi -64

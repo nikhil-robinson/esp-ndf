@@ -1,0 +1,3 @@
+E000/E004  before [17, 9, 0]  after restore [0, 0, 0, 0]
+E044       before [17, 18, 17]  after restore [17, 16, 17, 17]
+E14C/E168  before [8, 0, 0]  after restore [0, 0, 0, 0]
