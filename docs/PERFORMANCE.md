@@ -522,7 +522,7 @@ Exponentiation is the engine's own time (both drive the same block), so x^d is a
 
 ## P-256 ECC (`examples/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-24)
 
-| us | esp-ndf (lib/p256.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
+| us | esp-ndf (lib/ecc.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
 |---|---|---|---|
 | public key (d G) | 59 599 | 92 847 | 1.56x |
 | ECDH shared secret | 58 729 | 92 939 | 1.58x |
@@ -544,3 +544,13 @@ for G, Shamir's trick in verify and P-specific reduction would each cut more; no
 
 CTR on the engine (DMA) + GHASH with an 8-bit Shoup table in 32-bit words (mbedtls: 4-bit, 64-bit shifts). GHASH is
 ~2.3 cycles/bit now; headroom: overlap DMA CTR with GHASH of the previous chunk (CTR is ~15% of the 16 KB time).
+
+## X25519 (`examples/x25519_test` vs `bench/idf_x25519`, C9:D0, 2026-10-24)
+
+| us | esp-ndf (lib/ecc.c ladder) | ESP-IDF mbedtls Curve25519 | gain |
+|---|---|---|---|
+| public key (k * 9) | 45 228 | 76 085 | 1.68x |
+| shared secret | 44 839 | 77 023 | 1.72x |
+
+Same 8-limb Montgomery field code as P-256 (generic for p = 2^255-19). Headroom: a 2^255-19 specific reduction
+(multiply the high half by 38) instead of Montgomery would cut about a third.

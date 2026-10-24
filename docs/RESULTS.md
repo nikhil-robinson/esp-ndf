@@ -840,3 +840,8 @@ passes, tampered signature and off-curve key are rejected. Same results from ben
 cryptography (bench/gcm/gen_vectors.py), decrypt in place restores the plaintext, a flipped tag bit is rejected.
 Found on the way: aes_block ran before aes_init on a first call and cached the key by pointer (a reused key buffer
 kept the old key); both fixed in aes_block, aes_test still PASS.
+
+## X25519 (`examples/x25519_test`, 2026-10-24)
+
+Public key and shared secret equal python cryptography (bench/x25519/gen_vectors.py), RFC 7748 5.2 vector 1 PASS on
+C9:D0; P-256 test re-run after the move to lib/ecc.c still PASS. Same results from bench/idf_x25519.

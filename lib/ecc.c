@@ -1,5 +1,7 @@
-/* NIST P-256: 8 x 32-bit limbs, Montgomery arithmetic mod p and mod n, Jacobian coordinates (a = -3). See p256.h. */
+/* Software ECC on 8 x 32-bit limbs with Montgomery arithmetic: NIST P-256 (mod p and n, Jacobian, a = -3; p256.h) and
+ * X25519 (RFC 7748 ladder mod 2^255-19; x25519.h). */
 #include "p256.h"
+#include "x25519.h"
 #include "rng.h"
 #include <string.h>
 
@@ -80,7 +82,8 @@ static void mod_setup(mod_t *M, const uint32_t *m)
     M->m = m;
     uint32_t inv = 1; for (int i = 0; i < 5; i++) inv *= 2 - m[0] * inv;
     M->mp = -inv;
-    fe z = { 0 }; sub8(M->one, z, m);                          /* R mod m = 2^256 - m (m > 2^255) */
+    fe z = { 0 }, t; sub8(M->one, z, m);                       /* R mod m = 2^256 - m, less m once more if m < 2^255 */
+    if (!sub8(t, M->one, m)) memcpy(M->one, t, 32);
     memcpy(M->rr, M->one, 32);
     for (int i = 0; i < 256; i++) madd(M, M->rr, M->rr, M->rr);
 }
@@ -261,3 +264,41 @@ int p256_verify(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig
     fe t; if (!sub8(t, x, N)) memcpy(x, t, 32);
     return memcmp(x, r, 32) ? -1 : 0;
 }
+
+/* ---- X25519 ---- */
+static const fe P25 = { 0xFFFFFFED, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x7FFFFFFF };
+static mod_t m25;
+static fe a24_m;
+
+static void cswap(fe a, fe b, uint32_t mask) { for (int i = 0; i < 8; i++) { uint32_t t = (a[i] ^ b[i]) & mask; a[i] ^= t; b[i] ^= t; } }
+
+int x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t u[32])
+{
+    if (!m25.m) { mod_setup(&m25, P25); fe a = { 121665 }; to_m(&m25, a24_m, a); }
+    const mod_t *M = &m25;
+    uint8_t k[32]; memcpy(k, scalar, 32); k[0] &= 248; k[31] = (k[31] & 127) | 64;
+    fe x1, x2, z2 = { 0 }, x3, z3, a, aa, b, bb, e, c, d, t;
+    for (int i = 0; i < 8; i++) x1[i] = (uint32_t)u[4*i] | u[4*i+1] << 8 | u[4*i+2] << 16 | (uint32_t)u[4*i+3] << 24;
+    x1[7] &= 0x7FFFFFFF;
+    if (!sub8(t, x1, P25)) memcpy(x1, t, 32);                  /* non-canonical u: reduce */
+    to_m(M, x1, x1); memcpy(x2, M->one, 32); memcpy(x3, x1, 32); memcpy(z3, M->one, 32);
+    uint32_t swap = 0;
+    for (int i = 254; i >= 0; i--) {
+        uint32_t bit = k[i >> 3] >> (i & 7) & 1;
+        swap ^= bit; cswap(x2, x3, -swap); cswap(z2, z3, -swap); swap = bit;
+        madd(M, a, x2, z2); mmul(M, aa, a, a); msub(M, b, x2, z2); mmul(M, bb, b, b); msub(M, e, aa, bb);
+        madd(M, c, x3, z3); msub(M, d, x3, z3); mmul(M, d, d, a); mmul(M, c, c, b);
+        madd(M, t, d, c); mmul(M, x3, t, t);
+        msub(M, t, d, c); mmul(M, t, t, t); mmul(M, z3, x1, t);
+        mmul(M, x2, aa, bb);
+        mmul(M, t, a24_m, e); madd(M, t, aa, t); mmul(M, z2, e, t);
+    }
+    cswap(x2, x3, -swap); cswap(z2, z3, -swap);
+    minv(M, z2, z2); mmul(M, x2, x2, z2); from_m(M, x2, x2);
+    for (int i = 0; i < 8; i++) { out[4*i] = x2[i]; out[4*i+1] = x2[i] >> 8; out[4*i+2] = x2[i] >> 16; out[4*i+3] = x2[i] >> 24; }
+    memset(k, 0, 32);
+    uint32_t o = 0; for (int i = 0; i < 8; i++) o |= x2[i];
+    return o ? 0 : -1;                                          /* all-zero shared secret: low-order input */
+}
+
+int x25519_base(uint8_t pub[32], const uint8_t priv[32]) { static const uint8_t nine[32] = { 9 }; return x25519(pub, priv, nine); }

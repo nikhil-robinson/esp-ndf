@@ -42,7 +42,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **done**: exp/mul mod 1024-4096, first op (R² prep) 1.33-1.56x IDF, exp equal (same engine) |
 | | E5 HMAC, Digital Signature (DS) | **none** |
-| | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **partial**: P-256 keygen/ECDH/ECDSA, constant-time, 1.55-1.67x IDF; AES-GCM 1.5-2.6x IDF (Curve25519 open) |
+| | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **done**: P-256 keygen/ECDH/ECDSA 1.55-1.67x, X25519 1.7x, AES-GCM 1.4-2.6x IDF; constant-time |
 | | E7 eFuse: fields, key blocks, burn opt-in | **done** (read): IDF field table by name, all 11 blocks, 100/100 vs espefuse; burning not implemented (approval rule) |
 | | E8 Flash and PSRAM encryption (XTS_AES), secure boot | **none** (irreversible: plan only) |
 | | E9 NVS encryption | done |
@@ -172,7 +172,7 @@ secure boot v2 verification. Reference: `mbedtls/port/bignum/`.
 the Digital Signature peripheral (RSA signing with an eFuse-protected key). Reference: `esp_hw_support/esp_hmac.c`,
 `esp_ds.c`.
 
-**E6 Software crypto — partial.** Have: lib/p256.c (P-256 keys, ECDH, ECDSA sign/verify; RFC 6979 vector), drivers/crypto/gcm.c (AES-GCM, 8-bit GHASH). Was: What the S3 has no block for: ECC (P-256 / Curve25519 sign, verify, ECDH), AES-GCM
+**E6 Software crypto — done.** Have: lib/ecc.c (X25519, RFC 7748) and (P-256 keys, ECDH, ECDSA sign/verify; RFC 6979 vector), drivers/crypto/gcm.c (AES-GCM, 8-bit GHASH). Was: What the S3 has no block for: ECC (P-256 / Curve25519 sign, verify, ECDH), AES-GCM
 tag, SHA-3 if needed; constant-time, benchmarked against mbedTLS on IDF.
 
 **E7 eFuse — partial (TRM 5).** Have: raw bits of blocks 1/2, MAC. Missing: full field table (chip revision, flash/PSRAM
