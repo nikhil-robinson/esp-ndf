@@ -9,92 +9,67 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ---
 
-## 1. CPU, SIMD and AI acceleration (TRM ch. 1 PIE, Xtensa LX7)
+## 1. CPU, SIMD and AI acceleration (TRM ch. 1 PIE, Xtensa LX7)  - details: docs/SYSTEM_TODO.md A1-A8
 
-- [ ] **PIE / SIMD support in the toolchain flow**: 128-bit Q registers
-      (q0–q7), QACC accumulators, `EE.*` instructions; enable and save the
-      Q registers on context switch (coprocessor 1), like the FPU
-- [ ] PIE context in interrupts: decide lazy-save or "no PIE in ISR" (as for the FPU now)
-- [ ] **DSP library (ESP-DSP equivalent, our own)**, all on PIE:
-  - [ ] FFT (radix-2/4, real and complex, int16 + float), windowing
-  - [ ] FIR / IIR biquad filters, decimation
-  - [ ] dot product, vector add/mul/scale, matrix multiply (int8/int16/float)
-  - [ ] convolution / correlation
-- [ ] **NN library (ESP-NN equivalent)**: int8 conv2d, depthwise conv,
-      fully connected, pooling, ReLU/softmax, quantized add/mul; benchmark
-      against ESP-NN on the same models
-- [ ] FPU: float in `printf`, fast math helpers (sin/cos/atan2/sqrt for
-      control loops), libgcc soft-float double helpers we lack today
-- [ ] Hardware loops (`loop` instruction) and zero-overhead loops in hot paths
-- [~] FPU in ISRs: currently forbidden (fault); optional lazy save
-- [ ] Performance counters (perfmon: cycles, cache misses, stalls) for profiling
-- [ ] Debug: hardware breakpoints/watchpoints (stack guard), OCD/JTAG notes
+- [x] PIE / SIMD in the toolchain flow, enabled at boot; instruction cookbook docs/PIE.md
+- [x] PIE and FPU in interrupt handlers: lazy save, any level, nested (examples/pie_isr, fpu_isr)
+- [x] DSP library (ESP-DSP equivalent): FFT f32/rfft/s16, windows, FIR/FIRD, biquad, vector, matrix, conv/corr,
+      DCT, Kalman - 1.17-33x ESP-DSP (examples/dsp_lib)
+- [x] NN library (ESP-NN equivalent): conv/dwconv/fc/pool/add/mul/relu6/softmax bit-exact, tiny model 1.17x
+- [x] Fast math (sin/cos/atan2/exp/log/rsqrt) + Q15/Q31, soft-double runtime; [~] float in printf (check %f path)
+- [x] Zero-overhead loops in hot paths (all PIE/FPU kernels)
+- [x] Performance counters, watchpoints, hardware stack guard (examples/debug_test); [ ] gdbstub / app-trace guide (section 8)
 
-## 2. Memory, cache, external RAM (TRM ch. 4 System and Memory, ch. 23 XTS_AES)
+## 2. Memory, cache, external RAM (TRM ch. 4, ch. 23 XTS_AES)  - details: SYSTEM_TODO B1-B5
 
-- [ ] **Cache + MMU setup**: execute code from flash (XIP). Keep hot code in
-      IRAM and the rest in flash. Lifts the ~400 KB image limit
-- [ ] **PSRAM** quad + octal: MSPI timing tuning, MMU mapping, 2–8 MB heap,
-      DMA to PSRAM, cache write-back control
-- [ ] Octal / 120 MHz flash modes (OPI), flash timing tuning
-- [x] **Heap allocator** internal DRAM (`heap.h`: malloc/calloc/realloc/free, 16 B aligned, min-free stats); [ ] capabilities PSRAM/exec with PSRAM
-- [ ] RTC fast/slow memory (8 KB + 8 KB): data that survives deep sleep
-- [ ] Memory protection (TRM ch. 15 PMS, ch. 16 World Controller): IRAM
-      write-protect, stack guards, peripheral access control
-- [ ] Stack overflow detection (per core)
-- [ ] External memory encryption (XTS_AES): flash/PSRAM encryption (irreversible eFuse; see STORAGE_SECURITY.md)
+- [x] Cache + MMU, XIP from flash (lib / all modes)
+- [x] PSRAM octal 8 MB (C9:D0) / 16 MB (BOX-3): timing, MMU, heap, DMA to PSRAM, cache write-back
+- [x] 120 MHz flash with timing tuning; [ ] octal (OPI) flash and 4-byte addressing on real hardware (no such chip here)
+- [x] Heap with capabilities (internal / PSRAM / exec)
+- [x] RTC fast/slow memory sections (RTC_DATA / BSS / NOINIT)
+- [x] Memory protection (PMS split, monitor, lock); World Controller (n/a: one world used)
+- [x] Stack overflow detection per core (SP monitor from boot)
+- [ ] External memory encryption (XTS_AES): plan in docs/SECURITY_PLAN.md, needs eFuse approval
 
-## 3. System, reset, clocks, boot (TRM ch. 7, 8, 9, 13, 14, 17, 24)
+## 3. System, reset, clocks, boot (TRM ch. 7-9, 13, 14, 17, 24)  - details: SYSTEM_TODO C1-C7
 
-- [~] Clocks: CPU 240/160/80/40 done; **todo**: RTC slow clock source
-      (RC 136 kHz / 32 kHz crystal / 8MD256), calibration, clock output on pins (CLK_OUT)
-- [ ] XTAL 32 kHz support + **XTAL32K watchdog** (ch. 14)
-- [x] **Watchdog** MWDT (`wdt.h`): report stage (stalled PC + backtrace) then system reset; [ ] RTC WDT (boot hang), interrupt-watchdog equivalent
-- [x] **Reset reason** per core (`sys_reset_cause`); [ ] wake cause (with sleep)
-- [ ] **Brownout detector**, with an ISR so motors can be cut before the reset
-- [ ] **Clock glitch detection** (ch. 24)
-- [x] **Fault handling**: register dump, exact DWARF-table backtrace (table in flash, crosses interrupt frames), `make backtrace`, halt/restart option; [ ] reset-safe crash record (RTC memory)
-      (core dump to flash), assert
-- [ ] Software restart API, controlled reset of a single core
-- [ ] Interrupt matrix extras: per-core routing API, interrupt priorities documented, NMI (level 7) use
-- [~] Dual core: core 1 start done; **todo**: spinlocks, cross-core calls
-      (IPC), inter-core FIFO/mailbox, per-core interrupt allocation
-- [x] System timer API (ch. 11): 64-bit time base (`time_us/time_ticks/time_ms`), `delay_ms`,
-      software timers (`swtimer.h`: one-shot/periodic, absolute deadlines, ISR dispatch)
-- [ ] System time / RTC time kept across sleep, `gettimeofday`-like
-- [ ] Boot: own 2nd-stage loader option, app partitions, **OTA** (A/B with
-      rollback), image header + SHA-256 check (needs SHA)
-- [x] Chip info: revision, package, MAC, flash id/size (`sys_info`); [ ] PSRAM size (with PSRAM)
-- [ ] ROM-free: confirm nothing still depends on ROM functions after the above
+- [x] Clocks: CPU 240/160/80/40, RTC slow clock select + calibration; [ ] CLK_OUT pins (no use yet)
+- [~] XTAL 32 kHz + XTAL32K watchdog: written, not verified (no crystal on either board)
+- [x] Watchdogs: TG0/TG1 (report + reset), RTC WDT, super watchdog
+- [x] Reset reason per core (kept across the warm stage); [ ] wake cause (with sleep, D1)
+- [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
+- [x] Fault handling with DWARF backtrace; [ ] reset-safe crash record / core dump to flash
+- [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
+- [~] Interrupt matrix: per-core routing, priorities, line sharing done; [ ] NMI (level 7) use
+- [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)
+- [x] System timer, software timers
+- [ ] System time kept across sleep, gettimeofday-like (with D1)
+- [x] Own 2nd-stage loader, warm boot 0.9 ms, OTA A/B + rollback, SHA-256 image check
+- [x] Chip info incl. PSRAM size
+- [x] ROM-free (no ROM calls in our code)
 
-## 4. Power management (TRM ch. 10 RTC_CNTL, ch. 2 ULP)
+## 4. Power management (TRM ch. 10 RTC_CNTL, ch. 2 ULP)  - details: SYSTEM_TODO D1-D3
 
-- [ ] **Light sleep** (CPU paused, RAM kept) with automatic entry when idle
-- [ ] **Deep sleep** + wake stub in RTC RAM
-- [ ] Wake sources: timer, ext0/ext1 GPIO, any GPIO (light sleep), touch,
-      UART, ULP, USB
-- [ ] Dynamic frequency scaling (power-management locks)
-- [ ] Peripheral power domains, retention DMA (ch. 10.5)
-- [ ] **ULP coprocessor**: ULP-RISC-V and ULP-FSM: loader, shared RTC memory,
-      wake main CPU; RTC I2C controller (ch. 2.7) for sensors while asleep
-- [~] RTC GPIO: done (incl. hold through reset); **todo**: sleep pad
-      configuration (sleep output/input/pulls per pad), digital pad hold (GPIO22+)
-- [ ] Measured sleep currents vs IDF
+- [~] Light sleep: written, wakes proven on the analyzer, USB link does not come back - parked (breaks the board link)
+- [~] Deep sleep: written, not verified - parked
+- [ ] Wake sources beyond timer/ext0/ext1, sleep pad configuration, measured currents vs IDF - with D1
+- [x] Dynamic frequency scaling (CPU locks, really switch while running)
+- [ ] Peripheral power domains, retention - with D1
+- [x] ULP-RISC-V + ULP-FSM loader / run / stop / shared memory (3.5x IDF start); [ ] wake main CPU (D1);
+      [ ] RTC I2C (pins fixed to GPIO0-3: needs a sensor wired there)
+- [~] RTC GPIO incl. hold through reset; [ ] sleep pad config, digital pad hold (GPIO22+)
 
-## 5. Security and crypto (TRM ch. 5, 18–25)
+## 5. Security and crypto (TRM ch. 5, 18-25)  - details: SYSTEM_TODO E1-E9
 
-- [x] AES (block + XTS)
-- [ ] AES DMA mode (CBC/CTR/GCM, large buffers)
-- [ ] **SHA** 1/224/256/384/512 (needed for OTA image checks, HMAC, TLS later)
-- [ ] **RSA / big-number accelerator** (modexp, modmul): signatures, secure boot
-- [ ] **HMAC** peripheral (NVS key derivation from eFuse, JTAG unlock)
-- [ ] **Digital Signature (DS)** peripheral
-- [ ] **RNG** API (true random with RF/SAR entropy notes)
-- [ ] **eFuse API** (ch. 5): read all fields, custom user fields, virtual
-      eFuses for tests; burning only behind an explicit opt-in
-- [ ] Secure boot v2 (irreversible eFuse; plan only until approved)
-- [ ] Flash encryption (irreversible eFuse; plan only until approved)
-- [x] NVS encryption (XTS); [ ] HMAC key scheme on the device
+- [x] AES block/XTS + ECB/CBC/OFB/CTR/CFB with DMA, AES-GCM
+- [x] SHA 1/224/256/384/512 (CPU + DMA)
+- [x] RSA / big-number accelerator
+- [x] P-256 ECDSA/ECDH, X25519 (software, constant time)
+- [x] RNG (ChaCha20 over hardware entropy)
+- [x] eFuse API: all fields by name (read); burning only behind an explicit opt-in
+- [ ] HMAC, Digital Signature: plan in docs/SECURITY_PLAN.md (eFuse key burn needs approval)
+- [ ] Secure boot v2, flash encryption: plan only (irreversible, approval + spare board)
+- [x] NVS encryption (XTS); [ ] HMAC key scheme on the device (with HMAC)
 
 ## 6. Peripherals: remaining modes of finished drivers
 
