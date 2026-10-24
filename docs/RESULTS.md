@@ -148,6 +148,18 @@ keeps one block of margin; (4) PDM exists only on I2S0; (5) the fractional MCLK
 divider jitters the PDM clock (SNR 5-8 dB) - integer divider as IDF, so fs is
 52.083 kHz for 48 kHz asked (same as IDF; init returns the real rate).
 
+## SPI half duplex master + slave HD (`periph_test` spi_hd vs `bench/idf_spi_hd`, C9:D0, no jumpers)
+
+SPI2 master pads 14/15/16-18/21 (+38-41), SPI3 HD slave drives 1/2/42/47, inputs crossed in the GPIO matrix.
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| WRBUF + RDBUF, 1/2/4 data lines, 1/2/4 address lines (IDF spi_slave_hd protocol) | all ok, both directions | quad write ok |
+| quad write 32 B @ 10 MHz | **2902 cycles** | 5754 cycles |
+| octal write 16 B (core 1 samples the 8 pads at 78 kHz) | 16 clocks, 0 bytes wrong | - |
+
+Slave-HD init makes SCLK/CS inputs: when master and slave share pads, init the slave first.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

@@ -29,6 +29,7 @@ void test_uart(void);
 void test_i2c(void);
 void test_gdma(void);
 void test_spi(void);
+void test_spi_hd(void);
 void test_i2s(void);
 void test_i2s_modes(void);
 void test_adc(void);

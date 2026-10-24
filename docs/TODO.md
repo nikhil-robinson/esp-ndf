@@ -75,10 +75,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] **I2S**: standard, TDM (2-16 slots, mask), PDM TX/RX (I2S0), full duplex, 8/16/24/32-bit;
       [ ] PDM SNR 33 vs IDF 38 dB, [ ] ES7210 TDM mics on BOX-3 (section 9), [ ] LCD/ADC/camera modes (with LCD_CAM)
-- [~] **SPI master**: 1-bit done; **todo**: dual/quad/octal (QSPI/OPI)
-      transfers, half-duplex command/address/dummy phases, SPI3 as master,
-      CS timing setup/hold, DMA chained large transfers (> 4 KB descriptors)
-- [~] **SPI slave**: full duplex done; **todo**: half-duplex slave (SPI_SLAVE_HD), segmented transfer
+- [x] **SPI master**: full duplex, half duplex cmd/addr/dummy on 1/2/4/8 lines (octal SPI2), SPI3 master,
+      CS setup/hold, DMA chains to 32 KB per call (split above); [ ] DTR (DDR) phases, [ ] octal read (no octal slave to test)
+- [~] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) done; [ ] HD DMA (WRDMA/RDDMA), segmented transfer
 - [~] **UART**: done; **todo**: RS485 (half-duplex, collision detect), IrDA,
       hardware flow control test, pattern/AT-command detection, UART wake-up, UHCI DMA
 - [~] **I2C**: master/slave done; **todo**: 10-bit address, clock stretching
