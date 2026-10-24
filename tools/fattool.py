@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FAT image tool: build a FAT12/16 image (long names) from a directory, and
+"""FAT image tool: build a FAT12/16/32 image (long names) from a directory, and
 list / extract any FAT12/16/32 image. Optional wear-levelling wrapper in the
 ESP-IDF WL v2 format, so the image mounts with esp-ndf wl_mount() and IDF's
 esp_vfs_fat_spiflash_mount_rw_wl(). Geometry rules match esp-ndf fat_format().
@@ -75,8 +75,11 @@ def geometry(tot, S):
         if bits == 12 and nclus >= 4085:
             bits = 16
             continue
-        if bits == 16 and nclus >= 65525:
-            sys.exit('volume needs FAT32: not supported by mkfat (use 512 B sectors or a smaller size)')  # ponytail
+        if bits == 16 and nclus >= 65525:          # FAT32: 32 reserved sectors (FSInfo 1, backup boot 6), root in clusters
+            bits, rsvd, rootents = 32, 32, 0
+            continue
+        if bits == 32 and nclus < 65525:
+            sys.exit('size sits between FAT16 and FAT32 limits: pick another size')
         return spc, rsvd, nf, rootents, fatsz, bits, nclus
 
 
@@ -122,7 +125,8 @@ class Builder:
         self.tot = tot
         self.img = bytearray(tot * S)
         self.fat = [0] * (self.nclus + 2)
-        self.fat[0], self.fat[1] = (0xFF8, 0xFFF) if self.bits == 12 else (0xFFF8, 0xFFFF)
+        self.fat[0], self.fat[1] = {12: (0xFF8, 0xFFF), 16: (0xFFF8, 0xFFFF), 32: (0x0FFFFFF8, 0x0FFFFFFF)}[self.bits]
+        self.eoc = {12: 0xFFF, 16: 0xFFFF, 32: 0x0FFFFFFF}[self.bits]
         self.next = 2
         self.root_sec = self.rsvd + self.nf * self.fatsz
         self.data_sec = self.root_sec + (self.rootents * 32 + S - 1) // S
@@ -135,7 +139,7 @@ class Builder:
         first = self.next
         for c in range(first, first + n):
             self.fat[c] = c + 1
-        self.fat[first + n - 1] = 0xFFF if self.bits == 12 else 0xFFFF
+        self.fat[first + n - 1] = self.eoc
         self.next += n
         return first
 
@@ -187,7 +191,11 @@ class Builder:
                 items[i] = (it[0], 0x10, c, 0, it[4], it[5])
                 sub.append((it[5], c))
         body = self.entries([it[:5] for it in items])
-        if clus is None:
+        if clus is None and self.bits == 32:       # FAT32 root: an ordinary cluster chain (first data cluster)
+            if len(body) > self.root_bytes:
+                sys.exit('root directory full')
+            self.put(self.root_clus, body)
+        elif clus is None:
             if len(body) > self.rootents * 32:
                 sys.exit('root directory full')
             off = self.root_sec * self.S
@@ -195,25 +203,41 @@ class Builder:
         else:
             self.put(clus, dot('.', clus) + dot('..', parent) + body)
         for p, c in sub:
-            self.add_dir(p, c, clus or 0)
+            self.add_dir(p, c, 0 if clus is None else clus)
 
     def finish(self):
         S, b = self.S, bytearray(self.S)
-        b[0:3] = b'\xeb\x3c\x90'
+        b[0:3] = b'\xeb\x58\x90' if self.bits == 32 else b'\xeb\x3c\x90'
         b[3:11] = b'MSDOS5.0'
         struct.pack_into('<HBHBH', b, 11, S, self.spc, self.rsvd, self.nf, self.rootents)
-        if self.tot < 65536:
+        if self.tot < 65536 and self.bits != 32:
             struct.pack_into('<H', b, 19, self.tot)
         else:
             struct.pack_into('<I', b, 32, self.tot)
         b[21] = 0xF8
-        struct.pack_into('<HHH', b, 22, self.fatsz, 63, 255)
-        b[36], b[38] = 0x80, 0x29
-        struct.pack_into('<I', b, 39, int.from_bytes(os.urandom(4), 'little'))
-        b[43:54] = b'NO NAME    '
-        b[54:62] = b'FAT12   ' if self.bits == 12 else b'FAT16   '
+        vid = int.from_bytes(os.urandom(4), 'little')
+        if self.bits == 32:                        # FAT32 BPB: FATSz32, ext flags, version, root, FSInfo, backup boot
+            struct.pack_into('<HHH', b, 22, 0, 63, 255)
+            struct.pack_into('<IHHIHH', b, 36, self.fatsz, 0, 0, self.root_clus, 1, 6)
+            b[64], b[66] = 0x80, 0x29
+            struct.pack_into('<I', b, 67, vid)
+            b[71:82] = b'NO NAME    '
+            b[82:90] = b'FAT32   '
+        else:
+            struct.pack_into('<HHH', b, 22, self.fatsz, 63, 255)
+            b[36], b[38] = 0x80, 0x29
+            struct.pack_into('<I', b, 39, vid)
+            b[43:54] = b'NO NAME    '
+            b[54:62] = b'FAT12   ' if self.bits == 12 else b'FAT16   '
         b[510:512] = b'\x55\xaa'
         self.img[0:S] = b
+        if self.bits == 32:
+            self.img[6 * S:7 * S] = b                # backup boot sector
+            fs = bytearray(S)
+            struct.pack_into('<I', fs, 0, 0x41615252); struct.pack_into('<I', fs, 484, 0x61417272)
+            struct.pack_into('<II', fs, 488, self.nclus + 2 - self.next, self.next)   # free count, next free
+            struct.pack_into('<I', fs, 508, 0xAA550000)
+            self.img[S:2 * S] = fs; self.img[7 * S:8 * S] = fs
         f = bytearray(self.fatsz * S)
         if self.bits == 12:
             for c, v in enumerate(self.fat):
@@ -222,9 +246,12 @@ class Builder:
                     f[o] = (f[o] & 0x0F) | (v << 4 & 0xF0); f[o + 1] = v >> 4 & 0xFF
                 else:
                     f[o] = v & 0xFF; f[o + 1] = (f[o + 1] & 0xF0) | (v >> 8 & 0x0F)
-        else:
+        elif self.bits == 16:
             for c, v in enumerate(self.fat):
                 struct.pack_into('<H', f, 2 * c, v)
+        else:
+            for c, v in enumerate(self.fat):
+                struct.pack_into('<I', f, 4 * c, v)
         for k in range(self.nf):
             o = (self.rsvd + k * self.fatsz) * S
             self.img[o:o + len(f)] = f
@@ -236,6 +263,10 @@ def mkfat(src, size, wl, S):
         sys.exit('size must be a multiple of the sector size')
     tot = (wl_geometry(size, S)[3] if wl else size) // S
     b = Builder(tot, S)
+    if b.bits == 32:                               # root directory: first cluster, sized for its entries
+        n_root = 2 + len(os.listdir(src)) * 21
+        b.root_bytes = -(-n_root * 32 // b.csize) * b.csize
+        b.root_clus = b.alloc(b.root_bytes)
     b.add_dir(src)
     img = b.finish()
     return wl_wrap(img, size, S) if wl else img
