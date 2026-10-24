@@ -867,3 +867,10 @@ Stack guard: recursion crossing a limit 3 KB down raises the callback with a PC 
 runaway recursion ends in "*** PANIC core0: stack overflow (SP left its stack)" + backtrace. Found: ASSIST_DEBUG needs
 RLS as well as ENA to raise the interrupt (RAW was set, no interrupt); perfmon KRNLCNT=1 means "only above
 TRACELEVEL" (counted nothing).
+
+## GDMA: PSRAM, priority, errors (`examples/gdma_ext`, 2026-10-24)
+
+1 MB internal->PSRAM, 64 KB PSRAM->internal, 1 MB PSRAM->PSRAM by DMA: data checked byte for byte. Priority 5 vs 0:
+the higher channel finished first both ways. Unaligned PSRAM request refused; owner=0 descriptor with owner check
+-> GDMA_ERR_OUT, peripheral-space buffer -> descriptor error; gdma_reset recovers, next copy correct. PASS on C9:D0.
+Board note corrected: C9:D0's PSRAM is octal (IDF quad mode fails with ID 0xffffff).

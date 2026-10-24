@@ -586,3 +586,15 @@ The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handl
 | 1000 x 10 nops: cycles / instructions counted | 10 007 / 10 005 (CCOUNT 10 009) | 10 398 / 10 037 (CCOUNT 10 494) | exact vs call overhead |
 | stack overflow detection | SP leaves [bottom + 256, top] on any instruction: 0 cycles (fib(24) 1 950 649 both) | FreeRTOS watchpoint on the last 32 bytes (writes only) | - |
 | watchpoint hit | callback, access completes, program continues | panic | - |
+
+## GDMA with PSRAM (`examples/gdma_ext` vs `bench/idf_gdma`, C9:D0 octal PSRAM 80 MHz, 2026-10-24)
+
+| MB/s | esp-ndf gdma_memcpy | ESP-IDF esp_async_memcpy | gain | CPU memcpy (ours) |
+|---|---|---|---|---|
+| internal -> PSRAM, 1 MB | 71 | 67 | 1.06x | 49 |
+| PSRAM -> internal, 64 KB | 78 | 72 | 1.08x | 62 |
+| PSRAM -> PSRAM, 1 MB | 39 | 37 | 1.05x | 31 |
+
+64-byte external blocks (32-byte: 54 / 58 / 28 MB/s). Both sides are near the PSRAM bus limit (octal DDR 80 MHz =
+160 MB/s raw, less command/latency per 64-byte burst); ours saves the per-chunk task/semaphore handoff.
+Priority: two channels copying 32 KB at once, the prio-5 channel finishes in ~520 us, the prio-0 one in ~1030 us.

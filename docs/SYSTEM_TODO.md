@@ -25,7 +25,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
 | | B2 Memory map: RTC memory, PSRAM heap, capabilities | **done**: RTC sections, PSRAM heap + caps, 5.5x IDF malloc |
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
-| | B4 GDMA | partial |
+| | B4 GDMA | **done**: PSRAM source/target (1.05-1.08x IDF), priority, owner check, error recovery |
 | | B5 Memory protection (PMS), World Controller | **none** |
 | **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | **done**: slow clock sources + calibration, 32 kHz crystal/osc + its watchdog, RTC fast clock (crystal untested: none fitted) |
 | | C2 Reset, restart, reset causes | done |
@@ -107,7 +107,7 @@ executable, external), reclaiming unused IRAM. Reference: `heap/port/esp32s3/mem
 
 **B3 PSRAM — done.** Octal 8 MB, MMU window at 0x3D000000, write-back/invalidate, gapless RF capture into it.
 
-**B4 GDMA — partial (TRM 3).** Have: 5 channels, linked-list descriptors, peripheral connect, memory-to-memory
+**B4 GDMA — done (TRM 3).** Added: PSRAM buffers (64-byte blocks + cache coherence in gdma_memcpy*), gdma_set_priority, gdma_check_owner, gdma_error / gdma_reset; examples/gdma_ext. The S3 has no weighted arbitration (IN/OUT_WEIGHT absent from its register map). Was: Have: 5 channels, linked-list descriptors, peripheral connect, memory-to-memory
 (sync/async), EOF interrupts. Missing: priority and weight arbitration, burst settings, PSRAM as source/target
 (block-size rules, cache handling), descriptor owner checks, error recovery. Reference: `hal/esp32s3/include/hal/gdma_ll.h`,
 `esp_hw_support/dma/gdma.c`.

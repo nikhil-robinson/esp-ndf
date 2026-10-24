@@ -1,6 +1,8 @@
 /* General DMA: 5 channels, each an IN (peripheral -> memory) and OUT
- * (memory -> peripheral) half, linked-list descriptors. Buffers and
- * descriptors must be in internal DRAM (0x3FC8_0000..0x3FCF_FFFF). */
+ * (memory -> peripheral) half, linked-list descriptors. Descriptors in
+ * internal DRAM; buffers in internal DRAM or PSRAM (64-byte aligned address
+ * and length: the DMA moves whole cache lines; gdma_memcpy* keep the data
+ * cache coherent, a peripheral user calls psram_writeback/invalidate). */
 #pragma once
 #include "ndf.h"
 
@@ -28,6 +30,11 @@ void gdma_in_start(int ch, gdma_desc_t *first);
 bool gdma_out_eof(int ch);                 /* OUT finished its EOF descriptor */
 bool gdma_in_eof(int ch);                  /* IN got a successful EOF */
 void gdma_stop(int ch);
+void gdma_set_priority(int ch, int prio);  /* 0..5 (both halves), higher wins the bus; default 0 */
+void gdma_check_owner(int ch, bool on);    /* refuse descriptors with owner = 0 (CPU's): descriptor error */
+enum { GDMA_ERR_IN = 1, GDMA_ERR_OUT = 2 };
+int  gdma_error(int ch);                   /* descriptor error (bad owner / address) since start: GDMA_ERR_* */
+void gdma_reset(int ch);                   /* recover: stop + reset both halves, configuration kept */
 
 /* Interrupt on every finished OUT descriptor (fn) / IN descriptor with EOF (fn).
  * fn(arg) runs at `level` on the calling core; NULL disables. */
@@ -37,9 +44,10 @@ int  gdma_on_in_done(int ch, void (*fn)(void *), void *arg, int level);
 gdma_desc_t *gdma_out_eof_desc(int ch);
 gdma_desc_t *gdma_in_eof_desc(int ch);
 
-/* blocking memory copy through DMA channel ch (connected as GDMA_M2M) */
+/* blocking memory copy through DMA channel ch (connected as GDMA_M2M); 0, -1 bad args/alignment,
+ * -2 timeout, -3 descriptor error (channel reset) */
 int  gdma_memcpy(int ch, void *dst, const void *src, size_t len);
-/* Start a copy (<= 65 472 B) and return at once; the CPU keeps running.
+/* Start a copy (<= 64 512 B) and return at once; the CPU keeps running.
  * done(arg) runs once in the channel's IN interrupt at `level` on the calling
  * core when the last byte is in dst (NULL: poll gdma_busy()). */
 int  gdma_memcpy_async(int ch, void *dst, const void *src, size_t len, void (*done)(void *), void *arg, int level);
