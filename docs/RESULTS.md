@@ -916,3 +916,12 @@ longer than the 4608-byte splat buffer took the scalar path although the kernel 
 Error sweeps against double precision PASS the bounds in fastmath.h; Q15/Q31 edge cases (saturating -1 * -1, add
 overflow, conversions at +-1) PASS. The first IDF numbers were 0 cycles: GCC folded the unused calls; outputs are
 volatile now on both sides.
+
+## ULP-RISC-V + ULP-FSM (`examples/ulp_test`, BOX-3, 2026-10-24)
+
+ULP-RISC-V program (bench/ulp/ulp_count.S) restarted by the ULP timer every 10 ms: 98 runs/s, magic word written,
+mailbox answered (41 -> 42), frozen after ulp_stop. ULP-FSM program (ulp_fsm_count.S): 99 runs/s, frozen after stop.
+Found: (1) the ULP does not start with the RTC fast clock on XTAL/2 (our default) - ulp_run selects RC_FAST as IDF
+does; (2) a program must clear COCPU DONE / SHUT_RESET_EN at its start (IDF start.S does), else the timer never
+restarts it (and later programs fail too - IDF's own ulp_riscv_run included). ulp_load switches the CPU reset vector
+to the ROM (the warm-boot jump shares 0x50000000) and the loader halts any running ULP before touching RTC memory.

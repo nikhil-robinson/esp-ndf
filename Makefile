@@ -84,7 +84,7 @@ $(OUT)/rtcboot.bin: soc/$(SOC)/loader/loader.S soc/$(SOC)/loader/loader.c soc/$(
 	@echo "built $@ ($$(stat -c%s $@) bytes, RTC boot stage)"
 
 $(OUT)/link.ld: soc/$(SOC)/link.ld.in $(OUT)/config.stamp
-	@$(PFX)gcc -E -P -x c -DNDF_BOOT_FAST=$(if $(filter-out 0,$(LOAD_AT)),1,0) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_XIP_SIZE=$(strip $(XIP_SIZE)) $< -o $@
+	@$(PFX)gcc -E -P -x c $(DEFS) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h) -DNDF_BOOT_FAST=$(if $(filter-out 0,$(LOAD_AT)),1,0) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_XIP_SIZE=$(strip $(XIP_SIZE)) $< -o $@
 
 $(OUT)/app.elf: $(OBJS) $(OUT)/link.ld
 	@$(PFX)gcc $(FLAGS) -nostdlib -T $(OUT)/link.ld -Wl,--gc-sections \

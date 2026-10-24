@@ -1,0 +1,2 @@
+idf ULP-RISC-V: load+start 954 us, 99 runs in 1 s, magic 1, mailbox 1
+idf C ULP program: 99 runs in 1 s, 86 bytes

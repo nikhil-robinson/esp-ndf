@@ -691,3 +691,13 @@ Floor: per-output requantisation (~22 instructions, scalar mull/mulsh as in ESP-
 Measured errors (vs double): sin/cos 7.0e-8 abs (|x| <= 8192), atan2 2.4e-7, exp 7.7e-8 rel, log 4.4e-8, rsqrt-based
 sqrt 1.6e-7 rel. Vector forms interleave four elements to cover the FPU's 4-cycle latency. Floor: each call rebuilds
 its constants (l32r + wfr); a fused vector kernel keeping them in FPU registers would cut ~30% more.
+
+## ULP coprocessors (`examples/ulp_test` vs `bench/idf_ulp`, BOX-3, 2026-10-24)
+
+| | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| ULP-RISC-V load (114 B) + start | 273 us | 954 us (ulp_riscv_load_binary + ulp_riscv_run) | 3.5x |
+| runs per second at a 10 ms period | 98-99 | 99 | - |
+
+Word-wise RTC slow-memory writes (~us per access) and no full-reserve memset; both sides calibrate the slow clock
+beforehand (ours: rtc_slow_hz(), ~2 ms, cached). ULP-FSM: 99 runs/s at 10 ms as well.

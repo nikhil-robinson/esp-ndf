@@ -257,6 +257,9 @@ static void to_rom(void)                /* hand this reset to the ROM: vector ba
 void loader_main(void)
 {
     uint32_t t_entry = sys16();
+    /* a ULP-RISC-V program survives digital resets: stop its timer and hold it in reset before 0x50000000 changes */
+    REG(0x600080FCu) &= ~BIT(31);
+    REG(0x60008104u) |= BIT(25) | BIT(22);
 #if NDF_LOADER_RTC          /* started by the CPU reset vector, no ROM before us: anything but a normal flash boot is
                              * the ROM's job (download mode by strapping or by the USB-JTAG force-download flag) */
     /* only our own warm resets: 3 system / 12 CPU software reset, 7/8 timer-group, 9/16 RTC watchdog. A deep-sleep

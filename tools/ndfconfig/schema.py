@@ -136,6 +136,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
         dict(key='NDF_MEMPROT', type='int', default=1, target='h', label='Memory protection (0 off, 1 on, 2 on + locked)', range=(0, 2),
              help='PMS split at the end of code: stores into code and fetches from data are blocked and reported (panic). '
                   '2 locks the configuration until reset (registers only, no eFuse).'),
+        dict(key='NDF_ULP_RESERVE', type='int', default=0, target='h', label='ULP program memory (bytes)', range=(0, 3824),
+             help='RTC slow memory kept for a ULP-RISC-V program (ulp.h). RTC_DATA_ATTR variables move above it; loading a ULP '
+                  'program makes every reset go through the ROM (the warm-boot jump shares 0x50000000).'),
         dict(key='NDF_ASSERT_ENABLE', type='bool', default=True, target='h', label='NDF_ASSERT checks',
              help='Off: NDF_ASSERT() compiles to nothing.'),
         dict(key='NDF_UART_RING', type='int', default=2048, target='h', label='UART software ring (bytes)', range=(64, 16384),

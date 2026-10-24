@@ -1,3 +1,6 @@
+#ifndef NDF_ULP_RESERVE
+#define NDF_ULP_RESERVE 0     /* bytes of RTC slow memory from 0x50000000 for a ULP program (ulp.h) */
+#endif
 /* ESP32-S3 image (run through the C preprocessor; NDF_XIP, NDF_XIP_ADDR, NDF_XIP_SIZE from the Makefile).
  * RAM part: loaded from flash 0x0 by the ROM loader. Every fetch is single-cycle SRAM -> deterministic.
  * SRAM1 is one memory seen twice: IRAM 0x4037_8000 == DRAM 0x3FC8_8000 (offset 0x6F_0000). Code goes first;
@@ -16,7 +19,7 @@ MEMORY
     dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = 0x3FCE9000 - 0x3FC88000
     irom (RX)  : ORIGIN = 0x42000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
     drom (R)   : ORIGIN = 0x3C000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
-    rtcslow (RW) : ORIGIN = 0x50000010, LENGTH = 0x1000 - 0x10     /* after the warm-boot jump; 0x50001000+: notes, benches */
+    rtcslow (RW) : ORIGIN = 0x50000010 + NDF_ULP_RESERVE, LENGTH = 0x1000 - 0x10 - NDF_ULP_RESERVE   /* after the warm-boot jump and the ULP program; 0x50001000+: notes */
 }
 
 /* Libraries never called from interrupts, flash operations or the panic path. Kept in RAM on purpose: printf

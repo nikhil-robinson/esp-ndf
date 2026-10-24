@@ -36,7 +36,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | C7 Brownout, clock-glitch detection | **done**: brownout (interrupt, IDF levels), glitch + super-WDT resets |
 | **D. Power** | D1 Light sleep, deep sleep, wake sources | **none** |
 | | D2 Power domains, retention, frequency scaling | **none** |
-| | D3 ULP coprocessors (FSM, RISC-V) | **none** |
+| | D3 ULP coprocessors (FSM, RISC-V) | **partial**: RISC-V + FSM loaders/run/stop, shared memory, 3.5x IDF start; wake-from-sleep (D1) and RTC I2C open |
 | **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
 | | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF; GCM (drivers/crypto/gcm.c) |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
@@ -150,7 +150,7 @@ Reference: `esp_hw_support/sleep_modes.c`, `esp_hw_support/port/esp32s3/rtc_slee
 **D2 Power domains, frequency scaling — none.** Domain control, peripheral retention, sleep pad configuration,
 dynamic frequency scaling with locks.
 
-**D3 ULP coprocessors — none (TRM 2).** ULP-FSM and ULP-RISC-V loaders, shared RTC memory, waking the main CPU, RTC I2C
+**D3 ULP coprocessors — partial (TRM 2).** include/ulp.h, soc/esp32s3/ulp.c, examples/ulp_test, bench/ulp (programs + build.sh), bench/idf_ulp. Open: waking the main CPU (needs D1 sleep) and RTC I2C. Was: none. ULP-FSM and ULP-RISC-V loaders, shared RTC memory, waking the main CPU, RTC I2C
 for sensors while asleep. Reference: `ulp/`.
 
 ## E. Security and crypto
