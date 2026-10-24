@@ -19,5 +19,10 @@
 
 #define RAM_FN   __attribute__((section(".iram.text"), noinline))   /* always in internal RAM */
 #define FLASH_FN __attribute__((section(".flash.text"), noinline))  /* in flash (executed through the cache) when NDF_XIP != 0 */
+/* RTC slow memory (kept through deep sleep; IDF names): RTC_DATA_ATTR initialised at every boot except a deep-sleep
+ * wake, RTC_BSS_ATTR zeroed likewise, RTC_NOINIT_ATTR never touched (kept through any reset but power-on) */
+#define RTC_DATA_ATTR   __attribute__((section(".rtc.data")))
+#define RTC_BSS_ATTR    __attribute__((section(".rtc.bss")))
+#define RTC_NOINIT_ATTR __attribute__((section(".rtc.noinit")))
 #define NORETURN __attribute__((noreturn))
 #define ALWAYS_INLINE static inline __attribute__((always_inline))

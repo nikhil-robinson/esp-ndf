@@ -624,5 +624,10 @@ int flash_write(uint32_t addr, const void *buf, size_t len)
 }
 int flash_read_lines(void) { return read_lines; }
 uint32_t flash_clock_mhz(void) { return flash_mhz; }
+void flash_clock_80(void)              /* back to the 80 MHz sampling (PSRAM needs the core clock at 160 MHz) */
+{
+    din_set(0, 0); xdummy = 0; flash_mhz = 80;
+    if ((REG(S0 + 0x20) & 0xFFFF) == 0xEB) REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;   /* QIO: 6 dummy clocks */
+}
 bool flash_cached(void) { if (!mm) mm_init(); return mm > 0; }
 bool flash_cache_map(void) { return flash_cached(); }

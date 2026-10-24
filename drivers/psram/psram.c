@@ -2,6 +2,7 @@
  * Register sequence from the TRM (SPI_MEM, IO MUX, cache MMU) and the vendor's octal driver as a reference
  * (esp_psram_impl_octal.c): pins, CS timing, mode registers over SPI1 in octal DTR, then SPI0's cache path. */
 #include "psram.h"
+#include "flash.h"
 #include "xtensa.h"
 #include "sys.h"
 #include <string.h>
@@ -106,11 +107,20 @@ uint32_t psram_init(int clk_div)
 {
     uint8_t mr[4];
     pins();
+    flash_clock_80();                                            /* flash and PSRAM share the core clock (IDF: flash 80 MHz) */
     SR(S0, 0xEC) = 2;                                            /* MSPI core clock 160 MHz */
+    SR(S0, 0x14) = 1u << 16 | 0u << 8 | 1u;                      /* flash SPI0: 160 / 2 = 80 MHz (SPI1 likewise) */
+    *(volatile uint32_t *)0x60002014u = 1u << 16 | 0u << 8 | 1u;
     SR(S0, 0xBC) = 7; SR(S0, 0xC0) = 0x01249249;                 /* input timing (IDF values) */
     SR(S0, 0x3FC) = (SR(S0, 0x3FC) & ~0x3Fu) | 0x1F;
-    if (psram_cmd(0x4040, 0, 8, 0, 0, mr, 2) || psram_cmd(0x4040, 2, 8, 0, 0, mr + 2, 2)) return 0;
-    if ((mr[1] & 0x1F) != 0x0D && (mr[1] & 0x1F) != 0x1A) return 0;                    /* AP / UnilC */
+    /* mode-register reads use the read latency MR0 holds, and the PSRAM keeps MR0 through chip resets (an earlier
+     * app may have set another latency): try the dummy counts of every latency until the vendor ID reads back */
+    int dm = -1;
+    for (int d = 8; d <= 40 && dm < 0; d += 2) {
+        if (psram_cmd(0x4040, 0, d, 0, 0, mr, 2)) continue;
+        if ((mr[1] & 0x1F) == 0x0D || (mr[1] & 0x1F) == 0x1A) dm = d;                   /* AP / UnilC */
+    }
+    if (dm < 0 || psram_cmd(0x4040, 2, dm, 0, 0, mr + 2, 2)) return 0;
     static const uint32_t sizes[8] = { 0, 4u << 20, 0, 8u << 20, 0, 16u << 20, 64u << 20, 32u << 20 };
     size_bytes = sizes[mr[2] & 7];
     uint8_t w[2] = { (uint8_t)((mr[0] & 0xC0) | 1u << 5 | 2u << 2 | 0), mr[1] };          /* MR0: fixed latency, RL code 2, drive full */

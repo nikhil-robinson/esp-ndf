@@ -31,7 +31,8 @@ int      flash_erase_chip(void);                       /* whole chip (pauses fla
 int      flash_unique_id(uint8_t id[8]);               /* 64-bit unique ID (0x4B) */
 int      flash_write(uint32_t addr, const void *buf, size_t len);   /* area must be erased */
 int      flash_read_lines(void);
-uint32_t flash_clock_mhz(void);                      /* 80, or 120 when timing tuning found a window (NDF_FLASH_MHZ) */                       /* 2 = dual, 4 = quad (after first read) */
+uint32_t flash_clock_mhz(void);
+void     flash_clock_80(void);                         /* drop 120 MHz (psram_init does: shared core clock) */                      /* 80, or 120 when timing tuning found a window (NDF_FLASH_MHZ) */                       /* 2 = dual, 4 = quad (after first read) */
 bool     flash_cached(void);                           /* reads go through the data cache (fast path) */
 bool     flash_cache_map(void);                        /* map the whole flash through the MMU (used by cache.c) */
 /* With code from flash (NDF_XIP), erase/write pause flash code: call them from core 0 (core 1 is stalled meanwhile). */

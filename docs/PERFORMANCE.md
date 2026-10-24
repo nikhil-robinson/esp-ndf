@@ -468,3 +468,16 @@ ours. Code from flash runs from either slot: the code window (MMU entries 496-51
 
 RTC WDT stage 0 scaled by 2 << eFuse WDT_DELAY_SEL (IDF assumes 0) and the RTC slow clock measured (149-150 kHz here,
 nominal 136), so timeouts are within 1 %. Super WDT: ~3.4 s at this slow clock.
+
+## Heap and memory map (`examples/mem_test` vs `bench/idf_mem`, same board, best of 16, 2026-10-24)
+
+| malloc + free | esp-ndf | ESP-IDF (TLSF heap, SPIRAM_USE_MALLOC) | gain |
+|---|---|---|---|
+| 64 B internal | **227 cycles** | 1 278 | **5.6x** |
+| 4 KB internal | **227** | 1 288 | **5.7x** |
+| 100 KB (PSRAM) | **241** | 1 249 | **5.2x** |
+| PSRAM in the heap | 8 388 576 B (all 8 MB) | 8 285 912 B | |
+
+First-fit boundary-tag heap, regions internal (internal + DMA caps) and PSRAM (heap_add_psram); malloc >= 16 KB tries
+PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL). Ceiling: first fit is O(free blocks) under heavy fragmentation
+(segregated lists if a profile shows it). RTC_DATA_ATTR / RTC_BSS_ATTR / RTC_NOINIT_ATTR in RTC slow memory.

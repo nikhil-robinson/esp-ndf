@@ -1,6 +1,8 @@
 /* Boundary-tag heap. Block = 16-byte header (size incl. header, prev size,
  * free flag) + payload; blocks tile the region, so neighbours are found by
- * address and merged in O(1) on free.
+ * address and merged in O(1) on free. Regions: internal DRAM (internal, DMA)
+ * and PSRAM once heap_add_psram() ran; malloc as IDF (SPIRAM_MALLOC_ALWAYSINTERNAL):
+ * below NDF_PSRAM_MALLOC_MIN internal first, larger PSRAM first.
  * ponytail: first fit is O(blocks) per malloc; segregated free lists if
  * allocation-heavy code shows up in profiles. */
 #include "heap.h"
@@ -13,47 +15,81 @@ typedef struct { uint32_t size, prev, used, _pad; } blk_t;   /* 16 bytes keeps p
 extern char _stack1_top[];
 #define HEAP_END ((char *)0x3FCE9000)              /* ROM loader data above (see link.ld) */
 
-static char *base;
-static size_t nfree, minfree;
+typedef struct { char *base, *end; size_t nfree, minfree; uint32_t caps; } region_t;
+static region_t reg[2];
+static int nreg;
 static xc_spin_t lock;
 
 #define NEXT(b) ((blk_t *)((char *)(b) + (b)->size))
 #define PREV(b) ((blk_t *)((char *)(b) - (b)->prev))
 
-static void init(void)
+static void region_init(region_t *r, char *start, char *end, uint32_t caps)
 {
-    base = (char *)(((uintptr_t)_stack1_top + 15) & ~15u);
-    blk_t *b = (blk_t *)base;
-    b->size = (uint32_t)(HEAP_END - base - sizeof(blk_t)) & ~15u;
+    r->base = (char *)(((uintptr_t)start + 15) & ~15u); r->end = end; r->caps = caps;
+    blk_t *b = (blk_t *)r->base;
+    b->size = (uint32_t)(end - r->base - sizeof(blk_t)) & ~15u;
     b->prev = 0; b->used = 0;
-    blk_t *end = NEXT(b);                          /* sentinel: used, size 0 */
-    end->size = 0; end->prev = b->size; end->used = 1;
-    nfree = minfree = b->size - sizeof(blk_t);
+    blk_t *e = NEXT(b);                            /* sentinel: used, size 0 */
+    e->size = 0; e->prev = b->size; e->used = 1;
+    r->nfree = r->minfree = b->size - sizeof(blk_t);
 }
 
-static inline uint32_t lock_all(void) { uint32_t ps = irq_lock(); xc_spin_lock(&lock); if (!base) init(); return ps; }
+static void init(void) { region_init(&reg[0], _stack1_top, HEAP_END, HEAP_INTERNAL | HEAP_DMA); nreg = 1; }
+
+static inline uint32_t lock_all(void) { uint32_t ps = irq_lock(); xc_spin_lock(&lock); if (!nreg) init(); return ps; }
 static inline void unlock_all(uint32_t ps) { xc_spin_unlock(&lock); irq_unlock(ps); }
 
-void *malloc(size_t n)
+static void *reg_alloc(region_t *r, uint32_t need)
+{
+    for (blk_t *b = (blk_t *)r->base; b->size; b = NEXT(b)) {
+        if (b->used || b->size < need) continue;
+        if (b->size - need >= 2 * sizeof(blk_t)) {   /* split off the tail */
+            blk_t *t = (blk_t *)((char *)b + need);
+            t->size = b->size - need; t->prev = need; t->used = 0;
+            NEXT(t)->prev = t->size;
+            b->size = need;
+        }
+        b->used = 1;
+        r->nfree -= b->size;
+        if (r->nfree < r->minfree) r->minfree = r->nfree;
+        return b + 1;
+    }
+    return 0;
+}
+
+void *heap_caps_malloc(size_t n, uint32_t caps)
 {
     if (!n || n > 0x7FFFFFF0) return 0;
     uint32_t need = ((n + 15) & ~15u) + sizeof(blk_t);
     uint32_t ps = lock_all();
-    for (blk_t *b = (blk_t *)base; b->size; b = NEXT(b)) {
-        if (b->used || b->size < need) continue;
-        if (b->size - need >= 2 * sizeof(blk_t)) {   /* split off the tail */
-            blk_t *r = (blk_t *)((char *)b + need);
-            r->size = b->size - need; r->prev = need; r->used = 0;
-            NEXT(r)->prev = r->size;
-            b->size = need;
-        }
-        b->used = 1;
-        nfree -= b->size;
-        if (nfree < minfree) minfree = nfree;
-        unlock_all(ps);
-        return b + 1;
-    }
+    void *p = 0;
+    for (int i = 0; i < nreg && !p; i++) if ((reg[i].caps & caps) == caps) p = reg_alloc(&reg[i], need);
     unlock_all(ps);
+    return p;
+}
+
+void *malloc(size_t n)
+{
+    if (nreg > 1 && n >= NDF_PSRAM_MALLOC_MIN) {      /* large: PSRAM first (keeps internal RAM for DMA, stacks) */
+        void *p = heap_caps_malloc(n, HEAP_SPIRAM);
+        if (p) return p;
+    }
+    void *p = heap_caps_malloc(n, HEAP_INTERNAL);
+    return p || nreg < 2 ? p : heap_caps_malloc(n, HEAP_SPIRAM);
+}
+
+int heap_add_psram(void *start, size_t size)
+{
+    uint32_t ps = lock_all();
+    int r = -1;
+    if (nreg < 2 && size > 4096) { region_init(&reg[1], start, (char *)start + size, HEAP_SPIRAM); nreg = 2; r = 0; }
+    unlock_all(ps);
+    return r;
+}
+
+static region_t *owner(void *p)
+{
+    for (int i = 0; i < nreg; i++) if ((char *)p > reg[i].base && (char *)p < reg[i].end) return &reg[i];
     return 0;
 }
 
@@ -62,8 +98,10 @@ void free(void *p)
     if (!p) return;
     blk_t *b = (blk_t *)p - 1;
     uint32_t ps = lock_all();
+    region_t *r = owner(p);
+    if (!r) { unlock_all(ps); return; }
     b->used = 0;
-    nfree += b->size;
+    r->nfree += b->size;
     blk_t *n = NEXT(b);
     if (!n->used) { b->size += n->size; NEXT(b)->prev = b->size; }
     if (b->prev && !PREV(b)->used) { blk_t *pb = PREV(b); pb->size += b->size; NEXT(pb)->prev = pb->size; }
@@ -83,19 +121,26 @@ void *realloc(void *p, size_t n)
     if (!p) return malloc(n);
     if (!n) { free(p); return 0; }
     size_t have = ((blk_t *)p - 1)->size - sizeof(blk_t);
-    if (n <= have) return p;
+    if (n <= have) return p;                       /* (stays in its region) */
     void *q = malloc(n);
     if (q) { memcpy(q, p, have); free(p); }
     return q;
 }
 
-size_t heap_free(void) { uint32_t ps = lock_all(); size_t f = nfree; unlock_all(ps); return f; }
-size_t heap_min_free(void) { uint32_t ps = lock_all(); size_t f = minfree; unlock_all(ps); return f; }
+size_t heap_caps_free_size(uint32_t caps)
+{
+    uint32_t ps = lock_all(); size_t f = 0;
+    for (int i = 0; i < nreg; i++) if ((reg[i].caps & caps) == caps) f += reg[i].nfree;
+    unlock_all(ps);
+    return f;
+}
+size_t heap_free(void) { return heap_caps_free_size(HEAP_INTERNAL); }
+size_t heap_min_free(void) { uint32_t ps = lock_all(); size_t f = reg[0].minfree; unlock_all(ps); return f; }
 
 size_t heap_largest(void)
 {
     uint32_t ps = lock_all(); size_t m = 0;
-    for (blk_t *b = (blk_t *)base; b->size; b = NEXT(b))
+    for (blk_t *b = (blk_t *)reg[0].base; b->size; b = NEXT(b))
         if (!b->used && b->size - sizeof(blk_t) > m) m = b->size - sizeof(blk_t);
     unlock_all(ps);
     return m;

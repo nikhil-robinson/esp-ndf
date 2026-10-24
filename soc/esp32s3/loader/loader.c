@@ -354,6 +354,7 @@ bus_ready:
     for (uint32_t s = 0; s < nseg; s++) {
         uint32_t dst = rd32(p), len = rd32(p + 4);
         const uint32_t *src = (const uint32_t *)(p + 8);
+        if (dst >= 0x50000000u && dst < 0x50002000u && (REG(RESET_STATE) & 0x3F) == 5) { p += 8 + len; continue; }   /* RTC_DATA_ATTR: kept on a deep-sleep wake */
         if (dst >= 0x40378000u && dst < 0x403E0000u) dst -= 0x6F0000u;   /* IRAM through its DRAM alias */
         uint32_t *d = (uint32_t *)dst, n = len / 4, k = 0;
         for (; k + 4 <= n; k += 4) { uint32_t a = src[k], b = src[k + 1], c = src[k + 2], e = src[k + 3]; d[k] = a; d[k + 1] = b; d[k + 2] = c; d[k + 3] = e; }

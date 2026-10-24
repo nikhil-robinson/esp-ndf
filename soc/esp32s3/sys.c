@@ -91,6 +91,11 @@ void sys_start0(void)
 {
     uint64_t t0 = time_ticks();                 /* first thing: ROM boot + image load ends here */
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
+    if (((REG(0x60008038u) & 0x3F) != 5)) {      /* not a deep-sleep wake: RTC_BSS_ATTR zeroed (the loader skipped
+                                                     .rtc.data likewise) */
+        extern uint32_t _rtc_bss_start[], _rtc_bss_end[];
+        for (uint32_t *p = _rtc_bss_start; p < _rtc_bss_end; p++) *p = 0;
+    }
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
     sys_latch_reset_cause();                      /* before anything resets again (system.c) */

@@ -25,6 +25,9 @@
 #ifndef NDF_FLASH_SUS_HOLD_US
 #define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
 #endif
+#ifndef NDF_PSRAM_MALLOC_MIN
+#define NDF_PSRAM_MALLOC_MIN    16384   /* malloc: blocks this big try PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL) */
+#endif
 #ifndef NDF_BROWNOUT
 #define NDF_BROWNOUT            7       /* brownout detection from boot: 0 off, level 1 (3.30 V) .. 7 (2.44 V); restart on detection */
 #endif

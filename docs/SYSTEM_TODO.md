@@ -23,7 +23,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A7 Multi-core | partial |
 | | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **none** |
 | **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
-| | B2 Memory map: RTC memory, PSRAM heap, capabilities | partial |
+| | B2 Memory map: RTC memory, PSRAM heap, capabilities | **done**: RTC sections, PSRAM heap + caps, 5.5x IDF malloc |
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
 | | B4 GDMA | partial |
 | | B5 Memory protection (PMS), World Controller | **none** |
@@ -100,7 +100,7 @@ fast boot and ROM-free warm boot, flash driver with IDF's chip list, SFDP, QE ha
 (reads there go through SPI1). Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
 `esp_mm/`, `hal/mmu_hal.c`, `hal/esp32s3/include/hal/cache_ll.h`, `esp_system/ld/esp32s3/sections.ld.in`.
 
-**B2 Memory map — partial.** Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,
+**B2 Memory map — done.** RTC_DATA/BSS/NOINIT sections, PSRAM heap with capabilities (lib/heap.c), examples/mem_test. Was: partial. Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,
 `.rtc.noinit`; a bench app writes 0x50001000 by hand today), PSRAM heap and capability-based allocation (DMA-capable,
 executable, external), reclaiming unused IRAM. Reference: `heap/port/esp32s3/memory_layout.c`,
 `esp_system/ld/esp32s3/memory.ld.in`.

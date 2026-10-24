@@ -16,6 +16,7 @@ MEMORY
     dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = 0x3FCE9000 - 0x3FC88000
     irom (RX)  : ORIGIN = 0x42000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
     drom (R)   : ORIGIN = 0x3C000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
+    rtcslow (RW) : ORIGIN = 0x50000010, LENGTH = 0x1000 - 0x10     /* after the warm-boot jump; 0x50001000+: notes, benches */
 }
 
 /* Libraries never called from interrupts, flash operations or the panic path. Kept in RAM on purpose: printf
@@ -74,6 +75,10 @@ SECTIONS
         . = ALIGN(16); . += NDF_STACK0_SIZE; _stack0_top = .;   /* sizes from app.mk (--defsym) */
         . = ALIGN(16); . += NDF_STACK1_SIZE; _stack1_top = .;
     } > dram
+
+    .rtc.data : { _rtc_data_start = .; *(.rtc.data .rtc.data.*) . = ALIGN(4); _rtc_data_end = .; } > rtcslow
+    .rtc.bss (NOLOAD) : { _rtc_bss_start = .; *(.rtc.bss .rtc.bss.*) . = ALIGN(4); _rtc_bss_end = .; } > rtcslow
+    .rtc.noinit (NOLOAD) : { *(.rtc.noinit .rtc.noinit.*) } > rtcslow
 
     .rfmark (NOLOAD) : { *(.rfmark) }    /* non-empty only if the RF dump engine is linked (drivers/rf/rf_dump.c) */
 

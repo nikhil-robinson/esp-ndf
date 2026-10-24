@@ -794,3 +794,14 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | RTC WDT on the calibrated clock (wdt_test) | 200 ms -> 201 ms |
 
 Not run: 32 kHz crystal / external oscillator and its watchdog (no crystal on this board).
+
+## Memory map, heap, PSRAM (`examples/mem_test`, 2026-10-24)
+
+| test | result |
+|---|---|
+| RTC_DATA_ATTR initialised, RTC_BSS_ATTR zero at boot | PASS |
+| after a software reset: RTC_DATA re-initialised, RTC_BSS zeroed, RTC_NOINIT kept | PASS |
+| PSRAM 8 MB into the heap; malloc(100000) in PSRAM, malloc(100) and DMA caps internal, SPIRAM caps in PSRAM | PASS |
+| data in PSRAM blocks, all frees return both regions to their start | PASS |
+| PSRAM left with another read latency (MR0 kept through resets) | psram_init now finds it (latency search) |
+| flash at 120 MHz + PSRAM | psram_init returns the flash to 80 MHz first (shared MSPI core clock, as IDF) |
