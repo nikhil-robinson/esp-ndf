@@ -38,7 +38,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | D2 Power domains, retention, frequency scaling | **none** |
 | | D3 ULP coprocessors (FSM, RISC-V) | **none** |
 | **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
-| | E2 AES accelerator | partial: block + XTS |
+| | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF (GCM open) |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **none** |
 | | E5 HMAC, Digital Signature (DS) | **none** |

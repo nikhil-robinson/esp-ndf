@@ -43,6 +43,9 @@
 #ifndef NDF_OTA_XIP_OFF
 #define NDF_OTA_XIP_OFF         0x80000 /* OTA slot layout: RAM image at +0, its code window (xip.bin) at +this */
 #endif
+#ifndef NDF_AES_DMA_MIN
+#define NDF_AES_DMA_MIN         4       /* AES modes: runs of at least this many 16-byte blocks in internal RAM go by DMA */
+#endif
 #ifndef NDF_SHA_DMA_MIN
 #define NDF_SHA_DMA_MIN         4       /* SHA: runs of at least this many blocks in internal RAM go by DMA */
 #endif

@@ -63,6 +63,10 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='A new image is checked (SHA-256) once, then must call ota_mark_valid() in its first boot; otherwise the '
                   'next reset marks it aborted and boots the previous one (as IDF APP_ROLLBACK_ENABLE).'),
     ]),
+    ('menu', 'AES accelerator', [
+        dict(key='NDF_AES_DMA_MIN', type='int', default=4, target='h', label='DMA from this many blocks', range=(1, 4096),
+             help='Runs of at least this many 16-byte blocks in internal RAM use the engine DMA mode; shorter runs are fed by the CPU.'),
+    ]),
     ('menu', 'SHA accelerator', [
         dict(key='NDF_SHA_DMA_MIN', type='int', default=4, target='h', label='DMA from this many blocks', range=(1, 1000),
              help='Runs of at least this many 64/128-byte blocks in internal RAM go to the engine by DMA (up to 63 '

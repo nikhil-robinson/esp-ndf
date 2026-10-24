@@ -817,3 +817,8 @@ write / read exact, flash code on core 1 correct during erase + write with hardw
 All 232 rows of ESP-IDF's esp_efuse_table.csv (tools/gen_efuse.py; multi-row fields such as MAC joined in IDF order),
 read by name. Against `espefuse.py dump` + `summary --format json` on the same chip: **100 of 100 positioned fields
 equal the raw bits** (12 espefuse entries have no bit position to compare). Read-only: no burning code.
+
+## AES modes (`examples/aes_test`, 2026-10-24)
+
+NIST SP 800-38A F.1-F.5 (ECB, CBC, CFB128, OFB, CTR; AES-128) PASS by DMA, block by block and decrypting. AES-256,
+64 KB random data, every mode: DMA output and final IV equal the CPU path, decryption restores the plaintext.

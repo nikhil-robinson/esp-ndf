@@ -496,3 +496,13 @@ Not on IDF's suspend list (IDF stalls flash code for the whole operation); our S
 
 Hold after resume (NDF_FLASH_SUS_HOLD_US): IDF's 50 us starves the erase when flash is touched every 20-50 us (never
 finishes, reported as a failure); 100 us passes every case with the shortest pauses (200 us: 548 us, 400 us: 1 ms).
+
+## AES modes (`examples/aes_test` vs `bench/idf_aes`, C9:D0, best of 4, 2026-10-24)
+
+| cycles, AES-128 | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
+|---|---|---|---|
+| CBC 16 B / 256 B / 4 KB / 64 KB | **921 / 2 418 / 16 941 / 250 029** | 5 956 / 6 727 / 24 031 / 279 184 | 6.5x / 2.8x / 1.42x / 1.12x |
+| CTR 16 B / 256 B / 4 KB / 64 KB | **858 / 2 433 / 16 956 / 250 059** | 5 983 / 6 739 / 24 052 / 279 205 | 7.0x / 2.8x / 1.42x / 1.12x |
+
+Engine DMA mode for >= 4 blocks in internal RAM (62 MB/s at 64 KB, the engine's rate), CPU-fed blocks below (no
+descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.

@@ -34,6 +34,12 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_OTA`<br>Loader picks the image from otadata | ndf_config.h | `y` | y / n | ESP-IDF otadata format: factory image, or ota_0/ota_1 by sequence number. Adds ~0.75 ms to a cold boot (warm resets unchanged). Off: always the image at BOOT_LOAD_ADDR (cold boot 6.0 ms). |
 | `NDF_OTA_ROLLBACK`<br>Rollback | ndf_config.h | `y` | y / n | A new image is checked (SHA-256) once, then must call ota_mark_valid() in its first boot; otherwise the next reset marks it aborted and boots the previous one (as IDF APP_ROLLBACK_ENABLE). |
 
+## AES accelerator
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_AES_DMA_MIN`<br>DMA from this many blocks | ndf_config.h | `4` | 1 – 4096 | Runs of at least this many 16-byte blocks in internal RAM use the engine DMA mode; shorter runs are fed by the CPU. |
+
 ## SHA accelerator
 
 | Option | File | Default | Values | Description |
