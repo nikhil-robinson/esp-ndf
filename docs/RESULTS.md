@@ -827,3 +827,9 @@ NIST SP 800-38A F.1-F.5 (ECB, CBC, CFB128, OFB, CTR; AES-128) PASS by DMA, block
 
 RSA-1024/2048/4096: x^65537, x^d and x*y mod M all equal Python pow() vectors (bench/rsa/gen_vectors.py) on C9:D0;
 IDF sibling bench/idf_rsa gives the same results. Timings in PERFORMANCE.md.
+
+## P-256 ECC (`examples/p256_test`, 2026-10-24)
+
+Public key, ECDH shared secret, ECDSA sign with the RFC 6979 A.2.5 k (r,s match the RFC) and verify of a python
+cryptography signature all PASS on C9:D0 (vectors bench/p256/gen_vectors.py); random keygen/sign/verify round trip
+passes, tampered signature and off-curve key are rejected. Same results from bench/idf_p256.

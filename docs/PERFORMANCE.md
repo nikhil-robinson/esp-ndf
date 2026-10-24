@@ -519,3 +519,15 @@ descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.
 
 Exponentiation is the engine's own time (both drive the same block), so x^d is at the floor; the gain is R² preparation
 (top-bit trick + doublings instead of mbedtls' generic division) and less per-call overhead on short exponents.
+
+## P-256 ECC (`examples/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-24)
+
+| us | esp-ndf (lib/p256.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
+|---|---|---|---|
+| public key (d G) | 59 599 | 92 847 | 1.56x |
+| ECDH shared secret | 58 729 | 92 939 | 1.58x |
+| ECDSA sign | 64 462 | 99 645 | 1.55x |
+| ECDSA verify | 118 289 | 197 932 | 1.67x |
+
+Dedicated 8-limb Montgomery mod p/n vs mbedtls' generic bignum. Headroom: mixed (affine-table) adds, a comb table
+for G, Shamir's trick in verify and P-specific reduction would each cut more; not needed to beat IDF.
