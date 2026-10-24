@@ -22,12 +22,14 @@ typedef struct {
     uint32_t addr; uint8_t addr_bits;      /* 0..32 bits, MSB first */
     uint8_t  dummy;                        /* dummy SCLK cycles */
     uint8_t  lines, cmd_lines, addr_lines; /* data / command / address lines: 1 (or 0), 2, 4, 8 */
+    uint8_t  dtr;                          /* DDR (both clock edges): SPI_DTR_CMD | _ADDR | _DATA (master only; IDF has none) */
 } spi_hd_t;
 /* Data lines beyond MOSI/MISO: line 0 = D(MOSI) 1 = Q(MISO) 2 = WP 3 = HD 4..7 = IO4..7 (SPI2). */
 int  spi_master_io(int host, int line, int pin);
 void spi_master_cs_timing(int host, uint32_t setup_cycles, uint32_t hold_cycles);
 /* One phase sequence: cmd, addr, dummy, then write tx or read rx (not both), len <= 32 KB.
  * spi_xfer() afterwards returns to plain full duplex. */
+enum { SPI_DTR_CMD = 1, SPI_DTR_ADDR = 2, SPI_DTR_DATA = 4 };
 int  spi_hd_xfer(int host, const spi_hd_t *t, const void *tx, void *rx, size_t len);
 
 /* ---- half-duplex slave, buffer mode (protocol of IDF spi_slave_hd: 8-bit cmd, 8-bit addr, 8 dummy) ---- */

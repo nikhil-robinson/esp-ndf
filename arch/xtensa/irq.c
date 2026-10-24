@@ -15,7 +15,7 @@ irq_slot_t irq_fast[SOC_CORES][2];        /* levels 4, 5 */
  * its own status first. Lines are only shared when they run out, so a lone
  * source keeps its direct dispatch and latency. */
 typedef struct share { irq_fn_t fn; void *arg; int src; struct share *next; } share_t;
-static share_t share_pool[24];
+static share_t share_pool[NDF_IRQ_SHARES];           /* members of shared lines, both cores */
 static share_t *shared[SOC_CORES][32];
 static uint8_t line_src[SOC_CORES][32];    /* source of a line's single owner */
 

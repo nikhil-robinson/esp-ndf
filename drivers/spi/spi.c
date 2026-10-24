@@ -136,6 +136,7 @@ static int xfer_dma(int h, const void *tx, void *rx, size_t len, uint32_t user, 
 static void hd_off(int h)                               /* back to plain full duplex after spi_hd_xfer */
 {
     REG(CTRL(h)) = 0; REG(USER1(h)) = user1_base[h - 2]; REG(USER2(h)) = 0;
+    REG_CLR(MISC(h), 0xFu << 16);                       /* DTR off */
     hd_on[h - 2] = false;
 }
 
@@ -186,6 +187,8 @@ int spi_hd_xfer(int h, const spi_hd_t *t, const void *tx, void *rx, size_t len)
     REG(USER2(h)) = (t->cmd_bits ? (t->cmd_bits - 1u) << 28 : 0) |
                     (t->cmd_bits ? __builtin_bswap32((uint32_t)t->cmd << (32 - t->cmd_bits)) & 0xFFFF : 0);
     if (t->addr_bits) REG(ADDR(h)) = t->addr_bits == 32 ? t->addr : t->addr << (32 - t->addr_bits);
+    REG(MISC(h)) = (REG(MISC(h)) & ~(0xFu << 16)) | (t->dtr ? BIT(16) : 0) |   /* clk_data_dtr + per phase */
+                   (t->dtr & SPI_DTR_DATA ? BIT(17) : 0) | (t->dtr & SPI_DTR_ADDR ? BIT(18) : 0) | (t->dtr & SPI_DTR_CMD ? BIT(19) : 0);
     hd_on[k] = true;
     uint32_t user = (user_base[k] & ~BIT(0)) | (tx && dl < 3 ? BIT(12 + dl) : 0) |
                     (t->cmd_bits ? BIT(31) : 0) | (t->addr_bits ? BIT(30) : 0) | (t->dummy ? BIT(29) : 0) |

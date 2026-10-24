@@ -162,6 +162,8 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='Open directory handles.'),
         dict(key='NDF_SPIFFS_MAX_BLOCKS', type='int', default=256, target='h', label='SPIFFS: max volume (4 KB blocks)', range=(16, 4096),
              help='Largest mountable volume; costs ~30 bytes of RAM per block for the lookup mirror.'),
+        dict(key='NDF_IRQ_SHARES', type='int', default=48, target='h', label='IRQ: shared-line members', range=(8, 256),
+             help='Sources that share a CPU interrupt line once the free lines of a level are used up (16 B each).'),
         dict(key='NDF_PFS_MAX_FILES', type='int', default=4, target='h', label='PFS: open files', range=(1, 32),
              help='Open file handles (264 B each: 256 B write buffer).'),
         dict(key='NDF_PFS_MAX_DIRS', type='int', default=2, target='h', label='PFS: open directories', range=(1, 16),

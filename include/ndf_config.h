@@ -155,6 +155,9 @@
 #ifndef NDF_FAT_PATH_CACHE
 #define NDF_FAT_PATH_CACHE      4       /* resolved-path cache entries  */
 #endif
+#ifndef NDF_IRQ_SHARES
+#define NDF_IRQ_SHARES          48      /* interrupt sources sharing CPU lines (16 B each) */
+#endif
 #ifndef NDF_PFS_MAX_FILES
 #define NDF_PFS_MAX_FILES       4       /* PFS open files (264 B each) */
 #endif

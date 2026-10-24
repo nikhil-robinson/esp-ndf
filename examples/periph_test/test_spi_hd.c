@@ -71,7 +71,7 @@ static bool hd_dma(uint8_t mod, uint8_t lines)
     return wok && rok;
 }
 
-static volatile uint32_t cap_go, cap_n, cap_lo[64], cap_hi[64];
+static volatile uint32_t cap_go, cap_n, cap_both, cap_lo[64], cap_hi[64];
 static void capture(void)                                /* core 1: sample GPIO_IN on each rising SCLK (GPIO14) */
 {
     while (!cap_go) {}
@@ -79,7 +79,7 @@ static void capture(void)                                /* core 1: sample GPIO_
     while (cap_n < 64 && ccount() - t0 < 24000000u) {
         uint32_t lo = REG(0x6000403C), hi = REG(0x60004040);
         uint32_t ck = lo & BIT(14);
-        if (ck && !prev) { cap_lo[cap_n] = lo; cap_hi[cap_n] = hi; cap_n++; }
+        if (ck != prev && (ck || cap_both)) { cap_lo[cap_n] = lo; cap_hi[cap_n] = hi; cap_n++; }
         prev = ck;
     }
     cap_go = 0;
@@ -92,7 +92,7 @@ static bool octal(void)
     for (int i = 0; i < 8; i++) spi_master_io(2, i, mpad[i]);
     uint8_t out[16];
     for (int i = 0; i < 16; i++) out[i] = (uint8_t)(0x5A + i * 29);
-    cap_n = 0; cap_go = 0;
+    cap_n = 0; cap_both = 0; cap_go = 0;
     cpu1_start(capture);
     cap_go = 1;
     spi_hd_t t = { .lines = 8 };
@@ -110,6 +110,29 @@ static bool octal(void)
     }
     printf("    octal write 16 B: %lu clocks captured, %d bytes wrong\n", cap_n, bad);
     return cap_n == 16 && bad == 0;
+}
+
+/* DTR: 1-line data on both SCLK edges at 78 kHz, core 1 samples D0 (GPIO16) at every edge: 8 bytes = 32 clocks */
+static bool dtr(void)
+{
+    spi_master_init(2, 14, -1, -1, 15, 78125, 0);
+    spi_master_io(2, 0, mpad[0]);
+    uint8_t out[8] = { 0xA5, 0x3C, 0x0F, 0xF0, 0x81, 0x7E, 0x55, 0xC3 };
+    cap_n = 0; cap_both = 1; cap_go = 0;
+    cpu1_start(capture);
+    cap_go = 1;
+    spi_hd_t t = { .lines = 1, .dtr = SPI_DTR_DATA };
+    spi_hd_xfer(2, &t, out, NULL, sizeof out);
+    uint32_t t0 = ccount(); while (cap_go && ccount() - t0 < 48000000u) {}
+    int bad = 0;
+    for (int k = 0; k < 8; k++) {
+        uint8_t b = 0;
+        for (int i = 0; i < 8; i++) b = b << 1 | ((cap_lo[k * 8 + i] >> 16) & 1);
+        bad += b != out[k];
+    }
+    printf("    DTR write 8 B on 1 line: %lu edges captured (64 = both edges), %d bytes wrong\n", cap_n, bad);
+    spi_xfer(2, NULL, NULL, 0);
+    return cap_n == 64 && bad == 0;
 }
 
 void test_spi_hd(void)
@@ -130,6 +153,7 @@ void test_spi_hd(void)
     CHECK(hd_dma(0, 1));
     CHECK(hd_dma(SPI_HD_QUAD, 4));
     METRIC("spi_hd_xfer() quad write 32 B @10 MHz", "%lu cycles", ({ uint8_t b[32] = { 0 }; spi_hd_t w = { .cmd = SPI_HD_WRBUF | SPI_HD_QUAD, .cmd_bits = 8, .addr_bits = 8, .dummy = 8, .lines = 4 }; uint32_t t = ccount(); spi_hd_xfer(2, &w, b, NULL, 32); ccount() - t; }));
+    CHECK(dtr());
     CHECK(octal());
     spi_dma_release(2); spi_dma_release(3);
 }
