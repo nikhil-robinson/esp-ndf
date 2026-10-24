@@ -157,6 +157,10 @@ void sys_start0(void)
     sys_print_info();
 #endif
     boot_t1 = time_ticks();
+    {   /* global constructors (C++ statics, __attribute__((constructor))), in priority order */
+        extern void (*__init_array_start[])(void), (*__init_array_end[])(void);
+        for (void (**f)(void) = __init_array_start; f < __init_array_end; f++) (*f)();
+    }
     main();
     for (;;) {}
 }

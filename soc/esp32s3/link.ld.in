@@ -67,6 +67,14 @@ SECTIONS
 
     .data _data_origin : {
         *(.rodata .rodata.* .data .data.* .sdata .sdata.*)
+        . = ALIGN(4);
+        __init_array_start = .;           /* C++ global constructors (and __attribute__((constructor))) */
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+        KEEP(*(.init_array .ctors))
+        __init_array_end = .;
+        __ndf_reg_start = .;              /* compile-time registries: commands (cmd.h), tests (unit.h), ... */
+        KEEP(*(SORT_BY_NAME(.ndf_reg.*)))
+        __ndf_reg_end = .;
         _data_end = .;
     } > dram
 

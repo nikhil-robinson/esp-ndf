@@ -118,7 +118,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] Event dispatch (lightweight, no RTOS)
 - [ ] Console input / command line (REPL) over USB serial
 - [ ] Unit test framework on the device (our CHECK/METRIC grown into a runner) + host tests
-- [ ] C++ support: global constructors, `new/delete`, no exceptions/RTTI option
+- [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
 - [ ] Optional cooperative scheduler / task API for apps that want one (still no RTOS in the hot path)
 - [ ] gdbstub / JTAG debugging guide, app trace (fast logging over JTAG)
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema

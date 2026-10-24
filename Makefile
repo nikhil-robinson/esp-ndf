@@ -35,7 +35,9 @@ else
   OUT   = build/$(notdir $(APP))
 endif
 
-SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S lib/musl/*.c $(APP)/*.c $(APP)/*.S)
+SRCS  = $(wildcard arch/$(ARCH)/*.c arch/$(ARCH)/*.S soc/$(SOC)/*.c drivers/*/*.c drivers/*/*.S lib/*.c lib/*.S lib/musl/*.c $(APP)/*.c $(APP)/*.S $(APP)/*.cpp)
+# C++ runtime (new/delete, ABI hooks) only when the app has C++ sources
+SRCS += $(if $(wildcard $(APP)/*.cpp),lib/cxx/cxx.cpp)
 OBJS  = $(patsubst %,$(OUT)/%.o,$(SRCS))
 INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench -Ilib/musl
 
@@ -109,6 +111,14 @@ $(OUT)/%.c.o: %.c
 	@echo "  CC $<"
 	@$(PFX)gcc $(FLAGS) -MMD -MP -MF $(@:.o=.d) -MT $@ -S $< -o - | $(LOOPFIX) > $(@:.o=.s)
 	@$(PFX)gcc $(FLAGS) -c $(@:.o=.s) -o $@
+
+# C++: no exceptions / RTTI / thread-safe statics (no libstdc++: lib/cxx/cxx.cpp has new/delete and the ABI hooks)
+CXXFLAGS = $(filter-out -fno-builtin,$(FLAGS)) -std=gnu++17 -fno-exceptions -fno-rtti -fno-threadsafe-statics -fno-use-cxa-atexit
+$(OUT)/%.cpp.o: %.cpp
+	@mkdir -p $(dir $@)
+	@echo "  CXX $<"
+	@$(PFX)g++ $(CXXFLAGS) -MMD -MP -MF $(@:.o=.d) -MT $@ -S $< -o - | $(LOOPFIX) > $(@:.o=.s)
+	@$(PFX)g++ $(CXXFLAGS) -c $(@:.o=.s) -o $@
 
 $(OUT)/%.S.o: %.S
 	@mkdir -p $(dir $@)

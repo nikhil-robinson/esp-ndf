@@ -118,3 +118,11 @@ void *bsearch(const void *key, const void *base, size_t n, size_t w, int (*cmp)(
     }
     return 0;
 }
+
+/* abort(): report, then trap into the fault handler (backtrace, as any fault) */
+void abort(void)
+{
+    extern int printf(const char *, ...);
+    printf("abort()\n");
+    __builtin_trap();
+}
