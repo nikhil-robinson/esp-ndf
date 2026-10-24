@@ -598,3 +598,16 @@ The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handl
 64-byte external blocks (32-byte: 54 / 58 / 28 MB/s). Both sides are near the PSRAM bus limit (octal DDR 80 MHz =
 160 MB/s raw, less command/latency per 64-byte burst); ours saves the per-chunk task/semaphore handoff.
 Priority: two channels copying 32 KB at once, the prio-5 channel finishes in ~520 us, the prio-0 one in ~1030 us.
+
+## Memory protection (`examples/memprot_test`, C9:D0, 2026-10-24)
+
+| | esp-ndf (NDF_MEMPROT=1, default) | ESP-IDF (CONFIG_ESP_SYSTEM_MEMPROT_FEATURE, default) |
+|---|---|---|
+| code stores (IRAM bus and DRAM alias), data execution | blocked + reported | blocked + reported |
+| on a violation | panic with bus/address/type, or a callback (test, logging) | panic |
+| run-time cost | 0 (hardware); boot: within the +-40 us run-to-run spread (889 vs 873-918 us) | - |
+| lock | optional (NDF_MEMPROT=2) | default on |
+| vector patching (irq_naked) | allowed while unlocked | n/a |
+
+Split granularity 256 B: _text_end is aligned to 256 (up to 255 B of padding). Warm boot on C9:D0 is 881-889 us
+with or without both features (and at the brownout commit ef16ef2); the 781 us figure was the other devkit.

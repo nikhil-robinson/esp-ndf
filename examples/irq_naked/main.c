@@ -20,7 +20,7 @@ int main(void)
         uint32_t target = ccount() + 2000;
         __asm__ volatile("wsr.ccompare2 %0; rsync" :: "r"(target));
         uint32_t prev = ccount(), now;
-        for (;;) { now = ccount(); if (naked_probe[2]) break; prev = now; }
+        for (;;) { if (naked_probe[2]) { now = ccount(); break; } prev = ccount(); }   /* time after seeing the flag: never before the handler's exit */
         uint32_t e = naked_probe[1] - target, x = now - naked_probe[3], s = now - prev;
         if (e < emin) emin = e;
         if (e > emax) emax = e;

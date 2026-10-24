@@ -76,6 +76,9 @@ void sys_start1(void)
 #if NDF_STACK_GUARD
     guard_boot(1);
 #endif
+#if NDF_MEMPROT
+    { extern void memprot_core1(void); memprot_core1(); }
+#endif
     irq_enable_all();                       /* individual sources stay off until attached */
     cpu1_fn();
     for (;;) {}
@@ -140,6 +143,9 @@ void sys_start0(void)
     console_init();
 #if NDF_STACK_GUARD
     guard_boot(0);
+#endif
+#if NDF_MEMPROT
+    { extern int memprot_init(bool); memprot_init(NDF_MEMPROT == 2); }
 #endif
     irq_enable_all();                       /* individual sources stay off until attached */
 #if NDF_BOOT_BANNER
@@ -222,9 +228,10 @@ NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vad
                                "instr PIF address error", "load/store PIF address error", "inst TLB miss", "inst TLB multi hit",
                                "inst fetch privilege", "?", "inst fetch prohibited", "?", "?", "?", "load/store TLB miss",
                                "load/store TLB multi hit", "load/store privilege", "?", "load prohibited", "store prohibited" };
-    char why[96];
+    char why[128];
     const char *cs = cause < sizeof c / sizeof c[0] ? c[cause] : (cause >= 32 && cause < 40 ? "coprocessor disabled (vector/PIE in an ISR?)" : "?");
-    snprintf(why, sizeof why, "%s, EXCCAUSE %lu (%s), EXCVADDR 0x%08lx", k[kind & 3], (unsigned long)cause, cs, (unsigned long)vaddr);
+    snprintf(why, sizeof why, "%s, EXCCAUSE %lu (%s), EXCVADDR 0x%08lx%s", k[kind & 3], (unsigned long)cause, cs, (unsigned long)vaddr,
+             NDF_MEMPROT && pc >= (((uint32_t)_text_end + 255) & ~255u) && pc < 0x403E0000u ? " - PC in data: fetch blocked by memprot" : "");
     ndf_panic(why, pc, frame, sp);
 }
 

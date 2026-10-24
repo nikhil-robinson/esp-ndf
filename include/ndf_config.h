@@ -128,6 +128,10 @@
 #define NDF_STACK_GUARD         256     /* hardware stack guard from boot: panic when SP gets this close to the bottom of
                                          * a core's stack (bytes left for the report); 0 off */
 #endif
+#ifndef NDF_MEMPROT
+#define NDF_MEMPROT             1       /* memory protection from boot: code not writable, data not executable (panic on
+                                         * a violation); 2 also locks the settings until reset; 0 off */
+#endif
 #ifndef NDF_ASSERT_ENABLE
 #define NDF_ASSERT_ENABLE       1       /* 0: NDF_ASSERT() compiles to nothing */
 #endif

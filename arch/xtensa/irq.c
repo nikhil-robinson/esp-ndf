@@ -4,6 +4,7 @@
 #include "irq.h"
 #include "xtensa.h"
 #include "soc_intr.h"
+#include "memprot.h"
 
 typedef struct { irq_fn_t fn; void *arg; } irq_slot_t;
 irq_slot_t irq_tab[SOC_CORES][32];        /* used by vectors.S: layout fixed */
@@ -134,8 +135,10 @@ static void patch_j(char *at, char *to)
     uint32_t insn = 0x06 | ((uint32_t)off & 0x3FFFF) << 6;
     volatile uint8_t *d = (volatile uint8_t *)((uint32_t)at - 0x6F0000);   /* DRAM alias of IRAM */
     uint32_t ps = irq_lock();
+    bool opened = memprot_code_write(true);             /* code is store-protected (memprot) */
     d[0] = insn; d[1] = insn >> 8; d[2] = insn >> 16;
     __asm__ volatile("memw; isync");
+    if (opened) memprot_code_write(false);
     irq_unlock(ps);
 }
 

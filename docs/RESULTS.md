@@ -874,3 +874,11 @@ TRACELEVEL" (counted nothing).
 the higher channel finished first both ways. Unaligned PSRAM request refused; owner=0 descriptor with owner check
 -> GDMA_ERR_OUT, peripheral-space buffer -> descriptor error; gdma_reset recovers, next copy correct. PASS on C9:D0.
 Board note corrected: C9:D0's PSRAM is octal (IDF quad mode fails with ID 0xffffff).
+
+## Memory protection (`examples/memprot_test`, `examples/memprot_exec`, 2026-10-24)
+
+Store into code through the DRAM alias and through the IRAM address: blocked (code bytes unchanged), reported with
+bus, address and write flag; data stores and calls unaffected; memprot_code_write opens and recloses code. Jump into
+a data buffer: "illegal instruction ... PC in data: fetch blocked by memprot". With protection on from boot:
+periph_test 21/21, debug_test, gdma_ext, flash_test, ota_test, fpu_isr, xcore_call, irq_naked (vector patch), core_test
+PASS. irq_naked's exit figure had wrapped (time read before the flag check); fixed: 14 / 12 / 33 cycles.

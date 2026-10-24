@@ -56,7 +56,7 @@ SECTIONS
         KEEP(*(.vectors))                 /* first: VECBASE = 0x40378000, 1 KB aligned */
         *(.iram.literal .iram.text .iram.text.*)
         *(.literal .literal.* .text .text.*)
-        . = ALIGN(16);
+        . = ALIGN(256);                   /* memprot split line granularity */
         _text_end = .;
     } > iram
 

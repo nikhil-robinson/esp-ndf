@@ -133,6 +133,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
         dict(key='NDF_STACK_GUARD', type='int', default=256, target='h', label='Stack guard margin (bytes, 0 = off)', range=(0, 4096),
              help='The CPU debug assistant watches SP from boot on both cores and panics (or restarts) when it comes within '
                   'this many bytes of the bottom of the stack: overflow caught before it corrupts other memory. No run-time cost.'),
+        dict(key='NDF_MEMPROT', type='int', default=1, target='h', label='Memory protection (0 off, 1 on, 2 on + locked)', range=(0, 2),
+             help='PMS split at the end of code: stores into code and fetches from data are blocked and reported (panic). '
+                  '2 locks the configuration until reset (registers only, no eFuse).'),
         dict(key='NDF_ASSERT_ENABLE', type='bool', default=True, target='h', label='NDF_ASSERT checks',
              help='Off: NDF_ASSERT() compiles to nothing.'),
         dict(key='NDF_UART_RING', type='int', default=2048, target='h', label='UART software ring (bytes)', range=(64, 16384),

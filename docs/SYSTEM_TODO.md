@@ -26,7 +26,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | B2 Memory map: RTC memory, PSRAM heap, capabilities | **done**: RTC sections, PSRAM heap + caps, 5.5x IDF malloc |
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
 | | B4 GDMA | **done**: PSRAM source/target (1.05-1.08x IDF), priority, owner check, error recovery |
-| | B5 Memory protection (PMS), World Controller | **none** |
+| | B5 Memory protection (PMS), World Controller | **done** (PMS split, monitor, lock); World Controller not used |
 | **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | **done**: slow clock sources + calibration, 32 kHz crystal/osc + its watchdog, RTC fast clock (crystal untested: none fitted) |
 | | C2 Reset, restart, reset causes | done |
 | | C3 Boot: 2nd-stage loader, app partitions, OTA | **done**: fast-boot loader, ROM-free warm boot 0.79 ms, OTA A/B + rollback (IDF format) |
@@ -112,7 +112,7 @@ executable, external), reclaiming unused IRAM. Reference: `heap/port/esp32s3/mem
 (block-size rules, cache handling), descriptor owner checks, error recovery. Reference: `hal/esp32s3/include/hal/gdma_ll.h`,
 `esp_hw_support/dma/gdma.c`.
 
-**B5 Memory protection, World Controller — none (TRM 15, 16).** IRAM write-protect, DRAM no-execute, peripheral access
+**B5 Memory protection — done (TRM 15).** soc/esp32s3/memprot.c: IDF's split-line scheme (code RX, data RW, no X), per-core violation monitor -> panic or callback, optional lock (NDF_MEMPROT=2), irq_naked opens code briefly; examples/memprot_test, memprot_exec. World Controller (secure/non-secure worlds) not used: one world. Was: none. IRAM write-protect, DRAM no-execute, peripheral access
 permissions, stack guard regions; secure/non-secure worlds. Reference: `esp_hw_support/port/esp32s3/esp_memprot.c`,
 `hal/esp32s3/include/hal/memprot_ll.h`.
 
