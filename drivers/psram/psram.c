@@ -137,8 +137,16 @@ uint32_t psram_init(int clk_div)
             *(volatile uint32_t *)0x600C4000 |= 1u;
         }
     }
-    uint32_t pages = size_bytes >> 16;
-    for (uint32_t i = 0; i < pages; i++) *(volatile uint32_t *)(0x600C5000u + 4u * (PSRAM_MMU_FIRST + i)) = 1u << 15 | i;   /* SPIRAM page i */
+    /* the 512-entry MMU table is shared by the data and instruction windows: 16 MB at entry 256 reaches the entries of
+     * the XIP code window (0x43F00000 = entry 496). Map only free entries (bit 14 = invalid); stop at the first one in
+     * use and report the mapped size (BOX-3 with XIP: 15 MB). */
+    uint32_t pages = size_bytes >> 16, i = 0;
+    for (; i < pages; i++) {
+        volatile uint32_t *e = (volatile uint32_t *)(0x600C5000u + 4u * (PSRAM_MMU_FIRST + i));
+        if (!(*e & BIT(14)) && !(*e & BIT(15))) break;           /* taken by flash (XIP) */
+        *e = 1u << 15 | i;                                      /* SPIRAM page i */
+    }
     dcache_op(0, 0, 1);
+    size_bytes = i << 16;
     return size_bytes;
 }
