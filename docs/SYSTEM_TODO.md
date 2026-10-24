@@ -33,7 +33,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | C4 Interrupt matrix | done |
 | | C5 System timer, timer groups, software timers | done |
 | | C6 Watchdogs (RTC, super, TG1, XTAL32K) | **done**: TG0, TG1, RTC, super (XTAL32K with C1) |
-| | C7 Brownout, clock-glitch detection | **none** |
+| | C7 Brownout, clock-glitch detection | **done**: brownout (interrupt, IDF levels), glitch + super-WDT resets |
 | **D. Power** | D1 Light sleep, deep sleep, wake sources | **none** |
 | | D2 Power domains, retention, frequency scaling | **none** |
 | | D3 ULP coprocessors (FSM, RISC-V) | **none** |

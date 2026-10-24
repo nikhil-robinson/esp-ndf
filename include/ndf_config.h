@@ -25,6 +25,12 @@
 #ifndef NDF_FLASH_SUS_HOLD_US
 #define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
 #endif
+#ifndef NDF_BROWNOUT
+#define NDF_BROWNOUT            7       /* brownout detection from boot: 0 off, level 1 (3.30 V) .. 7 (2.44 V); restart on detection */
+#endif
+#ifndef NDF_GLITCH_RESET
+#define NDF_GLITCH_RESET        1       /* clock-glitch and super-watchdog resets enabled at boot (as IDF's bootloader) */
+#endif
 #ifndef NDF_OTA
 #define NDF_OTA                 1       /* loader picks factory / ota_N from otadata (ESP-IDF format) */
 #endif

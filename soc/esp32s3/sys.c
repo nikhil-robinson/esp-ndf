@@ -94,6 +94,14 @@ void sys_start0(void)
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
     sys_latch_reset_cause();                      /* before anything resets again (system.c) */
+#if NDF_BROWNOUT                                  /* as IDF esp_brownout_init (interrupt mode); the register resets with the
+                                                    system, so every boot */
+    { extern int bod_start(int, void (*)(void)); bod_start(NDF_BROWNOUT, 0); }
+#endif
+#if NDF_GLITCH_RESET                              /* as IDF bootloader_ana_reset_config */
+    { extern void glitch_reset(bool); glitch_reset(true); }
+    REG(RTC_SWD_WPROTECT) = SWD_WKEY; REG_CLR(0x60008148u, BIT(2)); REG_CLR(RTC_SWD_CONF, BIT(17)); REG(RTC_SWD_WPROTECT) = 0;
+#endif
 #if NDF_BOOT_ROM_LOG_OFF
     REG_SET(RTC_BASE + 0xC0, BIT(0) | BIT(16));   /* RTC_CNTL_STORE4: ROM skips its boot log on the next reset (no eFuse; power-on clears it) */
 #endif

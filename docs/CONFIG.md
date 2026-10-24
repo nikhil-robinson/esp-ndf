@@ -20,6 +20,13 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_FLASH_SUS_HOLD_US`<br>Suspend: tSUS (us) | ndf_config.h | `50` | 20 – 400 | Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50). |
 | `NDF_FLASH_QE_SET`<br>Set quad-enable bit | ndf_config.h | `y` | y / n | If the chip's QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode). |
 
+## Brownout and glitch
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_BROWNOUT`<br>Brownout level (0 = off) | ndf_config.h | `7` | 0 – 7 | 1 3.30 V, 2 3.19 V, 3 2.98 V, 4 2.84 V, 5 2.67 V, 6 2.56 V, 7 2.44 V (IDF default 7). On detection flash and RF are powered down and the chip restarts (reset cause brownout). Costs ~80 us of warm boot. |
+| `NDF_GLITCH_RESET`<br>Clock-glitch and super-WDT resets | ndf_config.h | `y` | y / n | As IDF bootloader: a clock glitch or a starved super watchdog resets the chip. |
+
 ## OTA update
 
 | Option | File | Default | Values | Description |

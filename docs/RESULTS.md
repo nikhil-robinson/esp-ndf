@@ -773,3 +773,12 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | TG1 MWDT 100 ms starved | cause 8 TG1 watchdog, 101 ms: PASS |
 | super WDT armed, not fed | cause 18 super watchdog: PASS |
 | reset cause after the warm stage hands a reset to the ROM | the real cause (e.g. 21 USB-UART), not the internal software reset |
+
+## Brownout (`examples/bod_test`, 2026-10-24)
+
+| test | result |
+|---|---|
+| level 7 (2.44 V, boot default): no detection in 5 s | PASS |
+| level 1 (3.30 V, at this board's 3.3 V supply): detected, interrupt ran, restart | cause 15 brownout: PASS |
+| hardware reset mode (BROWN_OUT_RST_ENA) | resets every ~4.5 s at level 7 on this board: not used (IDF default is interrupt mode too) |
+| analog threshold kept through resets, brownout register not | setup runs every boot |
