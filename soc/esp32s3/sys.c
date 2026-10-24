@@ -99,9 +99,9 @@ void sys_start0(void)
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
     sys_latch_reset_cause();                      /* before anything resets again (system.c) */
-#if NDF_BROWNOUT                                  /* as IDF esp_brownout_init (interrupt mode); the register resets with the
-                                                    system, so every boot */
-    { extern int bod_start(int, void (*)(void)); bod_start(NDF_BROWNOUT, 0); }
+#if NDF_BROWNOUT                                  /* as IDF's non-interrupt mode: the hardware resets the chip (cause 15); no
+                                                    handler code in the image. The register resets with the system: every boot */
+    { extern void bod_reset_mode(int); bod_reset_mode(NDF_BROWNOUT); }
 #endif
 #if NDF_GLITCH_RESET                              /* as IDF bootloader_ana_reset_config */
     { extern void glitch_reset(bool); glitch_reset(true); }

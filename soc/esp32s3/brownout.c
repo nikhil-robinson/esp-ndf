@@ -29,28 +29,34 @@ static void bod_isr(void *arg)
     sys_restart();
 }
 
-static void bod_config(int level)
+static void bod_config(int level, bool reset)
 {
     REG_CLR(FIB_SEL, BIT(1));
     uint32_t v = (REG(BROWN_OUT) & ~(BIT(28) | BIT(27) | BIT(26) | (0x3FFu << 16) | (0x3FFu << 4)))
-               | BIT(15) | BIT(14) | 2u << 4 | 0x3FFu << 16 | BIT(27);   /* software control: interrupt, no reset */
+               | BIT(15) | BIT(14) | 2u << 4 | 0x3FFu << 16 | BIT(27) | (reset ? BIT(26) : 0);
     REG(BROWN_OUT) = v | BIT(29); REG(BROWN_OUT) = v;               /* counter cleared */
-    regi2c_write_mask(REGI2C_BOD, 5, 2, 0, (uint8_t)level);
+    /* the threshold (analog) survives system resets and is cleared at power-on together with RTC memory: written
+     * only when the note in RTC memory says it differs (the slow analog bus write is most of the setup time) */
+    if (REG(0x50001FE8u) != 0x424F4400u + (uint32_t)level) {
+        regi2c_write_mask(REGI2C_BOD, 5, 2, 0, (uint8_t)level);
+        REG(0x50001FE8u) = 0x424F4400u + (uint32_t)level;
+    }
     REG_SET(BROWN_OUT, BIT(30));
     REG(INT_CLR) = BIT(9);
 }
 
-/* interrupt mode, as IDF's default (ESP_SYSTEM_BROWNOUT_INTR); the hardware reset mode (RST_ENA) is not used: on this
- * board it reset every ~4.5 s at level 7, unexplained */
+/* interrupt mode, as IDF's default (ESP_SYSTEM_BROWNOUT_INTR) */
 int bod_start(int level, void (*fn)(void))
 {
     if (level < 1 || level > 7) return -1;
-    bod_config(level);
+    bod_config(level, false);
     user_fn = fn;
     if (line < 0 && (line = irq_attach(SRC_RTC, 3, bod_isr, 0)) < 0) return -1;
     REG_SET(INT_ENA, BIT(9));
     return 0;
 }
+
+void bod_reset_mode(int level) { if (level >= 1 && level <= 7) { bod_config(level, true); REG_CLR(INT_ENA, BIT(9)); } }   /* hardware reset (IDF non-interrupt mode) */
 
 void bod_stop(void) { REG_CLR(INT_ENA, BIT(9)); REG_CLR(BROWN_OUT, BIT(30)); }
 bool bod_low(void) { return REG(BROWN_OUT) & BIT(31); }

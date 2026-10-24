@@ -50,7 +50,8 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
     ('menu', 'Brownout and glitch', [
         dict(key='NDF_BROWNOUT', type='int', default=7, target='h', label='Brownout level (0 = off)', range=(0, 7),
              help='1 3.30 V, 2 3.19 V, 3 2.98 V, 4 2.84 V, 5 2.67 V, 6 2.56 V, 7 2.44 V (IDF default 7). On detection flash '
-                  'and RF are powered down and the chip restarts (reset cause brownout). Costs ~80 us of warm boot.'),
+                  'and RF are powered down and the hardware resets the chip (reset cause brownout), as IDF without the interrupt '
+                  'option; bod_start() for interrupt mode with a callback. Costs ~9 us of warm boot.'),
         dict(key='NDF_GLITCH_RESET', type='bool', default=True, target='h', label='Clock-glitch and super-WDT resets',
              help='As IDF bootloader: a clock glitch or a starved super watchdog resets the chip.'),
     ]),

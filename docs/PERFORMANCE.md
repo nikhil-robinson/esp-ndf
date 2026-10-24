@@ -331,7 +331,7 @@ system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image 
 | esp-ndf, ROM loads the whole RAM image (before) | 21 708 - 22 080 us |
 | + ROM log off for warm resets (RTC_CNTL_STORE4 flag, no eFuse) | 15 938 - 15 947 us |
 | esp-ndf fast boot, cold path (ROM -> 2 KB loader: PLL, QIO through the cache, copies the app) | 6 184 - 6 185 us |
-| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **789 - 799 us** with brownout detection on (image copied at 120 MHz; 868 - 870 at 80 MHz) |
+| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **781 - 782 us** with brownout reset on (772 - 780 without: protection costs ~9 us) |
 | esp-ndf warm boot, no ROM, XIP=lib | 854 - 860 us |
 | ratio (warm, no ROM) | **45x faster** |
 

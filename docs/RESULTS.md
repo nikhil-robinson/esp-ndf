@@ -780,8 +780,8 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 |---|---|
 | level 7 (2.44 V, boot default): no detection in 5 s | PASS |
 | level 1 (3.30 V, at this board's 3.3 V supply): detected, interrupt ran, restart | cause 15 brownout: PASS |
-| hardware reset mode (BROWN_OUT_RST_ENA) | resets every ~4.5 s at level 7 on this board: not used (IDF default is interrupt mode too) |
-| analog threshold kept through resets, brownout register not | setup runs every boot |
+| hardware reset mode (BROWN_OUT_RST_ENA), level 7 | stable 120 s + port close/reopen (C9:D0): now the boot default. The earlier "~4.5 s loop" was not the detector: in those boots its register read the reset defaults (reset off); the resets were cause 21 USB-UART resets, i.e. the host (ModemManager probing re-enumerated ports) |
+| analog threshold kept through resets (power-on value 0), brownout register not | register set every boot, threshold only when it changed (RTC note) |
 
 ## RTC clocks (`examples/rtcclk_test`, 2026-10-24)
 
