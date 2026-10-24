@@ -69,7 +69,7 @@ path reaches its first instruction about 11 cycles after the event.
 
 | Measurement | esp-ndf | ESP-IDF | Status |
 |---|---|---|---|
-| calendar time (`examples/libc_test` vs `bench/idf_time`, newlib) | time() / gmtime_r / mktime / strftime "%F %T" | **216 / 843 / 1202 / 950 cycles** | 3272 / 9662 / 15587 / 70809 | 15x / 11x / 13x / 75x | done; exact vs Python gmtime, years 1..9999 |
+| time() / gmtime_r / mktime / strftime "%F %T" (`examples/libc_test` vs `bench/idf_time`) | **216 / 843 / 1202 / 950 cycles** | 3272 / 9662 / 15587 / 70809 (newlib) | 15x / 11x / 13x / 75x; exact vs Python gmtime, years 1..9999 |
 | Float divide | 56 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
 | `sqrtf` | 58, IEEE-exact | 118 (newlib wrapper + errno) | — |
 | `snprintf` `%.3f` / `%d` | 1 577 / 972 | 11 862 / 2 957 | floats from the double's bits, integer only |
