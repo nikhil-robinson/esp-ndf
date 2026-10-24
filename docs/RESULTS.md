@@ -275,6 +275,21 @@ land on another channel.
 
 RX inverted does not reach bus-off (the node sees a dominant bus and never starts): RX stuck recessive does.
 
+## LCD_CAM i80 bus and RGB timing (`periph_test` lcd_i80 vs `bench/idf_lcd_i80`, C9:D0, no panel)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| i80 8-bit: cmd 2A + 4 params, cmd 2C + 300 bytes, core 1 samples at each WR rise | 306 strobes, 0 wrong (DC right) | - |
+| send start, 300 bytes | **1661 cycles** | 4586 cycles |
+| RGB 32x8, hsw/hbp/hfp 4, vsw/vbp/vfp 2, 1 MHz: pclk/line, lines/frame, frames/100 ms | 44, 14, 164 (ideal 163) | - |
+
+Found: LCD_RGB_YUV bit 31 is "conv_bypass" but 1 *enables* the YUV converter (pixel data came out mangled);
+RGB needs the blank-region enable even with 0 extra cycles (IDF sets blank 1/1), else no clock at all.
+
+## BOX-3 GT911 touch controller (`examples/box3_touch`, BOX-3)
+
+I2C 0x5D: product id "911", 320 x 240, report poll 29.7k cycles at 400 kHz (bus-bound), no false reports.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

@@ -92,7 +92,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **ADC**: one-shot + continuous, hardware IIR filters and threshold monitors (correct channel encoding);
       ADC2 continuous: n/a on S3; [ ] ADC2 one-shot arbitration notes (with Wi-Fi)
 - [x] **GDMA**: priorities, PSRAM (burst/ext-mem rules), owner check, error recovery; ETM n/a; weight arbitration n/a (S3 has priority only)
-- [~] **LCD**: SPI panel done; **todo**: **i80 parallel bus** (8/16-bit) and **RGB panels** via LCD_CAM, more panel drivers (ST7789, GC9A01), touch controller (Box-3 TT21100/GT911)
+- [~] **LCD**: SPI panel (ILI9341 family), **i80 8/16-bit bus** with DMA, **RGB panel timing** (LCD_CAM), GT911 touch
+      (BOX-3); [ ] ST7789 / GC9A01 init tables (no such panel here), [ ] RGB on a real panel
 - [x] **TWAI**: alerts (tx, arb lost, bus error, warn, passive/active, bus-off, recovered), state, bus-off recovery + restart
 
 ## 7. Peripherals not started
