@@ -33,7 +33,9 @@
 #define SIG_PCLK      154
 #define SRC_LCD_CAM   24
 
-static int dma = -1, line = -1;
+int lcd_cam_dma = -1;                       /* one GDMA channel: LCD uses its OUT half, the camera its IN half */
+#define dma lcd_cam_dma
+static int line = -1;
 static uint8_t width;
 static gdma_desc_t d[9];
 static volatile bool busy;

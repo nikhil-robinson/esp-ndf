@@ -98,7 +98,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 7. Peripherals not started
 
-- [ ] **Camera** (LCD_CAM camera, DVP 8/16-bit) + JPEG/YUV handling example
+- [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV
 - [ ] **USB OTG** (ch. 32): device stack (CDC-ACM, HID, MSC, vendor), host
       (CDC, MSC, HID), OTG role switch
 - [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection

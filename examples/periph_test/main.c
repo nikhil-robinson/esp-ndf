@@ -38,6 +38,7 @@ int main(void)
     run("i2s", test_i2s);
     run("i2s_modes", test_i2s_modes);
     run("lcd_i80", test_lcd_i80);
+    run("cam", test_cam);
     run("adc", test_adc);
     run("adc_cont", test_adc_cont);
     run("adc_filter", test_adc_filter);

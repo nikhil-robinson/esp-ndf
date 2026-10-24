@@ -77,3 +77,29 @@ void test_lcd_i80(void)
            rhz, fr, pc, hs, hs ? pc / hs : 0, fr ? (hs + (int32_t)fr / 2) / (int32_t)fr : 0);
     CHECK(fr >= 160 && fr <= 166 && hs && pc / hs == 44 && (hs + (int32_t)fr / 2) / (int32_t)fr == 14);   /* window edges: round */
 }
+
+/* DVP loop: the LCD side streams a 32x8 RGB frame (PCLK 14, VSYNC 4, DE 5, D0-D7 as above), the camera
+ * side captures it from the same pads by DMA. Second frame must equal the frame buffer. */
+#include "cam.h"
+void test_cam(void)
+{
+    __asm__ volatile("rsil a2, 0" ::: "a2");
+    static uint8_t fb[32 * 8] __attribute__((aligned(4))), got[512] __attribute__((aligned(4)));
+    for (int i = 0; i < 256; i++) fb[i] = (uint8_t)(i * 13 + 7);
+    lcd_rgb_cfg_t r = { .pclk = 14, .hsync = -1, .vsync = 4, .de = 5, .bits = 8, .pclk_hz = 1000000,
+                        .width = 32, .height = 8, .hsw = 4, .hbp = 4, .hfp = 4, .vsw = 2, .vbp = 2, .vfp = 2 };
+    memcpy(r.data, pads, 8);
+    lcd_rgb_start(&r, fb);
+    cam_cfg_t c = { .pclk = 14, .vsync = 4, .de = 5, .xclk = -1, .bits = 8 };
+    memcpy(c.data, pads, 8);
+    CHECK(cam_init(&c) == 0);
+    int n1 = (cam_capture(got, sizeof got), cam_wait(100000));    /* first may be partial */
+    int n = (cam_capture(got, sizeof got), cam_wait(100000));
+    lcd_rgb_stop();
+    int bad = 0, off = 0;
+    for (int i = 0; i < 256 && i < n; i++) bad += got[i] != fb[i];
+    if (bad) for (off = 1; off < 4; off++) { int b2 = 0; for (int i = 0; i + off < n && i < 250; i++) b2 += got[i + off] != fb[i]; if (!b2) break; }
+    printf("    DVP loop 32x8: frames of %d / %d bytes, %d of 256 wrong%s\n", n1, n, bad, bad && off < 4 ? " (shifted)" : "");
+    if (bad) { for (int i = 0; i < 8; i++) printf(" %02x/%02x", got[i], fb[i]); printf("\n"); }
+    CHECK(n >= 256 && bad == 0);
+}

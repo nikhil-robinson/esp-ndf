@@ -39,6 +39,7 @@ void test_spi_hd(void);
 void test_i2s(void);
 void test_i2s_modes(void);
 void test_lcd_i80(void);
+void test_cam(void);
 void test_adc(void);
 void test_twai(void);
 void test_twai_alerts(void);

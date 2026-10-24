@@ -286,6 +286,13 @@ RX inverted does not reach bus-off (the node sees a dominant bus and never start
 Found: LCD_RGB_YUV bit 31 is "conv_bypass" but 1 *enables* the YUV converter (pixel data came out mangled);
 RGB needs the blank-region enable even with 0 extra cycles (IDF sets blank 1/1), else no clock at all.
 
+## Camera DVP (`periph_test` cam, C9:D0, LCD -> camera loop on the same pads)
+
+The LCD half streams a 32x8 8-bit RGB frame (PCLK 14, VSYNC 4, DE 5, D0-D7 16 17 18 21 38-41); the camera half
+captures it from the same pads by DMA (VSYNC ends the frame): 256 / 256 bytes per frame, 0 wrong.
+Both halves share one GDMA channel (LCD = OUT, camera = IN). IDF 5.3 has no S3 DVP driver (esp32-camera is
+an external component), so there is no IDF sibling for this one.
+
 ## BOX-3 GT911 touch controller (`examples/box3_touch`, BOX-3)
 
 I2C 0x5D: product id "911", 320 x 240, report poll 29.7k cycles at 400 kHz (bus-bound), no false reports.
