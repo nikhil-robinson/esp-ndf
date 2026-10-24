@@ -155,7 +155,7 @@ for sensors while asleep. Reference: `ulp/`.
 
 ## E. Security and crypto
 
-**E1 RNG — none (TRM 25).** True-random API; entropy is full only while RF or the SAR ADC runs (document and handle
+**E1 RNG — done (TRM 25).** rng_hw / rng_fill / rng_u32 (drivers/crypto/rng.c). Was: True-random API; entropy is full only while RF or the SAR ADC runs (document and handle
 both). Reference: `esp_hw_support/hw_random.c`.
 
 **E2 AES — partial (TRM 19).** Have: block mode 128/256 (`aes_block`), XTS-AES-256 in software on top (`aes_xts`),

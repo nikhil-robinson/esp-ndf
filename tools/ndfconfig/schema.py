@@ -47,6 +47,11 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='If the chip\'s QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. '
                   'Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode).'),
     ]),
+    ('menu', 'Random numbers', [
+        dict(key='NDF_RNG_RESEED', type='int', default=65536, target='h', label='Generator reseed interval (bytes)',
+             range=(1024, 16777216), help='rng_fill/rng_u32 (ChaCha20, arc4random-style fast key erasure) mix 256 new '
+                  'hardware bits into the key after this many bytes. rng_hw is always straight from the hardware.'),
+    ]),
     ('menu', 'Console', [
         dict(key='NDF_CONSOLE', type='choice', default='NDF_CONSOLE_USJ', target='h', label='printf output',
              choices=[('NDF_CONSOLE_USJ', 'USB Serial/JTAG'), ('NDF_CONSOLE_UART0', 'UART0'), ('NDF_CONSOLE_NONE', 'none (dropped)')],

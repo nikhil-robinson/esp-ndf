@@ -416,3 +416,17 @@ Headroom: reads at 120 MHz are at the line rate; erase/write are chip-bound. Oct
 commands, 8READ 0xEC cache read with 32-bit address / 20 dummy); boot keeps the ROM's bus setup and warm resets go
 through the ROM on octal boards. Not run on hardware: 4-byte addresses (needs >16 MB flash), octal flash (DTR not
 implemented), suspend on a validated chip.
+
+## Random numbers (`examples/rng_test` vs `bench/idf_rng`, same board, 2026-10-24)
+
+| | esp-ndf | ESP-IDF | Gain |
+|---|---|---|---|
+| true random word (hardware, paced to IDF's tested 45 kHz) | rng_hw 5 334 cycles (22 us) | esp_random 5 220-5 346 cycles | 1x (entropy-rate bound, by design) |
+| random u32 for general use | **rng_u32 263 cycles** | esp_random 5 220 cycles | **20x** |
+| 4 KB random bytes | **833 us** | esp_fill_random 22 857 us | **27x** |
+| 64 KB random bytes | **9 072 us** (7 MB/s) | 365 713 us | **40x** |
+
+rng_fill/rng_u32: ChaCha20 (RFC 8439 known answer checked) as OpenBSD arc4random, 1 KB keystream buffer, key replaced
+from the buffer at each refill and handed-out bytes zeroed (fast key erasure), 256 hardware bits mixed in every
+NDF_RNG_RESEED bytes (64 KB). Statistics on both outputs: ones / runs 0.50, byte chi-square 199-263 (255 dof).
+Floor: ~33 cycles/byte = the ChaCha20 block on this core; headroom: 4 blocks in parallel with the PIE vector unit.

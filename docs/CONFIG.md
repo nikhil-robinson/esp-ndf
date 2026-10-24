@@ -20,6 +20,12 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_FLASH_SUS_HOLD_US`<br>Suspend: tSUS (us) | ndf_config.h | `50` | 20 – 400 | Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50). |
 | `NDF_FLASH_QE_SET`<br>Set quad-enable bit | ndf_config.h | `y` | y / n | If the chip's QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode). |
 
+## Random numbers
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_RNG_RESEED`<br>Generator reseed interval (bytes) | ndf_config.h | `65536` | 1024 – 16777216 | rng_fill/rng_u32 (ChaCha20, arc4random-style fast key erasure) mix 256 new hardware bits into the key after this many bytes. rng_hw is always straight from the hardware. |
+
 ## Console
 
 | Option | File | Default | Values | Description |

@@ -735,3 +735,12 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | flash code (cache miss every call) on core 1 during erase 64 KB + write 4 KB | correct results, paused during the erase | - |
 | warm boot after the changes | 782-787 us | 35.5 ms |
 | periph_test (XIP=all now: fits) | flash, partition, nvs, gpio, gptimer, mcpwm, pcnt, sdm, gdma PASS; loopback tests (uart, i2c, rmt, spi, i2s, ...) receive nothing: devkit jumpers GPIO10-11 / 12-13 not fitted at test time | - |
+
+## RNG (`examples/rng_test`, 2026-10-24)
+
+| | result |
+|---|---|
+| ChaCha20 RFC 8439 2.3.2 known answer | PASS |
+| rng_hw 4 KB: ones / runs / chi2 | 0.4952-0.5016 / 0.4987-0.5047 / 251.9-262.9 PASS |
+| rng_fill 64 KB: ones / runs / chi2 | 0.4999-0.5003 / 0.4999-0.5002 / 199.3-214.0 PASS |
+| two 32-byte draws differ | PASS |
