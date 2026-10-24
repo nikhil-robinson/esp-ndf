@@ -430,3 +430,16 @@ rng_fill/rng_u32: ChaCha20 (RFC 8439 known answer checked) as OpenBSD arc4random
 from the buffer at each refill and handed-out bytes zeroed (fast key erasure), 256 hardware bits mixed in every
 NDF_RNG_RESEED bytes (64 KB). Statistics on both outputs: ones / runs 0.50, byte chi-square 199-263 (255 dof).
 Floor: ~33 cycles/byte = the ChaCha20 block on this core; headroom: 4 blocks in parallel with the PIE vector unit.
+
+## SHA accelerator (`examples/sha_test` vs `bench/idf_sha`, same board, best of 4, 2026-10-24)
+
+| cycles | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
+|---|---|---|---|
+| SHA-256 64 B | **2 004** | 9 313 | **4.6x** |
+| SHA-256 1 KB | **4 096** | 10 935 | **2.7x** |
+| SHA-256 4 KB | **10 210** | 18 303 | **1.8x** |
+| SHA-256 64 KB | **130 822** (120 MB/s) | 154 966 (101 MB/s) | **1.18x** |
+| SHA-512 64 B / 1 KB / 4 KB / 64 KB | **1 896 / 4 756 / 10 579 / 153 010** | 7 216 / 13 300 / 20 653 / 157 759 | 3.8x / 2.8x / 1.95x / 1.03x |
+
+Short messages CPU-fed (no descriptor/lock overhead); runs of >= 4 blocks in internal RAM by DMA, 63 blocks per run.
+Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~1000 cycles on 64 B (padding block).

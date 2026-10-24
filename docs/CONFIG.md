@@ -20,6 +20,12 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_FLASH_SUS_HOLD_US`<br>Suspend: tSUS (us) | ndf_config.h | `50` | 20 – 400 | Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50). |
 | `NDF_FLASH_QE_SET`<br>Set quad-enable bit | ndf_config.h | `y` | y / n | If the chip's QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode). |
 
+## SHA accelerator
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_SHA_DMA_MIN`<br>DMA from this many blocks | ndf_config.h | `4` | 1 – 1000 | Runs of at least this many 64/128-byte blocks in internal RAM go to the engine by DMA (up to 63 blocks per run); shorter runs and data in flash/PSRAM are written by the CPU. |
+
 ## Random numbers
 
 | Option | File | Default | Values | Description |

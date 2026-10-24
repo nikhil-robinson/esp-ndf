@@ -47,6 +47,11 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='If the chip\'s QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. '
                   'Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode).'),
     ]),
+    ('menu', 'SHA accelerator', [
+        dict(key='NDF_SHA_DMA_MIN', type='int', default=4, target='h', label='DMA from this many blocks', range=(1, 1000),
+             help='Runs of at least this many 64/128-byte blocks in internal RAM go to the engine by DMA (up to 63 '
+                  'blocks per run); shorter runs and data in flash/PSRAM are written by the CPU.'),
+    ]),
     ('menu', 'Random numbers', [
         dict(key='NDF_RNG_RESEED', type='int', default=65536, target='h', label='Generator reseed interval (bytes)',
              range=(1024, 16777216), help='rng_fill/rng_u32 (ChaCha20, arc4random-style fast key erasure) mix 256 new '

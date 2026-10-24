@@ -39,7 +39,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | D3 ULP coprocessors (FSM, RISC-V) | **none** |
 | **E. Security and crypto** | E1 RNG | **none** |
 | | E2 AES accelerator | partial: block + XTS |
-| | E3 SHA accelerator | **none** |
+| | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **none** |
 | | E5 HMAC, Digital Signature (DS) | **none** |
 | | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **none** |
@@ -162,7 +162,7 @@ both). Reference: `esp_hw_support/hw_random.c`.
 used by NVS encryption. Missing: DMA mode for large buffers; CBC, CTR, GCM (GHASH in software), CMAC; benchmarks vs
 mbedTLS on IDF. Reference: `mbedtls/port/aes/`.
 
-**E3 SHA — none (TRM 18).** SHA-1/224/256/384/512 (and 512/t), block and DMA mode, HMAC-SHA in software. Needed by C3
+**E3 SHA — done (TRM 18).** drivers/crypto/sha.c. Was: SHA-1/224/256/384/512 (and 512/t), block and DMA mode, HMAC-SHA in software. Needed by C3
 (image check). Reference: `mbedtls/port/sha/`, `hal/esp32s3/include/hal/sha_ll.h`.
 
 **E4 RSA / big-number — none (TRM 20).** Modular exponentiation and multiplication up to 4096 bits: RSA signatures,

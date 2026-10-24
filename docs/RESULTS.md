@@ -744,3 +744,9 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | rng_hw 4 KB: ones / runs / chi2 | 0.4952-0.5016 / 0.4987-0.5047 / 251.9-262.9 PASS |
 | rng_fill 64 KB: ones / runs / chi2 | 0.4999-0.5003 / 0.4999-0.5002 / 199.3-214.0 PASS |
 | two 32-byte draws differ | PASS |
+
+## SHA (`examples/sha_test`, 2026-10-24)
+
+NIST vectors PASS: SHA-1 / 224 / 256 / 384 / 512 / 512-224 / 512-256 "abc", SHA-256 empty and 448-bit, SHA-1 448-bit,
+SHA-256 and SHA-512 one million 'a' (1000 updates). Split + interleaved (two contexts) + unaligned updates equal the
+one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.

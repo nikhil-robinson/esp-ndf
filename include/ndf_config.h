@@ -25,6 +25,9 @@
 #ifndef NDF_FLASH_SUS_HOLD_US
 #define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
 #endif
+#ifndef NDF_SHA_DMA_MIN
+#define NDF_SHA_DMA_MIN         4       /* SHA: runs of at least this many blocks in internal RAM go by DMA */
+#endif
 #ifndef NDF_RNG_RESEED
 #define NDF_RNG_RESEED          65536   /* rng_fill: new hardware entropy into the key after this many bytes */
 #endif
