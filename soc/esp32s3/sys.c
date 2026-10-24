@@ -245,6 +245,11 @@ NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uin
 {
     ndf_panic_report(why, pc, frame, sp);
 #if NDF_PANIC_RESTART
+    /* crash-loop brake: 3 crashes in a row, each within 5 s of boot, halt instead of restarting (reboot storms on
+     * USB-JTAG upset the host) */
+    static RTC_NOINIT_ATTR uint32_t early;
+    early = time_us() < 5000000 ? ((early & 0xFFFF0000u) == 0x45410000u ? early + 1 : 0x45410001u) : 0;
+    if ((early & 0xFFFF) >= 3) { printf("*** crash loop: halted (power-cycle or reflash)\n"); early = 0; for (;;) {} }
     delay_us(20000);                                      /* let the console drain */
     sys_restart();
 #else

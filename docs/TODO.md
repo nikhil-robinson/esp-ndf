@@ -150,5 +150,6 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] IDF siblings for ADC continuous (jitter 2 vs 76 cycles), LCD (i80 2.76x), RTC hold (both hold cleanly) through reset
 - [x] Box-3 microphones end to end (ES7210 normal I2S, full duplex with the speaker: 38 / 27 dB 1 kHz SNR); [ ] ES7210 4-slot TDM mode
-- [ ] Long-run soak test (24 h) of the full suite with power-cut fault testing
+- [~] Soak: examples/soak + tools/soak.py (SHA, AES-GCM, PSRAM 4 MB, FAT, events, coop, temp; WDT, crash records); 24 h run on BOX-3 started 2026-10-25 (bench/soak/data); [ ] power-cut fault testing (needs a switched supply)
+- [ ] Bug: soak with XIP=lib crashed at boot (illegal instruction 0x44000460) once PSRAM was mapped: flash code + PSRAM MMU mapping clash; soak runs XIP=off meanwhile
 - [x] API index (docs/API.md, from the headers) + porting guide (docs/PORTING.md); [ ] bring-up of a second chip
