@@ -94,6 +94,33 @@ static const uint8_t cfg_desc[67] = {
 };
 static const char *const strings[] = { "esp-ndf", "esp-ndf CDC-ACM", "0001" };
 
+/* MSC (bulk-only transport, SCSI transparent) and HID (vendor page, 64-byte reports): same endpoints EP1 IN / EP2 OUT */
+static const uint8_t msc_dev_desc[18] = { 18, 1, 0x00, 0x02, 0, 0, 0, MPS, 0x09, 0x12, 0x02, 0x00, 0x00, 0x01, 1, 2, 3, 1 };
+static const uint8_t msc_cfg_desc[32] = {
+    9, 2, 32, 0, 1, 1, 0, 0x80, 50,
+    9, 4, 0, 0, 2, 0x08, 0x06, 0x50, 0,         /* mass storage, SCSI transparent, bulk-only */
+    7, 5, EP_OUT, 0x02, MPS, 0, 0,
+    7, 5, 0x80 | EP_IN, 0x02, MPS, 0, 0,
+};
+static const uint8_t hid_report[] = {
+    0x06, 0x00, 0xFF, 0x09, 0x01, 0xA1, 0x01,   /* vendor usage page, application collection */
+    0x15, 0x00, 0x26, 0xFF, 0x00, 0x75, 0x08, 0x95, 0x40,   /* 64 bytes of 0..255 */
+    0x09, 0x01, 0x81, 0x02,                     /* input report */
+    0x09, 0x01, 0x91, 0x02,                     /* output report */
+    0xC0,
+};
+static const uint8_t hid_dev_desc[18] = { 18, 1, 0x00, 0x02, 0, 0, 0, MPS, 0x09, 0x12, 0x03, 0x00, 0x00, 0x01, 1, 2, 3, 1 };
+static const uint8_t hid_cfg_desc[41] = {
+    9, 2, 41, 0, 1, 1, 0, 0x80, 50,
+    9, 4, 0, 0, 2, 0x03, 0, 0, 0,               /* HID, no boot protocol */
+    9, 0x21, 0x11, 0x01, 0, 1, 0x22, sizeof hid_report, 0,
+    7, 5, 0x80 | EP_IN, 0x03, MPS, 0, 1,        /* interrupt IN, 1 ms */
+    7, 5, EP_OUT, 0x03, MPS, 0, 1,              /* interrupt OUT, 1 ms */
+};
+static int fn = USB_FN_CDC;
+void usb_dev_function(int f) { fn = f; }
+int usb_dev_get_function(void) { return fn; }
+
 /* ---- state ---- */
 static uint8_t setup[8];
 static uint8_t setup_dma[8] __attribute__((aligned(4)));         /* DMA target: one SETUP */
@@ -169,9 +196,10 @@ static void set_configuration(int cfg)
 {
     configured = cfg == 1;
     if (!configured) return;
-    R(DIEPCTL(EP_IN)) = EP_SD0PID | 1u << 22 | 2u << 18 | EP_ACTIVE | MPS;      /* bulk, TX FIFO 1 */
-    R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;    /* interrupt, TX FIFO 2 */
-    R(DOEPCTL(EP_OUT)) = EP_SD0PID | 2u << 18 | EP_ACTIVE | MPS;                /* bulk */
+    uint32_t ty = fn == USB_FN_HID ? 3u : 2u;                                  /* HID: interrupt, else bulk */
+    R(DIEPCTL(EP_IN)) = EP_SD0PID | 1u << 22 | ty << 18 | EP_ACTIVE | MPS;      /* TX FIFO 1 */
+    if (fn == USB_FN_CDC) R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;   /* interrupt, TX FIFO 2 */
+    R(DOEPCTL(EP_OUT)) = EP_SD0PID | ty << 18 | EP_ACTIVE | MPS;
     tx_cur = tx_q = -1; rx_full[0] = rx_full[1] = false; rx_rd = 0; rx_pos = 0; rx_arm(0);
 }
 static void handle_setup(void)
@@ -179,6 +207,17 @@ static void handle_setup(void)
     st.setups++;
     uint8_t rt = setup[0], rq = setup[1];
     uint16_t val = (uint16_t)(setup[2] | setup[3] << 8), wlen = (uint16_t)(setup[6] | setup[7] << 8);
+    if (fn == USB_FN_MSC && (rt & 0x60) == 0x20) {
+        if (rq == 0xFE) { static const uint8_t lun0; ep0_send(&lun0, 1, wlen); return; }   /* GET_MAX_LUN: one LUN */
+        if (rq == 0xFF) { extern void usb_msc_reset(void); usb_msc_reset(); ep0_status_in(); return; }   /* BOT reset */
+        ep0_stall(); return;
+    }
+    if (fn == USB_FN_HID) {
+        if (rq == 0x06 && (rt & 0x1F) == 1 && val >> 8 == 0x22) { ep0_send(hid_report, sizeof hid_report, wlen); return; }
+        if (rq == 0x06 && (rt & 0x1F) == 1 && val >> 8 == 0x21) { ep0_send(hid_cfg_desc + 18, 9, wlen); return; }
+        if ((rt & 0x60) == 0x20 && rq == 0x0A) { ep0_status_in(); return; }   /* SET_IDLE */
+        if ((rt & 0x60) == 0x20) { ep0_stall(); return; }
+    }
     if ((rt & 0x60) == 0x20) {                    /* CDC class requests */
         if (rq == 0x20) { ep0_out_data = true; return; }                 /* SET_LINE_CODING: data stage follows */
         if (rq == 0x21) { ep0_send(line_coding, 7, wlen); return; }      /* GET_LINE_CODING */
@@ -190,13 +229,18 @@ static void handle_setup(void)
     case 0x01: case 0x03: ep0_status_in(); return;                             /* CLEAR / SET_FEATURE */
     case 0x05: R(DCFG) = (R(DCFG) & ~(0x7Fu << 4)) | (uint32_t)(val & 0x7F) << 4; ep0_status_in(); return;   /* SET_ADDRESS */
     case 0x06:                                                                 /* GET_DESCRIPTOR */
-        if (val >> 8 == 1) { ep0_send(dev_desc, sizeof dev_desc, wlen); return; }
-        if (val >> 8 == 2) { ep0_send(cfg_desc, sizeof cfg_desc, wlen); return; }
+        if (val >> 8 == 1) { ep0_send(fn == USB_FN_MSC ? msc_dev_desc : fn == USB_FN_HID ? hid_dev_desc : dev_desc, 18, wlen); return; }
+        if (val >> 8 == 2) {
+            if (fn == USB_FN_MSC) ep0_send(msc_cfg_desc, sizeof msc_cfg_desc, wlen);
+            else if (fn == USB_FN_HID) ep0_send(hid_cfg_desc, sizeof hid_cfg_desc, wlen);
+            else ep0_send(cfg_desc, sizeof cfg_desc, wlen);
+            return;
+        }
         if (val >> 8 == 3) {
             uint8_t s[64]; int i = val & 0xFF;
             if (i == 0) { s[0] = 4; s[1] = 3; s[2] = 0x09; s[3] = 0x04; ep0_send(s, 4, wlen); return; }   /* English (US) */
             if (i > 3) break;
-            const char *t = strings[i - 1]; int n = 0;
+            const char *t = i == 2 && fn == USB_FN_MSC ? "esp-ndf disk" : i == 2 && fn == USB_FN_HID ? "esp-ndf HID" : strings[i - 1]; int n = 0;
             while (t[n] && n < 30) { s[2 + 2 * n] = (uint8_t)t[n]; s[3 + 2 * n] = 0; n++; }
             s[0] = (uint8_t)(2 + 2 * n); s[1] = 3; ep0_send(s, s[0], wlen); return;
         }
@@ -222,7 +266,7 @@ static void bus_reset(void)
 static void tx_start(int b)
 {
     uint32_t n = tx_len[b];
-    tx_cur = b; tx_full_end = n % MPS == 0;
+    tx_cur = b; tx_full_end = n % MPS == 0 && fn == USB_FN_CDC;   /* BOT and HID: the length is known, no ZLP */
     R(DIEPDMA(EP_IN)) = (uint32_t)tx_buf[b];
     R(DIEPTSIZ(EP_IN)) = (n + MPS - 1) / MPS << 19 | n;
     R(DIEPCTL(EP_IN)) |= EP_ENA | EP_CNAK;

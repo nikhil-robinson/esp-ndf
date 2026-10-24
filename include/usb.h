@@ -8,6 +8,10 @@
 #pragma once
 #include "ndf.h"
 
+/* Function of the device, chosen before usb_dev_start: CDC-ACM (default), mass storage (usb_msc_*), HID (usb_hid_*). */
+enum { USB_FN_CDC = 0, USB_FN_MSC, USB_FN_HID };
+void   usb_dev_function(int fn);
+int    usb_dev_get_function(void);
 int    usb_dev_start(void);                   /* PHY to OTG, core init, connect (D+ pull-up); 0 on success */
 void   usb_dev_stop(void);                    /* disconnect, PHY back to USB Serial/JTAG */
 void   usb_dev_poll(void);                    /* service the core: enumeration, control requests, endpoints */
@@ -18,3 +22,16 @@ bool   usb_cdc_tx_idle(void);                 /* the last write has gone out */
 
 typedef struct { uint32_t resets, setups, stalls, rx_bytes, tx_bytes, tx_xfers; uint64_t poll_cycles; } usb_stats_t;   /* poll_cycles: CPU cycles the driver spent working (polls with an event, read/write copies) */
 void   usb_get_stats(usb_stats_t *s);
+
+/* Mass storage (bulk-only transport, SCSI) over any block device, presented as 512-byte blocks.
+ * Call usb_msc_poll() after usb_dev_poll() in the loop. Read-only disks: ro = true. */
+#include "bdev.h"
+int    usb_msc_attach(bdev_t *b, bool ro);
+void   usb_msc_poll(void);
+void   usb_msc_reset(void);
+typedef struct { uint32_t cmds, read_blocks, write_blocks, errors; } usb_msc_stats_t;
+void   usb_msc_stats(usb_msc_stats_t *s);
+
+/* HID, vendor usage page, 64-byte input / output reports over interrupt endpoints (1 ms). */
+bool   usb_hid_send(const uint8_t report[64]);   /* false: previous report still queued */
+bool   usb_hid_recv(uint8_t report[64]);         /* true when an output report arrived */

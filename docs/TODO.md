@@ -99,7 +99,10 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 ## 7. Peripherals not started
 
 - [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV
-- [~] **USB OTG** (ch. 32): device CDC-ACM done (1.32x / 1.97x IDF); **todo**: HID, MSC, vendor, host, role switch.
+- [~] **USB OTG** (ch. 32): device CDC-ACM (1.32x / 1.97x IDF), **MSC** (BOT + SCSI over any bdev: kernel enumerates,
+      READ CAPACITY / READ(10) data proven by udev's FAT probe, 0 SCSI errors), **HID** (vendor 64-byte reports: report
+      descriptor parsed by the kernel); [ ] HID/MSC data transfer test from the host (needs root for hidraw / sdX),
+      [ ] composite device, [ ] host mode, role switch.
       [x] OTG guard: usb_dev_start arms the RTC watchdog (RTC reset), usb_dev_poll feeds it, usb_dev_stop disarms;
       proof that the RTC reset clears RTC_CNTL and the console returns: examples/usb_safety_proof + tools/usb_safety_proof.py;
       CDC test re-run on C9:D0 with the guard (1152 / 1005 KB/s, 0 errors)
