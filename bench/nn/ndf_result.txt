@@ -1,0 +1,11 @@
+ndf conv1x1 32x32x16->32         1007821 cycles  sum -627062
+ndf conv3x3 16x16x16->32 p1       577971 cycles  sum -403667
+ndf dwconv3x3 32x32x32 s1        1244039 cycles  sum -683749
+ndf dwconv3x3 32x32x32 s2         313924 cycles  sum -178782
+ndf fc 512->64                     11815 cycles  sum -4791
+ndf maxpool 2x2 32x32x16           16287 cycles  sum 1233757
+ndf avgpool 2x2 32x32x16           23712 cycles  sum -23599
+ndf add 4096                      125892 cycles  sum -65216
+ndf relu6 4096                      1953 cycles  sum 48699
+ndf softmax 100x10                120516 cycles  sum -406559
+ndf model end-to-end             4642787 cycles  sum -2971

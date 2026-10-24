@@ -152,6 +152,9 @@ nn_conv_row_s8:
     j           .Lret
 .Lgen:                                    /* k16 >= 2: dot pipelined two blocks per step (no load-use stall) */
     l32i        a9, a6, -8
+    bnei        a3, 2, 8f
+    bnez        a9, .Lfast2               /* 1x1 on 32 channels: row in two registers */
+8:
     movi        a10, 9
     bne         a3, a10, .Lgen2
     bnez        a9, .Lk9                  /* 3x3 x 16 channels with the fast requant: straight-line */
@@ -224,6 +227,48 @@ nn_conv_row_s8:
     RQ_STORE
 7:  addi        a5, a5, -1
     bnez        a5, .Lgo
+    j           .Lret
+.Lfast2:                                  /* k16 == 2, fast requant: row in q6/q7, next channel's MACs overlap */
+    ee.vld.128.ip q6, a2, 16
+    ee.vld.128.ip q7, a2, 0
+    ee.zero.accx
+    ee.vld.128.ip q1, a4, 16
+    ee.vld.128.ip q2, a4, 16
+    ee.vmulas.s8.accx q6, q1
+    ee.vmulas.s8.accx q7, q2
+    wsr         a5, lbeg
+    loopnez     a5, .L3end
+    l32i        a9, a6, Q_MULT
+    l32i        a11, a6, Q_BIAS
+    movi        a10, 0
+    ee.srs.accx a8, a10, 0
+    ee.zero.accx
+    ee.vld.128.ip q1, a4, 16              /* next channel (past the end on the last pass: unused) */
+    ee.vld.128.ip q2, a4, 16
+    add         a8, a8, a11
+    ssai        31
+    mull        a10, a8, a9
+    mulsh       a11, a8, a9
+    ee.vmulas.s8.accx q6, q1
+    ee.vmulas.s8.accx q7, q2
+    l32i        a9, a6, Q_RHALF
+    add         a10, a10, a15
+    saltu       a2, a10, a15
+    add         a11, a11, a2
+    l32i        a3, a6, Q_RSH
+    src         a8, a11, a10
+    srai        a10, a8, 31
+    add         a8, a8, a9
+    ssr         a3
+    add         a8, a8, a10
+    addi        a6, a6, Q_SIZE
+    sra         a8, a8
+    add         a8, a8, a12
+    clamps      a8, a8, 7
+    s8i         a8, a7, 0
+    addi        a7, a7, 1
+.L3end:
+    j           .Lret
 .Lk9:                                     /* k16 == 9, fast requant: 9 blocks fully unrolled (a3 free) */
     ee.zero.accx
     mov         a8, a2

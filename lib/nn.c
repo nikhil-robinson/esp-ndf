@@ -229,7 +229,7 @@ void nn_fc_s8(const int8_t *in, int32_t in_off, int len, const int8_t *w, int32_
     static int8_t splat[NN_MAX_COL] __attribute__((aligned(16)));
     static int32_t splat_v = 1000;
     int sv = in_off == 128 ? 64 : in_off, sm = in_off == 128 ? 2 : 1;
-    bool pie = !(len & 15) && len <= NN_MAX_COL && !((uintptr_t)w & 15) && sv >= -128 && sv <= 127;
+    bool pie = !(len & 15) && !((uintptr_t)w & 15) && sv >= -128 && sv <= 127;   /* nn_fc_dot_s8 reads 16 B of splat */
     if (pie && splat_v != sv) { memset(splat, sv, sizeof splat); splat_v = sv; }
 #endif
     for (int o = 0; o < out_n; o++) {
@@ -237,7 +237,7 @@ void nn_fc_s8(const int8_t *in, int32_t in_off, int len, const int8_t *w, int32_
         int32_t acc;
 #if SOC_CPU_HAS_PIE
         if (pie && sm == 1 && !(len & 31) && !((uintptr_t)in & 15)) acc = nn_fc_dot_s8(in, r, len >> 5, splat);
-        else if (pie) acc = nn_dot_s8(in, r, len >> 4) + sm * nn_dot_s8(splat, r, len >> 4);
+        else if (pie && len <= NN_MAX_COL) acc = nn_dot_s8(in, r, len >> 4) + sm * nn_dot_s8(splat, r, len >> 4);
         else
 #endif
         acc = dot8(in, r, len) + in_off * sum8(r, len);

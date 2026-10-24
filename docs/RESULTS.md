@@ -905,3 +905,8 @@ input offset, max/avg pool 2x2, add with input rescales, relu6, softmax. The end
 short: the IDF sibling's new static buffers starved its scratch allocation, ESP-NN panicked and the IDF default
 (panic -> reboot) produced a reboot storm that took the BOX-3 off the host's USB. Fixed in code (checked heap
 allocations, buffers reused) and every bench/idf_* sdkconfig.defaults now sets CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT.
+
+Rerun after the USB recovery (2026-10-24): layers reproduce; the tiny model end to end is bit-exact with ESP-NN
+(checksum -2971 both) at 1.17x. Bugs found by it: the conv kernel's generic path fell through into the k16 = 9 code
+after its last channel (counter underflow -> load fault; our halt-on-panic kept the board reachable), and FC rows
+longer than the 4608-byte splat buffer took the scalar path although the kernel reads only 16 splat bytes.

@@ -1,0 +1,13 @@
+[0;32mI (84) app_init: Project name:     idf_nn[0m
+idf conv1x1 32x32x16->32         1138821 cycles  sum -627062
+idf conv3x3 16x16x16->32 p1       627894 cycles  sum -403667
+idf dwconv3x3 32x32x32 s1        1255255 cycles  sum -683749
+idf dwconv3x3 32x32x32 s2         333808 cycles  sum -178782
+idf fc 512->64                     26692 cycles  sum -4791
+idf maxpool 2x2 32x32x16           46268 cycles  sum 1233757
+idf avgpool 2x2 32x32x16          120050 cycles  sum -23599
+idf add 4096                      152280 cycles  sum -65216
+idf relu6 4096                      3909 cycles  sum 48699
+idf softmax 100x10                226604 cycles  sum -406559
+idf model end-to-end             5410648 cycles  sum -2971
+idf_nn done
