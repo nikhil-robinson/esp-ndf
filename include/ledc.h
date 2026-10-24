@@ -19,3 +19,8 @@ void ledc_duty_phase(int ch, uint32_t duty, uint32_t hpoint);
 
 /* Hardware fade: step duty by +-1 every `cycles` periods, `steps` times. */
 void ledc_fade(int ch, uint32_t from, bool up, uint32_t steps, uint32_t cycles);
+
+/* Gamma fade (perceptually linear): from -> to duty over ms, duty = max * b^(gamma/100) along a linear
+ * brightness b; 16 hardware segments chained from the fade-end interrupt. gamma_x100 = 220 for LEDs. */
+int  ledc_fade_gamma(int ch, uint32_t from, uint32_t to, uint32_t ms, uint32_t gamma_x100);
+bool ledc_fade_busy(int ch);

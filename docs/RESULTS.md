@@ -232,6 +232,14 @@ prescale until a software sync reloads it.
 Thresholds and limits latch only at a counter reset (as IDF notes): re-arming keeps the total in a software
 offset. Step notify uses the wrap limit itself (= step), so it stays gap-free.
 
+## LEDC gamma fade (`periph_test` ledc_gamma vs `bench/idf_ledc_ext`, C9:D0, pad 4)
+
+0 -> 1024 (10 bit, 20 kHz) in 160 ms, gamma 2.2, measured duty every 10 ms (per mille):
+1 10 26 46 74 113 161 211 274 339 429 525 622 720 817, end 1000 after 162 ms
+(ideal (t/160)^2.2: 50 ms 77, 100 ms 356, 150 ms 868). 16 hardware linear segments chained from the
+fade-end interrupt; IDF on the S3 has linear fades only. Duty update: **38 cycles** vs IDF 765.
+Found: the fade step (duty_scale) is in whole duty units; our ledc_fade had used 16 per step.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

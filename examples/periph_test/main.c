@@ -20,6 +20,7 @@ int main(void)
     run("gpio", test_gpio);
     run("gptimer", test_gptimer);
     run("ledc", test_ledc);
+    run("ledc_gamma", test_ledc_gamma);
     run("mcpwm", test_mcpwm);
     run("mcpwm_ext", test_mcpwm_ext);
     run("pcnt", test_pcnt);

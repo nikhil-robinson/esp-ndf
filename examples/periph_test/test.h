@@ -21,6 +21,7 @@ extern int test_fail;
 void test_gpio(void);
 void test_gptimer(void);
 void test_ledc(void);
+void test_ledc_gamma(void);
 void test_mcpwm(void);
 void test_mcpwm_ext(void);
 void test_pcnt(void);

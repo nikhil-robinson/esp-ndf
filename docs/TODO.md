@@ -85,7 +85,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **RMT**: carrier/filter, TX loop count, multi-channel sync, RX demodulation, DMA (TX/RX ch 3), WS2812 encoder
 - [x] **MCPWM**: capture/fault/sync, carrier (chopper), fault pins with one-shot / cycle-by-cycle actions per operator, capture prescaler (measured mapping), live re-timing
 - [x] **PCNT**: 32-bit gap-free count, watch points (thres0/1, zero, limit) callbacks, step notify (gap-free), quadrature index (GPIO IRQ)
-- [~] **LEDC**: done incl. fade; **todo**: gamma curves, channel phase sync API, sleep retention
+- [x] **LEDC**: fade (fixed: 1 duty per step), gamma fade (segmented, perceptually linear), phase (hpoint) per channel; [ ] sleep retention (with sleep)
 - [~] **GPTimer**: done; **todo**: capture-on-event, ETM-like linking is (n/a on S3)
 - [~] **Touch**: raw read done; **todo**: filtering/denoise, waterproof
       (shield pad), proximity mode, baseline tracking, threshold interrupts, touch wake

@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| LEDC | duty update (`ledc_duty` vs `ledc_set_duty`+`ledc_update_duty`, `bench/idf_ledc_ext`) | **38 cycles** | 765 cycles | 20x | done; + gamma fade (IDF: none on S3) |
 | PCNT | read count (`pcnt_get` 32-bit vs `pcnt_unit_get_count` 16-bit+, `bench/idf_pcnt_ext`) | **91 cycles** | 310 cycles | 3.4x | done; + step notify / index IDF lacks on S3 |
 | MCPWM | compare update (`mcpwm_cmp` vs `mcpwm_comparator_set_compare_value`, `bench/idf_mcpwm_ext`) | **3 cycles** | 76 cycles | 25x | done; capture prescale 4 exact (IDF gets 6) |
 | RMT WS2812 | 3 LEDs (72 symbols, 10 MHz): call / until done (`test_rmt_ext` vs `bench/idf_rmt_ext`) | **2287 / 23393 cycles** | 3462 / 26956 cycles | 1.51x / 1.15x | done; over the 21600 wire floor 1.8k vs 5.4k |
