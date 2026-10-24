@@ -511,9 +511,9 @@ descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.
 
 | us | esp-ndf | ESP-IDF mbedtls (hardware MPI) | gain |
 |---|---|---|---|
-| RSA-1024 prepare modulus (R² mod M) | 2 100 | 3 170 (first exp, incl. 313 exp) | 1.75x |
-| RSA-2048 prepare modulus | 8 000 | 13 660 (incl. 1 075) | 1.8x |
-| RSA-4096 prepare modulus | 31 700 | 55 553 (incl. 4 061) | 1.9x |
+| RSA-1024 first x^65537 (prepare R² + exp) | 2 381 | 3 170 | 1.33x |
+| RSA-2048 first x^65537 | 9 042 | 13 660 | 1.51x |
+| RSA-4096 first x^65537 | 35 681 | 55 553 | 1.56x |
 | x^65537, 1024 / 2048 / 4096 | 281 / 1 042 / 4 029 | 313 / 1 075 / 4 061 | 1.11 / 1.03 / 1.01x |
 | x^d, 1024 / 2048 / 4096 | 21 700 / 163 000 / 1 277 418 | 21 760 / 163 354 / 1 277 450 | equal |
 
