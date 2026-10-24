@@ -1,0 +1,6 @@
+idf sinf libm        205.5 cycles/call
+idf cosf libm        204.7 cycles/call
+idf atan2f libm      287.9 cycles/call
+idf expf libm        248.7 cycles/call
+idf logf libm        229.1 cycles/call
+idf sqrtf libm        83.0 cycles/call

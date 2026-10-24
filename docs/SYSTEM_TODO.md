@@ -19,7 +19,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A3 PIE vector unit (the S3's "AI acceleration", TRM 1) | **done**: PIE in ISRs (lazy save), cookbook docs/PIE.md; QACC kernels in A5 |
 | | A4 DSP library (ESP-DSP equivalent) | **done**: FFT/rFFT/s16 FFT, windows, FIR/FIRD, biquad, vector, matrix, conv/corr, DCT, Kalman; 1.17-33x ESP-DSP, matmul/add_s16/dot at parity (same instruction floor) |
 | | A5 AI / NN library (ESP-NN equivalent) | **done**: conv/dwconv/fc/pool/add/mul/relu6/softmax bit-exact with ESP-NN, 1.01-5x per layer, tiny model end to end 1.17x |
-| | A6 Math library (libm, fast math) | partial |
+| | A6 Math library (libm, fast math) | **done**: fast sin/cos/atan2/exp/log/rsqrt with stated error, vector forms, Q15/Q31; 1.4-3.4x IDF newlib |
 | | A7 Multi-core | **done**: xc_call 24x esp_ipc, core stall/unstall |
 | | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **done**: perf counters (read 7x IDF), watchpoints with callback, SP stack guard from boot (0 cost) |
 | **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
@@ -78,7 +78,7 @@ shapes:
   or person-detection net) vs the same model on ESP-NN/TFLite Micro
 - Reference: ESP-NN `src/` (convolution, fully_connected, pooling, activation, basic_math).
 
-**A6 Math library — partial.** Have: musl libm (sin, exp, atan2, ...), IEEE-exact float runtime, correctly rounded
+**A6 Math library — done.** include/fastmath.h, lib/fastmath.c, examples/fastmath_test vs bench/idf_math. Was: partial. Have: musl libm (sin, exp, atan2, ...), IEEE-exact float runtime, correctly rounded
 strtod/printf. Missing: fast approximate math for control loops (sinf/cosf/atan2f/sqrtf/expf with stated error,
 table + polynomial, vector versions on PIE), fixed-point helpers (Q15/Q31).
 

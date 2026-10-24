@@ -910,3 +910,9 @@ Rerun after the USB recovery (2026-10-24): layers reproduce; the tiny model end 
 (checksum -2971 both) at 1.17x. Bugs found by it: the conv kernel's generic path fell through into the k16 = 9 code
 after its last channel (counter underflow -> load fault; our halt-on-panic kept the board reachable), and FC rows
 longer than the 4608-byte splat buffer took the scalar path although the kernel reads only 16 splat bytes.
+
+## Fast math + Q15/Q31 (`examples/fastmath_test`, BOX-3, 2026-10-24)
+
+Error sweeps against double precision PASS the bounds in fastmath.h; Q15/Q31 edge cases (saturating -1 * -1, add
+overflow, conversions at +-1) PASS. The first IDF numbers were 0 cycles: GCC folded the unused calls; outputs are
+volatile now on both sides.

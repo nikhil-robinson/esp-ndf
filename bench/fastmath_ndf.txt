@@ -1,0 +1,17 @@
+PASS accuracy: sin/cos 7.03e-08, atan2 2.40e-07, exp rel 7.66e-08, log 4.39e-08, sqrt rel 1.55e-07; Q15/Q31 ok
+ndf sinf libm        198.3 cycles/call
+ndf sinf fast         88.2 cycles/call
+ndf cosf libm        197.6 cycles/call
+ndf cosf fast         89.8 cycles/call
+ndf atan2f libm      272.2 cycles/call
+ndf atan2f fast      184.2 cycles/call
+ndf expf libm        107.9 cycles/call
+ndf expf fast         98.5 cycles/call
+ndf logf libm        126.6 cycles/call
+ndf logf fast        128.6 cycles/call
+ndf sqrtf libm        60.5 cycles/call
+ndf sqrtf fast        68.5 cycles/call
+ndf sinf fast vec     65.0 cycles/call
+ndf cosf fast vec     63.4 cycles/call
+ndf expf fast vec     73.0 cycles/call
+fastmath_test PASS done

@@ -676,3 +676,18 @@ fused MAC + load and register rotation, the TFLite requantisation as floor((x m 
 [r < 0]) >> e (both proven equal to the reference) hand-scheduled in assembly, QACC lane sums for depthwise /
 average pooling, int16 PIE arithmetic for 2x2 pooling, 256-entry tables for add and a cached exp table for softmax.
 Floor: per-output requantisation (~22 instructions, scalar mull/mulsh as in ESP-NN) bounds conv / dwconv near parity.
+
+## Float math vs IDF newlib (`examples/fastmath_test` vs `bench/idf_math`, BOX-3, 1024 arguments, 2026-10-24)
+
+| cycles/call | IDF newlib | esp-ndf libm (musl) | esp-ndf fast (scalar / vector) | best gain |
+|---|---|---|---|---|
+| sinf | 205.5 | 198.3 | 88.2 / 65.0 | 3.2x |
+| cosf | 204.7 | 197.6 | 89.8 / 63.4 | 3.2x |
+| atan2f | 287.9 | 272.2 | 184.2 | 1.56x |
+| expf | 248.7 | 107.9 | 98.5 / 73.0 | 3.4x |
+| logf | 229.1 | 126.6 | 128.6 | 1.81x |
+| sqrtf | 83.0 | 60.5 (correctly rounded, FPU sqrt0 + Newton) | 68.5 | 1.37x (libm) |
+
+Measured errors (vs double): sin/cos 7.0e-8 abs (|x| <= 8192), atan2 2.4e-7, exp 7.7e-8 rel, log 4.4e-8, rsqrt-based
+sqrt 1.6e-7 rel. Vector forms interleave four elements to cover the FPU's 4-cycle latency. Floor: each call rebuilds
+its constants (l32r + wfr); a fused vector kernel keeping them in FPU registers would cut ~30% more.
