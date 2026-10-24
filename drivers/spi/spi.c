@@ -245,6 +245,66 @@ uint32_t spi_slave_hd_events(int h)                      /* bit 11 master wrote,
     return r;
 }
 
+/* ---- slave half duplex, DMA (segment mode, IDF spi_slave_hd / essl_spi protocol): the master writes with
+ * WRDMA (0x03) segments and ends with WR_END (0x07, slave event CMD7); it reads with RDDMA (0x04) segments and
+ * ends with INT0 (0x08, CMD8). Arming follows IDF spi_slave_hd_hal_rxdma/txdma: FIFO, DMA half and slave reset. */
+#define SLV_CMD7 BIT(4)
+#define SLV_CMD8 BIT(5)
+static gdma_desc_t hd_rxd[8], hd_txd[8];
+
+static int hd_dma(int h)
+{
+    int k = h - 2;
+    if (dma_ch[k] < 0) {
+        if ((dma_ch[k] = gdma_alloc()) < 0) return -1;
+        gdma_connect(dma_ch[k], h == 2 ? GDMA_SPI2 : GDMA_SPI3);
+    }
+    return dma_ch[k];
+}
+
+int spi_slave_hd_dma_rx(int h, void *buf, size_t len)
+{
+    int c = hd_dma(h);
+    if (c < 0 || gdma_chain(hd_rxd, 8, buf, len, false) < 0) return -1;
+    REG_SET(DMA_CONF(h), BIT(29)); REG_CLR(DMA_CONF(h), BIT(29));        /* rx afifo */
+    gdma_in_reset(c);
+    REG_SET(SLAVE(h), BIT(27)); REG_CLR(SLAVE(h), BIT(27));
+    REG(INT_CLR(h)) = BIT(0) | SLV_CMD7;                                  /* infifo full, CMD7 */
+    REG_SET(DMA_CONF(h), BIT(27));
+    gdma_in_start(c, hd_rxd);
+    return 0;
+}
+
+int spi_slave_hd_dma_rx_done(int h)
+{
+    if (!(REG(INT_RAW(h)) & SLV_CMD7)) return -1;
+    int n = 0;
+    for (gdma_desc_t *d = hd_rxd; d && !d->owner; d = d->next) n += d->length;   /* closed descriptors */
+    return n;
+}
+
+int spi_slave_hd_dma_tx(int h, const void *buf, size_t len)
+{
+    int c = hd_dma(h);
+    if (c < 0 || gdma_chain(hd_txd, 8, (void *)buf, len, true) < 0) return -1;
+    REG_SET(DMA_CONF(h), BIT(31)); REG_CLR(DMA_CONF(h), BIT(31));        /* dma afifo */
+    gdma_out_reset(c);
+    REG_SET(SLAVE(h), BIT(27)); REG_CLR(SLAVE(h), BIT(27));
+    REG(INT_CLR(h)) = BIT(1) | SLV_CMD8;                                  /* outfifo empty, CMD8 */
+    REG_SET(DMA_CONF(h), BIT(28));
+    gdma_out_start(c, hd_txd);
+    return 0;
+}
+
+bool spi_slave_hd_dma_tx_done(int h) { return REG(INT_RAW(h)) & SLV_CMD8; }
+
+void spi_dma_release(int h)                               /* give the host's GDMA channel back (5 in all) */
+{
+    int k = h - 2;
+    if (dma_ch[k] >= 0) { REG(DMA_CONF(h)) = 0; gdma_free(dma_ch[k]); dma_ch[k] = -1; }
+    dma_used[k] = false;
+}
+
 /* ---- slave (register-buffer mode): the slave shifts each MISO byte out of
  * W0.. and overwrites it with the incoming MOSI byte (TRM 30.5; IDF does the same). */
 static uint8_t slv_len[2];

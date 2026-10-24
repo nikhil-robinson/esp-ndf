@@ -88,6 +88,9 @@ void gdma_reset(int c)                                     /* stop, reset both F
     REG(IN_INT_CLR(c)) = ~0u; REG(OUT_INT_CLR(c)) = ~0u;
 }
 
+void gdma_in_reset(int c)  { REG_CLR(IN_LINK(c), BIT(22)); REG_SET(IN_CONF0(c), BIT(0));  REG_CLR(IN_CONF0(c), BIT(0));  REG(IN_INT_CLR(c)) = ~0u; }
+void gdma_out_reset(int c) { REG_CLR(OUT_LINK(c), BIT(21)); REG_SET(OUT_CONF0(c), BIT(0)); REG_CLR(OUT_CONF0(c), BIT(0)); REG(OUT_INT_CLR(c)) = ~0u; }
+
 int gdma_chain(gdma_desc_t *d, int n, void *buf, size_t len, bool eof)
 {
     uint8_t *p = buf;

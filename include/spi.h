@@ -37,3 +37,11 @@ int      spi_slave_hd_init(int host, int sclk, int cs, const int8_t io[4], int m
 void     spi_slave_hd_buf_write(int host, uint32_t addr, const void *src, size_t len); /* what the master reads */
 void     spi_slave_hd_buf_read(int host, uint32_t addr, void *dst, size_t len);        /* what the master wrote */
 uint32_t spi_slave_hd_events(int host);    /* bit 11: master wrote the buffer, bit 10: master read it (read clears) */
+/* DMA (segment mode): buffers in DRAM, <= 32 KB. The master's WRDMA (0x03) segments land in buf back to back
+ * until it sends WR_END (0x07); its RDDMA (0x04) segments read buf on until INT0 (0x08). Mode bits as above. */
+enum { SPI_HD_WRDMA = 0x03, SPI_HD_RDDMA = 0x04, SPI_HD_WR_END = 0x07, SPI_HD_INT0 = 0x08 };
+int      spi_slave_hd_dma_rx(int host, void *buf, size_t len);
+int      spi_slave_hd_dma_rx_done(int host);        /* bytes received once WR_END came, -1 before */
+int      spi_slave_hd_dma_tx(int host, const void *buf, size_t len);
+bool     spi_slave_hd_dma_tx_done(int host);        /* the master sent INT0: done reading */
+void     spi_dma_release(int host);                 /* free the host's GDMA channel (taken on first DMA use) */

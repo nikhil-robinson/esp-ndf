@@ -1,0 +1,3 @@
+# C9:D0 2026-10-25, 10 MHz, no jumpers
+IDF:  DMA 1-line WRDMA 3 seg 3096 B 2538 us ok, RDDMA ok; 4-line 673 us ok
+ndf:  DMA 1-line 2493 us ok, RDDMA ok; 4-line 635 us ok

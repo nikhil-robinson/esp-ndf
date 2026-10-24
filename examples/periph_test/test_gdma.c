@@ -2,7 +2,9 @@
 #include "gdma.h"
 
 #define LEN 32768
-static uint32_t src[LEN / 4], dst[LEN / 4];
+extern uint8_t back[32768];                     /* test_fat.c: shared scratch, as src */
+#define src ((uint32_t *)back)
+static uint32_t dst[LEN / 4];
 
 void test_gdma(void)
 {

@@ -37,6 +37,40 @@ static bool hd(uint8_t mod, uint8_t lines, uint8_t alines, uint8_t addr, size_t 
     return wok && rok;
 }
 
+/* slave DMA (segment mode): WRDMA in 3 segments + WR_END lands back to back in the slave buffer; the slave's
+ * buffer then goes back over RDDMA in 2 segments + INT0. */
+extern uint8_t back[32768];                                /* test_fat.c: shared scratch */
+#define dm back
+#define ds (back + 16384)
+static bool hd_dma(uint8_t mod, uint8_t lines)
+{
+    static const uint16_t wseg[3] = { 1000, 2000, 96 }, rseg[2] = { 2048, 1048 };
+    for (int i = 0; i < 3096; i++) dm[i] = (uint8_t)(i * 13 + lines);
+    memset(ds, 0, 3096);
+    spi_hd_t w = { .cmd = SPI_HD_WRDMA | mod, .cmd_bits = 8, .addr_bits = 8, .dummy = 8, .lines = lines };
+    bool ok = spi_slave_hd_dma_rx(3, ds, 3096) == 0;
+    uint32_t t = ccount();
+    for (int k = 0, o = 0; k < 3; o += wseg[k++]) spi_hd_xfer(2, &w, dm + o, NULL, wseg[k]);
+    t = ccount() - t;
+    bool before = spi_slave_hd_dma_rx_done(3) < 0;              /* not done until WR_END */
+    w.cmd = SPI_HD_WR_END | mod;
+    spi_hd_xfer(2, &w, NULL, NULL, 0);
+    int n = spi_slave_hd_dma_rx_done(3);
+    bool wok = ok && before && n == 3096 && !memcmp(dm, ds, 3096);
+    for (int i = 0; i < 3096; i++) ds[i] = dm[i] ^ 0xA5;
+    memset(dm, 0, 3096);
+    spi_hd_t r = w; r.cmd = SPI_HD_RDDMA | mod;
+    spi_slave_hd_dma_tx(3, ds, 3096);
+    for (int k = 0, o = 0; k < 2; o += rseg[k++]) spi_hd_xfer(2, &r, NULL, dm + o, rseg[k]);
+    bool rbefore = !spi_slave_hd_dma_tx_done(3);
+    r.cmd = SPI_HD_INT0 | mod;
+    spi_hd_xfer(2, &r, NULL, NULL, 0);
+    bool rok = rbefore && spi_slave_hd_dma_tx_done(3) && !memcmp(dm, ds, 3096);
+    printf("    DMA %u-line: WRDMA 3 seg + WR_END -> %d B %s (%lu us), RDDMA 2 seg + INT0 %s\n", lines, n,
+           wok ? "ok" : "BAD", t / 240, rok ? "ok" : "BAD");
+    return wok && rok;
+}
+
 static volatile uint32_t cap_go, cap_n, cap_lo[64], cap_hi[64];
 static void capture(void)                                /* core 1: sample GPIO_IN on each rising SCLK (GPIO14) */
 {
@@ -93,6 +127,9 @@ void test_spi_hd(void)
     ok &= hd(SPI_HD_DUAL_ADDR, 2, 2, 0, 64);
     ok &= hd(SPI_HD_QUAD_ADDR, 4, 4, 16, 16);
     CHECK(ok);
+    CHECK(hd_dma(0, 1));
+    CHECK(hd_dma(SPI_HD_QUAD, 4));
     METRIC("spi_hd_xfer() quad write 32 B @10 MHz", "%lu cycles", ({ uint8_t b[32] = { 0 }; spi_hd_t w = { .cmd = SPI_HD_WRBUF | SPI_HD_QUAD, .cmd_bits = 8, .addr_bits = 8, .dummy = 8, .lines = 4 }; uint32_t t = ccount(); spi_hd_xfer(2, &w, b, NULL, 32); ccount() - t; }));
     CHECK(octal());
+    spi_dma_release(2); spi_dma_release(3);
 }

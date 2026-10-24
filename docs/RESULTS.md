@@ -1165,3 +1165,14 @@ state, never a torn one. STRICT=1 also remounts after every transaction. Found a
 group left in the log was later "completed" by the next group; the blank check at the log end read into the next,
 not yet erased block. On the device, 40 cuts on the real flash during a synced log: every synced line kept.
 
+## SPI slave HD DMA segment mode (`periph_test` spi_hd vs `bench/idf_spi_hd`, C9:D0, 10 MHz, 2026-10-25)
+
+Master SPI2 WRDMA in 3 segments (1000 + 2000 + 96 B) + WR_END, then RDDMA 2 segments + INT0, slave SPI3 DMA.
+| | esp-ndf | IDF |
+|---|---|---|
+| 1-line WRDMA 3096 B | **2493 us** ok | 2538 us ok |
+| 4-line WRDMA 3096 B | **635 us** ok | 673 us ok |
+| RDDMA back | ok both widths | ok |
+Wire time 2477 / 619 us: ndf is 16 us over the wire, IDF 61 / 54. Found: the slave's GDMA channel must be
+released (spi_dma_release) - the 5 channels ran out for ADC continuous later in the suite.
+

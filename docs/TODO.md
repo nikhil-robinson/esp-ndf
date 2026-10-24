@@ -79,7 +79,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       LCD/ADC/camera modes: n/a on S3 (ESP32-only I2S modes, SOC_I2S_SUPPORTS_ADC_DAC / LCD_I80_VARIANT; the S3 does them with LCD_CAM: lcd_i80.h, cam.h, ADC continuous)
 - [x] **SPI master**: full duplex, half duplex cmd/addr/dummy on 1/2/4/8 lines (octal SPI2), SPI3 master,
       CS setup/hold, DMA chains to 32 KB per call (split above); [ ] DTR (DDR) phases, [ ] octal read (no octal slave to test)
-- [~] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) done; [ ] HD DMA (WRDMA/RDDMA), segmented transfer
+- [x] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) + **HD DMA segment mode** (WRDMA/RDDMA segments, WR_END/INT0; 3096 B 4-line 635 vs IDF 673 us)
 - [x] **UART**: RS485 half duplex (DE) + collision detect, IrDA, HW flow control, pattern/AT detection;
       [ ] UHCI DMA (not needed so far: IRQ rings already at wire speed at 5 Mbaud), [ ] UART wake-up (with sleep)
 - [x] **I2C**: master/slave, 10-bit address (both), SCL timeout API, glitch filter API, bus clear (IDF order),

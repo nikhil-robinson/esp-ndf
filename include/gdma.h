@@ -35,6 +35,8 @@ void gdma_check_owner(int ch, bool on);    /* refuse descriptors with owner = 0 
 enum { GDMA_ERR_IN = 1, GDMA_ERR_OUT = 2 };
 int  gdma_error(int ch);                   /* descriptor error (bad owner / address) since start: GDMA_ERR_* */
 void gdma_reset(int ch);                   /* recover: stop + reset both halves, configuration kept */
+void gdma_in_reset(int ch);                /* one half only (the other keeps running) */
+void gdma_out_reset(int ch);
 
 /* Interrupt on every finished OUT descriptor (fn) / IN descriptor with EOF (fn).
  * fn(arg) runs at `level` on the calling core; NULL disables. */
