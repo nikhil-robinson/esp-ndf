@@ -61,8 +61,21 @@ void cpu1_start(void (*fn)(void))
     REG_CLR(SYSTEM_CORE1_CTRL0, BIT(2));
 }
 
+#if NDF_STACK_GUARD
+#include "debug.h"
+extern char _stack0_bot[], _stack1_bot[], _stack0_top[], _stack1_top[];
+static void guard_boot(int core)
+{
+    uint32_t bot = core ? (uint32_t)_stack1_bot : (uint32_t)_stack0_bot, top = core ? (uint32_t)_stack1_top : (uint32_t)_stack0_top;
+    stack_guard(bot + NDF_STACK_GUARD, top, 0);
+}
+#endif
+
 void sys_start1(void)
 {
+#if NDF_STACK_GUARD
+    guard_boot(1);
+#endif
     irq_enable_all();                       /* individual sources stay off until attached */
     cpu1_fn();
     for (;;) {}
@@ -125,6 +138,9 @@ void sys_start0(void)
 #endif
     periph_enable(PERIPH_SYSTIMER);
     console_init();
+#if NDF_STACK_GUARD
+    guard_boot(0);
+#endif
     irq_enable_all();                       /* individual sources stay off until attached */
 #if NDF_BOOT_BANNER
     sys_print_info();

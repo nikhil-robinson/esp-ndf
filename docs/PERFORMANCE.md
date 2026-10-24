@@ -577,3 +577,12 @@ Lazy save: the first FP instruction in a handler traps once, the trap stores f0-
 interrupted context in a slot per (core, INTLEVEL); the exit restores them only if CP0 is on (2 instructions when not).
 The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handler's own sqrt. IRQ entry latency
 (irq_latency): L1 76, L3 66, L5 50 cycles (RESULTS table: 76 / 63 / 46; layout shift, entry code unchanged except L1).
+
+## Profiling and debug (`examples/debug_test` vs `bench/idf_perf`, C9:D0, 2026-10-24)
+
+| | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| perf counter read (incl. one CCOUNT read) | 4 cycles (inline RER) | 28 (xtensa_perfmon_value call) | 7x |
+| 1000 x 10 nops: cycles / instructions counted | 10 007 / 10 005 (CCOUNT 10 009) | 10 398 / 10 037 (CCOUNT 10 494) | exact vs call overhead |
+| stack overflow detection | SP leaves [bottom + 256, top] on any instruction: 0 cycles (fib(24) 1 950 649 both) | FreeRTOS watchpoint on the last 32 bytes (writes only) | - |
+| watchpoint hit | callback, access completes, program continues | panic | - |

@@ -63,8 +63,9 @@ _vec_l4_jump\c:
     .global _vec_l5_jump\c
 _vec_l5_jump\c:
     j   _l5_entry
-    .org _vector_table\c + 0x280   /* level 6 = debug */
-    j   _unexpected
+    .org _vector_table\c + 0x280   /* level 6 = debug (watchpoints) */
+    wsr a0, excsave6
+    j   _l6_entry
     .org _vector_table\c + 0x2C0   /* level 7 = NMI */
     j   _unexpected
     .org _vector_table\c + 0x300   /* kernel exception: impossible, PS.UM = 1 */
@@ -333,6 +334,17 @@ _l\lvl\()_entry:
     RESTORE
     rfi     \lvl
 .endm
+
+/* level 6, debug exception without a debugger: data watchpoints (debug.c) */
+    .align 4
+_l6_entry:
+    SAVE    excsave6, PS_UM | 6
+    rsr     a2, debugcause
+    rsr     a3, epc6
+    mov     a4, a1
+    call0   ndf_debug_exc
+    RESTORE
+    rfi     6
 
     HL_ENTRY 2, SOC_INTR_L2_MASK
     HL_ENTRY 3, SOC_INTR_L3_MASK

@@ -858,3 +858,12 @@ level-5 handler (sqrtf) that preempts it: main result bit-equal to the run witho
 in ~4400 L1 + ~8400 L3/L5 runs. Bug found on the way: the trap overwrote EPC1, so the level-1 exit returned into the
 handler; EPC1 is now kept in the level-1 frame. BR (FP compare results) is part of the saved state. periph_test (21),
 core_test, irq_latency, xcore_notify re-run: PASS.
+
+## Profiling and debug (`examples/debug_test`, `examples/stack_overflow`, 2026-10-24)
+
+Perf counters: cycles equal CCOUNT (+-2), 10 005 instructions for 10 000 nops + loop setup, 1001 loads for 1000.
+Write watchpoint: callback with the store's PC inside poke(), store completed, second store not caught (one-shot).
+Stack guard: recursion crossing a limit 3 KB down raises the callback with a PC inside deep(); with the boot guard,
+runaway recursion ends in "*** PANIC core0: stack overflow (SP left its stack)" + backtrace. Found: ASSIST_DEBUG needs
+RLS as well as ENA to raise the interrupt (RAW was set, no interrupt); perfmon KRNLCNT=1 means "only above
+TRACELEVEL" (counted nothing).

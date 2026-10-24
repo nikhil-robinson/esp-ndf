@@ -72,8 +72,8 @@ SECTIONS
         *(.bss .bss.* .sbss .sbss.* COMMON)
         . = ALIGN(4);
         _bss_end = .;                     /* stacks stay outside the zeroed range */
-        . = ALIGN(16); . += NDF_STACK0_SIZE; _stack0_top = .;   /* sizes from app.mk (--defsym) */
-        . = ALIGN(16); . += NDF_STACK1_SIZE; _stack1_top = .;
+        . = ALIGN(16); _stack0_bot = .; . += NDF_STACK0_SIZE; _stack0_top = .;   /* sizes from app.mk (--defsym) */
+        . = ALIGN(16); _stack1_bot = .; . += NDF_STACK1_SIZE; _stack1_top = .;
     } > dram
 
     .rtc.data : { _rtc_data_start = .; *(.rtc.data .rtc.data.*) . = ALIGN(4); _rtc_data_end = .; } > rtcslow

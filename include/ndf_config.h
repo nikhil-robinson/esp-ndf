@@ -124,6 +124,10 @@
 #ifndef NDF_PANIC_RESTART
 #define NDF_PANIC_RESTART       0       /* after a fault/assert/watchdog report: 0 halt (debugger), 1 restart */
 #endif
+#ifndef NDF_STACK_GUARD
+#define NDF_STACK_GUARD         256     /* hardware stack guard from boot: panic when SP gets this close to the bottom of
+                                         * a core's stack (bytes left for the report); 0 off */
+#endif
 #ifndef NDF_ASSERT_ENABLE
 #define NDF_ASSERT_ENABLE       1       /* 0: NDF_ASSERT() compiles to nothing */
 #endif

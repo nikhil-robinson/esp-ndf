@@ -21,7 +21,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A5 AI / NN library (ESP-NN equivalent) | **none** |
 | | A6 Math library (libm, fast math) | partial |
 | | A7 Multi-core | **done**: xc_call 24x esp_ipc, core stall/unstall |
-| | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **none** |
+| | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **done**: perf counters (read 7x IDF), watchpoints with callback, SP stack guard from boot (0 cost) |
 | **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
 | | B2 Memory map: RTC memory, PSRAM heap, capabilities | **done**: RTC sections, PSRAM heap + caps, 5.5x IDF malloc |
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
@@ -87,7 +87,7 @@ cores. Missing: cross-core function call (run fn on the other core, wait for res
 single-core reset API, per-core interrupt allocation from the other core. Reference: `esp_system/esp_ipc.c`,
 `esp_hw_support/cpu.c`.
 
-**A8 Profiling and debug — none.** Xtensa performance counters (cycles, instruction count, cache misses, stalls) as a
+**A8 Profiling and debug — done.** include/debug.h: perf_setup/read (inline RER, 4 cycles), watch_set (DBREAK, one-shot callback from the level-6 debug vector), stack_guard (ASSIST_DEBUG SP monitor, armed at boot by NDF_STACK_GUARD); examples/debug_test, examples/stack_overflow. TRAX trace / gdbstub not done (JTAG + OpenOCD covers it). Was: Xtensa performance counters (cycles, instruction count, cache misses, stalls) as a
 profiling API; ASSIST_DEBUG stack-pointer bounds monitor per core (cheap stack-overflow detection) and memory-region
 watch; hardware breakpoints/watchpoints; TRAX trace notes; gdbstub/JTAG guide. Reference: `esp_hw_support/` (debug
 assist), `xtensa/` and `esp_cpu` (perfmon, watchpoints).
