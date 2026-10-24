@@ -83,7 +83,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **I2C**: master/slave, 10-bit address (both), SCL timeout API, glitch filter API, bus clear (IDF order),
       arbitration loss (waits for the winner, retry), clean controller rebuild after errors
 - [x] **RMT**: carrier/filter, TX loop count, multi-channel sync, RX demodulation, DMA (TX/RX ch 3), WS2812 encoder
-- [~] **MCPWM**: done incl. capture/fault/sync; **todo**: carrier (chopper) module, event-triggered fault actions per operator, capture prescaler
+- [x] **MCPWM**: capture/fault/sync, carrier (chopper), fault pins with one-shot / cycle-by-cycle actions per operator, capture prescaler (measured mapping), live re-timing
 - [~] **PCNT**: done; **todo**: threshold/zero-cross events as callbacks, step-notify API, decoder for quadrature with index
 - [~] **LEDC**: done incl. fade; **todo**: gamma curves, channel phase sync API, sleep retention
 - [~] **GPTimer**: done; **todo**: capture-on-event, ETM-like linking is (n/a on S3)

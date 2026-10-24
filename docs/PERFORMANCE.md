@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| MCPWM | compare update (`mcpwm_cmp` vs `mcpwm_comparator_set_compare_value`, `bench/idf_mcpwm_ext`) | **3 cycles** | 76 cycles | 25x | done; capture prescale 4 exact (IDF gets 6) |
 | RMT WS2812 | 3 LEDs (72 symbols, 10 MHz): call / until done (`test_rmt_ext` vs `bench/idf_rmt_ext`) | **2287 / 23393 cycles** | 3462 / 26956 cycles | 1.51x / 1.15x | done; over the 21600 wire floor 1.8k vs 5.4k |
 | I2C 10-bit | write 8 B @100 kHz (`test_i2c_ext` vs `bench/idf_i2c_ext`) | **221.6k cycles** | 230.5k cycles | 1.04x (bus-bound) | done; over the 220.8k wire floor: ~780 vs ~9700 cycles |
 | UART RS485 | DE release after the stop bit, 1 Mbaud (`test_uart_modes` vs `bench/idf_uart_modes`) | **669 cycles** | 1311 cycles | 1.96x | done; both from the TX_DONE interrupt (floor: IRQ entry ~100) |

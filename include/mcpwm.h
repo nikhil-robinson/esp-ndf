@@ -40,3 +40,15 @@ void mcpwm_force(int u, int op, int level);
 typedef void (*mcpwm_cap_fn_t)(int ch, uint32_t ticks, int edge, void *arg);
 int  mcpwm_capture(int u, int ch, int pin, mcpwm_edge_t edges, mcpwm_cap_fn_t fn, void *arg, int level);
 #define MCPWM_CAP_HZ 80000000u
+
+/* Carrier (chopper) on op's outputs: f = 160 MHz / 8 / n (n 1..16: 20 MHz..1.25 MHz), duty n/8 (0..6),
+ * first pulse of each PWM high n carrier periods (1..16). hz = 0 off. Returns the carrier Hz. */
+uint32_t mcpwm_carrier(int u, int op, uint32_t hz, int duty_eighths, int first_pulses);
+/* Fault input f (0..2) of unit u on pin. */
+int      mcpwm_fault_pin(int u, int f, int pin, bool active_high);
+/* What op does on fault f: one_shot = latch until mcpwm_force(u, op, -1), else cycle by cycle (released
+ * at the next period start once the fault is gone). level: 0 drive both outputs low, 1 high. */
+int      mcpwm_fault_action(int u, int op, int f, bool one_shot, int level);
+bool     mcpwm_fault_active(int u, int f);
+/* Capture only every n-th selected edge: n = 1 or even up to 510 (hardware: odd n rounds up). Returns n used. */
+uint32_t mcpwm_capture_prescale(int u, int ch, uint32_t n);

@@ -205,6 +205,20 @@ SCL [3:0] / SDA [7:4], we had set SCL only.
 DMA (as IDF): the channel RAM stays in the path as a ring (wrap on both sides), TX prefills ~1 us before
 start, RX limit 0. RX demod thresholds are maxima: a carrier at the nominal duty needs margin (+25 %).
 
+## MCPWM extended (`periph_test` mcpwm_ext vs `bench/idf_mcpwm_ext`, C9:D0, jumpers 10 -> 11, 12 -> 13)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| fault pin, one-shot: tripped / after fault gone / released | 0 / 0 (latched) / running | - |
+| fault pin, cycle by cycle: tripped / after fault gone | 0 / running by itself | - |
+| carrier 1.25 MHz, 4/8 duty on 1 kHz 50 % PWM, 10 ms | 6250 pulses (ideal 6250) | - |
+| capture prescale 4 on 1 kHz | **4 periods** (320000 ticks) | 6 periods (480000) |
+| compare update | **3 cycles** | 76 cycles |
+
+Found: (1) the capture prescaler is not "field + 1": field f >= 1 captures every 2f-th edge (measured n = 2..8;
+IDF's prescale = 4 gives 6) - the driver maps n to f = n/2; (2) re-timing a running timer kept the old timer
+prescale until a software sync reloads it.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

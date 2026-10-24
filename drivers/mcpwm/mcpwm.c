@@ -21,6 +21,7 @@
 #define CARRIER(u, o)    (U_BASE(u) + 0x064 + 0x38 * (o))
 #define FH_CFG0(u, o)    (U_BASE(u) + 0x068 + 0x38 * (o))  /* b4 sw one-shot b23:8 A/B actions */
 #define FH_CFG1(u, o)    (U_BASE(u) + 0x06C + 0x38 * (o))  /* b0 clr_ost (rising edge) b4 force_ost (toggle) */
+#define FAULT_DET(u)     (U_BASE(u) + 0x0E4)              /* b2:0 en b5:3 active high b8:6 event */
 #define CAP_TIMER_CFG(u) (U_BASE(u) + 0x0E8)
 #define CAP_CFG(u, c)    (U_BASE(u) + 0x0F0 + 4 * (c))    /* b0 en b2:1 mode(neg,pos) b10:3 prescale */
 #define CAP_VAL(u, c)    (U_BASE(u) + 0x0FC + 4 * (c))
@@ -33,6 +34,7 @@
 
 #define SIG_OUT0A(u)     ((u) ? 166 : 160)                /* +2*op (+1 for B) */
 #define SIG_CAP0(u)      ((u) ? 175 : 166)
+#define SIG_F0(u)        ((u) ? 172 : 163)
 
 /* generator actions: 0 none, 1 low, 2 high, 3 toggle */
 #define ACT(ev, a)       ((uint32_t)(a) << (2 * (ev)))
@@ -95,6 +97,10 @@ uint32_t mcpwm_timer(int u, int t, uint32_t hz, mcpwm_mode_t mode, uint32_t *tic
         /* load period now (a synced timer may never reach zero on its old
          * period), then shadow later changes to TEZ so they never glitch */
         REG(T_CFG0(u, t)) = (p - 1) | reg_per << 8;
+        uint32_t sy = REG(T_SYNC(u, t));                     /* a re-timed running timer keeps its old */
+        REG(T_SYNC(u, t)) = (sy & ~(0xFFFFu << 4)) | BIT(0);  /* prescale: software sync (phase 0) reloads */
+        REG(T_SYNC(u, t)) ^= BIT(1);
+        REG(T_SYNC(u, t)) = sy;
         REG_FIELD(T_CFG0(u, t), 24, 2, 1);
         REG(T_CFG1(u, t)) = (uint32_t)mode << 3;
         unit[u].mode[t] = mode;
@@ -193,7 +199,8 @@ int mcpwm_capture(int u, int ch, int pin, mcpwm_edge_t e, mcpwm_cap_fn_t fn, voi
     REG(CAP_TIMER_CFG(u)) = BIT(0);                         /* capture timer on (APB) */
     gpio_in_signal(pin, SIG_CAP0(u) + ch, false);       /* enables pad input; output untouched */
     /* mode bit1 = negedge, bit2 = posedge */
-    REG(CAP_CFG(u, ch)) = BIT(0) | ((e & MCPWM_NEG) ? BIT(1) : 0) | ((e & MCPWM_POS) ? BIT(2) : 0);
+    REG(CAP_CFG(u, ch)) = BIT(0) | ((e & MCPWM_NEG) ? BIT(1) : 0) | ((e & MCPWM_POS) ? BIT(2) : 0) |
+                          (REG(CAP_CFG(u, ch)) & (0xFFu << 3));   /* keep the prescaler */
     REG_CLR(INT_ENA(u), BIT(27 + ch));
     unit[u].cap_fn[ch] = fn; unit[u].cap_arg[ch] = arg;
     if (fn) {
@@ -202,4 +209,55 @@ int mcpwm_capture(int u, int ch, int pin, mcpwm_edge_t e, mcpwm_cap_fn_t fn, voi
         REG_SET(INT_ENA(u), BIT(27 + ch));
     }
     return 0;
+}
+
+uint32_t mcpwm_carrier(int u, int op, uint32_t hz, int duty_eighths, int first_pulses)
+{
+    if (!hz) { REG(CARRIER(u, op)) = 0; return 0; }
+    /* IDF mcpwm_carrier: f = 160 MHz / 8 / prescale (1..16), duty n/8 (0..6), first pulse n periods (1..16) */
+    uint32_t p = (160000000u / 8 + hz / 2) / hz;
+    if (p < 1) p = 1;
+    if (p > 16) p = 16;
+    if (duty_eighths < 0) duty_eighths = 0;
+    if (duty_eighths > 6) duty_eighths = 6;
+    if (first_pulses < 1) first_pulses = 1;
+    if (first_pulses > 16) first_pulses = 16;
+    REG(CARRIER(u, op)) = BIT(0) | (p - 1) << 1 | (uint32_t)duty_eighths << 5 | (uint32_t)(first_pulses - 1) << 8;
+    return 160000000u / 8 / p;
+}
+
+int mcpwm_fault_pin(int u, int f, int pin, bool active_high)
+{
+    if (u < 0 || u > 1 || f < 0 || f > 2) return -1;
+    unit_up(u);
+    gpio_config(pin, GPIO_INPUT);
+    gpio_in_signal(pin, SIG_F0(u) + f, false);
+    REG(FAULT_DET(u)) = (REG(FAULT_DET(u)) & ~(BIT(3 + f))) | BIT(f) | (active_high ? BIT(3 + f) : 0);
+    return 0;
+}
+
+int mcpwm_fault_action(int u, int op, int f, bool one_shot, int level)
+{
+    if (u < 0 || u > 1 || op < 0 || op > 2 || f < 0 || f > 2) return -1;
+    /* trip select: cbc bits 3-f, ost bits 7-f; actions on A and B, up and down counting: 1 low 2 high */
+    uint32_t a = level ? 2 : 1, v = REG(FH_CFG0(u, op));
+    v &= ~(BIT(3 - f) | BIT(7 - f));
+    v |= one_shot ? BIT(7 - f) : BIT(3 - f);
+    if (one_shot) v = (v & ~(0xFu << 12 | 0xFu << 20)) | a << 12 | a << 14 | a << 20 | a << 22;
+    else          v = (v & ~(0xFu << 8 | 0xFu << 16)) | a << 8 | a << 10 | a << 16 | a << 18;
+    REG(FH_CFG0(u, op)) = v;
+    REG_FIELD(FH_CFG1(u, op), 1, 2, 1);                    /* cbc released at TEZ once the fault is gone */
+    return 0;
+}
+
+bool mcpwm_fault_active(int u, int f) { return (REG(FAULT_DET(u)) >> (6 + f)) & 1; }
+
+uint32_t mcpwm_capture_prescale(int u, int ch, uint32_t n)
+{
+    /* measured on the S3 (periph_test mcpwm_ext): field 0 = every edge, field f >= 1 = every 2f-th edge
+     * (the TRM/IDF "f + 1" does not hold), so only 1 and even divisors exist; odd n rounds up */
+    uint32_t f = n <= 1 ? 0 : (n + 1) / 2;
+    if (f > 255) f = 255;
+    REG_FIELD(CAP_CFG(u, ch), 3, 8, f);
+    return f ? 2 * f : 1;
 }

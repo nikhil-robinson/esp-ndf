@@ -21,6 +21,7 @@ int main(void)
     run("gptimer", test_gptimer);
     run("ledc", test_ledc);
     run("mcpwm", test_mcpwm);
+    run("mcpwm_ext", test_mcpwm_ext);
     run("pcnt", test_pcnt);
     run("rmt", test_rmt);
     run("rmt_ext", test_rmt_ext);
