@@ -41,10 +41,10 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF; GCM (drivers/crypto/gcm.c) |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **done**: exp/mul mod 1024-4096, first op (R² prep) 1.33-1.56x IDF, exp equal (same engine) |
-| | E5 HMAC, Digital Signature (DS) | **none** |
+| | E5 HMAC, Digital Signature (DS) | **plan written** (docs/SECURITY_PLAN.md): needs an eFuse key burn - awaiting approval |
 | | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **done**: P-256 keygen/ECDH/ECDSA 1.55-1.67x, X25519 1.7x, AES-GCM 1.4-2.6x IDF; constant-time |
 | | E7 eFuse: fields, key blocks, burn opt-in | **done** (read): IDF field table by name, all 11 blocks, 100/100 vs espefuse; burning not implemented (approval rule) |
-| | E8 Flash and PSRAM encryption (XTS_AES), secure boot | **none** (irreversible: plan only) |
+| | E8 Flash and PSRAM encryption (XTS_AES), secure boot | **plan written** (docs/SECURITY_PLAN.md): irreversible - awaiting approval, spare board |
 | | E9 NVS encryption | done |
 
 ## A. Compute

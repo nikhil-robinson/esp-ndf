@@ -1,0 +1,11 @@
+flash: JEDEC c86018, 16384 KB, SFDP 16 dwords, quad 1 (QE methodflash: JEDEC c86018, 16384 KB, SFDP 16 dwords, quad 1 (QE method 1), suspend 1 (75/7a), 4-byte 0, 120 MHz
+PASS erase: 4 KB 14176 us, 32 KB 13559 us, 64 KB 88627 us, 256 KB region 56507 us; blank 1/1
+PASS write: 4 KB 5231 us, 64 KB 80191 us; read cold: 4 KB 91 us, 64 KB 1447 us (44229 KB/s), 64 KB again 1447 us
+PASS miss every    0 us: erase 64 KB + write 4 KB  110883 us; core 1   881 runs (  425 suspends), longest pause   284 us, bad 0, data ok, still suspended after read 167
+PASS miss every   20 us: erase 64 KB + write 4 KB  283981 us; core 1  1095 runs ( 1030 suspends), longest pause   264 us, bad 0, data ok, still suspended after read 455
+PASS miss every   50 us: erase 64 KB + write 4 KB  306035 us; core 1  1105 runs ( 1105 suspends), longest pause   234 us, bad 0, data ok, still suspended after read 510
+PASS miss every  100 us: erase 64 KB + write 4 KB  252148 us; core 1   816 runs (  799 suspends), longest pause   218 us, bad 0, data ok, still suspended after read 171
+PASS miss every  200 us: erase 64 KB + write 4 KB  165789 us; core 1   401 runs (  401 suspends), longest pause   215 us, bad 0, data ok, still suspended after read 86
+PASS miss every  500 us: erase 64 KB + write 4 KB  129574 us; core 1   182 runs (  178 suspends), longest pause   217 us, bad 0, data ok, still suspended after read 41
+PASS miss every 1000 us: erase 64 KB + write 4 KB  118040 us; core 1    97 runs (   97 suspends), longest pause   215 us, bad 0, data ok, still suspended after read 22
+flash_test PASS done

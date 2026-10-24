@@ -931,3 +931,9 @@ to the ROM (the warm-boot jump shares 0x50000000) and the loader halts any runni
 pm_config(240, 80): 80 MHz without a lock, 240 MHz with one, still 240 with a nested lock released, 80 after the last
 unlock (ccount vs systimer); delays exact at 80 MHz; lock count back to 0. IDF's DFS measured on the same board keeps
 the CPU at 240 MHz while a task runs (scaling happens in its idle task only).
+
+## Flash suite on the BOX-3's GD25LQ128 (`examples/flash_test` XIP=lib, 2026-10-24)
+
+JEDEC c86018, 16 MB, SFDP, quad (QE method 1), suspend 75/7a, 120 MHz: erase / write / read all PASS with data
+checked; with core 1 running flash code during a 64 KB erase + 4 KB write the longest core-1 pause is 215-284 us
+(suspend), no wrong data. bench/flash_box3_result.txt.
