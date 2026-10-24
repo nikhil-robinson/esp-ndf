@@ -84,8 +84,18 @@ static inline void xc_spin_unlock(xc_spin_t *l) { l->owner = 0; xc_barrier(); l-
 
 /* ---- cross-core interrupt --------------------------------------------- */
 #if SOC_HAS_CROSS_CORE_INT
-/* Install fn on the calling core for notifications sent to it (level 1-3). */
+/* Install fn (or NULL) on the calling core for notifications sent to it (level 1-3). */
 int  xc_notify_init(void (*fn)(void *), void *arg, int level);
 /* Interrupt the other core (core = target). */
 static inline void xc_notify(int core) { REG(0x600C0030 + 4 * core) = 1; }
+
+/* Cross-core call (esp_ipc_call_blocking): run fn(arg) on core, in its notify interrupt, and wait. The target calls
+ * xc_call_init once (shares the notify interrupt: an xc_notify_init handler still runs). fn must be short and must
+ * not block. Not from an interrupt handler on the calling side. Returns -1 if the target has not called init. */
+int  xc_call_init(int level);
+int  xc_call(int core, int (*fn)(void *), void *arg, int *ret);
+/* Stall / resume the other core in hardware (e.g. around work it must not see); it resumes where it stopped. Core 1
+ * restart = cpu1_start again. */
+void xc_stall(int core);
+void xc_unstall(int core);
 #endif /* SOC_HAS_CROSS_CORE_INT */

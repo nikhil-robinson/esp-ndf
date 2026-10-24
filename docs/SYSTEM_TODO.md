@@ -20,7 +20,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A4 DSP library (ESP-DSP equivalent) | partial: 8 primitive kernels |
 | | A5 AI / NN library (ESP-NN equivalent) | **none** |
 | | A6 Math library (libm, fast math) | partial |
-| | A7 Multi-core | partial |
+| | A7 Multi-core | **done**: xc_call 24x esp_ipc, core stall/unstall |
 | | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **none** |
 | **B. Memory and data movement** | B1 Cache + MMU, execute from flash (XIP) | **done** (+ fast boot) |
 | | B2 Memory map: RTC memory, PSRAM heap, capabilities | **done**: RTC sections, PSRAM heap + caps, 5.5x IDF malloc |
@@ -82,7 +82,7 @@ shapes:
 strtod/printf. Missing: fast approximate math for control loops (sinf/cosf/atan2f/sqrtf/expf with stated error,
 table + polynomial, vector versions on PIE), fixed-point helpers (Q15/Q31).
 
-**A7 Multi-core — partial.** Have: core 1 start, `xc_seq` / `xc_fifo` / `xc_spin` / `xc_notify`, heap safe from both
+**A7 Multi-core — done.** xc_call / xc_call_init (cross-core call, examples/xcore_call), xc_stall / xc_unstall (IDF 0x86 sequence); core 1 reset = cpu1_start; per-core interrupt from the other core = xc_call(irq_attach). Was: Have: core 1 start, `xc_seq` / `xc_fifo` / `xc_spin` / `xc_notify`, heap safe from both
 cores. Missing: cross-core function call (run fn on the other core, wait for result), core stall/unstall and
 single-core reset API, per-core interrupt allocation from the other core. Reference: `esp_system/esp_ipc.c`,
 `esp_hw_support/cpu.c`.

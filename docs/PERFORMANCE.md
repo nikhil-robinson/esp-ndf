@@ -554,3 +554,13 @@ CTR on the engine (DMA) + GHASH with an 8-bit Shoup table in 32-bit words (mbedt
 
 Same 8-limb Montgomery field code as P-256 (generic for p = 2^255-19). Headroom: a 2^255-19 specific reduction
 (multiply the high half by 38) instead of Montgomery would cut about a third.
+
+## Cross-core call (`examples/xcore_call` vs `bench/idf_xcall`, C9:D0, 2026-10-24)
+
+| cycles, core 0 runs fn on core 1 and waits | esp-ndf `xc_call` | ESP-IDF `esp_ipc_call_blocking` | gain |
+|---|---|---|---|
+| round trip, min / avg of 10 000 | 243 / 244 | 5 622 / 5 823 | 23.9x |
+
+Ours runs fn in core 1's cross-core interrupt (level 3); IDF wakes an IPC task (context switch each way). Floor: the
+bare notify round trip is 127 cycles at level 3 (xcore_notify), so the call adds ~117 cycles of handoff. IDF's
+esp_ipc_isr path is assembly-callback only and not compared. Core 1 resumes 261 cycles after xc_unstall.

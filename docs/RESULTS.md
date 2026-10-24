@@ -845,3 +845,8 @@ kept the old key); both fixed in aes_block, aes_test still PASS.
 
 Public key and shared secret equal python cryptography (bench/x25519/gen_vectors.py), RFC 7748 5.2 vector 1 PASS on
 C9:D0; P-256 test re-run after the move to lib/ecc.c still PASS. Same results from bench/idf_x25519.
+
+## Cross-core call and stall (`examples/xcore_call`, 2026-10-24)
+
+10 000 xc_call round trips from core 0: each result came from core 1 with the right argument. xc_stall(1): core 1's
+counter did not move for 2 ms; after xc_unstall it counted again. PASS on C9:D0.
