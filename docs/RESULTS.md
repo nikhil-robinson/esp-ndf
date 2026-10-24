@@ -882,3 +882,10 @@ bus, address and write flag; data stores and calls unaffected; memprot_code_writ
 a data buffer: "illegal instruction ... PC in data: fetch blocked by memprot". With protection on from boot:
 periph_test 21/21, debug_test, gdma_ext, flash_test, ota_test, fpu_isr, xcore_call, irq_naked (vector patch), core_test
 PASS. irq_naked's exit figure had wrapped (time read before the flag check); fixed: 14 / 12 / 33 cycles.
+
+## PIE in interrupt handlers (`examples/pie_isr`, BOX-3, 2026-10-24)
+
+Main loop dsp_dot_s16 over 4096 elements x 20 000 while level-1 and level-3 / level-5 handlers run dsp_dot_s16 and
+a float op: 0 wrong results in main and in ~4700 + ~8700 handler runs per level; fpu_isr still PASS. Found: a second
+cpu1_start tripped core 1's stack guard (the ROM start stub runs on its own stack) -> panic; cpu1_start now disarms
+core 1's guard, sys_start1 re-arms it.

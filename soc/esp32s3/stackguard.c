@@ -49,4 +49,5 @@ int stack_guard(uint32_t lo, uint32_t hi, stack_guard_fn_t fn)
     return 0;
 }
 
-void stack_guard_off(void) { int c = core_id(); REG(ENA(c)) &= ~SP_BITS; REG(RLS(c)) &= ~SP_BITS; REG(CLR(c)) = SP_BITS; }
+void stack_guard_core_off(int c) { REG(ENA(c)) &= ~SP_BITS; REG(RLS(c)) &= ~SP_BITS; REG(CLR(c)) = SP_BITS; }
+void stack_guard_off(void) { stack_guard_core_off(core_id()); }

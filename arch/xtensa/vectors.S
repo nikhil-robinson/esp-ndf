@@ -28,6 +28,7 @@
 #define PS_EXCM     0x10
 #define FRAME       80     /* 16 saved words + PS (level 1) + pad, 16-aligned */
 #define FPU_SLOT    76     /* f0-f15, FCR, FSR, BR */
+#define PIE_SLOT    208    /* IDF XCHAL_CP3_SA_SIZE */
 
 /* ---- vector tables (VECBASE, 1 KB aligned), one per core --------------
  * Same content; separate copies so a naked level-4/5 handler can be patched
@@ -146,19 +147,124 @@ _vector_table:
     addi    a1, a1, FRAME
 .endm
 
-/* Handler at INTLEVEL lvl used the FPU (CP0 still on: it trapped, since
- * every handler starts with CPENABLE = 0): put back what it displaced. */
+/* Handler at INTLEVEL lvl used the FPU (CP0) and/or PIE (CP3): they are still on (it trapped, since every
+ * handler starts with CPENABLE = 0): put back what it displaced. 2 instructions when neither was used. */
 .macro FPU_EXIT lvl
-    rsr     a2, cpenable
-    beqz    a2, .Lfx\@
+    rsr     a5, cpenable
+    beqz    a5, .Lfx\@
     rsr     a2, prid
     extui   a2, a2, 13, 1
+    bbci    a5, 0, .Lfp\@
     movi    a3, FPU_SLOT * 6
     mull    a3, a3, a2
     movi    a4, fpu_save + FPU_SLOT * \lvl
     add     a3, a3, a4
     FPU_LOAD a3
+.Lfp\@:
+    bbci    a5, 3, .Lfx\@
+    movi    a3, PIE_SLOT * 6
+    mull    a3, a3, a2
+    movi    a4, pie_save + PIE_SLOT * \lvl
+    add     a3, a3, a4
+    PIE_LOAD a3
 .Lfx\@:
+.endm
+
+/* PIE (cop_ai) state, IDF xchal_cp3_store/load layout: 208 bytes, 16-aligned. a4 scratch, r advanced. */
+.macro PIE_STORE r
+    rur.accx_0 a4
+    s32i a4, \r, 0
+    rur.accx_1 a4
+    s32i a4, \r, 4
+    rur.qacc_h_0 a4
+    s32i a4, \r, 8
+    rur.qacc_h_1 a4
+    s32i a4, \r, 12
+    rur.qacc_h_2 a4
+    s32i a4, \r, 16
+    rur.qacc_h_3 a4
+    s32i a4, \r, 20
+    rur.qacc_h_4 a4
+    s32i a4, \r, 24
+    rur.qacc_l_0 a4
+    s32i a4, \r, 28
+    rur.qacc_l_1 a4
+    s32i a4, \r, 32
+    rur.qacc_l_2 a4
+    s32i a4, \r, 36
+    rur.qacc_l_3 a4
+    s32i a4, \r, 40
+    rur.qacc_l_4 a4
+    s32i a4, \r, 44
+    rur.sar_byte a4
+    s32i a4, \r, 48
+    rur.fft_bit_width a4
+    s32i a4, \r, 52
+    rur.ua_state_0 a4
+    s32i a4, \r, 56
+    rur.ua_state_1 a4
+    s32i a4, \r, 60
+    rur.ua_state_2 a4
+    s32i a4, \r, 64
+    rur.ua_state_3 a4
+    s32i a4, \r, 68
+    st.qr q0, \r, 80
+    st.qr q1, \r, 96
+    st.qr q2, \r, 112
+    addi \r, \r, 128
+    st.qr q3, \r, 0
+    st.qr q4, \r, 16
+    st.qr q5, \r, 32
+    st.qr q6, \r, 48
+    st.qr q7, \r, 64
+.endm
+
+.macro PIE_LOAD r
+    l32i a4, \r, 0
+    wur.accx_0 a4
+    l32i a4, \r, 4
+    wur.accx_1 a4
+    l32i a4, \r, 8
+    wur.qacc_h_0 a4
+    l32i a4, \r, 12
+    wur.qacc_h_1 a4
+    l32i a4, \r, 16
+    wur.qacc_h_2 a4
+    l32i a4, \r, 20
+    wur.qacc_h_3 a4
+    l32i a4, \r, 24
+    wur.qacc_h_4 a4
+    l32i a4, \r, 28
+    wur.qacc_l_0 a4
+    l32i a4, \r, 32
+    wur.qacc_l_1 a4
+    l32i a4, \r, 36
+    wur.qacc_l_2 a4
+    l32i a4, \r, 40
+    wur.qacc_l_3 a4
+    l32i a4, \r, 44
+    wur.qacc_l_4 a4
+    l32i a4, \r, 48
+    wur.sar_byte a4
+    l32i a4, \r, 52
+    wur.fft_bit_width a4
+    l32i a4, \r, 56
+    wur.ua_state_0 a4
+    l32i a4, \r, 60
+    wur.ua_state_1 a4
+    l32i a4, \r, 64
+    wur.ua_state_2 a4
+    l32i a4, \r, 68
+    wur.ua_state_3 a4
+    ld.qr q0, \r, 80
+    ld.qr q1, \r, 96
+    ld.qr q2, \r, 112
+    addi \r, \r, 128
+    ld.qr q3, \r, 0
+    ld.qr q4, \r, 16
+    ld.qr q5, \r, 32
+    ld.qr q6, \r, 48
+    ld.qr q7, \r, 64
 .endm
 
 .macro FPU_LOAD r
@@ -267,28 +373,41 @@ _l1_entry:
     rfe
 
 _l1_exception:
-    bnei    a2, 32, _l1_fault        /* 32 = Coprocessor0Disabled */
-    rsr     a3, ps
-    extui   a3, a3, 0, 4             /* INTLEVEL: the handler that touched the FPU */
-    beqz    a3, _l1_fault            /* not in a handler: CP0 was off on purpose */
+    beqi    a2, 32, 1f               /* 32 = Coprocessor0Disabled (FPU) */
+    movi    a3, 35                   /* 35 = Coprocessor3Disabled (PIE) */
+    bne     a2, a3, _l1_fault
+1:  rsr     a3, ps
+    extui   a3, a3, 0, 4             /* INTLEVEL: the handler that touched the coprocessor */
+    beqz    a3, _l1_fault            /* not in a handler: it was off on purpose */
     bgei    a3, 6, _l1_fault
-    rsr     a2, prid
-    extui   a2, a2, 13, 1
-    movi    a5, FPU_SLOT * 6
-    mull    a5, a5, a2
-    movi    a4, fpu_save
-    add     a5, a5, a4
-    movi    a4, FPU_SLOT
-    mull    a4, a4, a3
-    add     a5, a5, a4               /* fpu_save[core][lvl] */
-    movi    a4, 1
+    rsr     a6, prid
+    extui   a6, a6, 13, 1            /* core */
+    movi    a7, 6
+    mull    a7, a7, a6
+    add     a7, a7, a3               /* slot index core * 6 + lvl */
+    l32i    a4, a1, 60               /* the handler's CPENABLE (saved by this trap's SAVE) */
+    bnei    a2, 32, 2f
+    addi    a4, a4, 1                /* + CP0 */
+    s32i    a4, a1, 60               /* the handler resumes with it on */
     wsr     a4, cpenable
     rsync
+    movi    a5, FPU_SLOT
+    mull    a5, a5, a7
+    movi    a4, fpu_save
+    add     a5, a5, a4
     FPU_STORE a5
-    movi    a4, 1
-    s32i    a4, a1, 60               /* the handler resumes with CP0 on */
-    RESTORE
-    rfe                              /* re-runs the FP instruction */
+    j       3f
+2:  addi    a4, a4, 8                /* + CP3 */
+    s32i    a4, a1, 60
+    wsr     a4, cpenable
+    rsync
+    movi    a5, PIE_SLOT
+    mull    a5, a5, a7
+    movi    a4, pie_save
+    add     a5, a5, a4
+    PIE_STORE a5
+3:  RESTORE
+    rfe                              /* re-runs the instruction */
 
 _l1_fault:                           /* frame holds a0..a11; add a12..a15 for the dump */
     s32i    a12, a1, 64
@@ -397,5 +516,7 @@ _unexpected:
 
     .section .bss
     .align 4
-    .global fpu_save
+    .global fpu_save, pie_save
 fpu_save:   .space FPU_SLOT * 6 * 2  /* [core][INTLEVEL 0..5] */
+    .align 16
+pie_save:   .space PIE_SLOT * 6 * 2

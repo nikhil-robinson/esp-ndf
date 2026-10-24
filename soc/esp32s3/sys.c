@@ -53,6 +53,9 @@ static void wdt_off(void)
 
 void cpu1_start(void (*fn)(void))
 {
+#if NDF_STACK_GUARD
+    { extern void stack_guard_core_off(int); stack_guard_core_off(1); }   /* the ROM start stub runs outside core 1's stack */
+#endif
     cpu1_fn = fn;
     REG(SYSTEM_CORE1_CTRL1) = (uint32_t)_start1;         /* ROM core1 stub jumps here */
     REG_SET(SYSTEM_CORE1_CTRL0, BIT(1));                 /* clock on  */
@@ -70,6 +73,8 @@ static void guard_boot(int core)
     stack_guard(bot + NDF_STACK_GUARD, top, 0);
 }
 #endif
+
+bool sys_cpu1_running(void) { return cpu1_fn != 0; }
 
 void sys_start1(void)
 {

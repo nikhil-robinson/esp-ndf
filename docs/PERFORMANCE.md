@@ -611,3 +611,8 @@ Priority: two channels copying 32 KB at once, the prio-5 channel finishes in ~52
 
 Split granularity 256 B: _text_end is aligned to 256 (up to 255 B of padding). Warm boot on C9:D0 is 881-889 us
 with or without both features (and at the brownout commit ef16ef2); the 781 us figure was the other devkit.
+
+## PIE in handlers + instruction table (`examples/pie_isr`, `examples/pie_bench`, BOX-3, 2026-10-24)
+
+Handler using PIE + FPU, level-3 round trip 198 cycles vs 135 for an integer handler (+63: trap + 208-byte save /
+restore). IDF: PIE in ISRs not supported. Full per-instruction table: docs/PIE.md.
