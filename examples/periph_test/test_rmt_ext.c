@@ -34,14 +34,16 @@ static uint32_t skew(bool sync)
     rmt_tx_init(1, 14, 1000000, 0);
     static const rmt_item_t one[1] = { RMT_ITEM(1, 20, 0, 5) };
     rmt_tx_sync(sync ? 3 : 0);
-    uint32_t t1 = 0, t2 = 0, t0 = ccount();
+    uint32_t t1 = 0, t2 = 0, t0 = ccount(), prev = ~0u;
     rmt_tx(0, one, 1);
     for (volatile int d = 0; d < 200; d++) {}               /* the second start comes ~1 us later */
     rmt_tx(1, one, 1);
+    /* time the falling edges: the 20 us pulses outlast any start-up latency of this loop (flash cache) */
     while ((!t1 || !t2) && ccount() - t0 < 2400000u) {
         uint32_t v = REG(GPIO_IN), now = ccount();
-        if (!t1 && (v & BIT(12))) t1 = now;
-        if (!t2 && (v & BIT(14))) t2 = now;
+        if (!t1 && (prev & BIT(12)) && !(v & BIT(12))) t1 = now;
+        if (!t2 && (prev & BIT(14)) && !(v & BIT(14))) t2 = now;
+        prev = v;
     }
     rmt_tx_wait(0); rmt_tx_wait(1);
     rmt_tx_sync(0);

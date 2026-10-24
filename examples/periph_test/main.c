@@ -51,6 +51,7 @@ int main(void)
     run("nvs", test_nvs);
     run("nvs_enc", test_nvs_enc);
     run("fat", test_fat);
+    run("fat_ext", test_fat_ext);
     run("spiffs", test_spiffs);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;

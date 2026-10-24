@@ -49,6 +49,7 @@ void test_flash(void);
 void test_partition(void);
 void test_nvs(void);
 void test_fat(void);
+void test_fat_ext(void);
 void test_adc_cont(void);
 void test_adc_filter(void);
 void test_rtcio(void);

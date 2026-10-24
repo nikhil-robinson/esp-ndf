@@ -1,6 +1,7 @@
 /* FAT12/16/32 + VFAT long names. Two one-sector caches (FAT, data/dir) with
  * write-back; FAT sectors are mirrored to every FAT copy when flushed. */
 #include "fat.h"
+#include <time.h>
 #include "ndf_config.h"
 #include <string.h>
 
@@ -340,6 +341,16 @@ static int sfn_cb(const char *name, uint8_t *e, uint32_t idx, uint32_t ls, void 
     return 0;
 }
 
+/* DOS date/time of now: wall clock (time()) once it is past 1980, else the fixed 2024-01-01 00:00 */
+static void dos_now(uint16_t *date, uint16_t *tm)
+{
+    time_t t = time(0);
+    if (t < 315532800) { *date = (2024 - 1980) << 9 | 1 << 5 | 1; *tm = 0; return; }   /* clock not set */
+    struct tm g; gmtime_r(&t, &g);
+    *date = (uint16_t)((g.tm_year - 80) << 9 | (g.tm_mon + 1) << 5 | g.tm_mday);
+    *tm = (uint16_t)(g.tm_hour << 11 | g.tm_min << 5 | g.tm_sec / 2);
+}
+
 /* create a directory entry (LFN + SFN) for name in dc; returns SFN index */
 static int create_entry(uint32_t dc, const char *name, uint8_t attr, uint32_t first, uint32_t *idx_out)
 {
@@ -387,7 +398,10 @@ static int create_entry(uint32_t dc, const char *name, uint8_t attr, uint32_t fi
     memcpy(e, sfn, 11);
     e[11] = attr;
     set_first(e, first);
-    wr16(e + 24, (2024 - 1980) << 9 | 1 << 5 | 1);              /* date: 2024-01-01 */
+    uint16_t d, t; dos_now(&d, &t);
+    wr16(e + 14, t); wr16(e + 16, d);                            /* created */
+    wr16(e + 18, d);                                             /* accessed */
+    wr16(e + 22, t); wr16(e + 24, d);                            /* written */
     cdat.dirty = true;
     if (idx_out) *idx_out = start + nl;
     return 0;
@@ -408,6 +422,8 @@ static int sync_entry(file_t *f)
     if (!b) return FAT_EIO;
     wr32(b + f->dir_off + 28, f->size);
     set_first(b + f->dir_off, f->first);
+    uint16_t d, t; dos_now(&d, &t);
+    wr16(b + f->dir_off + 22, t); wr16(b + f->dir_off + 24, d); wr16(b + f->dir_off + 18, d);   /* written */
     cdat.dirty = true;
     return 0;
 }
@@ -730,4 +746,52 @@ int fat_format(bdev_t *b)
     else { wr32(s, 0x0FFFFFF8); wr32(s + 4, 0x0FFFFFFF); wr32(s + 8, 0x0FFFFFFF); }
     for (uint32_t k = 0; k < nf; k++) if (b->write(b, rsvd + k * fatsz, s, 1)) return FAT_EIO;
     return fat_mount(b);
+}
+
+/* ---- rename / move ----------------------------------------------------------------- */
+int fat_rename(const char *from, const char *to)
+{
+    pcache_clear();
+    uint32_t dc_old, dc_new; const char *l_old, *l_new; find_t f, g;
+    int r = resolve(from, &dc_old, &l_old, &f);
+    if (r) return r;
+    size_t fl = strlen(from);
+    if ((f.ent[11] & A_DIR) && !strncmp(to, from, fl) && to[fl] == '/') return FAT_EINVAL;   /* into itself */
+    r = resolve(to, &dc_new, &l_new, &g);
+    if (!r) return FAT_EEXIST;
+    if (r != FAT_ENOENT) return r;
+    uint8_t keep[32]; memcpy(keep, f.ent, 32);
+    uint32_t idx;
+    if ((r = create_entry(dc_new, l_new, keep[11], first_clus(keep), &idx))) return r;
+    uint8_t *e = dent(dc_new, idx, false, 0);
+    if (!e) return FAT_EIO;
+    memcpy(e + 12, keep + 12, 20);                               /* sizes, cluster, dates as they were */
+    cdat.dirty = true;
+    pcache_clear();
+    if (resolve(from, &dc_old, &l_old, &f)) return FAT_EIO;     /* the old entry may have moved in the cache */
+    for (uint32_t i = f.lfn; i <= f.idx; i++) {
+        uint8_t *o = dent(dc_old, i, false, 0);
+        if (!o) return FAT_EIO;
+        o[0] = DELETED; cdat.dirty = true;
+    }
+    pcache_clear();                                              /* the re-resolve above cached the old path */
+    if ((keep[11] & A_DIR) && dc_old != dc_new) {                /* a moved directory: its ".." */
+        uint8_t *dd = dent(first_clus(keep), 1, false, 0);
+        if (!dd) return FAT_EIO;
+        set_first(dd, dc_new == root_dc() ? 0 : dc_new);
+        cdat.dirty = true;
+    }
+    return fat_sync();
+}
+
+int fat_mtime(const char *path, time_t *t)
+{
+    uint32_t dc; const char *last; find_t f;
+    int r = resolve(path, &dc, &last, &f);
+    if (r) return r;
+    uint16_t d = rd16(f.ent + 24), tm = rd16(f.ent + 22);
+    struct tm g = { .tm_year = (d >> 9) + 80, .tm_mon = ((d >> 5) & 15) - 1, .tm_mday = d & 31,
+                    .tm_hour = tm >> 11, .tm_min = (tm >> 5) & 63, .tm_sec = (tm & 31) * 2 };
+    *t = mktime(&g);
+    return 0;
 }

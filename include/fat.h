@@ -24,6 +24,11 @@ int  fat_close(int fd);
 int  fat_unlink(const char *path);          /* file or empty directory */
 int  fat_mkdir(const char *path);
 int  fat_stat(const char *path, uint32_t *size, bool *is_dir);
+/* rename or move a file / directory (any directory on the volume); FAT_EEXIST if `to` exists */
+int  fat_rename(const char *from, const char *to);
+/* last write time (DOS, 2 s resolution; from time() once the wall clock is set) */
+#include <time.h>
+int  fat_mtime(const char *path, time_t *t);
 
 int  fat_opendir(const char *path);
 /* next entry: name (<= 255 + NUL), returns 1, 0 at end, < 0 error */

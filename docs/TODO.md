@@ -130,7 +130,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] NVS (+ encryption, boot reader, host tools), partition API, FAT + LFN,
       wear levelling, SPIFFS, VFS, block-device layer, FAT/NVS/mfg host tools
-- [ ] FAT: rename, directory rename/move, timestamps from system time, FAT32 in `fattool mkfat`
+- [x] FAT: rename + move (files, directories with '..' fix-up), create/write/access timestamps from time(), `fat_mtime`; [ ] FAT32 in `fattool mkfat`
 - [ ] SPIFFS: rename, `spiffsgen`-compatible host image builder
 - [ ] SD card as block device (with the SD host)
 - [ ] LittleFS (power-safe filesystem: better than FAT for logs on a robot)

@@ -129,3 +129,35 @@ void test_fat(void)
     printf("    vfs_open() incl. FAT lookup %lu cycles; vfs_write(1, ...) -> console\n", oc);
     CHECK(vfs_write(1, "", 0) == 0 && vfs_unregister("/fat") == 0);
 }
+
+/* rename / move and timestamps on the volume test_fat left mounted */
+#include <sys/time.h>
+void test_fat_ext(void)
+{
+    char s[32] = { 0 }; uint32_t sz; bool d; int fd;
+    CHECK(fat_rename("/HELLO.TXT", "/greeting.txt") == 0);
+    CHECK(fat_stat("/hello.txt", &sz, &d) == FAT_ENOENT && fat_stat("/greeting.txt", &sz, &d) == 0 && sz == 19);
+    CHECK(fat_rename("/greeting.txt", "/data/sub dir/greeting moved.txt") == 0);           /* move between dirs */
+    fd = fat_open("/data/sub dir/greeting moved.txt", FAT_RDONLY); fat_read(fd, s, sizeof s - 1); fat_close(fd);
+    CHECK(!strcmp(s, "Hello from esp-ndf\n"));
+    CHECK(fat_rename("/data/sub dir", "/moved dir") == 0);                                  /* a directory with files */
+    CHECK(fat_stat("/moved dir/note.txt", &sz, &d) == 0 && sz == 6 && fat_stat("/data/sub dir", &sz, &d) == FAT_ENOENT);
+    CHECK(fat_stat("/moved dir/../data/long file name.bin", &sz, &d) == 0 && sz == 20000);  /* its ".." now = root */
+    CHECK(fat_rename("/data", "/data/inside") == FAT_EINVAL);                               /* into itself */
+    CHECK(fat_rename("/moved dir/note.txt", "/data/long file name.bin") == FAT_EEXIST);
+    static bdev_t *bdp; (void)bdp;
+    CHECK(fat_sync() == 0);
+    printf("    rename + move (file, dir with files, between dirs), '..' updated, EEXIST / into-itself refused\n");
+
+    struct timeval tv = { .tv_sec = 1761395696 };          /* 2025-10-25 12:34:56 UTC */
+    settimeofday(&tv, 0);
+    fd = fat_open("/stamp.txt", FAT_WRONLY | FAT_CREAT); fat_write(fd, "t", 1); fat_close(fd);
+    time_t mt = 0;
+    CHECK(fat_mtime("/stamp.txt", &mt) == 0);
+    char b[32]; struct tm g; gmtime_r(&mt, &g); strftime(b, sizeof b, "%F %T", &g);
+    printf("    file written at 2025-10-25 12:34:56: mtime %s\n", b);
+    CHECK(mt >= 1761395694 && mt <= 1761395698);
+    fat_unlink("/stamp.txt");
+    fat_rename("/moved dir", "/data/sub dir");                                             /* back, for the next run */
+    fat_rename("/data/sub dir/greeting moved.txt", "/HELLO.TXT");
+}
