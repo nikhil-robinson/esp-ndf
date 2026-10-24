@@ -1,0 +1,1 @@
+#define NDF_PANIC_RESTART 1

@@ -114,3 +114,21 @@ int clk_cpu_set_mhz(uint32_t mhz)
     irq_unlock(ps);
     return 0;
 }
+
+/* Clock output (IDF esp_clock_output): IO_MUX PIN_CTRL selects the source per channel, the pad takes the CLK_OUTn
+ * function. Channel pads: 1 = GPIO41 (MTDI) / 43, 2 = GPIO40 (MTDO) / 44, 3 = GPIO39 (MTCK) / 18; GPIO19/20 (also
+ * CLK_OUT2/1) are the USB pins and are refused. src = CLK_OUT_* (TRM / clk_tree_defs.h ids). */
+int clk_out(int ch, int src, int pin)
+{
+    static const struct { int8_t pin, fn; } pads[3][2] = { { { 41, 2 }, { 43, 2 } }, { { 40, 2 }, { 44, 2 } }, { { 39, 2 }, { 18, 3 } } };
+    if (ch < 1 || ch > 3) return -1;
+    int fn = -1;
+    for (int i = 0; i < 2; i++) if (pads[ch - 1][i].pin == pin) fn = pads[ch - 1][i].fn;
+    if (fn < 0) return -1;
+    REG_FIELD(0x60009000u, 4 * (ch - 1), 4, src < 0 ? 0xF : src);   /* PIN_CTRL CLK_OUTn (0xF = off, reset value) */
+    if (src < 0) return 0;
+    if (src == CLK_OUT_RC_FAST) REG_SET(0x60008074u, BIT(10));     /* RTC_CNTL_CLK_CONF dig_clk8m_en, as IDF */
+    REG_FIELD(IO_MUX_GPIO(pin), 12, 3, fn);                          /* MCU_SEL = CLK_OUTn */
+    REG_SET(IO_MUX_GPIO(pin), BIT(9));                               /* input on: readable back */
+    return 0;
+}

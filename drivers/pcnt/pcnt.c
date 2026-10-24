@@ -61,6 +61,7 @@ static void unit_init(int u)
     if (cpu_int < 0) cpu_int = irq_attach(SRC_PCNT, 1, pcnt_isr, 0);
     REG(U_CONF2(u)) = (uint32_t)(uint16_t)PCNT_WRAP | (uint32_t)(uint16_t)-PCNT_WRAP << 16;
     REG_SET(U_CONF0(u), BIT(12) | BIT(13));        /* wrap events at h/l limits */
+    REG_FIELD(U_CONF0(u), 0, 11, 0);               /* glitch filter off (reset value drops pulses < 10 APB cycles); IDF default too */
     REG(INT_CLR) = BIT(u);
     REG_SET(INT_ENA, BIT(u));
     pcnt_clear(u);

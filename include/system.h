@@ -26,6 +26,10 @@ void        sys_info(sys_info_t *info);
 int         sys_reset_cause(int core);
 const char *sys_reset_cause_str(int cause);
 void        sys_print_info(void);          /* one-screen summary on the console */
+/* Last crash (fault, assert, watchdog report), kept in RTC memory through any reset but power-on; returned once. */
+typedef struct { uint32_t magic, pc, uptime_ms, bt[8]; uint8_t core, n_bt; char why[64]; } sys_crash_t;
+bool        sys_last_crash(sys_crash_t *c);
+uint32_t    sys_crash_count(void);                  /* crashes since power-on */
 NORETURN void sys_restart(void);           /* full digital system reset (RTC domain kept) */
 /* boot time: chip reset -> our first instruction (ROM boot + image load), and our init until main() */
 void        sys_boot_times(uint32_t *rom_us, uint32_t *init_us);

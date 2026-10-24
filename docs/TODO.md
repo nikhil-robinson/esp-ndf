@@ -33,12 +33,12 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 3. System, reset, clocks, boot (TRM ch. 7-9, 13, 14, 17, 24)  - details: SYSTEM_TODO C1-C7
 
-- [x] Clocks: CPU 240/160/80/40, RTC slow clock select + calibration; [ ] CLK_OUT pins (no use yet)
+- [x] Clocks: CPU 240/160/80/40, RTC slow clock select + calibration; [x] CLK_OUT pins (`clk_out`: XTAL / RC fast / RC slow measured on GPIO41; USB pins refused)
 - [~] XTAL 32 kHz + XTAL32K watchdog: written, not verified (no crystal on either board)
 - [x] Watchdogs: TG0/TG1 (report + reset), RTC WDT, super watchdog
 - [x] Reset reason per core (kept across the warm stage); [ ] wake cause (with sleep, D1)
 - [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
-- [x] Fault handling with DWARF backtrace; [ ] reset-safe crash record / core dump to flash
+- [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [ ] core dump to flash
 - [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
 - [~] Interrupt matrix: per-core routing, priorities, line sharing done; [ ] NMI (level 7) use
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)

@@ -19,6 +19,7 @@ extern int test_fail;
     uint32_t _t = ccount(); stmt; uint32_t _d = ccount() - _t; if (_d < _b) _b = _d; } _b; })
 
 void test_gpio(void);
+void test_clkout(void);
 void test_gptimer(void);
 void test_ledc(void);
 void test_ledc_gamma(void);

@@ -18,6 +18,7 @@ int main(void)
     printf("\n=== esp-ndf peripheral tests ===\n");
     run("rtcio", test_rtcio);
     run("gpio", test_gpio);
+    run("clkout", test_clkout);
     run("gptimer", test_gptimer);
     run("ledc", test_ledc);
     run("ledc_gamma", test_ledc_gamma);

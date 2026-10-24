@@ -293,6 +293,13 @@ captures it from the same pads by DMA (VSYNC ends the frame): 256 / 256 bytes pe
 Both halves share one GDMA channel (LCD = OUT, camera = IN). IDF 5.3 has no S3 DVP driver (esp32-camera is
 an external component), so there is no IDF sibling for this one.
 
+## Crash record and clock output (C9:D0)
+
+- `examples/crash_test`: a trap in `crash_here()` restarts the chip (NDF_PANIC_RESTART); the next boot reads reason,
+  core, PC (inside crash_here), 4 backtrace PCs and the crash count from RTC memory.
+- `clk_out` on GPIO41 counted by PCNT: XTAL 40.03 MHz, RC fast 20.1 MHz, RC slow 138.7 kHz = its calibration.
+  Found: the PCNT glitch filter is on at reset (drops pulses < 10 APB cycles); our units now start with it off, as IDF.
+
 ## IDF siblings added for older drivers (C9:D0)
 
 | | esp-ndf | ESP-IDF |

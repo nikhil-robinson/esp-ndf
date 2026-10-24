@@ -23,4 +23,7 @@ int      clk_cpu_set_mhz(uint32_t mhz);
 uint32_t clk_cpu_hz(void);
 uint32_t clk_cpu_sync(void);             /* re-read the CPU clock from the hardware (after a boot loader set it) */
 uint32_t clk_apb_hz(void);
+/* Clock output on a pad: ch 1..3, src CLK_OUT_XTAL etc. (-1 off); pin must be that channel's pad (see clk.c). */
+enum { CLK_OUT_PLL = 1, CLK_OUT_RC_SLOW = 4, CLK_OUT_XTAL = 5, CLK_OUT_PLL_80M = 13, CLK_OUT_RC_FAST = 14 };
+int      clk_out(int ch, int src, int pin);
 #define  CLK_XTAL_HZ  40000000u

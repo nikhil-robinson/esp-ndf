@@ -177,13 +177,36 @@ static bool is_ret_addr(uint32_t w)                 /* w follows a call0 / callx
     return (i[0] & 0x3F) == 0x05 || (i[0] == 0xC0 && !(i[1] & 0xF0) && !i[2]);
 }
 
-static void emit_pc(uint32_t pc) { printf(" 0x%08lx", (unsigned long)pc); }
+/* crash record: kept through every reset but power-on (RTC slow memory), read once by sys_last_crash() */
+static RTC_NOINIT_ATTR sys_crash_t crash_rec;
+static RTC_NOINIT_ATTR uint32_t crash_count_v;
+#define CRASH_MAGIC 0x43525348u
+
+static void emit_pc(uint32_t pc)
+{
+    printf(" 0x%08lx", (unsigned long)pc);
+    if (crash_rec.n_bt < 8) crash_rec.bt[crash_rec.n_bt++] = pc;
+}
+
+bool sys_last_crash(sys_crash_t *c)
+{
+    if (crash_rec.magic != CRASH_MAGIC) return false;
+    if (c) *c = crash_rec;
+    crash_rec.magic = 0;
+    return true;
+}
+
+uint32_t sys_crash_count(void) { return (crash_count_v & 0xFFFF0000u) == 0x5A5A0000u ? crash_count_v & 0xFFFF : 0; }
 
 void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)
 {
     irq_lock();
     int core = core_id();
     printf("\n*** PANIC core%d: %s\n    PC 0x%08lx\n", core, why, (unsigned long)pc);
+    crash_rec.magic = 0; crash_rec.core = (uint8_t)core; crash_rec.pc = pc; crash_rec.n_bt = 0;
+    crash_rec.uptime_ms = (uint32_t)(time_us() / 1000);
+    { int i = 0; for (; why[i] && i < (int)sizeof crash_rec.why - 1; i++) crash_rec.why[i] = why[i]; crash_rec.why[i] = 0; }
+    crash_count_v = (crash_count_v & 0xFFFF0000u) == 0x5A5A0000u ? crash_count_v + 1 : 0x5A5A0001u;
     if (frame) {
         static const uint8_t ix[16] = { 0, 0xFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 16, 17, 18, 19 };   /* a1 = sp */
         for (int r = 0; r < 16; r++) {
@@ -215,6 +238,7 @@ void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint3
         printf(" (scan)");
     }
     printf("\n");
+    crash_rec.magic = CRASH_MAGIC;                  /* complete: the next boot may read it */
 }
 
 NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)
