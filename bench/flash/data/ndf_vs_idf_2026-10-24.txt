@@ -1,0 +1,26 @@
+== ndf 1
+flash: JEDEC 684018, 16384 KB, SFDP 9 dwords, quad 1 (QE method flash: JEDEC 684018, 16384 KB, SFDP 9 dwords, quad 1 (QE method 0), suspend 0 (75/7a), 4-byte 0
+PASS erase: 4 KB 34304 us, 32 KB 5375 us, 64 KB 245546 us, 256 KB region 42866 us; blank 1/1
+PASS write: 4 KB 12548 us, 64 KB 196467 us; read cold: 4 KB 132 us, 64 KB 2112 us (30303 KB/s), 64 KB again 2112 us
+PASS miss every    0 us: erase 64 KB + write 4 KB   22525 us; core 1     2 runs (    0 suspends), longest pause 11829 us, bad 0, data ok, still suspended after read 0
+flash_test PASS done
+== idf 1
+idf flash: JEDEC 684018, chip driver boya, unique ID 50442159204[0;32mI (196) cpu_start: Pro cpu start user code[0m
+idf flash: JEDEC 684018, chip driver boya, unique ID 50442159204a141c
+idf erase: 4 KB 37672 us, 32 KB 5961 us, 64 KB 234768 us, 256 KB region 43833 us; blank 1/1
+idf write: 4 KB 13850 us, 64 KB 220038 us; read: 4 KB 355 us, 64 KB 5177 us; data ok
+idf miss every    0 us: erase 64 KB + write 4 KB   25688 us; core 1   415 runs, longest pause 10764 us, bad 0, data ok, err 0/0
+idf_flash done
+== ndf 2
+flash: JEDEC 684018, 16384 KB, SFDP 9 dwords, quad 1 (QE method flash: JEDEC 684018, 16384 KB, SFDP 9 dwords, quad 1 (QE method 0), suspend 0 (75/7a), 4-byte 0
+PASS erase: 4 KB 34457 us, 32 KB 5375 us, 64 KB 235910 us, 256 KB region 42866 us; blank 1/1
+PASS write: 4 KB 12635 us, 64 KB 196794 us; read cold: 4 KB 132 us, 64 KB 2112 us (30303 KB/s), 64 KB again 2112 us
+PASS miss every    0 us: erase 64 KB + write 4 KB   22961 us; core 1     2 runs (    0 suspends), longest pause 12265 us, bad 0, data ok, still suspended after read 0
+flash_test PASS done
+== idf 2
+idf flash: JEDEC 684018, chip driver boya, unique ID 50442159204[0;32mI (192) cpu_start: Pro cpu start user code[0m
+idf flash: JEDEC 684018, chip driver boya, unique ID 50442159204a141c
+idf erase: 4 KB 35170 us, 32 KB 6466 us, 64 KB 243451 us, 256 KB region 44151 us; blank 1/1
+idf write: 4 KB 13953 us, 64 KB 221013 us; read: 4 KB 349 us, 64 KB 5179 us; data ok
+idf miss every    0 us: erase 64 KB + write 4 KB   26049 us; core 1   416 runs, longest pause 10763 us, bad 0, data ok, err 0/0
+idf_flash done

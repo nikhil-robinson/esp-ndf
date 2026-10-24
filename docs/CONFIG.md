@@ -16,6 +16,9 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `FLASH_MODE`<br>Image header: boot read mode | app.mk | `dio` | `qio` QIO<br>`qout` QOUT<br>`dio` DIO<br>`dout` DOUT | Mode the ROM loader uses to copy the image into RAM. At run time the flash driver switches to QIO by itself when the chip has its QE bit set, so DIO is the safe default. |
 | `FLASH_FREQ`<br>Image header: boot SPI clock | app.mk | `80m` | `80m` 80 MHz<br>`40m` 40 MHz<br>`26m` 26 MHz<br>`20m` 20 MHz | SPI clock the ROM loader uses. 80 MHz matches the run-time setting. |
 | `NDF_FLASH_READ`<br>Read path | ndf_config.h | `NDF_FLASH_READ_AUTO` | `NDF_FLASH_READ_AUTO` auto: data cache + QIO (fast)<br>`NDF_FLASH_READ_SPI1` SPI1 registers only | auto: reads go through the data cache (SPI0 in QIO, 64-byte lines, whole flash mapped by the MMU): 4 KB cold in ~134 us, repeated reads are cache hits. Falls back to SPI1 if the chip is not in quad mode. SPI1 only: ~209 us per 4 KB, leaves the cache untouched. |
+| `NDF_FLASH_SUSPEND`<br>Erase/program auto-suspend | ndf_config.h | `1` | `1` auto: ESP-IDF chip list + SFDP<br>`0` off<br>`2` force (chip tested) | A cache miss from either core suspends a running erase/program in hardware, reads, and resumes it: flash code keeps running during an erase instead of pausing. auto: the chips ESP-IDF validates (GD25Q64/128, XMC-D, FM) and chips whose SFDP table says so. Not for Boya BY25Q (tested: never resumes). |
+| `NDF_FLASH_SUS_HOLD_US`<br>Suspend: tSUS (us) | ndf_config.h | `50` | 20 – 400 | Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50). |
+| `NDF_FLASH_QE_SET`<br>Set quad-enable bit | ndf_config.h | `y` | y / n | If the chip's QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode). |
 
 ## Console
 

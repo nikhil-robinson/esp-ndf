@@ -188,10 +188,13 @@ vector unit is off there).
 
 | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|
-| Flash read 4 KB, cold (cache line bursts) | **134 µs** (was 269) | 462 µs | **3.4×** | within ~11 % of the per-line floor (~118 µs) |
+| Flash read 4 KB, cold (cache line bursts, **120 MHz** QIO, timing-tuned) | **91 µs** (was 132 at 80 MHz) | 349–355 µs | **3.8×** | flash-clock bound |
+| Flash read 64 KB, cold | **1 447 µs** (44 MB/s) | 5 177–5 179 µs | **3.6×** | flash-clock bound |
 | Flash read 4 KB, repeated (cache hit) | **13 µs** | — | — | memory speed |
-| Flash erase 4 KB | **642 µs** | 1 041 µs | 1.6× | chip-bound |
-| Flash write 4 KB | **10.8 ms** | 12.4 ms | 1.15× | chip-bound |
+| Flash erase 32 KB / 256 KB region | **5.4 / 42.9 ms** | 6.0–6.5 / 43.8–44.2 ms | 1.1× / 1.02× | chip-bound (SFDP erase types: largest that fits) |
+| Flash erase 4 KB / 64 KB (data present) | 34.3 / 236–246 ms | 35.2–37.7 / 235–243 ms | 1.0× | chip-bound |
+| Flash write 4 KB / 64 KB | **12.6 / 196 ms** | 13.9 / 220 ms | 1.1× / 1.12× | chip-bound |
+| Code from flash, cold call (cache miss) | **2 420 cycles** (was 3 515) | 3 527 | **1.46×** | 120 MHz |
 | NVS read u32 (repeated key, cached) | **498** (was 2 338) | 26 269 | **53×** | — |
 | NVS update u32 | **552 µs** | 757 µs | 1.4× | flash-bound |
 | NVS read u32, encrypted (cached) | **435** (was 4 863) | 82 455 | **190×** | — |
@@ -328,9 +331,9 @@ system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image 
 | esp-ndf, ROM loads the whole RAM image (before) | 21 708 - 22 080 us |
 | + ROM log off for warm resets (RTC_CNTL_STORE4 flag, no eFuse) | 15 938 - 15 947 us |
 | esp-ndf fast boot, cold path (ROM -> 2 KB loader: PLL, QIO through the cache, copies the app) | 6 184 - 6 185 us |
-| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **809 - 818 us** |
+| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **782 - 787 us** (was 809 - 818) |
 | esp-ndf warm boot, no ROM, XIP=lib | 854 - 860 us |
-| ratio (warm, no ROM) | **43x faster** |
+| ratio (warm, no ROM) | **45x faster** |
 
 Breakdown of the 6.18 ms: ROM fixed work ~4.24 ms (not ours: mask ROM before any of our code), ROM loading our 2016-byte
 loader ~1.05 ms (the ROM loads at 0.52 us per byte: 102 KB of extra RAM data cost +53 ms), loader 0.85 ms (PLL lock +
@@ -345,7 +348,7 @@ stage takes only our own warm resets (cause 3/12 software, 7/8 timer group, 9/16
 (esptool's USB-JTAG/USB-UART reset 21/22, force-download flag) is handed to the ROM, power-on/EN resets select the
 ROM in hardware. It sets what the ROM would have (diffed register by register against the state after the ROM):
 SPI0 DIO read setup, flash pads GPIO29-32 to SPI, data-cache SRAM connect, EXTMEM_CACHE_MMU_OWNER; the BBPLL and
-core voltage are analog (RTC domain) and still locked, so only the clock muxes are set. Split of the 0.81 ms:
+core voltage are analog (RTC domain) and still locked, so only the clock muxes are set. Split of the 0.81 ms (before the 21.5 KB image; now 0.78 ms):
 reset -> stage 15 us, clock ~70 us, image copy (22 KB, QIO 80 MHz through the cache) ~690 us, app init 19-32 us.
 Floor: flash bandwidth for the copy (~0.55 ms at QIO 80 MHz for 22 KB); headroom: skip re-copying unchanged IRAM
 code on warm resets (SRAM is kept through a system reset), or a smaller RAM image (XIP=all).
@@ -398,3 +401,16 @@ Consolidated from the measured results across this work:
   correlator trigger on a known sync (4.4) — all verified on the two-board bench.
 - RX image rejection, measured with D0's TX image moved out of the bin: 45–62 dB (was quoted 30–41 dB, TX image included); no RX IQ correction needed (a static software correction gains 0–2 dB at best; `bench/rfmeas/data/rx_iq_static.txt`).
 - Coded-rate (S2/S8) receive is now steady: a window timeout with the AGC running left the link-layer core unable to sync; a core reset (SYSCON bit 9) + reload after each such timeout fixes it. S8 16–18 per 300 ms window over 20 windows (was 0–19, dying after 1–10), S2 40–51; silence-first start 68–74 of 150 (was 0); 6 s window S8 336 / S2 939 good, 0 CRC-bad (`bench/rfmeas/data/coded_fix.txt`). Whitening-off found (RWBLECNTL bit 14).
+
+## Flash driver (`examples/flash_test` vs `bench/idf_flash`, same board, BY25Q128 0x684018, 2026-10-24)
+
+Chip support as ESP-IDF's list (generic/XMC, GD, ISSI, MXIC, Winbond, Boya, TH, FM): quad-enable bit and write method
+per chip (IDF flash_qio_mode.c, set if clear), boot unlock of protection bits (IDF bootloader_flash_unlock), XMC
+startup flow, SFDP erase types, 4-byte address commands above 16 MB, unique ID, erase/program auto-suspend for the chips
+IDF validates (GD25Q64/128, XMC-D, FM, + SFDP), recovery of an operation left suspended by a reset. 120 MHz: IDF's MSPI
+timing table swept at start (12 points, middle of the passing window; no window: stays at 80 MHz). Numbers in the
+Storage table above. Flash code on core 1 during an erase without suspend: paused (both), now released between pages
+of a write (waits at most one page program). Boya: no suspend (tested: hardware auto-resume never fires; IDF with
+suspend forced on this chip hangs the same way; an erase suspended even once by software never completes).
+Headroom: reads at 120 MHz are at the line rate; erase/write are chip-bound. Not run on hardware: 4-byte addresses
+(needs >16 MB flash), octal (MXIC OPI) flash, suspend on a validated chip.

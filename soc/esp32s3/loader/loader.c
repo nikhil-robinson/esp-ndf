@@ -70,8 +70,21 @@ pll_ready:                  /* the core voltage is analog too: still set */
 #define NDF_BOOT_RTC  1                 /* warm resets skip the ROM; esptool's reset (cause 21/22) still reaches it */
 #endif
 #define RTC_STAGE     0x50000000u
+#define QE_NOTE       0x50001FFCu     /* RTC slow memory: "QE" + quad-enable bit, for the warm-reset stage */
 #define RTC_FAST      0x600FE000u     /* RTC fast memory: the stage runs here (loader_rtc.ld) */
 #define RTC_STAGE_SRC 0x1000u          /* in flash: "RTCB", jump size, stage size, jump, stage (build/<app>/rtcboot.bin) */
+
+static uint32_t spi1_rd(uint8_t cmd)              /* 1-bit command, first data byte back (SPI1 user transaction) */
+{
+    REG(0x60002008u) &= ~((1u << 13) | (1u << 14) | (1u << 20) | (1u << 23) | (1u << 24));   /* 1-bit read */
+    REG(0x60002018u) = 1u << 31 | 1u << 28 | 1u << 6 | 1u << 7;            /* cmd + miso, cs hold/setup */
+    REG(0x6000201Cu) = 0;
+    REG(0x60002020u) = 7u << 28 | cmd;
+    REG(0x60002028u) = 7;                                                  /* 8 bits */
+    REG(0x60002000u) = 1u << 18;
+    for (uint32_t k = 0; (REG(0x60002000u) & (1u << 18)) && k < 100000; k++) {}
+    return REG(0x60002058u);
+}
 
 static void to_rom(void)                /* hand this reset to the ROM: vector back, system reset */
 {
@@ -126,16 +139,26 @@ void loader_main(void)
     __asm__ volatile("memw" ::: "memory");                              /* no flash read may move above the enable */
 
     const volatile uint8_t *img = (const volatile uint8_t *)(FLASH_DBUS + NDF_BOOT_LOAD_ADDR);
-    /* QIO (0xEB, 6 dummy clocks) as drivers/flash/flash.c: WP/HD pads to their SPI function first (the ROM boots in
-     * DIO and leaves them unset); if the image does not read back, the flash is not in quad mode -> ROM's DIO */
-    REG(0x60009004u + 4 * 27) = 1u << 9 | 3u << 10;                       /* SPIHD: input on, drive 3 */
-    REG(0x60009004u + 4 * 28) = 1u << 9 | 3u << 10;                       /* SPIWP */
-    uint32_t c8 = REG(S0 + 0x08), c1c = REG(S0 + 0x1C), c20 = REG(S0 + 0x20);
-    REG(S0 + 0x08) = (c8 & ~((1u << 14) | (1u << 20) | (1u << 23))) | (1u << 13) | (1u << 24);
-    REG(S0 + 0x1C) = (c1c & ~0x3Fu) | 5;
-    REG(S0 + 0x20) = 7u << 28 | 0xEB;
-    dcache_invalidate();
-    if (img[0] != 0xE9) { REG(S0 + 0x08) = c8; REG(S0 + 0x1C) = c1c; REG(S0 + 0x20) = c20; dcache_invalidate(); }
+    /* QIO (0xEB, 6 dummy clocks) as drivers/flash/flash.c, only if the chip's quad-enable bit is set (read over SPI1
+     * first, as IDF's bootloader: a quad command to a chip with QE clear leaves it unreadable until power-off):
+     * MXIC/ISSI SR1 bit 6, others SR2 bit 1. WP/HD pads to their SPI function (the ROM boots in DIO, leaves them GPIO) */
+    bool qe;
+#if NDF_LOADER_RTC          /* warm reset: the cold-boot loader's answer, kept in RTC memory (no slow SPI1 reads) */
+    if ((REG(QE_NOTE) & ~1u) == 0x51450000u) qe = REG(QE_NOTE) & 1; else
+#endif
+    {
+        uint32_t mfg = spi1_rd(0x9F) & 0xFF;
+        qe = mfg == 0xC2 || mfg == 0x9D ? spi1_rd(0x05) & 0x40 : spi1_rd(0x35) & 0x02;
+        REG(QE_NOTE) = 0x51450000u | qe;
+    }
+    if (qe) {
+        REG(0x60009004u + 4 * 27) = 1u << 9 | 3u << 10;                   /* SPIHD: input on, drive 3 */
+        REG(0x60009004u + 4 * 28) = 1u << 9 | 3u << 10;                   /* SPIWP */
+        REG(S0 + 0x08) = (REG(S0 + 0x08) & ~((1u << 14) | (1u << 20) | (1u << 23))) | (1u << 13) | (1u << 24);
+        REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;
+        REG(S0 + 0x20) = 7u << 28 | 0xEB;
+        dcache_invalidate();
+    }
 #if NDF_BOOT_TRACE
     REG(0x5000102Cu) = REG(S0 + 0x20); REG(0x50001030u) = sys16();
     { uint32_t c0, c1, t0 = sys16(); __asm__ volatile("rsr %0, ccount" : "=r"(c0)); while (sys16() - t0 < 1600) {}

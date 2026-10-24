@@ -19,6 +19,18 @@
 #ifndef NDF_FLASH_READ
 #define NDF_FLASH_READ          NDF_FLASH_READ_AUTO
 #endif
+#ifndef NDF_FLASH_SUSPEND
+#define NDF_FLASH_SUSPEND       1       /* erase/program auto-suspend: 0 off, 1 IDF's chip list + SFDP, 2 force (chip tested) */
+#endif
+#ifndef NDF_FLASH_SUS_HOLD_US
+#define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
+#endif
+#ifndef NDF_FLASH_MHZ
+#define NDF_FLASH_MHZ           120     /* flash clock: 80, or 120 (timing tuned at start; falls back to 80) */
+#endif
+#ifndef NDF_FLASH_QE_SET
+#define NDF_FLASH_QE_SET        1       /* set the chip's quad-enable bit if clear (non-volatile status write, once) */
+#endif
 
 /* ---- console (printf) ----------------------------------------------------- */
 #define NDF_CONSOLE_NONE        0       /* printf output dropped */

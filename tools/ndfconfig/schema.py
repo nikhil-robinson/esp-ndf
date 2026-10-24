@@ -36,6 +36,16 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='auto: reads go through the data cache (SPI0 in QIO, 64-byte lines, whole flash mapped by the MMU): '
                   '4 KB cold in ~134 us, repeated reads are cache hits. Falls back to SPI1 if the chip is not in quad '
                   'mode. SPI1 only: ~209 us per 4 KB, leaves the cache untouched.'),
+        dict(key='NDF_FLASH_SUSPEND', type='choice', default='1', target='h', label='Erase/program auto-suspend',
+             choices=[('1', 'auto: ESP-IDF chip list + SFDP'), ('0', 'off'), ('2', 'force (chip tested)')],
+             help='A cache miss from either core suspends a running erase/program in hardware, reads, and resumes it: '
+                  'flash code keeps running during an erase instead of pausing. auto: the chips ESP-IDF validates '
+                  '(GD25Q64/128, XMC-D, FM) and chips whose SFDP table says so. Not for Boya BY25Q (tested: never resumes).'),
+        dict(key='NDF_FLASH_SUS_HOLD_US', type='int', default=50, target='h', label='Suspend: tSUS (us)', range=(20, 400),
+             depends=('NDF_FLASH_SUSPEND', '!0'), help='Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50).'),
+        dict(key='NDF_FLASH_QE_SET', type='bool', default=True, target='h', label='Set quad-enable bit',
+             help='If the chip\'s QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. '
+                  'Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode).'),
     ]),
     ('menu', 'Console', [
         dict(key='NDF_CONSOLE', type='choice', default='NDF_CONSOLE_USJ', target='h', label='printf output',

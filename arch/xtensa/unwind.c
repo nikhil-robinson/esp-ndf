@@ -1,7 +1,7 @@
 /* Exact CALL0 stack unwinder for panic reports. Uses the table that
  * tools/mkunwind.py appends to the image in flash (DWARF CFI reduced to CFA,
  * return-address and a15 rules per address range), read through
- * flash_read: no RAM cost. Interrupt frames are crossed by recognising a
+ * flash_read_raw (plain SPI1 reads, no driver init): no RAM cost. Interrupt frames are crossed by recognising a
  * return into a level-n entry stub: the interrupted PC is EPCn and the
  * register frame sits at sp (layout of vectors.S SAVE). */
 #include "cache.h"
@@ -25,18 +25,18 @@ static bool find_table(void)
     if (tbl) return true;
     if (nfde == 0xFFFF) return false;    /* looked before: none */
     uint8_t h[24];
-    if (flash_read(NDF_BOOT_LOAD_ADDR, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
+    if (flash_read_raw(NDF_BOOT_LOAD_ADDR, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
     uint32_t off = NDF_BOOT_LOAD_ADDR + 24;   /* image start: 0x0, or the fast-boot load offset */
     for (int i = 0; i < h[1]; i++) {
         uint32_t seg[2];
-        if (flash_read(off, seg, 8)) { nfde = 0xFFFF; return false; }
+        if (flash_read_raw(off, seg, 8)) { nfde = 0xFFFF; return false; }
         off += 8 + seg[1];
     }
     off = (off + 16) & ~15u;             /* checksum ends a 16-byte block */
     if (h[23]) off += 32;                /* SHA-256 */
     off = (off + 255) & ~255u;
     uint8_t m[8];
-    if (flash_read(off, m, 8) || m[0] != 'N' || m[1] != 'D' || m[2] != 'F' || m[3] != 'U') { nfde = 0xFFFF; return false; }
+    if (flash_read_raw(off, m, 8) || m[0] != 'N' || m[1] != 'D' || m[2] != 'F' || m[3] != 'U') { nfde = 0xFFFF; return false; }
     nfde = (uint16_t)(m[4] | m[5] << 8); nirq = (uint16_t)(m[6] | m[7] << 8);
     tbl = off;
     return true;
@@ -69,7 +69,7 @@ bool ndf_unwind(uint32_t pc, uint32_t sp, uint32_t a0, uint32_t a15, void (*emit
         bool irq = false;
         for (int i = 0; i < nirq; i++) {
             uint32_t e[3];
-            flash_read(tbl + 8 + 12u * i, e, 12);
+            flash_read_raw(tbl + 8 + 12u * i, e, 12);
             if (pc >= e[0] && pc < e[1]) {
                 if (!in_ram(sp, sp)) return true;
                 a0 = rd32(sp);           /* frame word 0: the interrupted a0 */
@@ -86,7 +86,7 @@ bool ndf_unwind(uint32_t pc, uint32_t sp, uint32_t a0, uint32_t a15, void (*emit
         fde_t f;
         while (lo <= hi) {
             int mid = (lo + hi) / 2;
-            flash_read(base + 16u * mid, &f, 16);
+            flash_read_raw(base + 16u * mid, &f, 16);
             if (look < f.start) hi = mid - 1;
             else if (look >= f.end) lo = mid + 1;
             else { found = mid; break; }
@@ -98,9 +98,9 @@ bool ndf_unwind(uint32_t pc, uint32_t sp, uint32_t a0, uint32_t a15, void (*emit
         } else {
             row_t r, best;
             uint32_t rows = base + 16u * nfde + f.rows;
-            flash_read(rows, &best, sizeof best);
+            flash_read_raw(rows, &best, sizeof best);
             for (uint32_t i = 1; i < f.nrows; i++) {
-                flash_read(rows + i * sizeof r, &r, sizeof r);
+                flash_read_raw(rows + i * sizeof r, &r, sizeof r);
                 if (f.start + r.pc_off > look) break;
                 best = r;
             }

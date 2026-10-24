@@ -6,6 +6,7 @@
 int  cache_xip_init(void);
 bool cache_xip_active(void);
 void cache_invalidate_code(void);              /* drop every instruction-cache line (benchmarks, after code updates) */
+void cache_invalidate_code_range(uint32_t flash_addr, size_t len);   /* instruction-cache lines of a flash range */
 
 /* Around SPI1 erase/program while code may run from flash: no code may be fetched from flash meanwhile.
  * begin masks interrupt levels 1-3 on this core (levels 4/5 stay live: their handlers must be in RAM) and stalls

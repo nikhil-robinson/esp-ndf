@@ -722,3 +722,16 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | reset -> main, warm (software/watchdog reset), no ROM code | **0.81 ms** (XIP=lib 0.85) | 35.5 ms |
 | esptool still connects with the RTC stage installed (its reset goes to the ROM) | yes | yes |
 
+
+## Flash driver (`examples/flash_test`, `bench/idf_flash`, 2026-10-24)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| erase 4/32/64 KB + 256 KB region, write 4/64 KB, read back exact | PASS (5 boots at 120 MHz) | data ok |
+| chip detected | BY25Q128, SFDP 9 dwords, erase 4/32/64 KB | boya |
+| unique ID | 50442159204a141c | 50442159204a141c |
+| QE cleared (esptool write-flash-status 0): boots DIO, driver sets QE, next read QIO | yes (status 0x0000 -> 0x0200) | - |
+| auto-suspend forced on BY25Q128 | erase never resumes (hardware) | hangs (same) |
+| flash code (cache miss every call) on core 1 during erase 64 KB + write 4 KB | correct results, paused during the erase | - |
+| warm boot after the changes | 782-787 us | 35.5 ms |
+| periph_test (XIP=all now: fits) | flash, partition, nvs, gpio, gptimer, mcpwm, pcnt, sdm, gdma PASS; loopback tests (uart, i2c, rmt, spi, i2s, ...) receive nothing: devkit jumpers GPIO10-11 / 12-13 not fitted at test time | - |

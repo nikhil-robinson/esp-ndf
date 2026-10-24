@@ -94,11 +94,10 @@ assist), `xtensa/` and `esp_cpu` (perfmon, watchpoints).
 
 ## B. Memory and data movement
 
-**B1 Cache + MMU, XIP — partial (TRM 4).** Have: data cache over SPI0 QIO for flash reads; MMU entries for the PSRAM
-window. Missing: instruction cache + MMU mapping so code runs from flash; linker split hot (IRAM) / cold (flash) with a
-section attribute and a check that ISR/USB/RF/DSP paths stay in IRAM; cache size/ways/line configuration; general
-cache sync API. Today every app must fit in internal RAM (below 0x3FCB0000 with the RF dump engine): `libc_test`,
-`periph_test`, `sys_test` don't build, `rf_pkt` is full. Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
+**B1 Cache + MMU, XIP, flash — done (TRM 4, 30).** Instruction + data cache, code and rodata from flash (XIP=lib/all),
+fast boot and ROM-free warm boot, flash driver with IDF's chip list, SFDP, QE handling, 4-byte addresses, auto-suspend
+(IDF-validated chips), 120 MHz timing tuning. Open: octal (MXIC OPI) flash and 32-bit cache addressing above 16 MB
+(no such chip here). Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
 `esp_mm/`, `hal/mmu_hal.c`, `hal/esp32s3/include/hal/cache_ll.h`, `esp_system/ld/esp32s3/sections.ld.in`.
 
 **B2 Memory map — partial.** Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,

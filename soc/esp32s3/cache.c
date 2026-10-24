@@ -45,6 +45,7 @@ int cache_xip_init(void)
 
 bool cache_xip_active(void) { return active; }
 void cache_invalidate_code(void) { if (active) icache_sync(0, 0); }
+void cache_invalidate_code_range(uint32_t a, size_t len) { if (active && len) icache_sync(FLASH_IBUS + a, (uint32_t)len); }
 
 uint32_t cache_flash_op_begin(void)
 {

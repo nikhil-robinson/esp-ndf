@@ -10,7 +10,8 @@ TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-e
 PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
 include soc/$(SOC)/soc.mk
 
-# ---- build-side configuration (override in $(APP)/app.mk or on the command line)
+# ---- build-side configuration (override in $(APP)/app.mk or on the command line; DEFS="-DNDF_X=1" for one-off
+# option overrides, e.g. benchmark variants)
 -include $(APP)/app.mk
 FLASH_MODE      ?= dio        # image header: mode the ROM loader uses (the driver switches to QIO itself)
 FLASH_FREQ      ?= 80m        # image header: SPI clock for the ROM loader
@@ -24,7 +25,7 @@ XIP_ADDR        ?= 0x300000   # flash offset of the code blob (xip partition), 6
 XIP_SIZE        ?= 0x100000   # its size
 XIP_NUM = $(if $(filter off,$(strip $(XIP))),0,$(if $(filter all,$(strip $(XIP))),2,1))
 LOAD_AT = $(if $(filter 1,$(strip $(BOOT_FAST))),$(strip $(BOOT_LOAD_ADDR)),0)
-CFG_FLAGS = -DNDF_BOOT_LOAD_ADDR=$(LOAD_AT) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_PART_TABLE_ADDR=$(strip $(PART_TABLE_ADDR)) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h)
+CFG_FLAGS = $(DEFS) -DNDF_BOOT_LOAD_ADDR=$(LOAD_AT) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_PART_TABLE_ADDR=$(strip $(PART_TABLE_ADDR)) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h)
 ifeq ($(NO_ACCEL),1)
   ACCEL_FLAGS = -DNDF_NO_ACCEL       # every accelerated path off: tests the portable fallbacks
   SOC_LOOPFIX := 0

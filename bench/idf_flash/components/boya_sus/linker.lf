@@ -1,0 +1,4 @@
+[mapping:boya_sus]
+archive: libboya_sus.a
+entries:
+    chip_drivers (noflash)
