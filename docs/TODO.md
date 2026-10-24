@@ -115,11 +115,11 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       [x] `time`/`gettimeofday`/`settimeofday`/`clock_gettime`, `gmtime_r`/`mktime`/`timegm`/`strftime` (UTC, 11-75x newlib)
 - [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
 - [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
-- [ ] Event dispatch (lightweight, no RTOS)
-- [ ] Console input / command line (REPL) over USB serial
-- [ ] Unit test framework on the device (our CHECK/METRIC grown into a runner) + host tests
+- [x] Event dispatch (`event.h`): post from ISR / either core, handlers by id or any, drops counted (24x esp_event post)
+- [x] Command line (`cmd.h`): compile-time CMD() registry, line editing, quotes, help; host test tools/repl_test.py
+- [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [ ] port periph_test onto it
 - [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
-- [ ] Optional cooperative scheduler / task API for apps that want one (still no RTOS in the hot path)
+- [x] Cooperative tasks (`coop.h`): spawn / yield / sleep, CALL0 context (6 registers), hardware stack guard follows the task
 - [ ] gdbstub / JTAG debugging guide, app trace (fast logging over JTAG)
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
 - [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner

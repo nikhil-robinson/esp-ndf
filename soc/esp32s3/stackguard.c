@@ -51,3 +51,14 @@ int stack_guard(uint32_t lo, uint32_t hi, stack_guard_fn_t fn)
 
 void stack_guard_core_off(int c) { REG(ENA(c)) &= ~SP_BITS; REG(RLS(c)) &= ~SP_BITS; REG(CLR(c)) = SP_BITS; }
 void stack_guard_off(void) { stack_guard_core_off(core_id()); }
+
+/* Move the window without re-arming (context switches: widen to old + new stack, switch, narrow). */
+RAM_FN bool stack_guard_bounds(uint32_t lo, uint32_t hi)
+{
+    int c = core_id();
+    if (!(REG(ENA(c)) & SP_BITS)) return false;
+    REG(SP_MIN(c)) = lo; REG(SP_MAX(c)) = hi;
+    return true;
+}
+
+void stack_guard_get(uint32_t *lo, uint32_t *hi) { int c = core_id(); *lo = REG(SP_MIN(c)); *hi = REG(SP_MAX(c)); }

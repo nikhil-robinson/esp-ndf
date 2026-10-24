@@ -69,6 +69,8 @@ path reaches its first instruction about 11 cycles after the event.
 
 | Measurement | esp-ndf | ESP-IDF | Status |
 |---|---|---|---|
+| event post / dispatch to one handler (`examples/runtime_test` vs `bench/idf_runtime`) | **68 / 267 cycles** | 1646 / 1697 (esp_event) | 24x / 6.4x; ISR + other core + overflow tested |
+| task switch, cooperative (task -> scheduler -> task, stack guard kept) | **315 cycles** | 8723 (FreeRTOS taskYIELD, measured) | 28x; no preemption by design |
 | time() / gmtime_r / mktime / strftime "%F %T" (`examples/libc_test` vs `bench/idf_time`) | **216 / 843 / 1202 / 950 cycles** | 3272 / 9662 / 15587 / 70809 (newlib) | 15x / 11x / 13x / 75x; exact vs Python gmtime, years 1..9999 |
 | Float divide | 56 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
 | `sqrtf` | 58, IEEE-exact | 118 (newlib wrapper + errno) | — |

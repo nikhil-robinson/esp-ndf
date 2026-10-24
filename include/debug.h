@@ -42,3 +42,5 @@ void watch_clear(int n);
 typedef void (*stack_guard_fn_t)(int core, uint32_t pc);
 int  stack_guard(uint32_t lo, uint32_t hi, stack_guard_fn_t fn);
 void stack_guard_off(void);
+bool stack_guard_bounds(uint32_t lo, uint32_t hi);   /* move the window (task switches); false if the guard is off */
+void stack_guard_get(uint32_t *lo, uint32_t *hi);

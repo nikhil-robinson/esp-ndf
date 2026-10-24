@@ -155,3 +155,11 @@ char *strcat(char *d, const char *s)
     strcpy(d + strlen(d), s);
     return d;
 }
+
+char *strstr(const char *h, const char *n)
+{
+    size_t k = strlen(n);
+    if (!k) return (char *)h;
+    for (; *h; h++) if (*h == *n && !strncmp(h, n, k)) return (char *)h;
+    return 0;
+}
