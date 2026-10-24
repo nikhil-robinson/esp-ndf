@@ -67,8 +67,9 @@ _vec_l5_jump\c:
     .org _vector_table\c + 0x280   /* level 6 = debug (watchpoints) */
     wsr a0, excsave6
     j   _l6_entry
-    .org _vector_table\c + 0x2C0   /* level 7 = NMI */
-    j   _unexpected
+    .org _vector_table\c + 0x2C0   /* level 7 = NMI (irq_attach_nmi) */
+    wsr a0, excsave7
+    j   _l7_entry
     .org _vector_table\c + 0x300   /* kernel exception: impossible, PS.UM = 1 */
     j   _unexpected
     .org _vector_table\c + 0x340   /* user exception + level-1 interrupt */
@@ -464,6 +465,21 @@ _l6_entry:
     call0   ndf_debug_exc
     RESTORE
     rfi     6
+
+/* level 7, NMI: not maskable (runs inside irq_lock); one handler per core, no FPU/PIE in it */
+    .align 4
+_l7_entry:
+    SAVE    excsave7, PS_UM | 7
+    rsr     a2, prid
+    extui   a2, a2, 13, 1
+    movi    a3, irq_nmi
+    addx8   a3, a2, a3               /* irq_nmi[core] = { fn, arg } */
+    l32i    a4, a3, 0
+    l32i    a2, a3, 4
+    beqz    a4, 1f
+    callx0  a4
+1:  RESTORE
+    rfi     7
 
     HL_ENTRY 2, SOC_INTR_L2_MASK
     HL_ENTRY 3, SOC_INTR_L3_MASK

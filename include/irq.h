@@ -12,6 +12,8 @@ typedef void (*irq_fn_t)(void *arg);
  * drivers do). Levels 4-5 are never shared. */
 int  irq_attach(int src, int level, irq_fn_t fn, void *arg);
 void irq_detach(int src, int cpu_int);
+/* Non-maskable (level 7) handler for one source on this core; fn NULL = off. Not blocked by irq_lock(); no FPU/PIE. */
+int  irq_attach_nmi(int src, irq_fn_t fn, void *arg);
 
 /* Install fn on a CPU interrupt directly (internal ones: CCOMPARE timers,
  * software ints) on the calling core and enable it. */

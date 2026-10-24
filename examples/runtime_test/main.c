@@ -139,3 +139,21 @@ int main(void)
     printf("> ");
     for (;;) cmd_poll();                                    /* interactive: tools/repl_test.py */
 }
+
+/* ---- NMI: a 1 kHz timer alarm on level 7 keeps firing while the CPU sits in irq_lock() ---- */
+static volatile uint32_t nmi_n;
+static void on_nmi(void *a) { (void)a; nmi_n++; }
+TEST(nmi_under_irq_lock)
+{
+    nmi_n = 0;
+    gpt_init(1, 1000000); gpt_set(1, 0);
+    UASSERT(gpt_alarm(1, 1000, true, on_nmi, 0, 7) >= 0);
+    gpt_start(1);
+    uint32_t ps = irq_lock();                             /* every maskable interrupt off for 20 ms */
+    uint32_t t0 = ccount(); while (ccount() - t0 < 240000u * 20) {}
+    uint32_t in_lock = nmi_n;
+    irq_unlock(ps);
+    gpt_alarm_off(1); gpt_stop(1);
+    printf("      NMI alarms during 20 ms of irq_lock: %lu\n", in_lock);
+    UASSERT(in_lock >= 19 && in_lock <= 21);
+}

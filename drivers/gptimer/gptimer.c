@@ -87,7 +87,7 @@ int gpt_alarm(int id, uint64_t alarm, bool periodic, irq_fn_t fn, void *arg, int
     if (periodic) { REG(T_LOADLO(id)) = 0; REG(T_LOADHI(id)) = 0; }
     gpt[id] = (gpt_t){ fn, arg, -1, periodic };
     if (fn) {
-        gpt[id].cpu_int = irq_attach(src[id], level, gpt_isr, (void *)id);
+        gpt[id].cpu_int = level == 7 ? irq_attach_nmi(src[id], gpt_isr, (void *)id) : irq_attach(src[id], level, gpt_isr, (void *)id);   /* 7 = NMI */
         if (gpt[id].cpu_int < 0) return -1;
         REG(G_INT_CLR(id)) = BIT(id & 1);
         REG_SET(G_INT_ENA(id), BIT(id & 1));

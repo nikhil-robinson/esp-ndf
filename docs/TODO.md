@@ -16,9 +16,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] DSP library (ESP-DSP equivalent): FFT f32/rfft/s16, windows, FIR/FIRD, biquad, vector, matrix, conv/corr,
       DCT, Kalman - 1.17-33x ESP-DSP (examples/dsp_lib)
 - [x] NN library (ESP-NN equivalent): conv/dwconv/fc/pool/add/mul/relu6/softmax bit-exact, tiny model 1.17x
-- [x] Fast math (sin/cos/atan2/exp/log/rsqrt) + Q15/Q31, soft-double runtime; [~] float in printf (check %f path)
+- [x] Fast math (sin/cos/atan2/exp/log/rsqrt) + Q15/Q31, soft-double runtime; [x] float in printf (%f/%e/%g exact, libc_test)
 - [x] Zero-overhead loops in hot paths (all PIE/FPU kernels)
-- [x] Performance counters, watchpoints, hardware stack guard (examples/debug_test); [ ] gdbstub / app-trace guide (section 8)
+- [x] Performance counters, watchpoints, hardware stack guard (examples/debug_test); [x] gdb guide (docs/DEBUG.md)
 
 ## 2. Memory, cache, external RAM (TRM ch. 4, ch. 23 XTS_AES)  - details: SYSTEM_TODO B1-B5
 
@@ -40,7 +40,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
 - [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [ ] core dump to flash
 - [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
-- [~] Interrupt matrix: per-core routing, priorities, line sharing done; [ ] NMI (level 7) use
+- [~] Interrupt matrix: per-core routing, priorities, line sharing done; [x] NMI (level 7): `irq_attach_nmi`, gpt_alarm level 7; fires inside irq_lock (runtime_test)
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)
 - [x] System timer, software timers
 - [x] gettimeofday / settimeofday / clock_gettime (lib/time.c); [ ] wall time kept across sleep / reset (with D1)
@@ -108,7 +108,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       CDC test re-run on C9:D0 with the guard (1152 / 1005 KB/s, 0 errors)
 - [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
-- [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); [ ] threshold interrupt
+- [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); threshold interrupt: n/a on S3 (C6+ hardware)
 - [ ] Analog comparator, DAC, SDIO slave, Ethernet MAC, ISP, JPEG codec, PPA, parallel IO (n/a on S3)
 
 ## 8. Runtime and libraries (IDF: esp_system, newlib, log, ringbuf, console, cxx...)

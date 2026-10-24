@@ -179,3 +179,17 @@ void irq_naked_install(int n, void (*handler)(void))
     naked_vector(core, lvl, handler);
     intenable_set(n, true);
 }
+
+/* NMI: CPU interrupt 14 (level 7, edge from the matrix), one source + handler per core. Runs even inside
+ * irq_lock(): for last-chance reports (watchdog with interrupts masked). The handler must not use the FPU/PIE. */
+irq_slot_t irq_nmi[SOC_CORES];                 /* used by vectors.S */
+
+int irq_attach_nmi(int src, irq_fn_t fn, void *arg)
+{
+    int core = core_id();
+    if (!fn) { soc_intr_route(core, src, SOC_INTR_DISABLED); intenable_set(14, false); irq_nmi[core].fn = 0; return 0; }
+    irq_nmi[core] = (irq_slot_t){ fn, arg };
+    soc_intr_route(core, src, 14);
+    intenable_set(14, true);
+    return 14;
+}
