@@ -84,7 +84,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       arbitration loss (waits for the winner, retry), clean controller rebuild after errors
 - [x] **RMT**: carrier/filter, TX loop count, multi-channel sync, RX demodulation, DMA (TX/RX ch 3), WS2812 encoder
 - [x] **MCPWM**: capture/fault/sync, carrier (chopper), fault pins with one-shot / cycle-by-cycle actions per operator, capture prescaler (measured mapping), live re-timing
-- [~] **PCNT**: done; **todo**: threshold/zero-cross events as callbacks, step-notify API, decoder for quadrature with index
+- [x] **PCNT**: 32-bit gap-free count, watch points (thres0/1, zero, limit) callbacks, step notify (gap-free), quadrature index (GPIO IRQ)
 - [~] **LEDC**: done incl. fade; **todo**: gamma curves, channel phase sync API, sleep retention
 - [~] **GPTimer**: done; **todo**: capture-on-event, ETM-like linking is (n/a on S3)
 - [~] **Touch**: raw read done; **todo**: filtering/denoise, waterproof

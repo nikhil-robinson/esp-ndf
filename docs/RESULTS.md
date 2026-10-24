@@ -219,6 +219,19 @@ Found: (1) the capture prescaler is not "field + 1": field f >= 1 captures every
 IDF's prescale = 4 gives 6) - the driver maps n to f = n/2; (2) re-timing a running timer kept the old timer
 prescale until a software sync reloads it.
 
+## PCNT extended (`periph_test` pcnt_ext vs `bench/idf_pcnt_ext`, C9:D0, CPU-made quadrature 12/10 -> 13/11)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| quadrature +100 / -40 | 100 / 60 | - |
+| watch points thres 25 / -10 / zero | events at 25 and -10, zero cross | (watch points) |
+| step notify 10 (35 up, 50 down) | 10 20 30 20 10 0 -10 | not on S3 |
+| index Z: latch + reset | 77 latched, +5 after -> 5 | not on S3 (no clear signal) |
+| read count | **91 cycles** (32-bit) | 310 cycles |
+
+Thresholds and limits latch only at a counter reset (as IDF notes): re-arming keeps the total in a software
+offset. Step notify uses the wrap limit itself (= step), so it stays gap-free.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

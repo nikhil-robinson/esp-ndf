@@ -24,3 +24,13 @@ void pcnt_filter(int unit, uint32_t ns);
 int32_t pcnt_get(int unit);
 void    pcnt_clear(int unit);
 void    pcnt_pause(int unit, bool pause);
+
+/* Watch points: callback (from the PCNT interrupt) with the event(s) and the 32-bit count. */
+enum { PCNT_EV_THRES0 = 1, PCNT_EV_THRES1 = 2, PCNT_EV_ZERO = 4, PCNT_EV_LIMIT = 8, PCNT_EV_STEP = 16 };
+typedef void (*pcnt_watch_fn_t)(int unit, uint32_t events, int32_t count, void *arg);
+int  pcnt_watch(int unit, int16_t thres0, int16_t thres1, uint32_t events, pcnt_watch_fn_t fn, void *arg);
+/* Step notify: callback every `step` counts up or down (step divides PCNT_WRAP); count = the multiple. */
+int  pcnt_step_notify(int unit, int32_t step, pcnt_watch_fn_t fn, void *arg);
+/* Index pulse (quadrature Z): on its edge the count is latched (pcnt_index_count) and reset to 0. */
+int     pcnt_index(int unit, int pin, bool rising);
+int32_t pcnt_index_count(int unit);
