@@ -30,16 +30,26 @@
 static uint32_t xdummy;                         /* extra dummy clocks from 120 MHz timing tuning (0 at 80 MHz) */
 
 /* lines: 1 = plain, 2 = dual-output data, 4 = quad-output data; dummy = clocks between address and data */
+static bool oct;                                /* MXIC octal flash switched to OPI STR (all phases on 8 lines) */
+#define OCT_CTRL   (BIT(13) | BIT(9) | BIT(6) | BIT(5) | BIT(4))   /* fastrd, cmd/addr/din/dout octal (ROM OPI STR) */
+#define OCT_MASK   (MODE_MASK | BIT(4) | BIT(5) | BIT(6) | BIT(7) | BIT(8) | BIT(9))
+#define CMD16(c)   ((uint32_t)(c) | (uint32_t)(uint8_t)~(c) << 8)  /* MXIC OPI: command byte, then its inverse */
+
 static int op_x(uint8_t cmd, int addr_bits, uint32_t addr, const uint8_t *out, size_t nout,
                 uint8_t *in, size_t nin, int lines, int dummy)
 {
     uint32_t ctrl = REG(CTRL);
-    REG(CTRL) = (ctrl & ~MODE_MASK) | (lines == 2 ? BIT(13) | BIT(14) : lines == 4 ? BIT(13) | BIT(20) : 0);
+    if (oct) {                                 /* OPI: 32-bit address on every addressed or reading command */
+        if (nin && !addr_bits) { addr_bits = 32; addr = 0; dummy = 4; }
+        if (addr_bits) addr_bits = 32;
+    }
+    REG(CTRL) = oct ? (ctrl & ~OCT_MASK) | OCT_CTRL :
+                (ctrl & ~MODE_MASK) | (lines == 2 ? BIT(13) | BIT(14) : lines == 4 ? BIT(13) | BIT(20) : 0);
     uint32_t user = BIT(31) | (addr_bits ? BIT(30) : 0) | (nout ? BIT(27) : 0) | (nin ? BIT(28) : 0) |
                     (dummy ? BIT(29) : 0);
     REG(USER) = user | BIT(6) | BIT(7);                        /* cs hold/setup */
     REG(USER1) = (addr_bits ? addr_bits - 1 : 0) << 26 | (dummy ? dummy - 1 + xdummy : 0);
-    REG(USER2) = cmd | 7u << 28;
+    REG(USER2) = oct ? CMD16(cmd) | 15u << 28 : cmd | 7u << 28;
     REG(ADDR) = addr;                                          /* plain address (not left-aligned) */
     REG(MOSI_DLEN) = nout ? nout * 8 - 1 : 0;
     REG(MISO_DLEN) = nin ? nin * 8 - 1 : 0;
@@ -181,10 +191,44 @@ static void unlock(void)
 
 static void suspend_init(void);
 
+/* MXIC octal flash (IDF spi_flash_oct_flash_init.c s_flash_init_mxic, STR): the chip powers up in 1-line SPI mode;
+ * output driver strength 7 (CR bits 2:0), then WRCR2 (0x72, address 0) = 1 selects OPI STR; from then on every
+ * command is 16 bits (command, inverse) on 8 lines. Already in OPI (warm start): RDID answers in OPI. 80 MHz STR needs
+ * no timing tuning (IDF). Not run on hardware here (this board has quad flash). */
+static void oct_init(void)
+{
+    oct = true;                                                        /* already OPI? */
+    uint8_t id[3] = { 0 };
+    op(0x9F, 0, 0, 0, 0, id, 3);
+    if (id[0] != 0xC2 || (id[1] & 0xF0) != 0x80) {
+        oct = false;                                                   /* SPI mode */
+        op(0x9F, 0, 0, 0, 0, id, 3);
+        if (id[0] != 0xC2 || (id[1] & 0xF0) != 0x80) return;           /* not an MXIC octal part: quad path */
+        uint8_t sr = rd8(0x05), cr = rd8(0x15), b[2] = { sr, (uint8_t)((cr & 0xF8) | 7) };
+        cmd0(0x06); op(0x01, 0, 0, b, 2, 0, 0); wait_ready(50);        /* WRSR/WRCR: driver strength */
+        uint8_t one = 1;
+        cmd0(0x06); op(0x72, 32, 0, &one, 1, 0, 0);                    /* WRCR2: OPI STR */
+        oct = true;
+        wait_ready(50);
+    }
+    info.jedec_id = (uint32_t)id[0] << 16 | id[1] << 8 | id[2];
+    uint8_t c = id[2]; if (c > 0x30) c -= 0x20;                        /* MXIC octal density codes */
+    info.size = 1u << c;
+    info.erase_size[0] = 4096; info.erase_cmd[0] = 0x21;               /* 4-byte address commands only */
+    info.erase_size[1] = 65536; info.erase_cmd[1] = 0xDC;
+    info.erase_size[2] = 0;
+    info.addr4 = true; info.octal = true;
+    REG(0x60009004u + 4 * 29) = (REG(0x60009004u + 4 * 29) & ~(3u << 10)) | 3u << 10;   /* CS0 drive 3 (IDF) */
+}
+
 const flash_info_t *flash_info(void)
 {
     if (info_done) return &info;
     info_done = true;
+    if (REG(0x6000703Cu) & BIT(9)) {          /* eFuse FLASH_TYPE: 8 data lines (IDF spi_flash_oct_flash_init.c) */
+        oct_init();
+        if (oct) return &info;
+    }
     xmc_startup();
     info.jedec_id = flash_jedec_id();
     uint8_t c = info.jedec_id & 0xFF;
@@ -336,9 +380,15 @@ static void mm_init(void)
 {
     detect_lines();
 #if SOC_HAS_FLASH_CACHE
-    bool quad = read_lines == 4;
+    bool quad = read_lines == 4 || oct;
     if ((quad && NDF_FLASH_READ == NDF_FLASH_READ_AUTO) || NDF_XIP) {   /* code from flash needs the mapping in any mode */
-        if (quad) {
+        if (oct) {                             /* cache read: 8READ, 32-bit address, 20 dummy (variable), as IDF */
+            REG(S0 + 0x08) = (REG(S0 + 0x08) & ~OCT_MASK) | OCT_CTRL;
+            REG(S0 + 0x1C) = 31u << 26 | 19;
+            REG(S0 + 0x20) = 15u << 28 | CMD16(0xEC);
+            REG_SET(S0 + 0x3C, BIT(1));                                 /* CACHE_FCTRL: 4-byte cache address */
+            REG_SET(S0 + 0xE0, BIT(1));                                 /* DDR: variable dummy */
+        } else if (quad) {
             REG(S0 + 0x08) = (REG(S0 + 0x08) & ~(BIT(14) | BIT(20) | BIT(23))) | BIT(13) | BIT(24);   /* QIO */
             if (NDF_FLASH_MHZ == 120) clock_120();
             REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | (5 + xdummy);                             /* 6 dummy clocks */
@@ -379,9 +429,9 @@ static int spi1_read(uint32_t addr, void *buf, size_t len)
      * overlaps the next transfer. */
     uint32_t ctrl = REG(CTRL);
     bool q = read_lines == 4, a4 = info.addr4 && addr + len > (16u << 20);
-    REG(CTRL) = (ctrl & ~MODE_MASK) | BIT(13) | (q ? BIT(24) : BIT(14));
-    REG(USER1) = (a4 ? 31u : 23u) << 26 | ((q ? 5 : 7) + xdummy);   /* 6 (QIO) or 8 dummy clocks (+ tuning) */
-    REG(USER2) = (q ? (a4 ? 0xEC : 0xEB) : (a4 ? 0x3C : 0x3B)) | 7u << 28;
+    REG(CTRL) = oct ? (ctrl & ~OCT_MASK) | OCT_CTRL : (ctrl & ~MODE_MASK) | BIT(13) | (q ? BIT(24) : BIT(14));
+    REG(USER1) = oct ? 31u << 26 | 19 : (a4 ? 31u : 23u) << 26 | ((q ? 5 : 7) + xdummy);   /* (+ tuning) */
+    REG(USER2) = oct ? CMD16(0xEC) | 15u << 28 : (q ? (a4 ? 0xEC : 0xEB) : (a4 ? 0x3C : 0x3B)) | 7u << 28;
     const uint32_t user = BIT(31) | BIT(30) | BIT(29) | BIT(28) | BIT(6) | BIT(7);
     uint8_t *b = buf;
     int rc = 0;
@@ -465,10 +515,11 @@ static int pe(uint8_t cmd, bool has_addr, uint32_t addr, const uint8_t *data, si
     uint32_t ctrl = REG(CTRL);
     if (hw) { REG(CMD) = BIT(30); for (uint32_t t = ccount(); REG(CMD); ) if (ccount() - t > 2400000) return -1; }
     else if (cmd0(0x06)) return -1;                                   /* WREN */
-    REG(CTRL) = ctrl & ~MODE_MASK;
+    if (oct) hw = 0;                                                  /* controller commands are 1-line */
+    REG(CTRL) = oct ? (ctrl & ~OCT_MASK) | OCT_CTRL : ctrl & ~MODE_MASK;
     REG(USER) = (hw ? 0 : BIT(31) | (has_addr ? BIT(30) : 0) | (n ? BIT(27) : 0)) | BIT(6) | BIT(7);
-    REG(USER1) = (has_addr ? (a4 ? 31u : 23u) : 0) << 26;
-    REG(USER2) = cmd | 7u << 28;
+    REG(USER1) = (has_addr ? (a4 || oct ? 31u : 23u) : 0) << 26;
+    REG(USER2) = oct ? CMD16(cmd) | 15u << 28 : cmd | 7u << 28;
     REG(ADDR) = hw == BIT(25) ? addr | n << 24 : addr;               /* page program: length in the top byte */
     REG(MOSI_DLEN) = n ? n * 8 - 1 : 0;
     REG(MISO_DLEN) = 0;
@@ -485,7 +536,7 @@ static int pe(uint8_t cmd, bool has_addr, uint32_t addr, const uint8_t *data, si
 
 static uint8_t cmd4(uint8_t c, uint32_t addr)   /* the 4-byte address variant above 16 MB */
 {
-    if (!info.addr4 || addr < (16u << 20)) return c;
+    if (!info.addr4 || (addr < (16u << 20) && !oct)) return c;
     return c == 0x20 ? 0x21 : c == 0x52 ? 0x5C : c == 0xD8 ? 0xDC : c == 0x02 ? 0x12 : c;
 }
 

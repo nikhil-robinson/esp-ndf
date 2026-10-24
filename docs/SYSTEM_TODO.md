@@ -96,8 +96,8 @@ assist), `xtensa/` and `esp_cpu` (perfmon, watchpoints).
 
 **B1 Cache + MMU, XIP, flash — done (TRM 4, 30).** Instruction + data cache, code and rodata from flash (XIP=lib/all),
 fast boot and ROM-free warm boot, flash driver with IDF's chip list, SFDP, QE handling, 4-byte addresses, auto-suspend
-(IDF-validated chips), 120 MHz timing tuning. Open: octal (MXIC OPI) flash and 32-bit cache addressing above 16 MB
-(no such chip here). Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
+(IDF-validated chips), 120 MHz timing tuning. Octal MXIC OPI STR implemented from IDF/ROM (not run: no octal board). Open: octal DTR, cache mapping above 16 MB
+(reads there go through SPI1). Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
 `esp_mm/`, `hal/mmu_hal.c`, `hal/esp32s3/include/hal/cache_ll.h`, `esp_system/ld/esp32s3/sections.ld.in`.
 
 **B2 Memory map — partial.** Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,

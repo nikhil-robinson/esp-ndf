@@ -105,7 +105,8 @@ void loader_main(void)
      * USB-UART/JTAG reset = esptool) go to the ROM. No strap check: GPIO_STRAP reads 0 here, and a BOOT-button download
      * comes with a power-on/EN reset, which sets the vector back to the ROM in hardware */
     uint32_t why = REG(RESET_STATE) & 0x3Fu;
-    if (why > 16 || !(((BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1))
+    if (why > 16 || !(((BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
+        (REG(0x6000703Cu) & (1u << 9)))       /* octal flash (eFuse FLASH_TYPE): the ROM sets that bus up */
         to_rom();
     /* a system reset returns SPI0 and the flash pads to their defaults; the ROM's flash attach would set them. Same
      * state, written here (diffed against the state the ROM leaves): DIO read 0xBB, 24-bit address, 4 dummy clocks,
@@ -142,7 +143,8 @@ void loader_main(void)
     /* QIO (0xEB, 6 dummy clocks) as drivers/flash/flash.c, only if the chip's quad-enable bit is set (read over SPI1
      * first, as IDF's bootloader: a quad command to a chip with QE clear leaves it unreadable until power-off):
      * MXIC/ISSI SR1 bit 6, others SR2 bit 1. WP/HD pads to their SPI function (the ROM boots in DIO, leaves them GPIO) */
-    bool qe;
+    bool qe = false;
+    if (REG(0x6000703Cu) & (1u << 9)) goto bus_ready;                     /* octal flash: keep the ROM's SPI0 setup */
 #if NDF_LOADER_RTC          /* warm reset: the cold-boot loader's answer, kept in RTC memory (no slow SPI1 reads) */
     if ((REG(QE_NOTE) & ~1u) == 0x51450000u) qe = REG(QE_NOTE) & 1; else
 #endif
@@ -159,6 +161,7 @@ void loader_main(void)
         REG(S0 + 0x20) = 7u << 28 | 0xEB;
         dcache_invalidate();
     }
+bus_ready:
 #if NDF_BOOT_TRACE
     REG(0x5000102Cu) = REG(S0 + 0x20); REG(0x50001030u) = sys16();
     { uint32_t c0, c1, t0 = sys16(); __asm__ volatile("rsr %0, ccount" : "=r"(c0)); while (sys16() - t0 < 1600) {}

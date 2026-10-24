@@ -1,5 +1,5 @@
 /* SPI NOR flash through SPI1. Chips: ESP-IDF's list (generic/XMC, GD, ISSI, MXIC, Winbond, Boya, TH, FM), detected by
- * JEDEC ID + SFDP. Every wait has a timeout. Erase granularity 4 KB (larger erase types used by flash_erase).
+ * JEDEC ID + SFDP; MXIC octal (OPI STR) when eFuse FLASH_TYPE says 8 lines. Every wait has a timeout. Erase granularity 4 KB (larger erase types used by flash_erase).
  * With suspend (NDF_FLASH_SUSPEND), code and data in flash keep running on both cores during erase/program. */
 #pragma once
 #include "ndf.h"
@@ -17,6 +17,7 @@ typedef struct {
     uint8_t  qe_method;                      /* how the quad-enable bit is read/written (flash.c chip table) */
     bool     quad;                           /* QE set: quad reads */
     bool     addr4;                          /* larger than 16 MB: 4-byte address commands above 16 MB */
+    bool     octal;                          /* MXIC octal flash in OPI STR (eFuse FLASH_TYPE) */
 } flash_info_t;
 const flash_info_t *flash_info(void);         /* read from the chip once (SFDP) */
 

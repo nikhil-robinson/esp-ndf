@@ -412,5 +412,7 @@ timing table swept at start (12 points, middle of the passing window; no window:
 Storage table above. Flash code on core 1 during an erase without suspend: paused (both), now released between pages
 of a write (waits at most one page program). Boya: no suspend (tested: hardware auto-resume never fires; IDF with
 suspend forced on this chip hangs the same way; an erase suspended even once by software never completes).
-Headroom: reads at 120 MHz are at the line rate; erase/write are chip-bound. Not run on hardware: 4-byte addresses
-(needs >16 MB flash), octal (MXIC OPI) flash, suspend on a validated chip.
+Headroom: reads at 120 MHz are at the line rate; erase/write are chip-bound. Octal: MXIC OPI STR at 80 MHz (IDF s_flash_init_mxic: driver strength, WRCR2 = 1, 16-bit
+commands, 8READ 0xEC cache read with 32-bit address / 20 dummy); boot keeps the ROM's bus setup and warm resets go
+through the ROM on octal boards. Not run on hardware: 4-byte addresses (needs >16 MB flash), octal flash (DTR not
+implemented), suspend on a validated chip.
