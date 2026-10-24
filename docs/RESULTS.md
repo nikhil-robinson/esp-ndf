@@ -293,6 +293,16 @@ captures it from the same pads by DMA (VSYNC ends the frame): 256 / 256 bytes pe
 Both halves share one GDMA channel (LCD = OUT, camera = IN). IDF 5.3 has no S3 DVP driver (esp32-camera is
 an external component), so there is no IDF sibling for this one.
 
+## BOX-3 microphones end to end (`examples/box3_mic`, BOX-3)
+
+ES8311 plays 1 kHz through the speaker while the ES7210 (I2C 0x40, Linux es7210.c sequence, normal I2S 16 bit,
+MCLK 256 fs) records on I2S0 RX in full duplex with the speaker TX:
+
+| | MIC1 | MIC2 |
+|---|---|---|
+| speaker off: rms, 1 kHz share | 20, -46 dB | 25, -47 dB |
+| 1 kHz on: rms, 1 kHz share | 1627, **38 dB** | 322, **27 dB** |
+
 ## BOX-3 GT911 touch controller (`examples/box3_touch`, BOX-3)
 
 I2C 0x5D: product id "911", 320 x 240, report poll 29.7k cycles at 400 kHz (bus-bound), no false reports.
