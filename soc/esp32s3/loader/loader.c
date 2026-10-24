@@ -75,6 +75,7 @@ pll_ready:                  /* the core voltage is analog too: still set */
 #else
 #define OTA_PENDING 0
 #endif
+#define CAUSE_NOTE    0x50001FECu     /* RTC slow memory: "RC" + reset cause the stage handed to the ROM (system.c) */
 #define OTA_NOTE      0x50001FF0u     /* RTC slow memory: "OTAS", image offset, its XIP flash offset (cache.c, ota.c) */
 #define QE_NOTE       0x50001FFCu     /* RTC slow memory: "QE" + quad-enable bit, for the warm-reset stage */
 #define RTC_FAST      0x600FE000u     /* RTC fast memory: the stage runs here (loader_rtc.ld) */
@@ -215,7 +216,7 @@ void loader_main(void)
     uint32_t why = REG(RESET_STATE) & 0x3Fu;
     if (why > 16 || !(((BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
         (REG(0x6000703Cu) & (1u << 9)))       /* octal flash (eFuse FLASH_TYPE): the ROM sets that bus up */
-        to_rom();
+        { REG(CAUSE_NOTE) = 0x52430000u | why; to_rom(); }          /* the app still sees the real cause */
     /* a system reset returns SPI0 and the flash pads to their defaults; the ROM's flash attach would set them. Same
      * state, written here (diffed against the state the ROM leaves): DIO read 0xBB, 24-bit address, 4 dummy clocks,
      * SPI clock = MSPI core clock, cache requests on; CS0/CLK/Q/D pads (GPIO29-32) to function 0, input on, drive 2 */
@@ -285,7 +286,7 @@ bus_ready:
     REG(0x50001038u) = REG(0x600C0060u); REG(0x5000103Cu) = REG(0x600C0010u);
 #endif
 #if NDF_LOADER_RTC
-    if (img[0] != 0xE9) to_rom();                                         /* flash not readable from here: the ROM boots */
+    if (img[0] != 0xE9) { REG(CAUSE_NOTE) = 0x52430000u | why; to_rom(); }   /* flash not readable here: ROM */
 #else
     if (img[0] != 0xE9) for (;;) {}                                       /* no image: stay (download mode still works) */
 #if NDF_OTA

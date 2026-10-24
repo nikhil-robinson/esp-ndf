@@ -762,3 +762,14 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | otadata erased | factory boots: PASS |
 | IDF otatool switch_ota_partition --slot 1 | our loader boots ota_1 |
 | our ota_set_boot(ota_0) | IDF otatool reads seq 1, crc 0x4743989a (valid) |
+
+## Watchdogs (`examples/wdt_test`, 2026-10-24)
+
+| test | result |
+|---|---|
+| RTC WDT 100 ms fed every 50 ms for 1 s | no reset: PASS |
+| RTC WDT 200 ms starved, system reset | cause 9 RTC watchdog (system), 201 ms: PASS |
+| RTC WDT 200 ms starved, chip reset (RTC domain too) | cause 16 RTC watchdog (RTC): PASS |
+| TG1 MWDT 100 ms starved | cause 8 TG1 watchdog, 101 ms: PASS |
+| super WDT armed, not fed | cause 18 super watchdog: PASS |
+| reset cause after the warm stage hands a reset to the ROM | the real cause (e.g. 21 USB-UART), not the internal software reset |

@@ -32,7 +32,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | C3 Boot: 2nd-stage loader, app partitions, OTA | **done**: fast-boot loader, ROM-free warm boot 0.79 ms, OTA A/B + rollback (IDF format) |
 | | C4 Interrupt matrix | done |
 | | C5 System timer, timer groups, software timers | done |
-| | C6 Watchdogs (RTC, super, TG1, XTAL32K) | partial: TG0 only |
+| | C6 Watchdogs (RTC, super, TG1, XTAL32K) | **done**: TG0, TG1, RTC, super (XTAL32K with C1) |
 | | C7 Brownout, clock-glitch detection | **none** |
 | **D. Power** | D1 Light sleep, deep sleep, wake sources | **none** |
 | | D2 Power domains, retention, frequency scaling | **none** |
@@ -133,7 +133,7 @@ other core without running code there.
 
 **C5 Timers — done (TRM 11, 12).** 64-bit time base, delays, software timers, GPTimer.
 
-**C6 Watchdogs — partial (TRM 13, 14).** Have: TG0 MWDT with a report stage. The ROM's other watchdogs are switched off
+**C6 Watchdogs — done (TRM 13, 14).** drivers/wdt/wdt.c, examples/wdt_test; XTAL32K watchdog goes with the 32 kHz crystal (C1). Was: Have: TG0 MWDT with a report stage. The ROM's other watchdogs are switched off
 at boot. Missing: RTC watchdog (boot-hang protection, chip-reset stage), super watchdog, TG1 MWDT, XTAL32K watchdog.
 Reference: `hal/esp32s3/include/hal/rwdt_ll.h`, `mwdt_ll.h`, `esp_system/int_wdt.c`, `esp_system/task_wdt/`.
 

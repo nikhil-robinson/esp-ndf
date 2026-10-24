@@ -8,7 +8,19 @@
 #define RESET_STATE  0x60008038       /* RTC_CNTL: b0..5 core 0 cause, b6..11 core 1 */
 #define OPTIONS0     0x60008000       /* RTC_CNTL: b31 SW_SYS_RST */
 
-int sys_reset_cause(int core) { return (REG(RESET_STATE) >> (core ? 6 : 0)) & 0x3F; }
+/* A reset the warm-boot stage handed to the ROM (esptool, USB) arrives here as a software reset (3); the stage kept
+ * the real cause in RTC memory (loader.c CAUSE_NOTE). */
+static int cause[2] = { -1, -1 };
+void sys_latch_reset_cause(void)               /* at startup (sys.c): read once, consume the note */
+{
+    uint32_t n = REG(0x50001FECu);
+    for (int k = 0; k < 2; k++) {
+        int c = (REG(RESET_STATE) >> (k ? 6 : 0)) & 0x3F;
+        cause[k] = c == 3 && (n & 0xFFFF0000u) == 0x52430000u ? (int)(n & 0x3F) : c;
+    }
+    REG(0x50001FECu) = 0;
+}
+int sys_reset_cause(int core) { if (cause[0] < 0) sys_latch_reset_cause(); return cause[core ? 1 : 0]; }
 
 const char *sys_reset_cause_str(int c)
 {

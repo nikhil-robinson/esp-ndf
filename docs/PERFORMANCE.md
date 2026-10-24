@@ -454,3 +454,15 @@ Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~10
 
 Same on-flash format as IDF (otadata select entries, crc32_le over seq): IDF's otatool switches our slots and reads
 ours. Code from flash runs from either slot: the code window (MMU entries 496-511) is mapped onto the booted slot.
+
+## Watchdogs (`examples/wdt_test`, real resets, 2026-10-24)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| feed TG0 / TG1 MWDT | **28 cycles** | esp_task_wdt_reset 362 cycles |
+| feed RTC WDT | **29 cycles** | wdt_hal_feed (same 3 register writes) |
+| RTC WDT 200 ms, measured to the reset (RTC timer) | 201 ms | - |
+| TG1 WDT 100 ms | 101 ms | - |
+
+RTC WDT stage 0 scaled by 2 << eFuse WDT_DELAY_SEL (IDF assumes 0) and the RTC slow clock measured (149-150 kHz here,
+nominal 136), so timeouts are within 1 %. Super WDT: ~3.4 s at this slow clock.

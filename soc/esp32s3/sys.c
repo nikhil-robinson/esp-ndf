@@ -92,6 +92,8 @@ void sys_start0(void)
     uint64_t t0 = time_ticks();                 /* first thing: ROM boot + image load ends here */
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
     boot_t0 = t0;
+    extern void sys_latch_reset_cause(void);
+    sys_latch_reset_cause();                      /* before anything resets again (system.c) */
 #if NDF_BOOT_ROM_LOG_OFF
     REG_SET(RTC_BASE + 0xC0, BIT(0) | BIT(16));   /* RTC_CNTL_STORE4: ROM skips its boot log on the next reset (no eFuse; power-on clears it) */
 #endif
