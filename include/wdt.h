@@ -24,6 +24,5 @@ void     wdt1_stop(void);
 int      rtc_wdt_start(uint32_t timeout_ms, bool chip_reset);   /* cause RTC watchdog (system) or (RTC) */
 void     rtc_wdt_feed(void);
 void     rtc_wdt_stop(void);
-uint32_t rtc_slow_hz(void);                      /* RTC slow clock, measured once */
 void     swd_enable(bool on);                    /* on: swd_feed() needed within the timeout */
 void     swd_feed(void);

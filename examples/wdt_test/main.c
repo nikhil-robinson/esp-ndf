@@ -2,6 +2,7 @@
  * super WDT armed and starved. Reset cause and the real timeout (RTC timer, keeps counting through resets) per step. */
 #include "console.h"
 #include "wdt.h"
+#include "rtcclk.h"
 #include "sys.h"
 #include "system.h"
 #include "xtensa.h"

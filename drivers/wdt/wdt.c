@@ -8,6 +8,7 @@
 #include "irq.h"
 #include "sys.h"
 #include "xtensa.h"
+#include "rtcclk.h"
 
 #define CONFIG0(b)    ((b) + 0x48)  /* b31 en b30:29 stg0 b28:27 stg1 b20:18 cpu rst len b17:15 sys rst len */
 #define CONFIG1(b)    ((b) + 0x4C)  /* b31:16 prescaler */
@@ -78,21 +79,6 @@ void wdt1_stop(void) { mwdt_stop(1); }
 #define RWDT_CFG(i)   (0x60008098u + 4 * (i))   /* CONFIG0, stage 0..3 timeouts */
 #define RWDT_FEED     0x600080ACu               /* b31 */
 #define RWDT_WP       0x600080B0u
-#define RTC_TIME_UPD  0x6000800Cu
-#define RTC_TIME_LO   0x60008010u
-
-static uint32_t slow_hz;
-uint32_t rtc_slow_hz(void)                      /* RTC slow clock, measured against the CPU clock over 2 ms */
-{
-    if (slow_hz) return slow_hz;
-    REG(RTC_TIME_UPD) = BIT(31); for (volatile int k = 0; k < 200; k++) {}
-    uint32_t r0 = REG(RTC_TIME_LO), c0 = ccount(), lim = sys_cpu_hz() / 500;
-    while (ccount() - c0 < lim) {}
-    REG(RTC_TIME_UPD) = BIT(31); for (volatile int k = 0; k < 200; k++) {}
-    uint32_t r1 = REG(RTC_TIME_LO), c1 = ccount();
-    slow_hz = (uint32_t)((uint64_t)(r1 - r0) * sys_cpu_hz() / (c1 - c0));
-    return slow_hz;
-}
 
 int rtc_wdt_start(uint32_t timeout_ms, bool chip_reset)
 {

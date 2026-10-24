@@ -782,3 +782,15 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | level 1 (3.30 V, at this board's 3.3 V supply): detected, interrupt ran, restart | cause 15 brownout: PASS |
 | hardware reset mode (BROWN_OUT_RST_ENA) | resets every ~4.5 s at level 7 on this board: not used (IDF default is interrupt mode too) |
 | analog threshold kept through resets, brownout register not | setup runs every boot |
+
+## RTC clocks (`examples/rtcclk_test`, 2026-10-24)
+
+| test | result |
+|---|---|
+| RC slow clock calibrated (timer group 0, 256 cycles, 1.7 ms) vs RTC timer over CPU time | 149 001 vs 149 020 Hz: PASS |
+| switch to 8 MHz / 256: calibrated vs RTC timer vs rtc_slow_hz | 78 574 / 78 539 / 78 557 Hz: PASS |
+| back to RC | 148 900 Hz: PASS |
+| 32 kHz crystal start, none fitted | -1 after 400 ms, select refused, stays on RC: PASS |
+| RTC WDT on the calibrated clock (wdt_test) | 200 ms -> 201 ms |
+
+Not run: 32 kHz crystal / external oscillator and its watchdog (no crystal on this board).

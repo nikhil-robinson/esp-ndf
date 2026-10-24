@@ -27,7 +27,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | B3 PSRAM | done (octal, 8 MB, MMU window) |
 | | B4 GDMA | partial |
 | | B5 Memory protection (PMS), World Controller | **none** |
-| **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | partial |
+| **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | **done**: slow clock sources + calibration, 32 kHz crystal/osc + its watchdog, RTC fast clock (crystal untested: none fitted) |
 | | C2 Reset, restart, reset causes | done |
 | | C3 Boot: 2nd-stage loader, app partitions, OTA | **done**: fast-boot loader, ROM-free warm boot 0.79 ms, OTA A/B + rollback (IDF format) |
 | | C4 Interrupt matrix | done |
@@ -118,7 +118,7 @@ permissions, stack guard regions; secure/non-secure worlds. Reference: `esp_hw_s
 
 ## C. System control
 
-**C1 Clocks — partial (TRM 7, 17).** Have: CPU 240/160/80/40 MHz, APB, peripheral gates/resets. Missing: RTC slow clock
+**C1 Clocks — done (TRM 7, 17).** soc/esp32s3/rtcclk.c, examples/rtcclk_test; clock output pins not done (no use yet). Was: partial. Have: CPU 240/160/80/40 MHz, APB, peripheral gates/resets. Missing: RTC slow clock
 source (RC 136 kHz / 32 kHz crystal / 8MD256) and calibration, RTC fast clock, clock output pins (CLK_OUT1..3),
 32 kHz crystal bring-up. Reference: `esp_hw_support/port/esp32s3/rtc_clk.c`, `rtc_time.c`, `hal/esp32s3/include/hal/clk_tree_ll.h`.
 
