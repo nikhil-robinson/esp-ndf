@@ -120,7 +120,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [ ] port periph_test onto it
 - [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
 - [x] Cooperative tasks (`coop.h`): spawn / yield / sleep, CALL0 context (6 registers), hardware stack guard follows the task
-- [ ] gdbstub / JTAG debugging guide, app trace (fast logging over JTAG)
+- [x] JTAG debugging guide + `tools/gdb.sh` (docs/DEBUG.md, verified: breakpoint, backtrace, variables); [ ] app trace over JTAG
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
 - [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner
 - [x] UART0 console option; storage limits (VFS/FAT/SPIFFS/NVS) configurable; config changes trigger a rebuild
