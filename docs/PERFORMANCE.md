@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| Touch | raw read (`touch_read` vs `touch_pad_read_raw_data`, `bench/idf_touch_ext`) | **99 cycles** | 532 cycles | 5.4x | done; filter/baseline/threshold events/proximity |
 | LEDC | duty update (`ledc_duty` vs `ledc_set_duty`+`ledc_update_duty`, `bench/idf_ledc_ext`) | **38 cycles** | 765 cycles | 20x | done; + gamma fade (IDF: none on S3) |
 | PCNT | read count (`pcnt_get` 32-bit vs `pcnt_unit_get_count` 16-bit+, `bench/idf_pcnt_ext`) | **91 cycles** | 310 cycles | 3.4x | done; + step notify / index IDF lacks on S3 |
 | MCPWM | compare update (`mcpwm_cmp` vs `mcpwm_comparator_set_compare_value`, `bench/idf_mcpwm_ext`) | **3 cycles** | 76 cycles | 25x | done; capture prescale 4 exact (IDF gets 6) |

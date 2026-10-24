@@ -41,6 +41,7 @@ void test_i2s_modes(void);
 void test_adc(void);
 void test_twai(void);
 void test_touch(void);
+void test_touch_ext(void);
 void test_flash(void);
 void test_partition(void);
 void test_nvs(void);

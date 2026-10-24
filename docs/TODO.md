@@ -86,9 +86,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **MCPWM**: capture/fault/sync, carrier (chopper), fault pins with one-shot / cycle-by-cycle actions per operator, capture prescaler (measured mapping), live re-timing
 - [x] **PCNT**: 32-bit gap-free count, watch points (thres0/1, zero, limit) callbacks, step notify (gap-free), quadrature index (GPIO IRQ)
 - [x] **LEDC**: fade (fixed: 1 duty per step), gamma fade (segmented, perceptually linear), phase (hpoint) per channel; [ ] sleep retention (with sleep)
-- [~] **GPTimer**: done; **todo**: capture-on-event, ETM-like linking is (n/a on S3)
-- [~] **Touch**: raw read done; **todo**: filtering/denoise, waterproof
-      (shield pad), proximity mode, baseline tracking, threshold interrupts, touch wake
+- [x] **GPTimer**: done; capture-on-event / ETM: n/a on S3
+- [~] **Touch**: raw, hardware filter + baseline, threshold active/inactive events, proximity; [ ] denoise (reference
+      channel setup), [ ] waterproof (needs a shield electrode), [ ] touch wake (with sleep)
 - [~] **ADC**: one-shot + continuous done; **todo**: IIR filters and
       threshold monitors (hardware), ADC2 one-shot arbitration notes, continuous on ADC2 (n/a in DMA mode on S3)
 - [~] **GDMA**: done; **todo**: priorities, ETM (n/a), burst/ext-mem rules once PSRAM is up, weight arbitration

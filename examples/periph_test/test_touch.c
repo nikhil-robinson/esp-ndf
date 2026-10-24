@@ -18,3 +18,36 @@ void test_touch(void)
     METRIC("touch_read()", "%lu cycles", CYCLES(touch_read(10)));
     gpio_config(11, GPIO_INPUT);
 }
+
+/* "Touch" = pad 10's charge slope 7 -> 6 (+16 % raw, like a finger), then back. */
+static volatile int ev_on, ev_off, ev_pad;
+static void on_touch(int pad, bool t, void *a) { (void)a; ev_pad = pad; if (t) ev_on++; else ev_off++; }
+
+void test_touch_ext(void)
+{
+    __asm__ volatile("rsil a2, 0" ::: "a2");
+    gpio_config(11, GPIO_INPUT);
+    touch_init(BIT(10));
+    touch_filter(true);
+    delay_us(200000);
+    uint32_t raw = avg(10), base = touch_benchmark(10), sm = touch_smooth(10);
+    touch_threshold(10, base / 20);                          /* 5 % */
+    ev_on = ev_off = 0;
+    CHECK(touch_on_event(on_touch, 0) == 0);
+    REG_FIELD(0x60008150, 29, 3, 6); delay_us(100000);      /* touch */
+    int on = ev_on; uint16_t act = touch_active();
+    REG_FIELD(0x60008150, 29, 3, 7); delay_us(100000);      /* release */
+    int off = ev_off;
+    printf("    filter: raw %lu, smooth %lu, baseline %lu; threshold %lu: touch -> %d event(s) pad %d (active %04x), release -> %d\n",
+           raw, sm, base, base / 20, on, ev_pad, act, off);
+    CHECK(base > raw - raw / 20 && base < raw + raw / 20 && on == 1 && (act & BIT(10)) && off == 1 && ev_pad == 10);
+    touch_on_event(0, 0);
+    const int8_t px[3] = { 10, 0, 0 };
+    touch_proximity(px, 50);
+    delay_us(300000);
+    uint32_t pc = touch_proximity_count(0);
+    printf("    proximity pad 10, 50 scans: count %lu\n", pc);
+    CHECK(pc > 0 && pc <= 50);
+    touch_proximity((const int8_t[3]){ 0, 0, 0 }, 0);
+    touch_filter(false);
+}

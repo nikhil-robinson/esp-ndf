@@ -240,6 +240,19 @@ offset. Step notify uses the wrap limit itself (= step), so it stays gap-free.
 fade-end interrupt; IDF on the S3 has linear fades only. Duty update: **38 cycles** vs IDF 765.
 Found: the fade step (duty_scale) is in whole duty units; our ledc_fade had used 16 per step.
 
+## Touch extended (`periph_test` touch_ext vs `bench/idf_touch_ext`, C9:D0, pad 10)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| filter (IIR 16, smooth IIR 2) raw / smooth / baseline | 55152 / 55160 / 55156 | - |
+| threshold 5 %, "touch" = pad slope 7 -> 6 (+16 % raw) | 1 touch event pad 10, 1 release event | - |
+| proximity pad 10, 50 scans | count 49 | - |
+| raw read | **99 cycles** | 532 cycles |
+
+A driven neighbour pad (jumper) does not move the count: the stimulus is the charge slope instead. The RTC
+interrupt is now shared (soc/esp32s3/rtc_irq.c: brownout + touch); bod_test still trips and restarts.
+Denoise was tried and dropped: with only the enable bit the data freezes (needs the reference channel setup).
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

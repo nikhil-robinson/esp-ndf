@@ -41,6 +41,7 @@ int main(void)
     run("adc_cont", test_adc_cont);
     run("twai", test_twai);
     run("touch", test_touch);
+    run("touch_ext", test_touch_ext);
     run("flash", test_flash);
     run("partition", test_partition);
     run("nvs", test_nvs);

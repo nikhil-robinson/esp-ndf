@@ -4,6 +4,7 @@
 #include "brownout.h"
 #include "regi2c.h"
 #include "irq.h"
+#include "rtc_irq.h"
 #include "system.h"
 #include "xtensa.h"
 
@@ -13,11 +14,9 @@
 #define ANA_CONF    0x60008034u    /* b20 glitch reset enable */
 #define INT_ENA     0x60008040u    /* b9 brownout */
 #define INT_CLR     0x6000804Cu
-#define SRC_RTC     39             /* RTC core interrupt source */
 #define REGI2C_BOD  0x61
 
 static void (*user_fn)(void);
-static int line = -1;
 
 static void bod_isr(void *arg)
 {
@@ -51,8 +50,7 @@ int bod_start(int level, void (*fn)(void))
     if (level < 1 || level > 7) return -1;
     bod_config(level, false);
     user_fn = fn;
-    if (line < 0 && (line = irq_attach(SRC_RTC, 3, bod_isr, 0)) < 0) return -1;
-    REG_SET(INT_ENA, BIT(9));
+    if (rtc_irq_on(BIT(9), bod_isr, 0) < 0) return -1;   /* shared RTC interrupt (soc/esp32s3/rtc_irq.c) */
     return 0;
 }
 
