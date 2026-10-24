@@ -811,3 +811,9 @@ Not run: 32 kHz crystal / external oscillator and its watchdog (no crystal on th
 flash_test PASS x3: chip detected (QE method 16-bit status, SFDP 16 dwords, suspend from SFDP), 120 MHz tuning, erase /
 write / read exact, flash code on core 1 correct during erase + write with hardware auto-suspend for misses every
 0, 20, 50, 100, 200, 500, 1000 us (hold 100 us).
+
+## eFuse fields (`examples/efuse_dump`, C9:D0, 2026-10-24)
+
+All 232 rows of ESP-IDF's esp_efuse_table.csv (tools/gen_efuse.py; multi-row fields such as MAC joined in IDF order),
+read by name. Against `espefuse.py dump` + `summary --format json` on the same chip: **100 of 100 positioned fields
+equal the raw bits** (12 espefuse entries have no bit position to compare). Read-only: no burning code.

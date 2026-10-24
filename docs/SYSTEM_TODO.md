@@ -43,7 +43,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | E4 RSA / big-number accelerator | **none** |
 | | E5 HMAC, Digital Signature (DS) | **none** |
 | | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **none** |
-| | E7 eFuse: fields, key blocks, burn opt-in | partial: read MAC / raw bits |
+| | E7 eFuse: fields, key blocks, burn opt-in | **done** (read): IDF field table by name, all 11 blocks, 100/100 vs espefuse; burning not implemented (approval rule) |
 | | E8 Flash and PSRAM encryption (XTS_AES), secure boot | **none** (irreversible: plan only) |
 | | E9 NVS encryption | done |
 
