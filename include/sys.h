@@ -12,6 +12,7 @@ uint32_t systimer_lo(void);                 /* free-running 16 MHz counter */
 
 /* Run fn on core 1 (once). Core 1 starts with interrupts masked. */
 void     cpu1_start(void (*fn)(void));
+bool     sys_cpu1_running(void);              /* cpu1_start was called */
 
 NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint32_t *frame, uint32_t sp);
 /* Fatal-error report: reason, PC, registers (if frame), backtrace from a
