@@ -33,6 +33,14 @@ const uint32_t *adc_cont_get(int *samples);
 uint32_t adc_cont_overruns(void);        /* frames the reader did not take in time */
 uint32_t adc_cont_sync_errors(void);     /* must stay 0: frame interrupt vs descriptor bookkeeping */
 
+/* Hardware IIR filter idx (0/1) on ADC1 channel ch in continuous mode, k = 2, 4, 8, 16, 64 (0 = off):
+ * the DMA data of that channel is the filtered value. */
+int  adc_cont_filter(int idx, int ch, int k);
+/* Threshold monitor idx (0/1) on ADC1 channel ch: fn(idx, true) when a sample > high, fn(idx, false) when
+ * < low (from the ADC interrupt, every such sample). low/high < 0: that side off. fn NULL = off. */
+typedef void (*adc_mon_fn_t)(int idx, bool high, void *arg);
+int  adc_cont_monitor(int idx, int ch, int low, int high, adc_mon_fn_t fn, void *arg);
+
 /* internal, shared with the one-shot driver */
 void adc_power_up(void);
 void adc_load_code(int unit, int atten);

@@ -39,6 +39,7 @@ int main(void)
     run("i2s_modes", test_i2s_modes);
     run("adc", test_adc);
     run("adc_cont", test_adc_cont);
+    run("adc_filter", test_adc_filter);
     run("twai", test_twai);
     run("touch", test_touch);
     run("touch_ext", test_touch_ext);

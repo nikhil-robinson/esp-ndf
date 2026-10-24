@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| ADC monitor | ADC1 ch 9 > 3000 for 100 ms (`test_adc_filter` vs `bench/idf_adc_ext`) | **every sample** | 0 events (IDF channel encoding bug) | works vs broken | done; IIR filter k=16 matches the model |
 | Touch | raw read (`touch_read` vs `touch_pad_read_raw_data`, `bench/idf_touch_ext`) | **99 cycles** | 532 cycles | 5.4x | done; filter/baseline/threshold events/proximity |
 | LEDC | duty update (`ledc_duty` vs `ledc_set_duty`+`ledc_update_duty`, `bench/idf_ledc_ext`) | **38 cycles** | 765 cycles | 20x | done; + gamma fade (IDF: none on S3) |
 | PCNT | read count (`pcnt_get` 32-bit vs `pcnt_unit_get_count` 16-bit+, `bench/idf_pcnt_ext`) | **91 cycles** | 310 cycles | 3.4x | done; + step notify / index IDF lacks on S3 |

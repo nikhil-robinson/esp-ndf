@@ -253,6 +253,18 @@ A driven neighbour pad (jumper) does not move the count: the stimulus is the cha
 interrupt is now shared (soc/esp32s3/rtc_irq.c: brownout + touch); bod_test still trips and restarts.
 Denoise was tried and dropped: with only the enable bit the data freezes (needs the reference channel setup).
 
+## ADC IIR filter and threshold monitors (`periph_test` adc_filter vs `bench/idf_adc_ext`, C9:D0, GPIO11 -> GPIO10)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 1 kHz square at 20 kHz, peak-to-peak raw / IIR k = 16 | 4095 / 1278 (model 1269) | - |
+| monitor low 1000 / high 3000, input low | 1000 low events per 50 ms, 0 high | - |
+| monitor, input high (ch 9) | 1000 high events per 50 ms, 0 low | **0 events** in 100 ms |
+
+The filter/monitor channel field is unit << 4 | channel (measured). IDF uses (unit + 1) << 3 | (ch & 7) for the
+filter and unit << 3 | (ch & 7) for the monitor: ADC1 channels 8/9 cannot be monitored and filters on ch 0-7
+land on another channel.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

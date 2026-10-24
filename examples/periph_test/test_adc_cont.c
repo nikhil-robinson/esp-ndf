@@ -105,3 +105,51 @@ void test_adc_cont(void)
     gpio_config(10, GPIO_INPUT);                             /* pad back from analog (TWAI uses 10/11 next) */
     gpio_config(10, GPIO_INPUT);
 }
+
+/* IIR filter: peak-to-peak of a 1 kHz square at 20 kHz sampling, raw vs k = 16.
+ * Monitors: static low / high on GPIO11 -> only the matching side fires. */
+static volatile int mon_hi, mon_lo;
+static void on_mon(int idx, bool high, void *a) { (void)idx; (void)a; if (high) mon_hi++; else mon_lo++; }
+static uint32_t p2p(const uint32_t *f)
+{
+    uint32_t lo = 4095, hi = 0;
+    for (int i = 0; i < FRAME; i++) { uint32_t v = ADC_CONT_DATA(f[i]); if (v < lo) lo = v; if (v > hi) hi = v; }
+    return hi - lo;
+}
+
+void test_adc_filter(void)
+{
+    __asm__ volatile("rsil a2, 0" ::: "a2");
+    adc_cont_ch_t one[1] = { { 9, ADC_ATTEN_12DB } };
+    ledc_timer(0, 1000, 10);
+    ledc_channel(0, 0, 11, 512);
+    CHECK(adc_cont_init(one, 1, FS, buf, FRAME, NFR) == 0);
+    adc_cont_start(); wait_frame(); const uint32_t *f = wait_frame();
+    uint32_t raw = f ? p2p(f) : 0;
+    adc_cont_stop();
+    CHECK(adc_cont_filter(0, 9, 16) == 0);
+    adc_cont_start(); wait_frame(); f = wait_frame();
+    uint32_t filt = f ? p2p(f) : 0;
+    adc_cont_stop();
+    adc_cont_filter(0, 9, 0);
+    ledc_stop(0, false);
+    /* k = 16 over a 10-sample half period: 1 - (15/16)^10 = 48 % of the step, both ways -> p2p ~ 0.48 / 1.52 */
+    printf("    1 kHz square p-p: raw %lu, IIR k=16 %lu (expect ~%lu)\n", raw, filt, raw * 31 / 100);
+    CHECK(raw > 3900 && filt > raw / 5 && filt < raw / 2);
+
+    gpio_config(11, GPIO_OUTPUT); gpio_clr(11);
+    CHECK(adc_cont_monitor(0, 9, 1000, 3000, on_mon, 0) == 0);
+    adc_cont_start(); wait_frame();
+    mon_hi = mon_lo = 0; wait_frame();
+    int l_hi = mon_hi, l_lo = mon_lo;
+    gpio_set(11); wait_frame();
+    mon_hi = mon_lo = 0; wait_frame();
+    int h_hi = mon_hi, h_lo = mon_lo;
+    adc_cont_stop();
+    adc_cont_monitor(0, 9, 0, 0, 0, 0);
+    printf("    monitor low 1000 / high 3000: input low -> %d low, %d high events; input high -> %d low, %d high (per 50 ms)\n",
+           l_lo, l_hi, h_lo, h_hi);
+    CHECK(l_lo > 0 && l_hi == 0 && h_hi > 0 && h_lo == 0);
+    gpio_config(11, GPIO_INPUT);
+    gpio_config(10, GPIO_INPUT);
+}

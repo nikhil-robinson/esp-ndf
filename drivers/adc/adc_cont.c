@@ -17,6 +17,14 @@
 #define SAR_DMA_CONF  (SAR_BASE + 0x6C)   /* b0..15 eof_num b30 reset_fsm b31 trans */
 #define SAR_CLKM      (SAR_BASE + 0x70)   /* b0..7 div_num b8..13 div_b b14..19 div_a b20 clk_en b21..22 clk_sel */
 #define SENS_MEAS1_MUX 0x60008810         /* b31 sar1_dig_force */
+#define SAR_FILT1     (SAR_BASE + 0x08)   /* b28:26 factor1 b31:29 factor0 */
+#define SAR_FILT0     (SAR_BASE + 0x3C)   /* b18:14 channel1 b23:19 channel0 b31 reset */
+#define SAR_THRES(i)  (SAR_BASE + 0x44 + 4 * (i))   /* b4:0 channel b17:5 high b30:18 low */
+#define SAR_THR_CTRL  (SAR_BASE + 0x58)   /* b30 thres1_en b31 thres0_en */
+#define SAR_INT_ENA   (SAR_BASE + 0x5C)   /* b26 t1 low b27 t0 low b28 t1 high b29 t0 high */
+#define SAR_INT_ST    (SAR_BASE + 0x64)
+#define SAR_INT_CLR   (SAR_BASE + 0x68)
+#define SRC_APB_ADC   65
 #define REGI2C_SAR    0x69
 
 #define MAX_FRAMES    16
@@ -141,3 +149,47 @@ const uint32_t *adc_cont_get(int *samples)
 
 uint32_t adc_cont_overruns(void) { return overruns; }
 uint32_t adc_cont_sync_errors(void) { return sync_err; }
+
+/* ---- hardware IIR filter and threshold monitors (digital controller, ADC1) ---- */
+int adc_cont_filter(int idx, int ch, int k)
+{
+    /* factor code for k = 2/4/8/16/64 as IDF adc_ll_digi_filter_set_factor; the channel field is unit << 4 | ch
+     * (measured: IDF's (unit + 1) << 3 | (ch & 7) only hits ADC1 ch 9 by chance, ch 0-7 land on 8-15) */
+    if (idx < 0 || idx > 1) return -1;
+    uint32_t code = k == 2 ? 1 : k == 4 ? 2 : k == 8 ? 3 : k == 16 ? 4 : k == 64 ? 6 : 0;
+    if (k && !code) return -1;
+    uint32_t sh = idx ? 14 : 19, fs = idx ? 26 : 29;
+    REG_FIELD(SAR_FILT0, sh, 5, k ? (uint32_t)(ch & 0xF) : 0xF);   /* 0xF + factor 0 = off */
+    REG_FIELD(SAR_FILT1, fs, 3, code);
+    REG_SET(SAR_FILT0, BIT(31)); REG_CLR(SAR_FILT0, BIT(31));
+    return 0;
+}
+
+static adc_mon_fn_t mon_fn; static void *mon_arg; static int mon_int = -1;
+
+RAM_FN static void mon_isr(void *a)
+{
+    (void)a;
+    uint32_t st = REG(SAR_INT_ST) & (0xFu << 26);
+    REG(SAR_INT_CLR) = st;
+    if (!mon_fn) return;
+    if (st & BIT(29)) mon_fn(0, true, mon_arg);
+    if (st & BIT(27)) mon_fn(0, false, mon_arg);
+    if (st & BIT(28)) mon_fn(1, true, mon_arg);
+    if (st & BIT(26)) mon_fn(1, false, mon_arg);
+}
+
+int adc_cont_monitor(int idx, int ch, int low, int high, adc_mon_fn_t fn, void *arg)
+{
+    if (idx < 0 || idx > 1) return -1;
+    if (mon_int < 0 && (mon_int = irq_attach(SRC_APB_ADC, 1, mon_isr, 0)) < 0) return -1;
+    uint32_t hi_b = idx ? BIT(28) : BIT(29), lo_b = idx ? BIT(26) : BIT(27);
+    if (!fn) { REG_CLR(SAR_INT_ENA, hi_b | lo_b); REG_CLR(SAR_THR_CTRL, idx ? BIT(30) : BIT(31)); return 0; }
+    mon_fn = fn; mon_arg = arg;
+    /* channel field unit << 4 | ch (measured; IDF's unit << 3 | (ch & 7) watches ch 1 for ch 9) */
+    REG(SAR_THRES(idx)) = (uint32_t)(ch & 0xF) | (uint32_t)(high & 0x1FFF) << 5 | (uint32_t)(low & 0x1FFF) << 18;
+    REG(SAR_INT_CLR) = hi_b | lo_b;
+    REG_SET(SAR_INT_ENA, (high >= 0 ? hi_b : 0) | (low >= 0 ? lo_b : 0));
+    REG_SET(SAR_THR_CTRL, idx ? BIT(30) : BIT(31));
+    return 0;
+}

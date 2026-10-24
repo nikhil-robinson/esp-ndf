@@ -89,8 +89,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **GPTimer**: done; capture-on-event / ETM: n/a on S3
 - [~] **Touch**: raw, hardware filter + baseline, threshold active/inactive events, proximity; [ ] denoise (reference
       channel setup), [ ] waterproof (needs a shield electrode), [ ] touch wake (with sleep)
-- [~] **ADC**: one-shot + continuous done; **todo**: IIR filters and
-      threshold monitors (hardware), ADC2 one-shot arbitration notes, continuous on ADC2 (n/a in DMA mode on S3)
+- [x] **ADC**: one-shot + continuous, hardware IIR filters and threshold monitors (correct channel encoding);
+      ADC2 continuous: n/a on S3; [ ] ADC2 one-shot arbitration notes (with Wi-Fi)
 - [~] **GDMA**: done; **todo**: priorities, ETM (n/a), burst/ext-mem rules once PSRAM is up, weight arbitration
 - [~] **LCD**: SPI panel done; **todo**: **i80 parallel bus** (8/16-bit) and **RGB panels** via LCD_CAM, more panel drivers (ST7789, GC9A01), touch controller (Box-3 TT21100/GT911)
 - [~] **TWAI**: done; **todo**: bus-off recovery API, error-passive callbacks, alert interrupts
