@@ -75,6 +75,7 @@ pll_ready:                  /* the core voltage is analog too: still set */
 #else
 #define OTA_PENDING 0
 #endif
+#define TUNE_NOTE     0x50001FE4u     /* RTC slow memory: "T1" + 120 MHz input delay / dummy (flash.c) */
 #define CAUSE_NOTE    0x50001FECu     /* RTC slow memory: "RC" + reset cause the stage handed to the ROM (system.c) */
 #define OTA_NOTE      0x50001FF0u     /* RTC slow memory: "OTAS", image offset, its XIP flash offset (cache.c, ota.c) */
 #define QE_NOTE       0x50001FFCu     /* RTC slow memory: "QE" + quad-enable bit, for the warm-reset stage */
@@ -195,6 +196,41 @@ static uint32_t choose_image(uint32_t *xip)                          /* flash of
 }
 #endif
 
+#if NDF_LOADER_RTC && NDF_FLASH_MHZ == 120
+/* 120 MHz flash read for the copy: IDF's timing table (as drivers/flash/flash.c clock_120), swept once through the
+ * data cache against 64 bytes read at 80 MHz; the window's middle is kept in RTC memory (TUNE_NOTE) */
+static void fast_set(uint32_t mode, uint32_t num, uint32_t dummy)
+{
+    uint32_t m = 0, n = 0;
+    for (int k = 0; k < 9; k++) { m |= mode << (3 * k); n |= num << (2 * k); }
+    REG(S0 + 0xEC) = (REG(S0 + 0xEC) & ~3u) | 1;                          /* MSPI core clock 120 MHz */
+    REG(S0 + 0x14) = 1u << 31;                                            /* SPI clock = core clock */
+    REG(S0 + 0xA8) |= 1;                                                  /* timing clock on */
+    REG(S0 + 0xAC) = m; REG(S0 + 0xB0) = n;                               /* input delay */
+    REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | (5 + dummy);             /* QIO 6 dummy clocks + extra */
+}
+static void tune120(void)
+{
+    static const uint8_t tab[12][3] = { {2, 0, 1}, {0, 0, 0}, {2, 2, 2}, {1, 0, 1}, {2, 0, 2}, {0, 0, 1},
+                                        {2, 2, 3}, {1, 0, 2}, {2, 0, 3}, {0, 0, 2}, {2, 2, 4}, {1, 0, 3} };
+    const volatile uint32_t *f = (const volatile uint32_t *)FLASH_DBUS;
+    uint32_t ref[16], c14 = REG(S0 + 0x14), c1c = REG(S0 + 0x1C);
+    for (int i = 0; i < 16; i++) ref[i] = f[i];
+    int run = 0, len = 0, end = -1;
+    for (int k = 0; k < 12; k++) {
+        fast_set(tab[k][0], tab[k][1], tab[k][2]);
+        dcache_invalidate();
+        bool ok = true;
+        for (int i = 0; i < 16; i++) if (f[i] != ref[i]) ok = false;
+        run = ok ? run + 1 : 0;
+        if (run > len) { len = run; end = k; }
+    }
+    REG(S0 + 0xEC) &= ~3u; REG(S0 + 0x14) = c14; REG(S0 + 0x1C) = c1c; REG(S0 + 0xAC) = 0; REG(S0 + 0xB0) = 0;
+    dcache_invalidate();
+    if (len >= 3 && len <= 4) { int b = end - len / 2; REG(TUNE_NOTE) = 0x54310000u | tab[b][0] << 8 | tab[b][1] << 4 | tab[b][2]; }
+}
+#endif
+
 static void to_rom(void)                /* hand this reset to the ROM: vector back, system reset */
 {
     REG_SET(RESET_STATE, BIT(13));
@@ -277,6 +313,11 @@ void loader_main(void)
         REG(S0 + 0x1C) = (REG(S0 + 0x1C) & ~0x3Fu) | 5;
         REG(S0 + 0x20) = 7u << 28 | 0xEB;
         dcache_invalidate();
+#if NDF_LOADER_RTC && NDF_FLASH_MHZ == 120   /* warm: copy at 120 MHz with the timing window (app or our own sweep) */
+        if ((REG(TUNE_NOTE) & 0xFFFF0000u) != 0x54310000u) tune120();
+        uint32_t t = REG(TUNE_NOTE);
+        if ((t & 0xFFFF0000u) == 0x54310000u) { fast_set((t >> 8) & 7, (t >> 4) & 3, t & 15); dcache_invalidate(); }
+#endif
     }
 bus_ready:
 #if NDF_BOOT_TRACE

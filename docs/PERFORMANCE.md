@@ -331,7 +331,7 @@ system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image 
 | esp-ndf, ROM loads the whole RAM image (before) | 21 708 - 22 080 us |
 | + ROM log off for warm resets (RTC_CNTL_STORE4 flag, no eFuse) | 15 938 - 15 947 us |
 | esp-ndf fast boot, cold path (ROM -> 2 KB loader: PLL, QIO through the cache, copies the app) | 6 184 - 6 185 us |
-| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **868 - 870 us** with brownout detection on (782 - 787 without, NDF_BROWNOUT=0) |
+| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **789 - 799 us** with brownout detection on (image copied at 120 MHz; 868 - 870 at 80 MHz) |
 | esp-ndf warm boot, no ROM, XIP=lib | 854 - 860 us |
 | ratio (warm, no ROM) | **45x faster** |
 
@@ -350,7 +350,9 @@ ROM in hardware. It sets what the ROM would have (diffed register by register ag
 SPI0 DIO read setup, flash pads GPIO29-32 to SPI, data-cache SRAM connect, EXTMEM_CACHE_MMU_OWNER; the BBPLL and
 core voltage are analog (RTC domain) and still locked, so only the clock muxes are set. Split of the 0.81 ms (before the 21.5 KB image; now 0.78 ms):
 reset -> stage 15 us, clock ~70 us, image copy (22 KB, QIO 80 MHz through the cache) ~690 us, app init 19-32 us.
-Floor: flash bandwidth for the copy (~0.55 ms at QIO 80 MHz for 22 KB); headroom: skip re-copying unchanged IRAM
+Copy at 120 MHz: the stage sweeps IDF's timing table once through the data cache (or reuses the app's window, RTC
+memory note) and copies at 120 MHz; the app reuses the same window instead of sweeping. Floor: cache-line refill
+latency (~34 MB/s reached); headroom: skip re-copying unchanged IRAM
 code on warm resets (SRAM is kept through a system reset), or a smaller RAM image (XIP=all).
 
 

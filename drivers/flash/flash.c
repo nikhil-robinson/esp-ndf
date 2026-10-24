@@ -353,11 +353,19 @@ static void clock_120(void)
     static const uint8_t tab[12][3] = { {2, 0, 1}, {0, 0, 0}, {2, 2, 2}, {1, 0, 1}, {2, 0, 2}, {0, 0, 1},
                                         {2, 2, 3}, {1, 0, 2}, {2, 0, 3}, {0, 0, 2}, {2, 2, 4}, {1, 0, 3} };
     uint8_t ref[64], rd[64];
+    REG(CORE_CLK_SEL) &= ~3u; din_set(0, 0); xdummy = 0;            /* the warm-boot stage may have left 120 MHz */
+    REG(S0 + 0x14) = BIT(31); REG(S1 + 0x14) = BIT(31);              /* 80 MHz reference read */
     if (spi1_read(0, ref, sizeof ref)) return;
     uint32_t c0 = REG(S0 + 0x14), c1 = REG(S1 + 0x14), sel = REG(CORE_CLK_SEL);
     REG(CORE_CLK_SEL) = (sel & ~3u) | 1;                              /* core 120 MHz */
     REG(S0 + 0x14) = BIT(31); REG(S1 + 0x14) = BIT(31);              /* SPI clock = core clock */
     REG_SET(TIMING_CALI, BIT(0));
+    uint32_t note = REG(0x50001FE4u);                                 /* window found earlier (us or the loader) */
+    if ((note & 0xFFFF0000u) == 0x54310000u) {
+        din_set((note >> 8) & 7, (note >> 4) & 3); xdummy = note & 15;
+        memset(rd, 0, sizeof rd);
+        if (!spi1_read(0, rd, sizeof rd) && !memcmp(rd, ref, sizeof rd)) { flash_mhz = 120; return; }
+    }
     int run = 0, best_len = 0, best_end = -1;
     for (int k = 0; k < 12; k++) {
         din_set(tab[k][0], tab[k][1]); xdummy = tab[k][2];
@@ -367,6 +375,7 @@ static void clock_120(void)
         if (run > best_len) { best_len = run; best_end = k; }
     }
     if (best_len < 3 || best_len > 4) {                              /* no reliable window: back to 80 MHz */
+        REG(0x50001FE4u) = 0;
         din_set(0, 0); xdummy = 0;
         REG(CORE_CLK_SEL) = sel; REG(S0 + 0x14) = c0; REG(S1 + 0x14) = c1;
         return;
@@ -374,6 +383,7 @@ static void clock_120(void)
     int b = best_end - best_len / 2;
     din_set(tab[b][0], tab[b][1]); xdummy = tab[b][2];
     flash_mhz = 120;
+    REG(0x50001FE4u) = 0x54310000u | tab[b][0] << 8 | tab[b][1] << 4 | tab[b][2];   /* for the warm-boot stage (loader.c) */
 }
 
 static void mm_init(void)
