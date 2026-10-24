@@ -833,3 +833,10 @@ IDF sibling bench/idf_rsa gives the same results. Timings in PERFORMANCE.md.
 Public key, ECDH shared secret, ECDSA sign with the RFC 6979 A.2.5 k (r,s match the RFC) and verify of a python
 cryptography signature all PASS on C9:D0 (vectors bench/p256/gen_vectors.py); random keygen/sign/verify round trip
 passes, tampered signature and off-curve key are rejected. Same results from bench/idf_p256.
+
+## AES-GCM (`examples/gcm_test`, 2026-10-24)
+
+8 cases (AES-128/256, IV 12 and 16 bytes, AAD 0-20, 0 B..16 KB): tag and first ciphertext block equal python
+cryptography (bench/gcm/gen_vectors.py), decrypt in place restores the plaintext, a flipped tag bit is rejected.
+Found on the way: aes_block ran before aes_init on a first call and cached the key by pointer (a reused key buffer
+kept the old key); both fixed in aes_block, aes_test still PASS.

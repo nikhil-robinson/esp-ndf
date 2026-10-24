@@ -19,15 +19,14 @@
 #define AES_INC     (AES_BASE + 0x9C)     /* 0: 32-bit counter (CTR) */
 #define AES_DEXIT   (AES_BASE + 0xB8)
 
-static const uint8_t *cur_key;
-static int cur_mode = -1;
+static bool up;
 
 void aes_init(void)
 {
     periph_enable(PERIPH_AES);
     periph_enable(PERIPH_DS);             /* DS reset also holds AES in reset */
     REG(AES_DMA_EN) = 0;
-    cur_key = NULL; cur_mode = -1;
+    up = true;
 }
 
 static uint32_t ld(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | (uint32_t)p[3] << 24; }
@@ -35,11 +34,9 @@ static uint32_t ld(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u
 void aes_block(const uint8_t *key, int key_len, bool encrypt, const uint8_t in[16], uint8_t out[16])
 {
     int mode = (key_len == 32 ? 2 : 0) | (encrypt ? 0 : 4);
-    if (key != cur_key || mode != cur_mode) {          /* key regs survive between blocks */
-        for (int i = 0; i < key_len / 4; i++) REG(AES_KEY(i)) = ld(key + 4 * i);
-        REG(AES_MODE) = mode;
-        cur_key = key; cur_mode = mode;
-    }
+    if (!up) aes_init();
+    for (int i = 0; i < key_len / 4; i++) REG(AES_KEY(i)) = ld(key + 4 * i);   /* every block: a cache by pointer missed reused buffers */
+    REG(AES_MODE) = mode;
     for (int i = 0; i < 4; i++) REG(AES_IN(i)) = ld(in + 4 * i);
     REG(AES_TRIGGER) = 1;
     while (READ_ONCE(REG(AES_STATE))) ;
@@ -75,7 +72,6 @@ static void dma_run(int mode, const uint8_t *key, int key_len, bool enc, uint8_t
     static gdma_desc_t din[DESCS], dout[DESCS];
     for (int i = 0; i < key_len / 4; i++) REG(AES_KEY(i)) = ld(key + 4 * i);
     REG(AES_MODE) = (key_len == 32 ? 2 : 0) | (enc ? 0 : 4);
-    cur_key = 0; cur_mode = -1;                                   /* aes_block reloads its key */
     REG(AES_BMODE) = (uint32_t)mode;
     if (mode == AES_CTR) REG(AES_INC) = 0;
     if (mode != AES_ECB) for (int i = 0; i < 4; i++) REG(AES_IV(i)) = ld(iv + 4 * i);
@@ -124,7 +120,7 @@ static void cpu_mode(int mode, const uint8_t *key, int key_len, bool enc, uint8_
 
 int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t iv[16], const void *in, void *out, size_t len)
 {
-    static bool up; if (!up) { aes_init(); up = true; }
+    if (!up) aes_init();
     if ((key_len != 16 && key_len != 32) || mode < AES_ECB || mode > AES_CFB128 || mode == 4) return -1;
     if ((mode == AES_ECB || mode == AES_CBC) && (len & 15)) return -1;
     const uint8_t *s = in; uint8_t *d = out;

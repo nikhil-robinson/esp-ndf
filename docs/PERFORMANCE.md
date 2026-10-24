@@ -531,3 +531,16 @@ Exponentiation is the engine's own time (both drive the same block), so x^d is a
 
 Dedicated 8-limb Montgomery mod p/n vs mbedtls' generic bignum. Headroom: mixed (affine-table) adds, a comb table
 for G, Shamir's trick in verify and P-specific reduction would each cut more; not needed to beat IDF.
+
+## AES-GCM (`examples/gcm_test` vs `bench/idf_gcm`, C9:D0, 2026-10-24; key setup included on both sides)
+
+| us | esp-ndf encrypt / decrypt | ESP-IDF mbedtls encrypt / decrypt | gain |
+|---|---|---|---|
+| 15 B, AAD 20 | 46 / 46 | 120 / 70 | 2.6 / 1.5x |
+| 64 B | 53 / 52 | 124 / 75 | 2.3 / 1.4x |
+| 100 B, 16-byte IV | 71 / 72 | 152 / 106 | 2.1 / 1.5x |
+| 1000 B | 200 / 200 | 387 / 339 | 1.9 / 1.7x |
+| 16 KB, AES-128 / 256 | 2 501 / 2 514 | 4 571 / 4 567 (dec 4 530) | 1.8x |
+
+CTR on the engine (DMA) + GHASH with an 8-bit Shoup table in 32-bit words (mbedtls: 4-bit, 64-bit shifts). GHASH is
+~2.3 cycles/bit now; headroom: overlap DMA CTR with GHASH of the previous chunk (CTR is ~15% of the 16 KB time).
