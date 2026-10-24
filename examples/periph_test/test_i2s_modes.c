@@ -1,5 +1,6 @@
 #include "test.h"
 #include "i2s.h"
+#include "gpio.h"
 #include "fastmath.h"
 #include "sys.h"
 
@@ -84,9 +85,62 @@ static void pdm(void)
     CHECK(n_s > 20000 && hz > 980 && hz < 1020 && hi - lo > 4000 && snr >= 25);
 }
 
+/* STD framing formats: I2S0 TX master -> I2S1 RX slave in the same format, 16 kHz 2x16 bit (BCK 512 kHz).
+ * The stream must arrive in order, and the WS high time (sampled on GPIO4) must be what the format says:
+ * Philips / MSB / PCM long 16 bits, PCM short 1 bit. Cross check: TX Philips into RX MSB must NOT match. */
+static uint32_t fmt_run(int ftx, int frx, uint32_t *ws_hi_bits)
+{
+    i2s_cfg_t tx = { .fmt = ftx, .rate = 16000, .bits = 16, .mclk = -1, .bck = 12, .ws = 4, .dout = 10, .din = -1 };
+    i2s_cfg_t rx = { .fmt = frx, .rate = 16000, .bits = 16, .slave = true, .mclk = -1, .bck = 13, .ws = 4, .dout = -1, .din = 11 };
+    if (!i2s_init(0, &tx) || !i2s_init(1, &rx)) return ~0u;
+    uint16_t v = 1;
+    for (int k = 0; k < 4; k++) { for (int i = 0; i < 512; i++) out[i] = v++; i2s_write(0, out, sizeof out, 100000); }
+    i2s_start(1, false, true); i2s_start(0, true, false);
+    uint32_t seen = 0, bad = 0, t0 = ccount();
+    uint16_t prev = 0;
+    while (seen < 12000 && ccount() - t0 < 240000000u) {
+        for (int i = 0; i < 512; i++) out[i] = v++;
+        i2s_write(0, out, sizeof out, 100000);
+        int n = i2s_read(1, in, sizeof in, 0);
+        for (int i = 0; i < n / 2; i++) {
+            uint16_t x = in[i];
+            if (!seen && !x) continue;
+            if (seen && x != (uint16_t)(prev + 1)) bad++;
+            prev = x; seen++;
+        }
+    }
+    uint32_t hi = 0, nh = 0, rise = 0;                            /* WS high time, 8 pulses */
+    bool last = gpio_read(4);
+    for (uint32_t t1 = ccount(); nh < 8 && ccount() - t1 < 24000000u; ) {
+        bool w = gpio_read(4);
+        uint32_t c = ccount();
+        if (w && !last) rise = c;
+        if (!w && last && rise) { hi += c - rise; nh++; }
+        last = w;
+    }
+    i2s_stop(0); i2s_stop(1);
+    *ws_hi_bits = nh ? (hi / nh + 234) / 469 : 0;                 /* 469 cycles per bit at 512 kHz */
+    return seen < 12000 ? ~0u : bad;
+}
+
+static void fmts(void)
+{
+    static const char *nm[] = { "Philips", "MSB", "PCM short", "PCM long" };
+    static const uint8_t want_ws[] = { 16, 16, 1, 16 };
+    for (int f = 0; f < 4; f++) {                             /* back to back: also checks restart (no stale blocks) */
+        uint32_t ws, bad = fmt_run(f, f, &ws);
+        printf("    %-9s: TX->RX %lu errors, WS high %lu bit(s)\n", nm[f], bad, ws);
+        CHECK(bad == 0 && ws == want_ws[f]);
+    }
+    uint32_t ws, bad = fmt_run(I2S_PHILIPS, I2S_MSB, &ws);
+    printf("    TX Philips -> RX MSB: %lu samples out of order (the 1-bit shift is real)\n", bad);
+    CHECK(bad > 1000);
+}
+
 void test_i2s_modes(void)
 {
     __asm__ volatile("rsil a2, 0" ::: "a2");
     tdm();
     pdm();
+    fmts();
 }

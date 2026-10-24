@@ -3,6 +3,7 @@
 #include <math.h>
 #include "driver/i2s_tdm.h"
 #include "driver/i2s_pdm.h"
+#include "driver/i2s_std.h"
 #include "driver/gpio.h"
 #include "esp_cpu.h"
 
@@ -92,10 +93,68 @@ static void pdm(void)
     i2s_channel_disable(tx); i2s_channel_disable(rx); i2s_del_channel(tx); i2s_del_channel(rx);
 }
 
+/* STD framings, same run as esp-ndf fmt_run(): 16 kHz 2x16, I2S0 TX master -> I2S1 RX slave, WS high time on GPIO4 */
+static uint32_t fmt_run(int f, uint32_t *ws_bits)
+{
+    i2s_std_slot_config_t sc[4] = {
+        I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        I2S_STD_PCM_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+        I2S_STD_PCM_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+    };
+    sc[3].ws_width = 16;                                          /* PCM long (TDM preset values) */
+    i2s_chan_handle_t tx, rx;
+    i2s_chan_config_t cc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    i2s_new_channel(&cc, &tx, NULL);
+    i2s_chan_config_t rc = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_SLAVE);
+    i2s_new_channel(&rc, NULL, &rx);
+    i2s_std_config_t c = { .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(16000), .slot_cfg = sc[f],
+        .gpio_cfg = { .mclk = I2S_GPIO_UNUSED, .bclk = 12, .ws = 4, .dout = 10, .din = I2S_GPIO_UNUSED } };
+    c.clk_cfg.clk_src = I2S_CLK_SRC_PLL_160M;
+    i2s_channel_init_std_mode(tx, &c);
+    c.gpio_cfg = (i2s_std_gpio_config_t){ .mclk = I2S_GPIO_UNUSED, .bclk = 13, .ws = 4, .dout = I2S_GPIO_UNUSED, .din = 11 };
+    i2s_channel_init_std_mode(rx, &c);
+    i2s_channel_enable(rx); i2s_channel_enable(tx);
+    uint16_t v = 1, prev = 0; uint32_t seen = 0, bad = 0, t0 = esp_cpu_get_cycle_count(); size_t w, r;
+    while (seen < 12000 && esp_cpu_get_cycle_count() - t0 < 240000000u) {
+        for (int i = 0; i < 512; i++) out[i] = v++;
+        i2s_channel_write(tx, out, sizeof out, &w, 100);
+        r = 0; i2s_channel_read(rx, in, sizeof in, &r, 0);
+        for (int i = 0; i < (int)r / 2; i++) {
+            uint16_t x = in[i];
+            if (!seen && !x) continue;
+            if (seen && x != (uint16_t)(prev + 1)) bad++;
+            prev = x; seen++;
+        }
+    }
+    uint32_t hi = 0, nh = 0, rise = 0;
+    int last = gpio_get_level(4);
+    for (uint32_t t1 = esp_cpu_get_cycle_count(); nh < 8 && esp_cpu_get_cycle_count() - t1 < 24000000u; ) {
+        int ws = gpio_get_level(4);
+        uint32_t cy = esp_cpu_get_cycle_count();
+        if (ws && !last) rise = cy;
+        if (!ws && last && rise) { hi += cy - rise; nh++; }
+        last = ws;
+    }
+    i2s_channel_disable(tx); i2s_channel_disable(rx); i2s_del_channel(tx); i2s_del_channel(rx);
+    *ws_bits = nh ? (hi / nh + 234) / 469 : 0;
+    return seen < 12000 ? ~0u : bad;
+}
+
+static void fmts(void)
+{
+    static const char *nm[] = { "Philips", "MSB", "PCM short", "PCM long" };
+    for (int f = 0; f < 4; f++) {
+        uint32_t ws, bad = fmt_run(f, &ws);
+        printf("    %-9s: TX->RX %lu errors, WS high %lu bit(s)\n", nm[f], bad, ws);
+    }
+}
+
 void app_main(void)
 {
     for (int p = 4; p <= 13; p++) if (p < 7 || p > 9) gpio_reset_pin(p);
     tdm();
     pdm();
+    fmts();
     printf("idf_i2s_modes done\n");
 }

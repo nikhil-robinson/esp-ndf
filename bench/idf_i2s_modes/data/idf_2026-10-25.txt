@@ -1,0 +1,9 @@
+# bench/idf_i2s_modes on C9:D0, IDF v5.3.5, jumpers 12->13, 10->11, WS 4 (2026-10-25)
+    TDM: 20880 samples, 6960 masked zeros, 0 errors, tx init 175756 cycles
+    PDM rx init: 0
+    PDM loop: 24000 samples, 998 Hz, peak -5363..5363, SNR 38 dB, tx init 168759 cycles
+    Philips  : TX->RX 0 errors, WS high 16 bit(s)
+    MSB      : TX->RX 0 errors, WS high 16 bit(s)
+    PCM short: TX->RX 0 errors, WS high 1 bit(s)
+    PCM long : TX->RX 0 errors, WS high 16 bit(s)
+idf_i2s_modes done

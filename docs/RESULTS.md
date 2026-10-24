@@ -138,7 +138,8 @@ RXEOF_NUM is in bytes.
 |---|---|---|
 | TDM 4x16 bit, TX slot 2 masked, counter stream | 0 errors, every 4th slot 0 | 0 errors, same |
 | TDM TX init | **24.4k cycles** | 181k cycles |
-| PDM I2S0 duplex loop (TX PCM->PDM -> jumper -> RX PDM->PCM, 1 kHz) | 1000 Hz, peak +-5363, SNR 33 dB | 998 Hz, peak +-5363, SNR 38 dB |
+| PDM I2S0 duplex loop (TX PCM->PDM -> jumper -> RX PDM->PCM, 1 kHz) | 1000 Hz, peak +-5363, **SNR 99 dB** (was 33) | 998 Hz, peak +-5363, SNR 38 dB |
+| STD framings Philips / MSB / PCM short / PCM long, TX -> RX slave 16 kHz 2x16 | 0 errors each, WS high 16 / 16 / 1 / 16 bits, back-to-back restarts | same |
 | PDM init | **27.4k (TX+RX)** | 167k (TX alone) |
 
 Found on the way: (1) masked TDM TX slots take no buffer data; (2) at 4 slots the
@@ -146,7 +147,10 @@ ring lost EOF interrupts (two merged into one) - both ring ISRs now catch up to
 the descriptor the DMA reports; (3) out EOF means fetched, not played: writer
 keeps one block of margin; (4) PDM exists only on I2S0; (5) the fractional MCLK
 divider jitters the PDM clock (SNR 5-8 dB) - integer divider as IDF, so fs is
-52.083 kHz for 48 kHz asked (same as IDF; init returns the real rate).
+52.083 kHz for 48 kHz asked (same as IDF; init returns the real rate); (6) 2026-10-25: a restarted
+stream read blocks of the previous run (the GDMA kept reporting the old run's last EOF descriptor, so the
+ring ISR counted stale blocks): i2s_start now resets the channel as IDF does. That was the whole PDM SNR
+gap (stale blocks = the noise): 33 -> 99 dB. Data: bench/idf_i2s_modes/data/.
 
 ## SPI half duplex master + slave HD (`periph_test` spi_hd vs `bench/idf_spi_hd`, C9:D0, no jumpers)
 

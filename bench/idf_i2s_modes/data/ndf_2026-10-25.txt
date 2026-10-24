@@ -1,0 +1,13 @@
+[i2s_modes]
+    i2s_init() TDM TX                  24302 cycles
+    TDM 4x16: fs 48001.567 Hz (BCK 3.072 MHz)
+    TDM: 24448 samples, 8149 masked zeros, 0 errors, und 0 ovr 0
+    i2s_init() PDM TX+RX               24279 cycles
+    PDM duplex: fs 52083.333 Hz (integer divider as IDF: PDM clock = 128 fs)
+    PDM loop: 24128 samples, 1000 Hz (1000 sent), peak -5363..5363, SNR 99 dB, und 0 ovr 0
+    Philips  : TX->RX 0 errors, WS high 16 bit(s)
+    MSB      : TX->RX 0 errors, WS high 16 bit(s)
+    PCM short: TX->RX 0 errors, WS high 1 bit(s)
+    PCM long : TX->RX 0 errors, WS high 16 bit(s)
+    TX Philips -> RX MSB: 12286 samples out of order (the 1-bit shift is real)
+  PASS i2s_modes

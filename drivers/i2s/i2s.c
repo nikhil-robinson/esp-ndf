@@ -137,9 +137,13 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
         uint32_t cb = pdm && !dir ? 32 : bits;               /* IDF: PDM TX stereo runs 32-bit slots */
         if (pdm)                                             /* as IDF leaves them: ws 0, RX msb_shift, TX bck_no_dly */
             REG(conf1) = (bdiv - 1) << 7 | (cb - 1) << 13 | (half - 1) << 18 | (cb - 1) << 24 | (dir ? BIT(29) : BIT(30));
-        else
-            REG(conf1) = (half - 1) | (bdiv - 1) << 7 | (cb - 1) << 13 | (half - 1) << 18 | (cb - 1) << 24 | BIT(29);
+        else {                                               /* framing as IDF's slot presets: WS width, 1-bit delay */
+            uint32_t ws = c->fmt == I2S_PCM_SHORT ? 1 : c->fmt == I2S_PCM_LONG ? cb : half;
+            REG(conf1) = (ws - 1) | (bdiv - 1) << 7 | (cb - 1) << 13 | (half - 1) << 18 | (cb - 1) << 24 |
+                         (c->fmt != I2S_MSB ? BIT(29) : 0);
+        }
         REG(conf) = (c->slave || (dir && duplex) ? BIT(3) : 0) | BIT(12) | BIT(15) |
+                    (!pdm && c->fmt >= I2S_PCM_SHORT ? BIT(17) : 0) |   /* ws_idle_pol: PCM frames start on WS high */
                     (!pdm ? BIT(19) : dir ? BIT(20) | BIT(21) | (c->dout >= 0 ? BIT(22) : 0) : BIT(20)) |
                     (!dir && duplex ? BIT(27) : 0) |        /* tdm_en | pdm_en (+pdm2pcm, DSR16) | sig_loopback */
                     (pdm && !dir ? BIT(9) | BIT(13) : 0);
@@ -185,6 +189,7 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
 void i2s_start(int port, bool tx, bool rx)
 {
     port_t *p = &P[port];
+    gdma_reset(p->ch);                                      /* as IDF: else the EOF descriptor of the last run is reported */
     if (rx) {
         gdma_in_start(p->ch, &p->rxd[0]);
         REG_SET(RX_CONF(port), BIT(8)); while (REG(RX_CONF(port)) & BIT(8)) {}

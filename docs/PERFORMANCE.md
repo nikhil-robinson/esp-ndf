@@ -167,7 +167,7 @@ vector unit is off there).
 | LCD i80 | 300 B pixel send start, 8-bit (`test_lcd_i80` vs `bench/idf_lcd_i80`) | **1661 cycles** | 4586 cycles | 2.76x | done; both include the 4 us FIFO prefill (960) |
 | SPI half duplex | quad write 32 B, cmd+addr+dummy, 10 MHz (`test_spi_hd` vs `bench/idf_spi_hd`) | **2902 cycles** | 5754 cycles | 1.98x | done; floor 2112 (88 SCLK), 790 left |
 | I2S TDM | init 4 slots x 16 bit TX (`test_i2s_modes` vs `bench/idf_i2s_modes`) | **24.4k cycles** | 181k cycles | 7.4x | done; stream 0 errors both |
-| I2S PDM | init TX+RX duplex (IDF: TX alone) | **27.4k cycles** | 167k cycles | >6.1x | done; loop SNR 33 dB vs IDF 38 dB (registers identical, gap open) |
+| I2S PDM | init TX+RX duplex (IDF: TX alone) | **27.4k cycles** | 167k cycles | >6.1x | done; loop SNR **99 dB** vs IDF 38 dB (gap was stale ring blocks after restart, fixed) |
 | GPIO | set + clear | **10** | 95 | 9.5× | at floor (bus writes) |
 | Dedicated GPIO | set + clear | **3** | 45 | 15× | at floor |
 | RTC GPIO | set / get | **21 / 98** | 301 / 333 | 14× / 3.4× | — |

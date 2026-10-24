@@ -73,8 +73,10 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 6. Peripherals: remaining modes of finished drivers
 
-- [x] **I2S**: standard, TDM (2-16 slots, mask), PDM TX/RX (I2S0), full duplex, 8/16/24/32-bit;
-      [ ] PDM SNR 33 vs IDF 38 dB, [ ] ES7210 TDM mics on BOX-3 (section 9), [ ] LCD/ADC/camera modes (with LCD_CAM)
+- [x] **I2S**: standard, TDM (2-16 slots, mask), PDM TX/RX (I2S0), full duplex, 8/16/24/32-bit,
+      framings Philips / MSB / PCM short / PCM long (STD + TDM); [x] PDM SNR 99 dB vs IDF 38 (was 33: stale
+      blocks after restart, fixed); [ ] ES7210 TDM mics on BOX-3 (section 9);
+      LCD/ADC/camera modes: n/a on S3 (ESP32-only I2S modes, SOC_I2S_SUPPORTS_ADC_DAC / LCD_I80_VARIANT; the S3 does them with LCD_CAM: lcd_i80.h, cam.h, ADC continuous)
 - [x] **SPI master**: full duplex, half duplex cmd/addr/dummy on 1/2/4/8 lines (octal SPI2), SPI3 master,
       CS setup/hold, DMA chains to 32 KB per call (split above); [ ] DTR (DDR) phases, [ ] octal read (no octal slave to test)
 - [~] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) done; [ ] HD DMA (WRDMA/RDDMA), segmented transfer
