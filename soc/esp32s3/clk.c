@@ -58,11 +58,12 @@ static void spin_us(uint32_t us)           /* cpu_hz must be current */
 
 /* Core voltage: 28 for 240 MHz, 27 below (esp-idf untrimmed defaults).
  * ponytail: no eFuse PVT trim; add with the eFuse driver if a chip is marginal. */
-static void dig_dbias(int v)
+static void dig_dbias(int v, bool settle)
 {
     regi2c_write_mask(REGI2C_DIG, 4, 4, 0, v);    /* EXT_RTC_DREG */
     regi2c_write_mask(REGI2C_DIG, 6, 4, 0, v);    /* EXT_DIG_DREG */
-    spin_us(40);
+    if (settle) spin_us(40);                      /* raising: settle before the clock goes up; lowering: the clock
+                                                   * is already down, nothing waits on the voltage */
 }
 
 void clk_bbpll_init(void)
@@ -98,7 +99,7 @@ int clk_cpu_set_mhz(uint32_t mhz)
     }
     uint32_t ps = irq_lock();
     bool up = mhz * 1000000 > cpu_hz;
-    if (up && mhz == 240) dig_dbias(28);
+    if (up && mhz == 240) dig_dbias(28, true);
     if (up) REG_FIELD(RTC_DATE, 13, 6, 0x7 >> (mhz / 80));     /* LDO slaves first */
     if (sel < 0) {
         REG_FIELD(SYSTEM_SYSCLK_CONF, 10, 2, 0);                 /* XTAL /1 */
@@ -109,7 +110,7 @@ int clk_cpu_set_mhz(uint32_t mhz)
     bool was240 = cpu_hz == 240000000;
     cpu_hz = mhz * 1000000;
     if (!up) REG_FIELD(RTC_DATE, 13, 6, 0x7 >> (mhz / 80));
-    if (!up && was240) dig_dbias(27);
+    if (!up && was240) dig_dbias(27, false);
     irq_unlock(ps);
     return 0;
 }

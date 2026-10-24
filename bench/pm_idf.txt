@@ -1,0 +1,1 @@
+idf DFS: configure 0, lock 511 cycles, unlock 519 cycles; CPU idle 240 MHz, locked 240 MHz, released 239 MHz

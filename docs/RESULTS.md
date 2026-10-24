@@ -925,3 +925,9 @@ Found: (1) the ULP does not start with the RTC fast clock on XTAL/2 (our default
 does; (2) a program must clear COCPU DONE / SHUT_RESET_EN at its start (IDF start.S does), else the timer never
 restarts it (and later programs fail too - IDF's own ulp_riscv_run included). ulp_load switches the CPU reset vector
 to the ROM (the warm-boot jump shares 0x50000000) and the loader halts any running ULP before touching RTC memory.
+
+## CPU frequency locks (`examples/pm_test`, BOX-3, 2026-10-24)
+
+pm_config(240, 80): 80 MHz without a lock, 240 MHz with one, still 240 with a nested lock released, 80 after the last
+unlock (ccount vs systimer); delays exact at 80 MHz; lock count back to 0. IDF's DFS measured on the same board keeps
+the CPU at 240 MHz while a task runs (scaling happens in its idle task only).

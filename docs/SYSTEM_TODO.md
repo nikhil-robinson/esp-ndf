@@ -35,7 +35,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | C6 Watchdogs (RTC, super, TG1, XTAL32K) | **done**: TG0, TG1, RTC, super (XTAL32K with C1) |
 | | C7 Brownout, clock-glitch detection | **done**: brownout (interrupt, IDF levels), glitch + super-WDT resets |
 | **D. Power** | D1 Light sleep, deep sleep, wake sources | **none** |
-| | D2 Power domains, retention, frequency scaling | **none** |
+| | D2 Power domains, retention, frequency scaling | **partial**: CPU frequency locks (240/160/80, PLL on) that really switch while running; domains/retention wait for D1 |
 | | D3 ULP coprocessors (FSM, RISC-V) | **partial**: RISC-V + FSM loaders/run/stop, shared memory, 3.5x IDF start; wake-from-sleep (D1) and RTC I2C open |
 | **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
 | | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF; GCM (drivers/crypto/gcm.c) |
@@ -147,7 +147,7 @@ level + interrupt (cut motors, flush logs before the reset), clock-glitch detect
 sources (timer, ext0/ext1, GPIO, touch, UART, ULP, USB), RTC time across sleep, measured sleep currents vs IDF.
 Reference: `esp_hw_support/sleep_modes.c`, `esp_hw_support/port/esp32s3/rtc_sleep.c`, `hal/esp32s3/include/hal/rtc_cntl_ll.h`.
 
-**D2 Power domains, frequency scaling — none.** Domain control, peripheral retention, sleep pad configuration,
+**D2 Power domains, frequency scaling — partial.** include/pm.h, soc/esp32s3/pm.c, examples/pm_test vs bench/idf_pm. Open: power domains, retention, sleep pads (with D1). Was: none. Domain control, peripheral retention, sleep pad configuration,
 dynamic frequency scaling with locks.
 
 **D3 ULP coprocessors — partial (TRM 2).** include/ulp.h, soc/esp32s3/ulp.c, examples/ulp_test, bench/ulp (programs + build.sh), bench/idf_ulp. Open: waking the main CPU (needs D1 sleep) and RTC I2C. Was: none. ULP-FSM and ULP-RISC-V loaders, shared RTC memory, waking the main CPU, RTC I2C

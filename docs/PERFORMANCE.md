@@ -701,3 +701,13 @@ its constants (l32r + wfr); a fused vector kernel keeping them in FPU registers 
 
 Word-wise RTC slow-memory writes (~us per access) and no full-reserve memset; both sides calibrate the slow clock
 beforehand (ours: rtc_slow_hz(), ~2 ms, cached). ULP-FSM: 99 runs/s at 10 ms as well.
+
+## CPU frequency locks (`examples/pm_test` vs `bench/idf_pm`, BOX-3, 2026-10-24)
+
+| | esp-ndf pm_lock / pm_unlock | ESP-IDF esp_pm CPU_FREQ_MAX lock (DFS 240/80) |
+|---|---|---|
+| CPU while the task runs without a lock | 80 MHz (measured vs the system timer) | 240 MHz (IDF only scales down from the idle task) |
+| lock (80 -> 240, incl. the 40 us voltage settle) | 4886 cycles | 511 cycles (no switch happens) |
+| unlock (240 -> 80) | 1662 cycles (no settle needed going down) | 519 cycles (no switch) |
+
+APB stays 80 MHz on both (PLL on), so UART / USB keep running; delay_ms(10) measures 10 002 us at 80 MHz.
