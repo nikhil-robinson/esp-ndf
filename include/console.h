@@ -8,6 +8,7 @@ void console_init(void);
 int  console_write(const char *buf, int n);       /* returns bytes accepted */
 int  console_try_write(const char *buf, int n);   /* never waits; for hot loops */
 int  console_getc(void);                          /* received byte or -1, never waits */
+bool console_host_present(void);                  /* USB host attached (start-of-frame seen in the last 10 ms) */
 
 int  printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 int  vprintf(const char *fmt, va_list ap);

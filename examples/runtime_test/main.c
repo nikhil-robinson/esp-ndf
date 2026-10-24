@@ -157,3 +157,11 @@ TEST(nmi_under_irq_lock)
     printf("      NMI alarms during 20 ms of irq_lock: %lu\n", in_lock);
     UASSERT(in_lock >= 19 && in_lock <= 21);
 }
+
+TEST(usj_host_present)
+{
+    uint32_t t0 = ccount(); bool p = console_host_present(); uint32_t c = ccount() - t0;
+    delay_ms(3); bool p2 = console_host_present();
+    printf("      host present %d %d (%lu cycles)\n", p, p2, c);
+    UASSERT(p2);
+}

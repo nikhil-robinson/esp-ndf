@@ -106,7 +106,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       [x] OTG guard: usb_dev_start arms the RTC watchdog (RTC reset), usb_dev_poll feeds it, usb_dev_stop disarms;
       proof that the RTC reset clears RTC_CNTL and the console returns: examples/usb_safety_proof + tools/usb_safety_proof.py;
       CDC test re-run on C9:D0 with the guard (1152 / 1005 KB/s, 0 errors)
-- [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection
+- [x] USB Serial/JTAG: console out + input (`console_getc`); host presence `console_host_present()` (USB start-of-frame number moves every 1 ms, check 49 cycles; unplugged writes drop at once, IDF waits its TX timeout). JTAG-only mode: n/a (the console is ours; JTAG works with or without it)
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
 - [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); threshold interrupt: n/a on S3 (C6+ hardware)
 - [ ] Analog comparator, DAC, SDIO slave, Ethernet MAC, ISP, JPEG codec, PPA, parallel IO (n/a on S3)

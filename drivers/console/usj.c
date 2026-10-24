@@ -30,6 +30,18 @@ static int u0_write(const char *buf, int n, bool block)
     return k;
 }
 
+/* Host present = USB start-of-frame packets arrive (one per ms): the frame number moves. No frame for 10 ms
+ * means unplugged (or the host suspended the port): writes are dropped at once instead of waiting 2 ms each. */
+#define USJ_FRAM_NUM 0x60038024u
+static uint32_t sof_last, sof_t;
+bool console_host_present(void)
+{
+    if (NDF_CONSOLE != NDF_CONSOLE_USJ) return true;
+    uint32_t f = REG(USJ_FRAM_NUM) & 0x7FF, now = ccount();
+    if (f != sof_last) { sof_last = f; sof_t = now; return true; }
+    return now - sof_t < 10000u * (sys_cpu_hz() / 1000000);
+}
+
 int console_try_write(const char *buf, int n)
 {
     if (NDF_CONSOLE == NDF_CONSOLE_NONE) return n;
@@ -44,6 +56,7 @@ int console_write(const char *buf, int n)
 {
     if (NDF_CONSOLE == NDF_CONSOLE_NONE) return n;
     if (NDF_CONSOLE == NDF_CONSOLE_UART0) return u0_write(buf, n, true);
+    if (!console_host_present()) return n;                 /* unplugged: drop without waiting */
     uint32_t t = ccount(), lim = TIMEOUT_US * (sys_cpu_hz() / 1000000);
     int k = 0;
     while (k < n) {
