@@ -17,7 +17,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | **A. Compute** | A1 CPU cores, exceptions, faults | done |
 | | A2 FPU | **done**: floats in handlers of any level (lazy save), 0 cost when unused; IDF S3: not allowed |
 | | A3 PIE vector unit (the S3's "AI acceleration", TRM 1) | **done**: PIE in ISRs (lazy save), cookbook docs/PIE.md; QACC kernels in A5 |
-| | A4 DSP library (ESP-DSP equivalent) | partial: 8 primitive kernels |
+| | A4 DSP library (ESP-DSP equivalent) | **done**: FFT/rFFT/s16 FFT, windows, FIR/FIRD, biquad, vector, matrix, conv/corr, DCT, Kalman; 1.17-33x ESP-DSP, matmul/add_s16/dot at parity (same instruction floor) |
 | | A5 AI / NN library (ESP-NN equivalent) | **none** |
 | | A6 Math library (libm, fast math) | partial |
 | | A7 Multi-core | **done**: xc_call 24x esp_ipc, core stall/unstall |
@@ -60,7 +60,7 @@ vector unit (q0-q7, QACC/ACCX accumulators, `EE.*` instructions, int8/int16 SIMD
 kernels. Missing: PIE state save so handlers or a second context may use it; QACC (per-lane accumulator) kernels; a
 documented instruction cookbook (measured cycle counts, alignment rules, the S3 loop-buffer quirk).
 
-**A4 DSP library — partial.** Have (`dsp.h`, all PIE): `dsp_dot_s16`, `dsp_dot2_s16`, `dsp_add_s16_sat`,
+**A4 DSP library — done.** lib/dsp_fft.c, lib/dsp_filt.c, lib/dsp_kalman.c, lib/dsp_f32.S (FPU fed by PIE 128-bit loads); examples/dsp_lib vs bench/idf_dsplib, table bench/dsp/table.md. Was: partial. Have (`dsp.h`, all PIE): `dsp_dot_s16`, `dsp_dot2_s16`, `dsp_add_s16_sat`,
 `dsp_dot_f32`, `dsp_copy128(u)`, `dsp_set128`, `dsp_unpack_iq10`; decimating FIR inside `rf_rx_capture_dec`
 (12-13x faster than ESP-DSP `dsps_fird_s16`). Missing, each benchmarked against ESP-DSP:
 - FFT: radix-2/4, complex and real, int16 and float, bit reversal, windows (Hann, Blackman, flat-top)

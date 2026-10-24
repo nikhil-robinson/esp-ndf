@@ -616,3 +616,40 @@ with or without both features (and at the brownout commit ef16ef2); the 781 us f
 
 Handler using PIE + FPU, level-3 round trip 198 cycles vs 135 for an integer handler (+63: trap + 208-byte save /
 restore). IDF: PIE in ISRs not supported. Full per-instruction table: docs/PIE.md.
+
+## DSP library vs ESP-DSP 1.8.2 (`examples/dsp_lib` vs `bench/idf_dsplib`, BOX-3, same LCG inputs, best of 3, 2026-10-24)
+
+| cycles | esp-ndf | ESP-DSP 1.8.2 | gain |
+|---|---|---|---|
+| fft_f32 256 | 12055 | 14332 | 1.19x |
+| fft_f32 1024 | 58508 | 68849 | 1.18x |
+| fft_f32 4096 | 276695 | 324478 | 1.17x |
+| rfft_f32 1024 | 40636 | 58071 | 1.43x |
+| fft_s16 1024 | 22310 | 33466 | 1.50x |
+| win_hann 1024 | 30721 | 480763 | 15.65x |
+| win_blackman 1024 | 41985 | 957984 | 22.82x |
+| win_flattop 1024 | 58369 | 1932589 | 33.11x |
+| fir_f32 64 taps x 1024 | 118943 | 150103 | 1.26x |
+| fird_s16 32 taps /4 x 1024 | 11088 | 19148 | 1.73x |
+| biquad_f32 x 1024 | 9284 | 17440 | 1.88x |
+| add_f32 1024 | 2102 | 8220 | 3.91x |
+| mul_f32 1024 | 2102 | 8220 | 3.91x |
+| mulc_f32 1024 | 1848 | 7192 | 3.89x |
+| add_s16 1024 | 570 | 557 | 0.98x |
+| mul_s16 1024 >>15 | 569 | 684 | 1.20x |
+| dot_f32 1024 | 1570 | 1583 | 1.01x |
+| mat_mul_f32 16x16x16 | 6647 | 6282 | 0.95x |
+| mat_mul_f32 64x64x64 | 361991 | 359021 | 0.99x |
+| mat_mul_s16 64x64x64 >>15 | 76177 | 75512 | 0.99x |
+| conv_f32 1024 * 64 | 140291 | 276859 | 1.97x |
+| corr_f32 1024 . 64 | 110168 | 260962 | 2.37x |
+| dct_f32 256 | 19216 | 31129 | 1.62x |
+
+Every function is checked on the chip against a naive double-precision reference (FFTs, FIR, conv/corr, DCT,
+matmul, fird) and its probe values match ESP-DSP's (fft_s16 bit-identical; mat_mul_s16 within 1 LSB of ESP's
+rounding). Tricks: EE.LDF/STF.128 and .64 feed the FPU four (two) floats per instruction; FPU code scheduled for its
+4-cycle latency; radix-4 FFT with a twiddle-free first pass and a cached bit-reversal swap list; windows by float
+rotation instead of cosf per sample; FIR / conv / corr share one 4-output kernel with a rotating register window.
+At parity, by construction: float and int16 matrix multiply (21 instructions per 16 MACs / 2 per 8 MACs - the same
+inner loop as ESP-DSP's aes3 code: the issue floor), add_s16 (3 instructions per 8), dot_f32 (load-bound). ESP-DSP's
+add_s16 aes3 ignores its shift argument (output unshifted, unlike its ansi reference); ours honours it.

@@ -1,0 +1,26 @@
+idf fft2r_fc32+bitrev 256           25052 cycles  probe -4.9333 -2.2976 -2.6181
+idf fft4r_fc32+bitrev 256           14332 cycles  probe -4.9333 -2.2976 -2.6181
+idf fft2r_fc32+bitrev 1024         117668 cycles  probe -23.317 -21.361 -9.482
+idf fft4r_fc32+bitrev 1024          68849 cycles  probe -23.317 -21.361 -9.482
+idf fft2r_fc32+bitrev 4096         543344 cycles  probe -21.67 -33.959 50.911
+idf fft4r_fc32+bitrev 4096         324478 cycles  probe -21.67 -33.959 50.911
+idf real fft 1024 (fft2r 512+c2r)    58071 cycles  probe -15.634 -0.83842 19.966
+idf fft2r_sc16+bitrev 1024          33466 cycles  probe -102 -128 -196
+idf wind_hann 1024                 480763 cycles  probe 9.4175e-06 0.63422 1
+idf wind_blackman 1024             957984 cycles  probe 3.3659e-06 0.48575 1
+idf wind_flat_top 1024            1932589 cycles  probe -0.00042202 0.032509 0.99999
+idf fir_f32 64 taps x 1024         150103 cycles  probe 0.501 -1.2248 -0.32886
+idf fird_s16 32 taps /4 x 1024      19148 cycles  probe -4840 787 -2749
+idf biquad_f32 x 1024               17440 cycles  probe 0.59505 0.4362 -0.28505
+idf add_f32 1024                     8220 cycles  probe 0.41501 0.54639 1.0359
+idf mul_f32 1024                     8220 cycles  probe -0.030026 -0.24871 0.26814
+idf mulc_f32 1024                    7192 cycles  probe -0.047127 0.63137 0.39688
+idf add_s16 1024                      557 cycles  probe -11377 -21 7568
+idf mul_s16 1024                      684 cycles  probe 844 -632 436
+idf dotprod_f32 1024                 1583 cycles  probe -3.0811 -3.0811 -3.0811
+idf mult_f32 16x16x16                6282 cycles  probe 1.6228 0.78383 1.7623
+idf mult_f32 64x64x64              359021 cycles  probe 0.23086 -1.4652 6.0307
+idf mult_s16 64x64x64 >>15          75512 cycles  probe -4311 -3159 -3831
+idf conv_f32 1024 * 64             276859 cycles  probe 0.12037 -2.4197 -0.15703
+idf corr_f32 1024 . 64             260962 cycles  probe 4.4159 0.64587 1.8053
+idf dct_f32 256                     31129 cycles  probe -0.42162 1.2611 3.7578

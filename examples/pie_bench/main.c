@@ -38,6 +38,16 @@ int main(void)
     BENCH("ee.srs.accx (read ACCX, shift)", "movi a3, 0", "ee.srs.accx a2, a3, 0\n");
     BENCH("ee.vld.128.ip then dependent vadds (load-use)", "mov a2, %2", "ee.vld.128.ip q0, a2, 0\n ee.vadds.s16 q1, q0, q0\n");
     BENCH("ee.movi.32.a (lane to AR)", "", "ee.movi.32.a q0, a2, 0\n");
+    BENCH("FPU madd.s f0 (dependent chain)", "", "madd.s f0, f1, f2\n");
+    BENCH("FPU madd.s 4 independent accumulators", "", "madd.s f0, f4, f5\n madd.s f1, f4, f5\n madd.s f2, f4, f5\n madd.s f3, f4, f5\n");
+    BENCH("FPU madd.s 8 independent accumulators", "", "madd.s f0, f8, f9\n madd.s f1, f8, f9\n madd.s f2, f8, f9\n madd.s f3, f8, f9\n madd.s f4, f8, f9\n madd.s f5, f8, f9\n madd.s f6, f8, f9\n madd.s f7, f8, f9\n");
+    BENCH("FPU add.s dependent chain", "", "add.s f0, f0, f1\n");
+    BENCH("FPU add.s independent", "", "add.s f0, f2, f1\n add.s f3, f2, f1\n add.s f4, f2, f1\n add.s f5, f2, f1\n");
+    BENCH("FPU mul.s dependent", "", "mul.s f0, f0, f1\n");
+    BENCH("FPU lsi then use (load-use)", "mov a2, %2", "lsi f0, a2, 0\n add.s f1, f0, f0\n");
+    BENCH("FPU add.s then ssi (result-store)", "mov a2, %2", "add.s f0, f1, f2\n ssi f0, a2, 0\n");
+    BENCH("FPU lsi independent", "mov a2, %2", "lsi f0, a2, 0\n");
+    BENCH("FPU lsip (load + increment)", "mov a2, %2", "lsip f0, a2, 0\n");
     printf("pie_bench done\n");
     for (;;) {}
 }

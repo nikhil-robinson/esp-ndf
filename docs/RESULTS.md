@@ -889,3 +889,11 @@ Main loop dsp_dot_s16 over 4096 elements x 20 000 while level-1 and level-3 / le
 a float op: 0 wrong results in main and in ~4700 + ~8700 handler runs per level; fpu_isr still PASS. Found: a second
 cpu1_start tripped core 1's stack guard (the ROM start stub runs on its own stack) -> panic; cpu1_start now disarms
 core 1's guard, sys_start1 re-arms it.
+
+## DSP library (`examples/dsp_lib`, BOX-3, 2026-10-24)
+
+26 checks PASS: complex float FFT 256/1024/4096 (rel. error < 1e-5 vs DFT), rfft, int16 FFT (<= 16 LSB of DFT/n:
+PIE truncation bias, bit-identical to ESP-DSP), windows (Hann exact, flat-top = ESP's normalised coefficients),
+FIR 64 taps, decimating FIR, biquad, vector ops, int16 add/mul, matmul f32/s16, conv, corr, DCT-II (vs direct sum),
+Kalman (2-state constant velocity from noisy positions: v 0.5025 for 0.5). Bugs on the way: twiddle table only
+4-byte aligned broke EE.LDF.64 (NaN); EE.LDF.64.XP stepped before the load; fmax() hid NaNs in the check.
