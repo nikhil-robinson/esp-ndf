@@ -1,7 +1,10 @@
 /* USB OTG full-speed device (TRM ch. 32, DWC2 core), CDC-ACM function: the host sees a serial port (/dev/ttyACMx,
  * no driver needed). The S3's USB is full speed only (12 Mbit/s, ~1.2 MB/s bulk at most); there is no high speed.
  * The internal PHY is shared with USB Serial/JTAG: usb_dev_start takes it (the USB-JTAG console and flashing drop
- * off the bus), usb_dev_stop gives it back. Buffer-DMA mode; polled: call usb_dev_poll often (no interrupt yet). */
+ * off the bus), usb_dev_stop gives it back. Buffer-DMA mode; polled: call usb_dev_poll often (no interrupt yet).
+ * Guard: usb_dev_start arms the RTC watchdog (RTC reset, NDF_USB_GUARD_MS, default 3 s), usb_dev_poll feeds it and
+ * usb_dev_stop disarms it: if the app stops polling (hang, halted panic), the chip resets with the PHY back on
+ * USB-JTAG. Apps that use the RTC watchdog themselves set NDF_USB_GUARD_MS 0. */
 #pragma once
 #include "ndf.h"
 

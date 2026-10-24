@@ -11,6 +11,15 @@
 #include "sys.h"
 #include "xtensa.h"
 #include <string.h>
+#include "wdt.h"
+
+/* OTG guard: while the PHY belongs to OTG the USB Serial/JTAG link is gone, so a hang or a halted panic would leave
+ * the board unreachable. The RTC watchdog (RTC reset: clears RTC_CNTL_USB_CONF, the PHY select - proven by
+ * examples/usb_safety_proof) runs for the whole OTG session and is fed from usb_dev_poll(). */
+#ifndef NDF_USB_GUARD_MS
+#define NDF_USB_GUARD_MS 3000
+#endif
+static uint32_t guard_fed;
 
 #define OTG             USB_OTG_BASE
 #define R(o)            REG(OTG + (o))
@@ -223,6 +232,7 @@ void usb_dev_poll(void)
 {
     if (!started) return;
     uint32_t c0 = ccount(), s = R(GINTSTS);
+    if (NDF_USB_GUARD_MS && c0 - guard_fed > 24000000u) { rtc_wdt_feed(); guard_fed = c0; }   /* every 100 ms */
     if (!(s & (GINT_USBRST | GINT_ENUMDNE | GINT_IEPINT | GINT_OEPINT))) return;   /* nothing to do (not counted) */
     if (s & GINT_USBRST) { R(GINTSTS) = GINT_USBRST; bus_reset(); }
     if (s & GINT_ENUMDNE) { R(GINTSTS) = GINT_ENUMDNE; R(DIEPCTL(0)) &= ~3u; ep0_out_arm(); }   /* EP0 64 bytes */
@@ -272,6 +282,8 @@ void usb_dev_poll(void)
 int usb_dev_start(void)
 {
     if (started) return 0;
+    if (NDF_USB_GUARD_MS && rtc_wdt_start(NDF_USB_GUARD_MS, true)) return -1;   /* before the PHY leaves USB-JTAG */
+    guard_fed = ccount();
     periph_enable(PERIPH_USB);
     REG(USB_WRAP_CONF) = BIT(31) | BIT(18) | BIT(0);   /* reg clock, pad enable, internal PHY, session-end forced low */
     gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_IDDIG, false);     /* B-device */
@@ -315,6 +327,7 @@ void usb_dev_stop(void)
     started = false; configured = false;
     REG(RTC_USB_CONF) &= ~(BIT(20) | BIT(19));        /* PHY back to USB Serial/JTAG (eFuse default) */
     periph_disable(PERIPH_USB);
+    if (NDF_USB_GUARD_MS) rtc_wdt_stop();             /* the link is back: guard off */
 }
 
 bool usb_cdc_ready(void) { return configured; }

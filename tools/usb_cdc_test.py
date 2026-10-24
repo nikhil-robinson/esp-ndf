@@ -6,7 +6,9 @@ import serial, glob, time, struct, sys
 IDF = '--idf' in sys.argv; sys.argv = [a for a in sys.argv if a != '--idf']   # IDF sibling: TinyUSB takes the PHY at boot
 SECS = int(sys.argv[1]) if len(sys.argv) > 1 else 25
 NBYTES = int(float(sys.argv[2]) * 1e6) if len(sys.argv) > 2 else 4000000
-USJ = glob.glob('/dev/serial/by-id/usb-Espressif_USB_JTAG*')
+PORT = [a[7:] for a in sys.argv if a.startswith('--port=')]                     # several boards: name the USB-JTAG port
+sys.argv = [a for a in sys.argv if not a.startswith('--port=')]
+USJ = PORT or glob.glob('/dev/serial/by-id/usb-Espressif_USB_JTAG*')
 assert USJ or IDF, 'USB Serial/JTAG port not found'
 USJ = USJ[0] if USJ else None
 def opn(port, timeout):
@@ -52,7 +54,7 @@ if cdc:
         rec, err = struct.unpack('<II', r) if len(r) == 8 else (-1, -1)
         print('upload %d bytes in %.3f s = %.0f KB/s, device received %d errors %d' % (NBYTES, dt, NBYTES / dt / 1e3, rec, err))
     except Exception as e: print('upload stage failed:', e)
-port = wait_port('/dev/serial/by-id/usb-Espressif_USB_JTAG*', SECS + 15)
+port = wait_port(USJ if USJ else '/dev/serial/by-id/usb-Espressif_USB_JTAG*', SECS + 15)   # the same board's port
 print('USB Serial/JTAG back:', bool(port))
 if port:
     c = opn(port, 3); end = time.time() + 6

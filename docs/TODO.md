@@ -100,8 +100,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV
 - [~] **USB OTG** (ch. 32): device CDC-ACM done (1.32x / 1.97x IDF); **todo**: HID, MSC, vendor, host, role switch.
-      Safety first (PHY mux RTC_CNTL_USB_CONF is RTC domain): arm the RTC watchdog with RTC reset for every OTG
-      window, prove on a harmless path that this reset clears RTC_CNTL registers, then run new class code
+      [x] OTG guard: usb_dev_start arms the RTC watchdog (RTC reset), usb_dev_poll feeds it, usb_dev_stop disarms;
+      proof that the RTC reset clears RTC_CNTL and the console returns: examples/usb_safety_proof + tools/usb_safety_proof.py;
+      CDC test re-run on C9:D0 with the guard (1152 / 1005 KB/s, 0 errors)
 - [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
 - [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); [ ] threshold interrupt
