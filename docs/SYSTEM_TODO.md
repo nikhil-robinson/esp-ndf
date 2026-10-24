@@ -15,7 +15,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | Category | Element | Status |
 |---|---|---|
 | **A. Compute** | A1 CPU cores, exceptions, faults | done |
-| | A2 FPU | partial |
+| | A2 FPU | **done**: floats in handlers of any level (lazy save), 0 cost when unused; IDF S3: not allowed |
 | | A3 PIE vector unit (the S3's "AI acceleration", TRM 1) | partial |
 | | A4 DSP library (ESP-DSP equivalent) | partial: 8 primitive kernels |
 | | A5 AI / NN library (ESP-NN equivalent) | **none** |
@@ -52,8 +52,8 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 **A1 CPU cores — done.** Dual Xtensa LX7, own vectors and start code, fault handler with registers and exact DWARF
 backtrace, interrupt levels 1-5, naked level 4/5 handlers.
 
-**A2 FPU — partial.** Single precision on, own soft-double (`lib/double.*`, faster than IDF ROM). Missing: FPU use
-inside interrupt handlers (today a fault; lazy save of the FPU state would allow it).
+**A2 FPU — done.** Single precision on, own soft-double (`lib/double.*`, faster than IDF ROM); floats in interrupt
+handlers of every level, nested, by lazy save (arch/xtensa/vectors.S, examples/fpu_isr). Was: partial.
 
 **A3 PIE vector unit — partial (TRM 1).** The S3 has no separate NPU: AI and DSP acceleration is the PIE 128-bit
 vector unit (q0-q7, QACC/ACCX accumulators, `EE.*` instructions, int8/int16 SIMD). Have: enabled at boot, used by our

@@ -564,3 +564,16 @@ Same 8-limb Montgomery field code as P-256 (generic for p = 2^255-19). Headroom:
 Ours runs fn in core 1's cross-core interrupt (level 3); IDF wakes an IPC task (context switch each way). Floor: the
 bare notify round trip is 127 cycles at level 3 (xcore_notify), so the call adds ~117 cycles of handoff. IDF's
 esp_ipc_isr path is assembly-callback only and not compared. Core 1 resumes 261 cycles after xc_unstall.
+
+## Floats in interrupt handlers (`examples/fpu_isr`, C9:D0, 2026-10-24)
+
+| | esp-ndf | ESP-IDF (ESP32-S3) |
+|---|---|---|
+| float in a handler | any level 1-5, nested | not allowed (CONFIG_FREERTOS_FPU_IN_ISR: ESP32 only, level 1 only) |
+| handler without floats | +0 to +6 cycles round trip (xcore_notify 188/170/141 vs 185/164/143 at L1/L3/L5) | - |
+| handler with floats, round trip L3 / L5 | 347 / 320 cycles (int-only handler 147 / 128) | - |
+
+Lazy save: the first FP instruction in a handler traps once, the trap stores f0-f15, FCR, FSR and BR of the
+interrupted context in a slot per (core, INTLEVEL); the exit restores them only if CP0 is on (2 instructions when not).
+The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handler's own sqrt. IRQ entry latency
+(irq_latency): L1 76, L3 66, L5 50 cycles (RESULTS table: 76 / 63 / 46; layout shift, entry code unchanged except L1).

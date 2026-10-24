@@ -207,7 +207,7 @@ NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vad
                                "inst fetch privilege", "?", "inst fetch prohibited", "?", "?", "?", "load/store TLB miss",
                                "load/store TLB multi hit", "load/store privilege", "?", "load prohibited", "store prohibited" };
     char why[96];
-    const char *cs = cause < sizeof c / sizeof c[0] ? c[cause] : (cause >= 32 && cause < 40 ? "coprocessor disabled (float/vector in an ISR?)" : "?");
+    const char *cs = cause < sizeof c / sizeof c[0] ? c[cause] : (cause >= 32 && cause < 40 ? "coprocessor disabled (vector/PIE in an ISR?)" : "?");
     snprintf(why, sizeof why, "%s, EXCCAUSE %lu (%s), EXCVADDR 0x%08lx", k[kind & 3], (unsigned long)cause, cs, (unsigned long)vaddr);
     ndf_panic(why, pc, frame, sp);
 }

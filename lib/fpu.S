@@ -2,7 +2,7 @@
  * instructions (div0/sqrt0 seed, maddn Newton steps, divn final rounding):
  * correctly rounded IEEE results, including denormals and specials.
  * Same instruction sequence as the Cadence/ESP ROM routines, CALL0 ABI
- * (no windowed entry/retw). FPU must be enabled: not for use in ISRs. */
+ * (no windowed entry/retw). Usable in interrupt handlers too (lazy FPU save, arch/xtensa/vectors.S). */
 #include "soc_caps.h"
 #if SOC_CPU_HAS_FPU
     .text

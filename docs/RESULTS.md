@@ -850,3 +850,11 @@ C9:D0; P-256 test re-run after the move to lib/ecc.c still PASS. Same results fr
 
 10 000 xc_call round trips from core 0: each result came from core 1 with the right argument. xc_stall(1): core 1's
 counter did not move for 2 ms; after xc_unstall it counted again. PASS on C9:D0.
+
+## Floats in interrupt handlers (`examples/fpu_isr`, 2026-10-24)
+
+Core 0 runs a float chain kept in FP registers while core 1 storms a level-1 handler (float loop) and a level-3 or
+level-5 handler (sqrtf) that preempts it: main result bit-equal to the run without interrupts, 0 wrong handler results
+in ~4400 L1 + ~8400 L3/L5 runs. Bug found on the way: the trap overwrote EPC1, so the level-1 exit returned into the
+handler; EPC1 is now kept in the level-1 frame. BR (FP compare results) is part of the saved state. periph_test (21),
+core_test, irq_latency, xcore_notify re-run: PASS.

@@ -14,14 +14,20 @@
  * INTLEVEL = n), because with EXCM set the core never loops back in a
  * zero-overhead LOOP: every C loop in a handler would run its body once.
  *
- * FPU is disabled (CPENABLE = 0) inside handlers: an ISR touching floats
- * traps into ndf_fault() instead of corrupting the interrupted FP state. */
+ * FPU in handlers, lazily: handlers start with CPENABLE = 0. The first FP
+ * instruction traps (Coprocessor0Disabled); the trap saves the FP registers
+ * (and BR) of the interrupted context into fpu_save[core][INTLEVEL] (nested
+ * handlers always have a higher INTLEVEL, so the level names the owner) and
+ * returns with CP0 on. Handler exit restores them when CP0 is on: 2
+ * instructions on the common no-FP path (+2 on level 1 for EPC1, which the
+ * trap overwrites). */
 
 #include "soc_intr.h"
 
 #define PS_UM       0x20
 #define PS_EXCM     0x10
 #define FRAME       80     /* 16 saved words + PS (level 1) + pad, 16-aligned */
+#define FPU_SLOT    76     /* f0-f15, FCR, FSR, BR */
 
 /* ---- vector tables (VECBASE, 1 KB aligned), one per core --------------
  * Same content; separate copies so a naked level-4/5 handler can be patched
@@ -139,6 +145,71 @@ _vector_table:
     addi    a1, a1, FRAME
 .endm
 
+/* Handler at INTLEVEL lvl used the FPU (CP0 still on: it trapped, since
+ * every handler starts with CPENABLE = 0): put back what it displaced. */
+.macro FPU_EXIT lvl
+    rsr     a2, cpenable
+    beqz    a2, .Lfx\@
+    rsr     a2, prid
+    extui   a2, a2, 13, 1
+    movi    a3, FPU_SLOT * 6
+    mull    a3, a3, a2
+    movi    a4, fpu_save + FPU_SLOT * \lvl
+    add     a3, a3, a4
+    FPU_LOAD a3
+.Lfx\@:
+.endm
+
+.macro FPU_LOAD r
+    lsi f0, \r, 0
+    lsi f1, \r, 4
+    lsi f2, \r, 8
+    lsi f3, \r, 12
+    lsi f4, \r, 16
+    lsi f5, \r, 20
+    lsi f6, \r, 24
+    lsi f7, \r, 28
+    lsi f8, \r, 32
+    lsi f9, \r, 36
+    lsi f10, \r, 40
+    lsi f11, \r, 44
+    lsi f12, \r, 48
+    lsi f13, \r, 52
+    lsi f14, \r, 56
+    lsi f15, \r, 60
+    l32i a4, \r, 64
+    wur.fcr a4
+    l32i a4, \r, 68
+    wur.fsr a4
+    l32i a4, \r, 72
+    wsr  a4, br
+.endm
+
+.macro FPU_STORE r
+    ssi f0, \r, 0
+    ssi f1, \r, 4
+    ssi f2, \r, 8
+    ssi f3, \r, 12
+    ssi f4, \r, 16
+    ssi f5, \r, 20
+    ssi f6, \r, 24
+    ssi f7, \r, 28
+    ssi f8, \r, 32
+    ssi f9, \r, 36
+    ssi f10, \r, 40
+    ssi f11, \r, 44
+    ssi f12, \r, 48
+    ssi f13, \r, 52
+    ssi f14, \r, 56
+    ssi f15, \r, 60
+    rur.fcr a4
+    s32i a4, \r, 64
+    rur.fsr a4
+    s32i a4, \r, 68
+    rsr  a4, br                      /* FP compares write booleans: BR belongs to the FP state here */
+    s32i a4, \r, 72
+.endm
+
 /* Call every pending + enabled handler of this level, lowest int first,
  * until none remain. a2-a11 are free (saved); handlers clobber them, so the
  * table base lives in the frame (slot 68). */
@@ -179,17 +250,46 @@ _l1_entry:
     bnei    a2, 4, _l1_exception     /* 4 = Level1InterruptCause */
     rsr     a2, ps                   /* interrupted PS (+EXCM): restored exactly */
     s32i    a2, a1, 64
+    rsr     a2, epc1                 /* the lazy-FPU trap in a handler overwrites EPC1 */
+    s32i    a2, a1, 72
     movi    a2, PS_UM | 1            /* EXCM=0, INTLEVEL=1: allow nesting */
     wsr     a2, ps
     rsync
     DISPATCH SOC_INTR_L1_MASK
+    FPU_EXIT 1
+    l32i    a2, a1, 72
+    wsr     a2, epc1
     l32i    a2, a1, 64               /* back to EXCM=1 + original INTLEVEL for rfe */
     wsr     a2, ps
     rsync
     RESTORE
     rfe
 
-_l1_exception:                       /* frame holds a0..a11; add a12..a15 for the dump */
+_l1_exception:
+    bnei    a2, 32, _l1_fault        /* 32 = Coprocessor0Disabled */
+    rsr     a3, ps
+    extui   a3, a3, 0, 4             /* INTLEVEL: the handler that touched the FPU */
+    beqz    a3, _l1_fault            /* not in a handler: CP0 was off on purpose */
+    bgei    a3, 6, _l1_fault
+    rsr     a2, prid
+    extui   a2, a2, 13, 1
+    movi    a5, FPU_SLOT * 6
+    mull    a5, a5, a2
+    movi    a4, fpu_save
+    add     a5, a5, a4
+    movi    a4, FPU_SLOT
+    mull    a4, a4, a3
+    add     a5, a5, a4               /* fpu_save[core][lvl] */
+    movi    a4, 1
+    wsr     a4, cpenable
+    rsync
+    FPU_STORE a5
+    movi    a4, 1
+    s32i    a4, a1, 60               /* the handler resumes with CP0 on */
+    RESTORE
+    rfe                              /* re-runs the FP instruction */
+
+_l1_fault:                           /* frame holds a0..a11; add a12..a15 for the dump */
     s32i    a12, a1, 64
     s32i    a13, a1, 68
     s32i    a14, a1, 72
@@ -211,6 +311,7 @@ _l1_exception:                       /* frame holds a0..a11; add a12..a15 for th
 _l\lvl\()_entry:
     SAVE    excsave\lvl, PS_UM | \lvl   /* EXCM = 0: zero-overhead loops only loop back with it clear; rfi restores PS from EPSn */
     DISPATCH \mask
+    FPU_EXIT \lvl
     RESTORE
     rfi     \lvl
 .endm
@@ -228,6 +329,7 @@ _l\lvl\()_entry:
     l32i    a4, a3, 0
     l32i    a2, a3, 4
     callx0  a4
+    FPU_EXIT \lvl
     RESTORE
     rfi     \lvl
 .endm
@@ -280,3 +382,8 @@ _unexpected:
     wsr     a8, ps
     rsync
     call0   ndf_fault
+
+    .section .bss
+    .align 4
+    .global fpu_save
+fpu_save:   .space FPU_SLOT * 6 * 2  /* [core][INTLEVEL 0..5] */
