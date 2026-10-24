@@ -23,6 +23,7 @@ int main(void)
     run("mcpwm", test_mcpwm);
     run("pcnt", test_pcnt);
     run("rmt", test_rmt);
+    run("rmt_ext", test_rmt_ext);
     run("sdm", test_sdm);
     run("uart", test_uart);
     run("uart_modes", test_uart_modes);

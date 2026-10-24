@@ -5,6 +5,7 @@
 #include "irq.h"
 #include "xtensa.h"
 #include "sys.h"
+#include "gdma.h"
 
 #define RMT_BASE        0x60016000
 #define RMT_RAM(c)      ((volatile uint32_t *)(0x60016800 + (c) * 48 * 4))  /* c = 0..7 */
@@ -17,9 +18,12 @@
 #define INT_ENA         (RMT_BASE + 0x78)
 #define INT_CLR         (RMT_BASE + 0x7C)
 #define CARRIER(c)      (RMT_BASE + 0x80 + 4 * (c))   /* b15:0 low b31:16 high (in group clock cycles) */
+#define RX_CARRIER(c)   (RMT_BASE + 0x90 + 4 * (c))   /* b15:0 low-1 b31:16 high-1 (channel ticks) */
 #define TX_LIM(c)       (RMT_BASE + 0xA0 + 4 * (c))   /* b8:0 threshold */
 #define RX_LIM(c)       (RMT_BASE + 0xB0 + 4 * (c))
 #define SYS_CONF        (RMT_BASE + 0xC0)
+#define TX_SIM          (RMT_BASE + 0xC4)   /* b3:0 channels b4 enable */
+#define REF_CNT_RST     (RMT_BASE + 0xC8)   /* b3:0 reset TX clock dividers */
 #define SIG(c)          (81 + (c))
 #define SRC_RMT         40
 
@@ -32,11 +36,15 @@
 #define TX_IDLE_EN BIT(6)
 #define TX_CARRIER BIT(21)
 #define TX_UPDATE  BIT(24)
+#define TX_CONTI   BIT(3)
+#define TX_DMA     BIT(25)
+/* TX_LIM: b18:9 loop count b19 loop count en b20 loop count reset b21 stop at count */
+#define LOOP_END(c) BIT(12 + (c))
 
 /* interrupt bits: TX c: end 0+c, thr 8+c; RX c: end 16+c, thr 24+c */
 #define HALF 24
 
-typedef struct { const uint32_t *src; size_t left; volatile bool busy; uint32_t base; } tx_t;
+typedef struct { const uint32_t *src; size_t left; volatile bool busy; uint32_t base; bool dma; } tx_t;
 typedef struct { uint32_t *dst; size_t max, got; volatile int done; uint32_t rd; } rx_t;
 static tx_t tx[4];
 static rx_t rx[4];
@@ -85,7 +93,10 @@ RAM_FN void rmt_isr(void *arg)
             tx_fill(c, t->base, HALF);
             t->base ^= HALF;
         }
-        if (st & BIT(0 + c)) tx[c].busy = false;
+        if (st & (BIT(0 + c) | LOOP_END(c))) {
+            tx[c].busy = false;
+            if (st & LOOP_END(c)) REG_CLR(INT_ENA, LOOP_END(c));
+        }
         if (st & BIT(24 + c))                               /* RX: half full -> drain */
             rx_drain(c, (REG(RX_STATUS(c)) & 0x3FF) - (4 + c) * 48);
         if (st & BIT(16 + c)) {
@@ -155,6 +166,8 @@ uint32_t rmt_rx_init(int c, int pin, uint32_t hz, uint32_t idle, uint32_t filter
 int rmt_rx_start(int c, rmt_item_t *buf, size_t max)
 {
     rx[c] = (rx_t){ .dst = (uint32_t *)buf, .max = max };
+    REG_CLR(RX_CONF0(c), BIT(23));                          /* back from DMA mode */
+    REG(RX_LIM(c)) = HALF;
     REG(INT_CLR) = BIT(16 + c) | BIT(24 + c);
     REG_SET(INT_ENA, BIT(16 + c) | BIT(24 + c));
     uint32_t c1 = REG(RX_CONF1(c)) & ~BIT(0);
@@ -168,4 +181,124 @@ int rmt_rx_wait(int c, uint32_t us)
     uint32_t t = ccount(), lim = us * (sys_cpu_hz() / 1000000);
     while (!READ_ONCE(rx[c].done)) if (ccount() - t > lim) return -1;
     return rx[c].got;
+}
+
+/* ---- loop, sync, demodulation, DMA, WS2812 ---- */
+
+int rmt_tx_loop(int c, const rmt_item_t *items, size_t n, uint32_t loops)
+{
+    tx_t *t = &tx[c];
+    if (c < 0 || c > 3 || t->busy || !n || n > 47 || loops > 1023) return -1;
+    volatile uint32_t *ram = RMT_RAM(c);
+    for (size_t i = 0; i < n; i++) ram[i] = items[i].val;
+    ram[n] = 0;                                             /* end of one pass */
+    t->left = 0; t->busy = true;
+    /* IDF rmt_tx: conti mode, loop count + auto stop, LOOP_END interrupt; loops = 0: until rmt_tx_stop */
+    REG(TX_LIM(c)) = HALF | BIT(20);
+    REG(TX_LIM(c)) = HALF | (loops ? loops << 9 | BIT(19) | BIT(21) : 0);
+    REG(INT_CLR) = BIT(c) | LOOP_END(c);
+    REG_CLR(INT_ENA, BIT(8 + c) | BIT(c));
+    if (loops) REG_SET(INT_ENA, LOOP_END(c));
+    uint32_t cfg = REG(TX_CONF0(c)) & ~(TX_WRAP | TX_START);
+    REG(TX_CONF0(c)) = cfg | TX_CONTI | TX_RD_RST | TX_UPDATE;
+    REG(TX_CONF0(c)) = cfg | TX_CONTI | TX_START | TX_UPDATE;
+    return 0;
+}
+
+void rmt_tx_stop(int c)
+{
+    REG(TX_CONF0(c)) = (REG(TX_CONF0(c)) & ~(TX_CONTI | TX_START)) | BIT(7) | TX_UPDATE;   /* tx_stop */
+    REG(TX_LIM(c)) = HALF;
+    REG_CLR(INT_ENA, LOOP_END(c));
+    tx[c].busy = false;
+}
+
+void rmt_tx_sync(uint32_t mask)
+{
+    /* IDF sync manager: channels in TX_SIM start together once all of them got start; reset their dividers */
+    REG(TX_SIM) = mask ? (mask & 15) | BIT(4) : 0;
+    if (mask) REG(REF_CNT_RST) = mask & 15;
+}
+
+void rmt_rx_demod(int c, uint32_t hz, uint32_t res_hz, int duty_pct, bool active_high)
+{
+    if (!hz) { REG_CLR(RX_CONF0(c), BIT(28)); return; }
+    /* IDF rmt_rx_demodulate_carrier: thresholds in channel ticks */
+    /* the thresholds are maxima: +25 % so a carrier at the nominal duty still counts */
+    uint32_t tot = res_hz / hz, hi = tot * duty_pct * 5 / 400, lo = (tot - tot * duty_pct / 100) * 5 / 4;
+    if (!hi) hi = 1;
+    if (!lo) lo = 1;
+    REG(RX_CARRIER(c)) = (hi - 1) << 16 | (lo - 1);
+    REG(RX_CONF0(c)) = (REG(RX_CONF0(c)) & ~BIT(29)) | BIT(28) | (active_high ? BIT(29) : 0);
+    REG_SET(RX_CONF1(c), BIT(15));
+}
+
+/* DMA: TX channel 3 and RX channel 3 only (TRM: RMT ch3 / ch7). Buffers in internal RAM. */
+static int dma_ch = -1;
+static gdma_desc_t dtx[9], drx[8];
+static const uint32_t s_zero __attribute__((aligned(4))) = 0;
+
+static int dma_get(void)
+{
+    if (dma_ch < 0 && (dma_ch = gdma_alloc()) >= 0) gdma_connect(dma_ch, GDMA_RMT);
+    return dma_ch;
+}
+
+int rmt_tx_dma(int c, const rmt_item_t *items, size_t n)
+{
+    tx_t *t = &tx[c];
+    if (c != 3 || t->busy || dma_get() < 0) return -1;
+    int k = gdma_chain(dtx, 8, (void *)items, n * 4, false);
+    if (k < 0) return -1;
+    gdma_chain(&dtx[k], 1, (void *)&s_zero, 4, true);       /* terminator ends the frame */
+    dtx[k - 1].next = &dtx[k];
+    t->busy = true; t->left = 0; t->dma = true;
+    REG(INT_CLR) = BIT(c);
+    REG_CLR(INT_ENA, BIT(8 + c));
+    REG_SET(INT_ENA, BIT(c));
+    uint32_t cfg = REG(TX_CONF0(c)) & ~(TX_WRAP | TX_START | TX_CONTI);
+    /* IDF: DMA streams through the channel RAM as a ring (wrap), prefill ~1 us before start */
+    REG(TX_CONF0(c)) = cfg | TX_DMA | TX_WRAP | TX_RD_RST | TX_MEMRST | BIT(23) | TX_UPDATE;   /* + afifo reset */
+    gdma_out_start(dma_ch, dtx);
+    delay_us(1);
+    REG(TX_CONF0(c)) = cfg | TX_DMA | TX_WRAP | TX_START | TX_UPDATE;
+    return 0;
+}
+
+int rmt_rx_dma_start(int c, rmt_item_t *buf, size_t max)
+{
+    if (c != 3 || dma_get() < 0) return -1;
+    if (gdma_chain(drx, 8, buf, max * 4, false) < 0) return -1;
+    rx[c] = (rx_t){ .dst = (uint32_t *)buf, .max = max };
+    REG(INT_CLR) = BIT(16 + c) | BIT(24 + c);
+    REG_CLR(INT_ENA, BIT(24 + c));
+    REG_SET(INT_ENA, BIT(16 + c));
+    REG_SET(RX_CONF0(c), BIT(23));                          /* dma_access_en */
+    REG(RX_LIM(c)) = 0;                                     /* IDF: no ping-pong limit with DMA */
+    uint32_t c1 = REG(RX_CONF1(c)) & ~BIT(0);
+    REG(RX_CONF1(c)) = c1 | BIT(1) | BIT(2) | BIT(13) | BIT(15);
+    gdma_in_start(dma_ch, drx);
+    REG(RX_CONF1(c)) = (c1 & ~(BIT(1) | BIT(2))) | BIT(0) | BIT(3) | BIT(13) | BIT(15);   /* IDF: wrap always on */
+    rx[c].got = ~0u;                                        /* counted from the descriptors at the end */
+    return 0;
+}
+
+int rmt_rx_dma_wait(int c, uint32_t us)
+{
+    uint32_t t = ccount(), lim = us * (sys_cpu_hz() / 1000000);
+    while (!READ_ONCE(rx[c].done)) if (ccount() - t > lim) return -1;
+    size_t bytes = 0;
+    for (int i = 0; i < 8; i++) { bytes += drx[i].length; if (!drx[i].next || drx[i].suc_eof) break; }
+    return bytes / 4;
+}
+
+size_t rmt_ws2812_encode(const uint8_t *grb, size_t nbytes, rmt_item_t *out, uint32_t res_hz)
+{
+    /* WS2812B: 0 = 0.4 us high / 0.85 us low, 1 = 0.8 / 0.45; >= 50 us low resets (held by idle level) */
+    uint32_t t04 = res_hz / 2500000, t08 = res_hz / 1250000, t085 = res_hz * 17 / 20000000, t045 = res_hz * 9 / 20000000;
+    size_t k = 0;
+    for (size_t i = 0; i < nbytes; i++)
+        for (int b = 7; b >= 0; b--)
+            out[k++] = (grb[i] >> b) & 1 ? RMT_ITEM(1, t08, 0, t045) : RMT_ITEM(1, t04, 0, t085);
+    return k;
 }

@@ -24,6 +24,7 @@ void test_ledc(void);
 void test_mcpwm(void);
 void test_pcnt(void);
 void test_rmt(void);
+void test_rmt_ext(void);
 void test_sdm(void);
 void test_uart(void);
 void test_uart_modes(void);

@@ -192,6 +192,19 @@ the module and mask the old role's interrupts (slave -> master re-init hung in a
 arbitration_en (reset default) was being cleared by our CTR write; (4) the filter threshold field is
 SCL [3:0] / SDA [7:4], we had set SCL only.
 
+## RMT extended (`periph_test` rmt_ext vs `bench/idf_rmt_ext`, C9:D0, jumper 10 -> 11)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| TX loop 3 items x 100 (hardware loop count, auto stop) | 300 pulses received | - |
+| ch0/ch1 start skew, without / with TX sync | 369 / **0** cycles | - |
+| RX demodulation, 5 bursts of 38 kHz x 600 us | 115 raw items -> 5 items, 621 us | - |
+| TX DMA (ch 3) 1000 items / RX DMA (ch 3) 1000 items | all within 1 tick / all within 1 tick | - |
+| WS2812 3 LEDs encode + send call / until done | **2287 / 23393 cycles** | 3462 / 26956 cycles |
+
+DMA (as IDF): the channel RAM stays in the path as a ring (wrap on both sides), TX prefills ~1 us before
+start, RX limit 0. RX demod thresholds are maxima: a carrier at the nominal duty needs margin (+25 %).
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

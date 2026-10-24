@@ -82,7 +82,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       [ ] UHCI DMA (not needed so far: IRQ rings already at wire speed at 5 Mbaud), [ ] UART wake-up (with sleep)
 - [x] **I2C**: master/slave, 10-bit address (both), SCL timeout API, glitch filter API, bus clear (IDF order),
       arbitration loss (waits for the winner, retry), clean controller rebuild after errors
-- [~] **RMT**: done incl. carrier/filter; **todo**: TX loop count + sync of several channels, RX demodulation, DMA mode (ch 3/7), encoders (WS2812 driver as example)
+- [x] **RMT**: carrier/filter, TX loop count, multi-channel sync, RX demodulation, DMA (TX/RX ch 3), WS2812 encoder
 - [~] **MCPWM**: done incl. capture/fault/sync; **todo**: carrier (chopper) module, event-triggered fault actions per operator, capture prescaler
 - [~] **PCNT**: done; **todo**: threshold/zero-cross events as callbacks, step-notify API, decoder for quadrature with index
 - [~] **LEDC**: done incl. fade; **todo**: gamma curves, channel phase sync API, sleep retention

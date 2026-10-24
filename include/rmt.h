@@ -27,3 +27,17 @@ uint32_t rmt_rx_init(int ch, int pin, uint32_t resolution_hz, uint32_t idle_tick
 int      rmt_rx_start(int ch, rmt_item_t *buf, size_t max);
 /* Wait for the frame end (or timeout_us). Returns items received, -1 timeout. */
 int      rmt_rx_wait(int ch, uint32_t timeout_us);
+
+/* Loop: send n (<= 47) items `loops` times (1..1023) back to back, 0 = until rmt_tx_stop(). rmt_tx_wait ends. */
+int      rmt_tx_loop(int ch, const rmt_item_t *items, size_t n, uint32_t loops);
+void     rmt_tx_stop(int ch);
+/* Start TX channels in `mask` on the same tick: set, then rmt_tx() each; 0 = off. */
+void     rmt_tx_sync(uint32_t mask);
+/* RX carrier demodulation: pulses of a carrier (hz, duty) inside a level merge into one level. hz = 0 off. */
+void     rmt_rx_demod(int ch, uint32_t hz, uint32_t resolution_hz, int duty_pct, bool active_high);
+/* DMA (TX ch 3, RX ch 3 only): no per-half interrupts. Buffers in internal RAM, <= 8 x 1023 items. */
+int      rmt_tx_dma(int ch, const rmt_item_t *items, size_t n);
+int      rmt_rx_dma_start(int ch, rmt_item_t *buf, size_t max);
+int      rmt_rx_dma_wait(int ch, uint32_t timeout_us);
+/* WS2812B encoder: 8 items per byte (GRB order, MSB first) at resolution res_hz (10 MHz suits). */
+size_t   rmt_ws2812_encode(const uint8_t *grb, size_t nbytes, rmt_item_t *out, uint32_t res_hz);
