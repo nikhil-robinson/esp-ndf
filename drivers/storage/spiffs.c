@@ -518,3 +518,30 @@ void spiffs_info(uint32_t *total, uint32_t *used)
     if (total) *total = nblk * ENT * PG;
     if (used) *used = u * PG;
 }
+
+/* rename as SPIFFS_rename: the header index page is rewritten with the new name, the old one deleted */
+int spiffs_rename(const char *from, const char *to)
+{
+    size_t len = strlen(to);
+    if (!mounted || !len || len >= NAME) return FAT_EINVAL;
+    uint16_t id;
+    int32_t h = find_file(from, &id, NULL);
+    if (h < 0) return FAT_ENOENT;
+    if (find_file(to, NULL, NULL) >= 0) return FAT_EEXIST;
+    for (int f = 0; f < MAX_FD; f++) if (fds[f].used && fds[f].id == id) return FAT_EINVAL;
+    uint8_t b[PG];
+    if (partition_read(part, h * PG, b, PG)) return FAT_EIO;
+    memset(b + 13, 0, NAME);
+    memcpy(b + 13, to, len);
+    int32_t n = page_new(b, id | IXF);
+    if (n < 0) return n;
+    h = -1;                                       /* gc in page_new may have moved the old header: look again */
+    uint8_t hh[HDR_IX];
+    for (uint32_t i = 0; i < nblk * ENT; i++) {
+        if (lu[i] != (id | IXF)) continue;
+        uint32_t p = pix_of(i / ENT, i % ENT);
+        if ((int32_t)p == n || partition_read(part, p * PG, hh, HDR_IX)) continue;
+        if (rd16(hh + 2) == 0 && !strncmp((char *)hh + 13, from, NAME)) { h = p; break; }
+    }
+    return h >= 0 ? page_delete(h) : FAT_EIO;
+}

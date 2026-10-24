@@ -18,6 +18,7 @@ int  spiffs_seek(int fd, int32_t off, int whence);
 int  spiffs_close(int fd);
 int  spiffs_sync(int fd);                      /* data + size durable without closing */
 int  spiffs_unlink(const char *path);
+int  spiffs_rename(const char *from, const char *to);   /* FAT_EEXIST if to exists */
 int  spiffs_stat(const char *path, uint32_t *size, bool *is_dir);
 int  spiffs_opendir(const char *path);         /* names under path, '/' kept inside names */
 int  spiffs_readdir(int dd, char *name, uint32_t *size, bool *is_dir);

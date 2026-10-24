@@ -85,3 +85,22 @@ void test_spiffs(void)
     uint32_t tot, used; spiffs_info(&tot, &used);
     printf("    %lu KB used of %lu KB\n", used / 1024, tot / 1024);
 }
+
+void test_spiffs_rename(void)
+{
+    const partition_t *p = partition_find(PART_DATA, PART_SUB_SPIFFS, "spiffs");
+    CHECK(spiffs_mount(p) == 0);
+    int fd = spiffs_open("/r1.txt", FAT_WRONLY | FAT_CREAT | FAT_TRUNC); spiffs_write(fd, "rename me", 9); spiffs_close(fd);
+    fd = spiffs_open("/r2.txt", FAT_WRONLY | FAT_CREAT | FAT_TRUNC); spiffs_write(fd, "x", 1); spiffs_close(fd);
+    CHECK(spiffs_rename("/r1.txt", "/r2.txt") == FAT_EEXIST);
+    fd = spiffs_open("/r1.txt", FAT_RDONLY);
+    CHECK(spiffs_rename("/r1.txt", "/moved/r3.txt") == FAT_EINVAL);   /* open */
+    spiffs_close(fd);
+    CHECK(spiffs_rename("/r1.txt", "/moved/r3.txt") == 0);
+    spiffs_unmount(); CHECK(spiffs_mount(p) == 0);
+    char s[16] = { 0 }; uint32_t sz; bool d;
+    fd = spiffs_open("/moved/r3.txt", FAT_RDONLY); spiffs_read(fd, s, sizeof s - 1); spiffs_close(fd);
+    CHECK(!strcmp(s, "rename me") && spiffs_stat("/r1.txt", &sz, &d) == FAT_ENOENT);
+    printf("    rename: content kept, old name gone after remount, EEXIST / open file refused\n");
+    spiffs_unlink("/moved/r3.txt"); spiffs_unlink("/r2.txt");
+}

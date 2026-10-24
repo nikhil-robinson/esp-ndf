@@ -131,7 +131,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] NVS (+ encryption, boot reader, host tools), partition API, FAT + LFN,
       wear levelling, SPIFFS, VFS, block-device layer, FAT/NVS/mfg host tools
 - [x] FAT: rename + move (files, directories with '..' fix-up), create/write/access timestamps from time(), `fat_mtime`; [x] FAT32 in `fattool mkfat` (fsck.fat clean, round trip: tools/test_fattool.sh)
-- [ ] SPIFFS: rename, `spiffsgen`-compatible host image builder
+- [x] SPIFFS: rename; host image builder tools/spiffsgen.py (image read by esp-ndf and by IDF esp_vfs_spiffs: bench/idf_spiffsgen)
 - [ ] SD card as block device (with the SD host)
 - [ ] LittleFS (power-safe filesystem: better than FAT for logs on a robot)
 
