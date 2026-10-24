@@ -151,6 +151,8 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| I2S TDM | init 4 slots x 16 bit TX (`test_i2s_modes` vs `bench/idf_i2s_modes`) | **24.4k cycles** | 181k cycles | 7.4x | done; stream 0 errors both |
+| I2S PDM | init TX+RX duplex (IDF: TX alone) | **27.4k cycles** | 167k cycles | >6.1x | done; loop SNR 33 dB vs IDF 38 dB (registers identical, gap open) |
 | GPIO | set + clear | **10** | 95 | 9.5× | at floor (bus writes) |
 | Dedicated GPIO | set + clear | **3** | 45 | 15× | at floor |
 | RTC GPIO | set / get | **21 / 98** | 301 / 333 | 14× / 3.4× | — |

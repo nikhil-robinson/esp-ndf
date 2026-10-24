@@ -73,8 +73,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 6. Peripherals: remaining modes of finished drivers
 
-- [~] **I2S**: standard mode done; **todo**: TDM (Box-3 ES7210 mic array),
-      PDM TX/RX (PDM mics), RX from codec, full-duplex, 8/24/32-bit, LCD/ADC modes
+- [x] **I2S**: standard, TDM (2-16 slots, mask), PDM TX/RX (I2S0), full duplex, 8/16/24/32-bit;
+      [ ] PDM SNR 33 vs IDF 38 dB, [ ] ES7210 TDM mics on BOX-3 (section 9), [ ] LCD/ADC/camera modes (with LCD_CAM)
 - [~] **SPI master**: 1-bit done; **todo**: dual/quad/octal (QSPI/OPI)
       transfers, half-duplex command/address/dummy phases, SPI3 as master,
       CS timing setup/hold, DMA chained large transfers (> 4 KB descriptors)

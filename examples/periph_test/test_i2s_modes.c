@@ -1,0 +1,92 @@
+#include "test.h"
+#include "i2s.h"
+#include "fastmath.h"
+#include "sys.h"
+
+/* Same jumpers as test_i2s: GPIO12 -> 13 (clock), GPIO10 -> 11 (data), WS on GPIO4.
+ * TDM: I2S0 TX 4 slots x 16 bit, slot 2 masked off; I2S1 RX slave 4 slots. Sample values count
+ *      up; the masked slot takes no buffer data, so the stream arrives in order with a 0 in every 4th slot.
+ * PDM: I2S0 full duplex (PDM is I2S0 only): PCM->PDM 48 kHz, clock 6.144 MHz on GPIO12, data
+ *      10 -> 11 back into PDM->PCM (decimation 128). A 1 kHz sine must come back at 1 kHz. */
+static int16_t out[512], in[2048];
+
+static void tdm(void)
+{
+    i2s_cfg_t tx = { .mode = I2S_TDM, .slots = 4, .mask = 0xB, .rate = 48000, .bits = 16,
+                     .mclk = -1, .bck = 12, .ws = 4, .dout = 10, .din = -1 };
+    i2s_cfg_t rx = { .mode = I2S_TDM, .slots = 4, .rate = 48000, .bits = 16, .slave = true,
+                     .mclk = -1, .bck = 13, .ws = 4, .dout = -1, .din = 11 };
+    uint32_t t = ccount();
+    uint64_t fs = i2s_init(0, &tx);
+    t = ccount() - t;
+    CHECK(fs && i2s_init(1, &rx));
+    METRIC("i2s_init() TDM TX", "%lu cycles", t);
+    printf("    TDM 4x16: fs %lu.%03lu Hz (BCK 3.072 MHz)\n", (uint32_t)(fs / 1000), (uint32_t)(fs % 1000));
+    uint16_t v = 1;
+    for (int k = 0; k < 4; k++) { for (int i = 0; i < 512; i++) out[i] = v++; i2s_write(0, out, sizeof out, 100000); }
+    i2s_start(1, false, true); i2s_start(0, true, false);
+    uint32_t seen = 0, zeros = 0, bad = 0, got = 0, t0 = ccount();
+    uint16_t prev = 0;
+    while (got < 64 * 1024 && ccount() - t0 < 240000000u * 2) {
+        for (int i = 0; i < 512; i++) out[i] = v++;
+        i2s_write(0, out, sizeof out, 100000);
+        int n = i2s_read(1, in, sizeof in, 0);
+        for (int i = 0; i < n / 2; i++) {
+            uint16_t x = in[i];
+            if (!seen && !x) continue;                                /* leading silence */
+            if (!x) { zeros++; continue; }
+            if (seen && x != (uint16_t)(prev + 1)) { if (bad++ < 6) printf("    [%lu] %u -> %u\n", seen, prev, x); }             /* active slots carry the buffer in order */
+            prev = x; seen++;
+        }
+        got += n;
+    }
+    i2s_stop(0); i2s_stop(1);
+    printf("    TDM: %lu samples, %lu masked zeros, %lu errors, und %lu ovr %lu\n", seen, zeros, bad, i2s_tx_underruns(0), i2s_rx_overruns(1));
+    CHECK(seen > 20000 && bad == 0 && zeros * 3 >= seen - 3 && zeros * 3 <= seen + 3);
+}
+
+static void pdm(void)
+{
+    i2s_cfg_t c = { .mode = I2S_PDM, .rate = 48000, .bits = 16, .mclk = -1, .bck = -1, .ws = 12, .dout = 10, .din = 11 };
+    uint32_t t = ccount();
+    uint64_t fs = i2s_init(0, &c);
+    t = ccount() - t;
+    CHECK(fs);
+    METRIC("i2s_init() PDM TX+RX", "%lu cycles", t);
+    printf("    PDM duplex: fs %lu.%03lu Hz (integer divider as IDF: PDM clock = 128 fs)\n", (uint32_t)(fs / 1000), (uint32_t)(fs % 1000));
+    uint32_t ph = 0;
+    #define FILL() for (int i = 0; i < 512; i += 2, ph = (ph + 1) % 48) out[i] = out[i + 1] = (int16_t)(12000 * fm_sinf(ph * (6.2831853f / 48)))
+    for (int k = 0; k < 4; k++) { FILL(); i2s_write(0, out, sizeof out, 100000); }
+    i2s_start(0, true, true);
+    uint32_t got = 0, n_s = 0, cross = 0, t0 = ccount();
+    int16_t lo = 0, hi = 0; bool neg = false;
+    float q1 = 0, q2 = 0, pw = 0;                                     /* Goertzel at 1 kHz / 48 kHz */
+    const float cf = 2 * fm_cosf(6.2831853f / 48);
+    while (n_s < 48000 / 2 && ccount() - t0 < 240000000u * 2) {      /* 0.5 s of left channel */
+        FILL(); i2s_write(0, out, sizeof out, 100000);
+        int n = i2s_read(0, in, sizeof in, 0);
+        for (int i = 0; i < n / 2; i += 2, got++) {
+            if (got < 4800) continue;                                 /* 0.1 s for the filters to settle */
+            int16_t x = in[i];
+            if (x < lo) lo = x;
+            if (x > hi) hi = x;
+            if (x < -3000) neg = true;                                /* hysteresis: noise near 0 */
+            else if (neg && x > 3000) { neg = false; cross++; }
+            float q0 = cf * q1 - q2 + x; q2 = q1; q1 = q0; pw += (float)x * x;
+            n_s++;
+        }
+    }
+    i2s_stop(0);
+    float tone = (q1 * q1 + q2 * q2 - cf * q1 * q2) * 2 / n_s;      /* tone energy */
+    int snr = n_s && pw > tone ? (int)(4.3429448f * fm_logf(tone / (pw - tone))) : 99;
+    uint32_t hz = n_s ? (uint32_t)((uint64_t)cross * 48000 / n_s) : 0;
+    printf("    PDM loop: %lu samples, %lu Hz (1000 sent), peak %d..%d, SNR %d dB, und %lu ovr %lu\n", n_s, hz, lo, hi, snr, i2s_tx_underruns(0), i2s_rx_overruns(0));
+    CHECK(n_s > 20000 && hz > 980 && hz < 1020 && hi - lo > 4000 && snr >= 25);
+}
+
+void test_i2s_modes(void)
+{
+    __asm__ volatile("rsil a2, 0" ::: "a2");
+    tdm();
+    pdm();
+}

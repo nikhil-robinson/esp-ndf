@@ -132,6 +132,22 @@ Found with the analyzer: the fractional MCLK divider only engages when its
 fields are written one at a time in order (whole-word write ran at 48.077 kHz).
 RXEOF_NUM is in bytes.
 
+## I2S TDM and PDM (`periph_test` i2s_modes vs `bench/idf_i2s_modes`, C9:D0, same jumpers)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| TDM 4x16 bit, TX slot 2 masked, counter stream | 0 errors, every 4th slot 0 | 0 errors, same |
+| TDM TX init | **24.4k cycles** | 181k cycles |
+| PDM I2S0 duplex loop (TX PCM->PDM -> jumper -> RX PDM->PCM, 1 kHz) | 1000 Hz, peak +-5363, SNR 33 dB | 998 Hz, peak +-5363, SNR 38 dB |
+| PDM init | **27.4k (TX+RX)** | 167k (TX alone) |
+
+Found on the way: (1) masked TDM TX slots take no buffer data; (2) at 4 slots the
+ring lost EOF interrupts (two merged into one) - both ring ISRs now catch up to
+the descriptor the DMA reports; (3) out EOF means fetched, not played: writer
+keeps one block of margin; (4) PDM exists only on I2S0; (5) the fractional MCLK
+divider jitters the PDM clock (SNR 5-8 dB) - integer divider as IDF, so fs is
+52.083 kHz for 48 kHz asked (same as IDF; init returns the real rate).
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

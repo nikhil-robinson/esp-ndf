@@ -18,6 +18,8 @@
 #define TX_CLKM_DIV(p)  (B(p) + 0x3C)
 #define RX_TDM(p)       (B(p) + 0x50)   /* b15:0 chan en b19:16 tot_chan-1 */
 #define TX_TDM(p)       (B(p) + 0x54)
+#define PCM2PDM(p)      (B(p) + 0x40)   /* I2S0 only */
+#define PCM2PDM1(p)     (B(p) + 0x44)
 #define RXEOF_NUM(p)    (B(p) + 0x64)
 
 #define SCLK  160000000u
@@ -31,6 +33,7 @@ typedef struct {
     gdma_desc_t txd[NB], rxd[NB];
     volatile uint32_t th, tt, rh, rt;    /* tx: app head / dma tail; rx: dma head / app tail */
     volatile uint32_t und, ovr;
+    uint32_t tl, rl;                      /* last descriptor index each ISR handled */
     uint32_t woff;                        /* bytes already written into block th */
 } port_t;
 static port_t P[2] = { { .ch = -1 }, { .ch = -1 } };
@@ -75,32 +78,55 @@ static void set_div(uint32_t clkm, uint32_t cdiv, uint32_t base, uint32_t i, uin
     REG(clkm) = base | i;
 }
 
-RAM_FN static void tx_done(void *a)                        /* a block finished playing */
+/* Both ISRs catch up to the descriptor the DMA last reported, so two EOFs merged into one
+ * interrupt (late ISR at high data rates) cannot leave the ring a block behind the DMA. */
+RAM_FN static void tx_done(void *a)                        /* blocks finished playing */
 {
     port_t *p = a;
-    uint32_t i = p->tt % NB;
-    if (p->tt == p->th) p->und++;                           /* it was never filled: silence */
-    for (int k = 0; k < BLK / 4; k++) ((uint32_t *)p->txb[i])[k] = 0;
-    p->tt++;
-    if (p->th < p->tt) { p->th = p->tt; p->woff = 0; }
+    uint32_t k = (uint32_t)(gdma_out_eof_desc(p->ch) - p->txd);
+    if (k >= NB) return;
+    while (p->tl != k) {
+        p->tl = (p->tl + 1) % NB;
+        uint32_t i = p->tt % NB;
+        if (p->tt == p->th) p->und++;                       /* it was never filled: silence */
+        for (int w = 0; w < BLK / 4; w++) ((uint32_t *)p->txb[i])[w] = 0;
+        p->tt++;
+        if (p->th < p->tt) { p->th = p->tt; p->woff = 0; }
+    }
 }
 
-RAM_FN static void rx_done(void *a)                         /* a block was filled */
+RAM_FN static void rx_done(void *a)                         /* blocks filled */
 {
     port_t *p = a;
-    p->rh++;
-    if (p->rh - p->rt > NB - 1) { p->rt++; p->ovr++; }      /* drop the oldest unread block */
+    uint32_t k = (uint32_t)(gdma_in_eof_desc(p->ch) - p->rxd);
+    if (k >= NB) return;
+    while (p->rl != k) {
+        p->rl = (p->rl + 1) % NB;
+        p->rh++;
+        if (p->rh - p->rt > NB - 1) { p->rt++; p->ovr++; }  /* drop the oldest unread block */
+    }
 }
 
 uint64_t i2s_init(int port, const i2s_cfg_t *c)
 {
-    if (port < 0 || port > 1 || (c->bits != 16 && c->bits != 24 && c->bits != 32) || !c->rate) return 0;
+    uint32_t ns = c->mode == I2S_TDM && c->slots ? c->slots : 2, bits = c->bits;
+    uint32_t mask = c->mask ? c->mask : (1u << ns) - 1;
+    bool pdm = c->mode == I2S_PDM;
+    bool duplex = c->dout >= 0 && c->din >= 0 && !c->slave;   /* IDF: RX slave on TX's BCK/WS (sig_loopback) */
+    if (port < 0 || port > 1 || !c->rate || ns > 16 || ns * bits > 128 ||
+        (bits != 8 && bits != 16 && bits != 24 && bits != 32) ||
+        (pdm && (bits != 16 || port))) return 0;            /* PDM only on I2S0 */
     port_t *p = &P[port];
     periph_enable(port ? PERIPH_I2S1 : PERIPH_I2S0);
-    uint32_t mclk = c->rate * 2 * c->bits * 8;              /* BCK = MCLK / 8 */
+    /* BCK per mode (IDF i2s_std/tdm/pdm.c): frame clock; PDM TX rate*128 (fp/fs 960/480); PDM RX alone
+     * rate*64 (DSR 8S), PDM duplex rate*128 with DSR 16S so RX runs on TX's clock */
+    uint32_t bck = pdm ? c->rate * (c->dout >= 0 ? 128 : 64) : c->rate * ns * bits, bdiv = 8;
+    while (bdiv > 2 && bck * bdiv > SCLK / 2) bdiv /= 2;           /* keep MCLK <= SCLK/2 */
     uint32_t i, n, d;
-    frac(mclk, &i, &n, &d);
+    frac(bck * bdiv, &i, &n, &d);
+    if (pdm) { n = 0; d = 1; }                              /* IDF: integer MCLK divider in PDM (fraction = jitter: 5-8 dB SNR) */
     if (i < 2 || i > 255) return 0;
+    uint32_t half = pdm ? 16 : ns * bits / 2;
     for (int dir = 0; dir < 2; dir++) {                      /* 0 = TX, 1 = RX */
         uint32_t clkm = dir ? RX_CLKM(port) : TX_CLKM(port), cdiv = dir ? RX_CLKM_DIV(port) : TX_CLKM_DIV(port);
         uint32_t conf = dir ? RX_CONF(port) : TX_CONF(port), conf1 = dir ? RX_CONF1(port) : TX_CONF1(port);
@@ -108,11 +134,22 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
         set_div(clkm, cdiv, BIT(26) | 2u << 27 | BIT(29), i, n, d);
         REG_SET(conf, BIT(0)); REG_CLR(conf, BIT(0));
         REG_SET(conf, BIT(1)); REG_CLR(conf, BIT(1));
-        REG(conf1) = (c->bits - 1) | (8 - 1) << 7 | (c->bits - 1) << 13 | (c->bits - 1) << 18 |
-                     (c->bits - 1) << 24 | BIT(29);
-        REG(conf) = (c->slave ? BIT(3) : 0) | BIT(12) | BIT(15) | BIT(19);
-        REG(tdm) = BIT(0) | BIT(1) | 1u << 16;
+        uint32_t cb = pdm && !dir ? 32 : bits;               /* IDF: PDM TX stereo runs 32-bit slots */
+        if (pdm)                                             /* as IDF leaves them: ws 0, RX msb_shift, TX bck_no_dly */
+            REG(conf1) = (bdiv - 1) << 7 | (cb - 1) << 13 | (half - 1) << 18 | (cb - 1) << 24 | (dir ? BIT(29) : BIT(30));
+        else
+            REG(conf1) = (half - 1) | (bdiv - 1) << 7 | (cb - 1) << 13 | (half - 1) << 18 | (cb - 1) << 24 | BIT(29);
+        REG(conf) = (c->slave || (dir && duplex) ? BIT(3) : 0) | BIT(12) | BIT(15) |
+                    (!pdm ? BIT(19) : dir ? BIT(20) | BIT(21) | (c->dout >= 0 ? BIT(22) : 0) : BIT(20)) |
+                    (!dir && duplex ? BIT(27) : 0) |        /* tdm_en | pdm_en (+pdm2pcm, DSR16) | sig_loopback */
+                    (pdm && !dir ? BIT(9) | BIT(13) : 0);
+        REG(tdm) = pdm ? (dir ? 3 : 0xFFFF) : mask | (ns - 1) << 16;
     }
+    if (pdm && port == 0) {
+        /* IDF I2S_PDM_TX_SLOT_DEFAULT_CONFIG: hp on 35.5 Hz (6/7), osr2 2, hp /2, lp/sinc/sd x1, dither2, codec line */
+        REG(PCM2PDM(port)) = 2u << 1 | 0u << 13 | 1u << 15 | 1u << 17 | 1u << 19 | BIT(21) | BIT(23) | BIT(25);
+        REG(PCM2PDM1(port)) = 960 | 480u << 10 | 7u << 20 | 6u << 23;
+    } else if (port == 0) REG_CLR(PCM2PDM(port), BIT(25));
     REG(RXEOF_NUM(port)) = BLK;                             /* in bytes: one EOF per block */
     if (p->ch < 0) {
         if ((p->ch = gdma_alloc()) < 0) return 0;
@@ -126,12 +163,13 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
     for (int k = 0; k < NB; k++) { p->txd[k].next = &p->txd[(k + 1) % NB]; p->rxd[k].next = &p->rxd[(k + 1) % NB]; }
     for (int k = 0; k < NB; k++) for (int w = 0; w < BLK / 4; w++) ((uint32_t *)p->txb[k])[w] = 0;
     p->th = p->tt = p->rh = p->rt = p->und = p->ovr = p->woff = 0;
+    p->tl = p->rl = NB - 1;                                  /* the first EOF is block 0 */
     gdma_on_out_eof(p->ch, tx_done, p, 1);
     gdma_on_in_done(p->ch, rx_done, p, 1);
 
     if (c->slave) {
         if (c->bck >= 0) { gpio_config(c->bck, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(c->bck, s_bck_i[port], false); }
-        if (c->ws >= 0)  gpio_in_signal(c->ws, s_ws_i[port], false);
+        if (c->ws >= 0)  { if (pdm) gpio_config(c->ws, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(c->ws, s_ws_i[port], false); }
     } else {
         if (c->bck >= 0) { gpio_config(c->bck, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(c->bck, s_bck_o[port], false); gpio_in_signal(c->bck, s_bck_i[port], false); }
         if (c->ws >= 0)  { gpio_config(c->ws, GPIO_OUTPUT | GPIO_INPUT);  gpio_out_signal(c->ws, s_ws_o[port], false);  gpio_in_signal(c->ws, s_ws_i[port], false); }
@@ -140,8 +178,8 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
     if (c->dout >= 0) { gpio_config(c->dout, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(c->dout, s_sd_o[port], false); }
     if (c->din >= 0)  { gpio_config(c->din, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(c->din, s_sd_i[port], false); }
     if (c->slave) return (uint64_t)c->rate * 1000;
-    /* fs = SCLK / (i + n/d) / (16 * bits) */
-    return (uint64_t)SCLK * 1000 * d / ((uint64_t)(i * d + n) * 16 * c->bits);
+    /* fs = SCLK / (i + n/d) / bdiv / (bck per sample) */
+    return (uint64_t)SCLK * 1000 * d / ((uint64_t)(i * d + n) * bdiv * (bck / c->rate));
 }
 
 void i2s_start(int port, bool tx, bool rx)
@@ -173,8 +211,8 @@ int i2s_write(int port, const void *buf, size_t len, uint32_t us)
     uint32_t t0 = ccount(), lim = us * (sys_cpu_hz() / 1000000);
     size_t done = 0;
     while (done < len) {
-        /* never write the block the DMA is playing (tt) or the one after it */
-        if (p->th - p->tt >= NB - 1) { if (ccount() - t0 > lim) break; continue; }
+        /* out EOF means "fetched", not "played": keep one block of margin behind the DMA */
+        if (p->th - p->tt >= NB - 2) { if (ccount() - t0 > lim) break; continue; }
         uint32_t ps = irq_lock();
         uint8_t *blk = p->txb[(p->th + 1) % NB];
         size_t k = BLK - p->woff < len - done ? BLK - p->woff : len - done;

@@ -1,13 +1,22 @@
-/* I2S standard (Philips) mode on I2S0/I2S1: stereo, 16/24/32-bit, master or
- * slave, continuous DMA streaming through a ring of blocks (no gaps).
+/* I2S on I2S0/I2S1, continuous DMA streaming through a ring of blocks (no gaps):
+ *  - STD: Philips stereo, 8/16/24/32-bit, master or slave; TX+RX on one port = full duplex
+ *  - TDM: 2-16 slots per frame (frame <= 128 bits), slot mask, Philips framing
+ *  - PDM (I2S0 only): TX PCM->PDM with IDF's default filter set, clock = rate*128; RX PDM->PCM,
+ *         decimation 64 (clock rate*64), or 128 in duplex (shares TX's clock); 16-bit stereo. Clock on `ws`.
+ *  Master with both dout and din = full duplex: RX runs as slave on TX's BCK/WS inside the port.
  * MCLK from the 160 MHz PLL via a fractional divider; the achieved sample
  * rate is reported exactly (milli-Hz). */
 #pragma once
 #include "ndf.h"
 
+enum { I2S_STD = 0, I2S_TDM, I2S_PDM };
+
 typedef struct {
+    uint8_t  mode;           /* I2S_STD (default), I2S_TDM, I2S_PDM */
+    uint8_t  slots;          /* TDM: total slots per frame (0 = 2) */
+    uint16_t mask;           /* TDM: active slots (0 = all). Buffers hold active slots only; inactive TX slots send 0 */
     uint32_t rate;           /* sample rate, Hz */
-    uint8_t  bits;           /* 16, 24, 32 */
+    uint8_t  bits;           /* 8, 16, 24, 32 (PDM: 16) */
     bool     slave;          /* clocks (BCK/WS) from outside */
     int mclk, bck, ws, dout, din;   /* -1: unused */
 } i2s_cfg_t;
