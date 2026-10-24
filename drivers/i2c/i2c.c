@@ -43,6 +43,7 @@ enum { OP_WRITE = 1, OP_STOP = 2, OP_READ = 3, OP_END = 4, OP_RSTART = 6 };
 static const uint8_t sig_sda[2] = { 90, 92 }, sig_scl[2] = { 89, 91 };
 static const periph_t pid[2] = { PERIPH_I2C0, PERIPH_I2C1 };
 static uint8_t pins[2][2];
+static struct { uint32_t hz, filt, to; bool pu; } mcfg[2];   /* to rebuild the master after an error */
 
 static void pads(int p, int sda, int scl, bool pu)
 {
@@ -63,21 +64,24 @@ static void fifo_reset(int p)
 uint32_t i2c_master_init(int p, int sda, int scl, uint32_t hz, bool pu)
 {
     if (p < 0 || p > 1 || hz < 1000 || hz > 1000000) return 0;
+    mcfg[p].hz = hz; mcfg[p].pu = pu; mcfg[p].filt = BIT(8) | BIT(9) | 0x77; mcfg[p].to = BIT(5) | 23;
     periph_enable(pid[p]);
+    periph_reset(pid[p]);                                   /* as IDF: no state left from an earlier role */
+    REG(INT_ENA(p)) = 0; REG(INT_CLR(p)) = ~0u;             /* a slave ISR may still be attached to this port */
     /* source XTAL 40 MHz; integer pre-divider keeps half a bus period <= 511 */
     uint32_t div = 40000000 / (hz * 1024) + 1;
     uint32_t sclk = 40000000 / div, half = sclk / hz / 2;
     uint32_t wait = hz >= 80000 ? half / 2 - 2 : half / 4;
     REG(CLK_CONF(p)) = (div - 1) | BIT(21);
-    REG(CTR(p)) = BIT(4) | BIT(8) | BIT(0) | BIT(1);        /* master, clk on, open-drain outs */
+    REG(CTR(p)) = BIT(4) | BIT(8) | BIT(9) | BIT(0) | BIT(1);   /* master, clk on, arbitration (reset default), open-drain */
     REG(SCL_LOW(p)) = half - 1;
     REG(SCL_HIGH(p)) = (half - wait) | wait << 9;
     REG(SDA_HOLD(p)) = half / 4 - 1;
     REG(SDA_SAMPLE(p)) = half / 2 - 1;
     REG(RSTART_SETUP(p)) = half - 1; REG(STOP_SETUP(p)) = half - 1;
     REG(START_HOLD(p)) = half - 1;   REG(STOP_HOLD(p)) = half - 1;
-    REG(TO(p)) = BIT(5) | 23;                               /* bus-idle timeout 2^23 sclk cycles */
-    REG(FILTER(p)) = BIT(8) | BIT(9) | 7;                   /* glitch filter on both lines */
+    REG(TO(p)) = mcfg[p].to;                                /* SCL-held timeout, default 2^23 sclk cycles */
+    REG(FILTER(p)) = mcfg[p].filt;                          /* glitch filter on both lines */
     REG(FIFO_CONF(p)) = BIT(14);                            /* fifo_prt_en: watermark/ovf logic */
     fifo_reset(p);
     REG_SET(CTR(p), BIT(11));                               /* latch timing config */
@@ -88,15 +92,16 @@ uint32_t i2c_master_init(int p, int sda, int scl, uint32_t hz, bool pu)
 
 void i2c_bus_recover(int p)
 {
+    /* IDF s_i2c_master_clear_bus: SCL low first (no START), clock while SDA is held, then STOP */
     int sda = pins[p][0], scl = pins[p][1];
     gpio_config(scl, GPIO_OUTPUT | GPIO_INPUT | GPIO_OPENDRAIN | GPIO_PULLUP);
     gpio_config(sda, GPIO_OUTPUT | GPIO_INPUT | GPIO_OPENDRAIN | GPIO_PULLUP);
-    gpio_write(sda, 1);
+    gpio_clr(scl); gpio_set(sda); delay_us(5);
     for (int i = 0; i < 9 && !gpio_read(sda); i++) {
-        gpio_clr(scl); delay_us(5); gpio_set(scl); delay_us(5);
+        gpio_set(scl); delay_us(5); gpio_clr(scl); delay_us(5);
     }
-    gpio_clr(sda); delay_us(5); gpio_set(scl); delay_us(5); gpio_set(sda);   /* STOP */
-    REG_SET(CTR(p), BIT(10)); REG_CLR(CTR(p), BIT(10));                       /* FSM reset */
+    gpio_clr(sda); gpio_set(scl); delay_us(5); gpio_set(sda);   /* STOP */
+    REG_SET(CTR(p), BIT(10)); REG_CLR(CTR(p), BIT(10));          /* FSM reset */
     pads(p, sda, scl, true);
 }
 
@@ -116,20 +121,31 @@ static i2c_err_t run(int p, uint32_t until, uint32_t t0, uint32_t lim)
     }
 }
 
-i2c_err_t i2c_master_xfer(int p, uint8_t addr, const uint8_t *w, size_t wl,
+/* wait for the other master's frame to end after a lost arbitration (bounded by the caller's timeout) */
+static void wait_idle(int p, uint32_t t0, uint32_t lim)
+{
+    while ((REG(SR(p)) & BIT(4)) && ccount() - t0 < lim) {}
+}
+
+i2c_err_t i2c_master_xfer(int p, uint16_t addr, const uint8_t *w, size_t wl,
                           uint8_t *r, size_t rl, uint32_t us)
 {
+    /* 10-bit (IDF i2c_master.c): header 11110 A9 A8 R/W, then A7..A0; a read sends the write header,
+     * repeated start, then the header byte alone with R = 1 */
+    bool ten = addr & I2C_ADDR10;
+    uint8_t hdr = ten ? (uint8_t)(0x78 | ((addr >> 8) & 3)) : (uint8_t)(addr & 0x7F);
     uint32_t t0 = ccount(), lim = us * (sys_cpu_hz() / 1000000);
     i2c_err_t e = I2C_OK;
     fifo_reset(p);
     int c = 0;
     REG(COMD(p, c++)) = CMD(OP_RSTART, 0, 0, 0);
-    if (wl || !rl) {                                         /* write phase (or address probe) */
-        REG(DATA(p)) = addr << 1;
-        size_t room = 31, sent = 0;
+    if (wl || !rl || ten) {                                  /* write phase (or address probe / 10-bit read) */
+        REG(DATA(p)) = hdr << 1;
+        if (ten) REG(DATA(p)) = (uint8_t)addr;
+        size_t room = ten ? 30 : 31, sent = 0;
         size_t n = wl < room ? wl : room;
         for (size_t i = 0; i < n; i++) REG(DATA(p)) = w[i];
-        REG(COMD(p, c++)) = CMD(OP_WRITE, n + 1, 1, 0);
+        REG(COMD(p, c++)) = CMD(OP_WRITE, n + 1 + ten, 1, 0);
         sent = n;
         while (sent < wl) {                                  /* more than the FIFO holds */
             REG(COMD(p, c)) = CMD(OP_END, 0, 0, 0);
@@ -143,7 +159,7 @@ i2c_err_t i2c_master_xfer(int p, uint8_t addr, const uint8_t *w, size_t wl,
         if (rl) REG(COMD(p, c++)) = CMD(OP_RSTART, 0, 0, 0);
     }
     if (rl) {
-        REG(DATA(p)) = addr << 1 | 1;
+        REG(DATA(p)) = hdr << 1 | 1;
         REG(COMD(p, c++)) = CMD(OP_WRITE, 1, 1, 0);
         size_t got = 0;
         while (rl - got > 32) {                              /* full 32-byte chunks, all ACKed */
@@ -164,9 +180,16 @@ i2c_err_t i2c_master_xfer(int p, uint8_t addr, const uint8_t *w, size_t wl,
     REG(COMD(p, c++)) = CMD(OP_STOP, 0, 0, 0);
     e = run(p, I_DONE, t0, lim);
 out:
-    if (e) {                                                 /* leave the bus idle */
+    if (e) {                                                 /* leave the bus idle and the controller clean */
         REG_SET(CTR(p), BIT(10)); REG_CLR(CTR(p), BIT(10));
-        if (e == I2C_TIMEOUT) i2c_bus_recover(p);
+        if (e == I2C_ARB_LOST) wait_idle(p, t0, lim);         /* the winner's frame: caller may retry */
+        else i2c_bus_recover(p);                              /* IDF: clear the bus (STOP) */
+        /* IDF on S3 (no HW FSM reset): reset the whole module and restore timing/filter; an fsm_rst alone
+         * leaves state that makes the next 10-bit header NACK */
+        uint32_t f = mcfg[p].filt, to = mcfg[p].to;
+        i2c_master_init(p, pins[p][0], pins[p][1], mcfg[p].hz, mcfg[p].pu);
+        mcfg[p].filt = f; mcfg[p].to = to;
+        REG(FILTER(p)) = f; REG(TO(p)) = to; REG_SET(CTR(p), BIT(11));
     }
     return e;
 }
@@ -188,15 +211,21 @@ RAM_FN static void slave_isr(void *arg)
     REG(INT_CLR(p)) = s;
 }
 
-int i2c_slave_init(int p, int sda, int scl, uint8_t addr, bool pu)
+int i2c_slave_init(int p, int sda, int scl, uint16_t addr, bool pu)
 {
     if (p < 0 || p > 1) return -1;
     periph_enable(pid[p]);
+    periph_reset(pid[p]);                                   /* as IDF: no state left from an earlier role */
     REG(CLK_CONF(p)) = BIT(21);
-    REG(CTR(p)) = BIT(8) | BIT(0) | BIT(1);                 /* slave, clk on */
-    REG(SLV_ADDR(p)) = addr;
+    bool ten = addr & I2C_ADDR10;
+    /* as IDF's slave: open-drain outs, rx_full_ack_level, slv_tx_auto_start, (10-bit r/w check) */
+    REG(INT_ENA(p)) = 0;
+    REG(CTR(p)) = BIT(0) | BIT(1) | BIT(3) | BIT(12) | (ten ? BIT(13) : 0);
+    REG_SET(CTR(p), BIT(10)); REG_CLR(CTR(p), BIT(10));     /* FSM reset: a re-init may find it mid-frame */
+    /* 10-bit as IDF i2c_ll_set_slave_addr: [14:7] = A7..A0, [6:0] = 0x78 | A9 A8 */
+    REG(SLV_ADDR(p)) = ten ? BIT(31) | (addr & 0xFFu) << 7 | (0x78 | ((addr >> 8) & 3)) : (addr & 0x7F);
     REG(SDA_HOLD(p)) = 10; REG(SDA_SAMPLE(p)) = 10;
-    REG(FILTER(p)) = BIT(8) | BIT(9) | 7;
+    REG(FILTER(p)) = BIT(8) | BIT(9) | 0x77;                /* SCL and SDA thresholds (IDF 0x377) */
     REG(FIFO_CONF(p)) = BIT(14) | 16;                       /* fifo_prt_en, rx watermark 16 */
     fifo_reset(p);
     REG_SET(CTR(p), BIT(11));
@@ -220,4 +249,21 @@ int i2c_slave_write(int p, const uint8_t *b, size_t n)
     size_t k = 0;
     while (k < n && ((REG(SR(p)) >> 18) & 0x3F) < 32) REG(DATA(p)) = b[k++];
     return k;
+}
+
+void i2c_set_filter(int p, uint32_t cycles)
+{
+    uint32_t c = cycles > 15 ? 15 : cycles;
+    REG(FILTER(p)) = mcfg[p].filt = cycles ? BIT(8) | BIT(9) | c << 4 | c : 0;    /* SCL [3:0], SDA [7:4] */
+    REG_SET(CTR(p), BIT(11));
+}
+
+uint32_t i2c_set_timeout(int p, uint32_t us)
+{
+    /* TO counts 2^n source cycles (n 1..22) of SCL low/held; pick the smallest >= us */
+    uint32_t sclk = 40000000 / ((REG(CLK_CONF(p)) & 0xFF) + 1), n = 1;
+    while (n < 22 && ((uint64_t)1 << n) * 1000000 < (uint64_t)us * sclk) n++;
+    REG(TO(p)) = mcfg[p].to = BIT(5) | n;
+    REG_SET(CTR(p), BIT(11));
+    return (uint32_t)(((uint64_t)1 << n) * 1000000 / sclk);
 }

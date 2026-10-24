@@ -80,8 +80,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [~] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) done; [ ] HD DMA (WRDMA/RDDMA), segmented transfer
 - [x] **UART**: RS485 half duplex (DE) + collision detect, IrDA, HW flow control, pattern/AT detection;
       [ ] UHCI DMA (not needed so far: IRQ rings already at wire speed at 5 Mbaud), [ ] UART wake-up (with sleep)
-- [~] **I2C**: master/slave done; **todo**: 10-bit address, clock stretching
-      timeout tuning, SCL glitch filter config, bus-clear/recovery, multi-master arbitration loss handling
+- [x] **I2C**: master/slave, 10-bit address (both), SCL timeout API, glitch filter API, bus clear (IDF order),
+      arbitration loss (waits for the winner, retry), clean controller rebuild after errors
 - [~] **RMT**: done incl. carrier/filter; **todo**: TX loop count + sync of several channels, RX demodulation, DMA mode (ch 3/7), encoders (WS2812 driver as example)
 - [~] **MCPWM**: done incl. capture/fault/sync; **todo**: carrier (chopper) module, event-triggered fault actions per operator, capture prescaler
 - [~] **PCNT**: done; **todo**: threshold/zero-cross events as callbacks, step-notify API, decoder for quadrature with index

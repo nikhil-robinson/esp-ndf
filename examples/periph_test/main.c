@@ -27,6 +27,7 @@ int main(void)
     run("uart", test_uart);
     run("uart_modes", test_uart_modes);
     run("i2c", test_i2c);
+    run("i2c_ext", test_i2c_ext);
     run("gdma", test_gdma);
     run("spi", test_spi);
     run("spi_hd", test_spi_hd);

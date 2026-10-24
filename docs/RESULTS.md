@@ -175,6 +175,23 @@ IrDA is half duplex: the sender needs irda_tx_en (set while sending, cleared on 
 blind meanwhile, so a pin loop on one UART cannot work (irda_dplx is an internal loopback). Flow control: configure
 CTS before RTS when they share a pad.
 
+## I2C extended (`periph_test` i2c_ext vs `bench/idf_i2c_ext`, C9:D0, jumpers 10-11 / 12-13)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| 10-bit 0x2A5 write 8 / read 4, other 10-bit address NACKed | ok / ok / NACK | ok |
+| write after a NACKed foreign 10-bit header | ok | ok |
+| 10-bit write 8 B @100 kHz | **221.6k cycles** (floor 220.8k) | 230.5k cycles |
+| SCL stretched 20 ms mid-byte, timeout asked 2 ms (set 3.3 ms) | TIMEOUT after 6.6 ms | - |
+| slave holding SDA (core 1 emulation) | freed after 3 clocks | - |
+| two masters started together, x10 | exactly one loser every round, loser retries -> NACK | - |
+
+Found on the way: (1) the S3 I2C fsm_rst does not clean the controller (IDF soc_caps says so): after a NACK
+the next 10-bit header was NACKed until the module was reset and re-timed, as IDF does; (2) init must reset
+the module and mask the old role's interrupts (slave -> master re-init hung in an interrupt storm); (3)
+arbitration_en (reset default) was being cleared by our CTR write; (4) the filter threshold field is
+SCL [3:0] / SDA [7:4], we had set SCL only.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |
