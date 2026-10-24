@@ -3,17 +3,19 @@
  * SRAM1 is one memory seen twice: IRAM 0x4037_8000 == DRAM 0x3FC8_8000 (offset 0x6F_0000). Code goes first;
  * data starts right after the code's DRAM alias, so no RAM is wasted on a fixed split. Stay below 0x3FCE9000:
  * the ROM loader's own data lives above it. (0x40370000-0x40377FFF is the instruction cache's SRAM0.)
- * Flash part (NDF_XIP 1 = libraries, 2 = also the application and storage): code at 0x42000000 + NDF_XIP_ADDR
- * through the instruction cache, its read-only data right after it at 0x3C000000 + (same flash offset); written
- * to flash as build/<app>/xip.bin. The MMU maps flash page i to both buses (soc/esp32s3/cache.c). */
+ * Flash part (NDF_XIP 1 = libraries, 2 = also the application and storage): code in a fixed 1 MB virtual window at
+ * 0x43F00000 (MMU entries 496-511, above the 1:1 flash map and the PSRAM window) through the instruction cache, its
+ * read-only data right after it at 0x3DF00000 + SIZEOF(code); written to flash as build/<app>/xip.bin. cache.c maps
+ * the window onto the running image's flash copy (NDF_XIP_ADDR, or an OTA slot), so one image runs from any slot. */
+#define XIP_VWIN 0x1F00000
 ENTRY(_start0)
 
 MEMORY
 {
     iram (RWX) : ORIGIN = 0x40378000, LENGTH = 0x3FCE9000 - 0x3FC88000
     dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = 0x3FCE9000 - 0x3FC88000
-    irom (RX)  : ORIGIN = 0x42000000 + NDF_XIP_ADDR, LENGTH = NDF_XIP_SIZE
-    drom (R)   : ORIGIN = 0x3C000000 + NDF_XIP_ADDR, LENGTH = NDF_XIP_SIZE
+    irom (RX)  : ORIGIN = 0x42000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
+    drom (R)   : ORIGIN = 0x3C000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
 }
 
 /* Libraries never called from interrupts, flash operations or the panic path. Kept in RAM on purpose: printf
@@ -79,6 +81,7 @@ SECTIONS
 }
 
 ASSERT(_vector_table == 0x40378000, "vector table must be first in IRAM")
+ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (MMU entries 496-511)")
 ASSERT(!NDF_BOOT_FAST || _data_end <= 0x3FCE8000, "fast boot: the loaded image must end below the loader (0x3FCE8000)")
 ASSERT(_stack1_top <= 0x3FCE9000, "RAM full: code + data + stacks exceed SRAM below the ROM loader area")
 /* the baseband dump engine writes SRAM banks 0x3FCB0000..0x3FCDFFFF (drivers/rf/rf_dump.c) */

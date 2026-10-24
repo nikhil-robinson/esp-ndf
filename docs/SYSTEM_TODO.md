@@ -29,7 +29,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | B5 Memory protection (PMS), World Controller | **none** |
 | **C. System control** | C1 Clocks (incl. RTC slow clock, 32 kHz crystal) | partial |
 | | C2 Reset, restart, reset causes | done |
-| | C3 Boot: 2nd-stage loader, app partitions, OTA | partial: fast-boot loader + ROM-free warm boot (0.81 ms) done, OTA open |
+| | C3 Boot: 2nd-stage loader, app partitions, OTA | **done**: fast-boot loader, ROM-free warm boot 0.79 ms, OTA A/B + rollback (IDF format) |
 | | C4 Interrupt matrix | done |
 | | C5 System timer, timer groups, software timers | done |
 | | C6 Watchdogs (RTC, super, TG1, XTAL32K) | partial: TG0 only |
@@ -37,7 +37,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | **D. Power** | D1 Light sleep, deep sleep, wake sources | **none** |
 | | D2 Power domains, retention, frequency scaling | **none** |
 | | D3 ULP coprocessors (FSM, RISC-V) | **none** |
-| **E. Security and crypto** | E1 RNG | **none** |
+| **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
 | | E2 AES accelerator | partial: block + XTS |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **none** |
@@ -124,7 +124,7 @@ source (RC 136 kHz / 32 kHz crystal / 8MD256) and calibration, RTC fast clock, c
 
 **C2 Reset — done.** Reset cause per core with names, `sys_restart`.
 
-**C3 Boot and OTA — none (TRM 8).** The ROM loads our image (at 0x0) straight into RAM. Missing: own 2nd-stage loader
+**C3 Boot and OTA — done (TRM 8).** soc/esp32s3/loader, drivers/storage/ota.c, examples/ota_test. Was: The ROM loads our image (at 0x0) straight into RAM. Missing: own 2nd-stage loader
 (needed for XIP and app selection), app partitions, OTA A/B with rollback, image header + SHA-256 check (needs E3),
 fast boot. Reference: `bootloader/subproject/main/`, `bootloader_support/src/bootloader_utility.c`, `app_update/esp_ota_ops.c`.
 

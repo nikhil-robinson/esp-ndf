@@ -443,3 +443,14 @@ Floor: ~33 cycles/byte = the ChaCha20 block on this core; headroom: 4 blocks in 
 
 Short messages CPU-fed (no descriptor/lock overhead); runs of >= 4 blocks in internal RAM by DMA, 63 blocks per run.
 Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~1000 cycles on 64 B (padding block).
+
+## OTA (`examples/ota_test`, 2026-10-24)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| image check (appended SHA-256) | **first boot of a new image only** | every boot (unless validation is skipped) |
+| cold boot reset -> main with OTA selection | 6.77 ms (6.02 without NDF_OTA) | 35.5 ms |
+| warm boot (software reset) | **0.79 ms** (unchanged) | 35.5 ms |
+
+Same on-flash format as IDF (otadata select entries, crc32_le over seq): IDF's otatool switches our slots and reads
+ours. Code from flash runs from either slot: the code window (MMU entries 496-511) is mapped onto the booted slot.

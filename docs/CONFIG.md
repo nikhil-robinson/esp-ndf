@@ -20,6 +20,13 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_FLASH_SUS_HOLD_US`<br>Suspend: tSUS (us) | ndf_config.h | `50` | 20 – 400 | Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50). |
 | `NDF_FLASH_QE_SET`<br>Set quad-enable bit | ndf_config.h | `y` | y / n | If the chip's QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode). |
 
+## OTA update
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_OTA`<br>Loader picks the image from otadata | ndf_config.h | `y` | y / n | ESP-IDF otadata format: factory image, or ota_0/ota_1 by sequence number. Adds ~0.75 ms to a cold boot (warm resets unchanged). Off: always the image at BOOT_LOAD_ADDR (cold boot 6.0 ms). |
+| `NDF_OTA_ROLLBACK`<br>Rollback | ndf_config.h | `y` | y / n | A new image is checked (SHA-256) once, then must call ota_mark_valid() in its first boot; otherwise the next reset marks it aborted and boots the previous one (as IDF APP_ROLLBACK_ENABLE). |
+
 ## SHA accelerator
 
 | Option | File | Default | Values | Description |

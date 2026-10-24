@@ -25,6 +25,15 @@
 #ifndef NDF_FLASH_SUS_HOLD_US
 #define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
 #endif
+#ifndef NDF_OTA
+#define NDF_OTA                 1       /* loader picks factory / ota_N from otadata (ESP-IDF format) */
+#endif
+#ifndef NDF_OTA_ROLLBACK
+#define NDF_OTA_ROLLBACK        1       /* a new image must call ota_mark_valid() in its first boot, else it is dropped */
+#endif
+#ifndef NDF_OTA_XIP_OFF
+#define NDF_OTA_XIP_OFF         0x80000 /* OTA slot layout: RAM image at +0, its code window (xip.bin) at +this */
+#endif
 #ifndef NDF_SHA_DMA_MIN
 #define NDF_SHA_DMA_MIN         4       /* SHA: runs of at least this many blocks in internal RAM go by DMA */
 #endif

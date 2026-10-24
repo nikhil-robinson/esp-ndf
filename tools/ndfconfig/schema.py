@@ -47,6 +47,14 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='If the chip\'s QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. '
                   'Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode).'),
     ]),
+    ('menu', 'OTA update', [
+        dict(key='NDF_OTA', type='bool', default=True, target='h', label='Loader picks the image from otadata',
+             help='ESP-IDF otadata format: factory image, or ota_0/ota_1 by sequence number. Adds ~0.75 ms to a cold '
+                  'boot (warm resets unchanged). Off: always the image at BOOT_LOAD_ADDR (cold boot 6.0 ms).'),
+        dict(key='NDF_OTA_ROLLBACK', type='bool', default=True, target='h', label='Rollback', depends=('NDF_OTA', True),
+             help='A new image is checked (SHA-256) once, then must call ota_mark_valid() in its first boot; otherwise the '
+                  'next reset marks it aborted and boots the previous one (as IDF APP_ROLLBACK_ENABLE).'),
+    ]),
     ('menu', 'SHA accelerator', [
         dict(key='NDF_SHA_DMA_MIN', type='int', default=4, target='h', label='DMA from this many blocks', range=(1, 1000),
              help='Runs of at least this many 64/128-byte blocks in internal RAM go to the engine by DMA (up to 63 '

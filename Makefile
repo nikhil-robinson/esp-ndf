@@ -18,6 +18,7 @@ FLASH_FREQ      ?= 80m        # image header: SPI clock for the ROM loader
 STACK0_SIZE     ?= 16384      # core 0 stack, bytes
 STACK1_SIZE     ?= 16384      # core 1 stack, bytes
 PART_TABLE_ADDR ?= 0x80000    # partition table offset; the image must end below it
+OTA_XIP_OFF     ?= 0x80000   # OTA slot layout: code window (xip.bin) at slot + this
 BOOT_FAST       ?= 1          # 1: the ROM loads a small loader that copies the app from BOOT_LOAD_ADDR (fast boot)
 BOOT_LOAD_ADDR  ?= 0x2000     # flash offset of the app image when BOOT_FAST = 1
 XIP             ?= lib        # code from flash: off (all in RAM) | lib (libraries in flash) | all (libraries, app, storage)
@@ -25,7 +26,7 @@ XIP_ADDR        ?= 0x300000   # flash offset of the code blob (xip partition), 6
 XIP_SIZE        ?= 0x100000   # its size
 XIP_NUM = $(if $(filter off,$(strip $(XIP))),0,$(if $(filter all,$(strip $(XIP))),2,1))
 LOAD_AT = $(if $(filter 1,$(strip $(BOOT_FAST))),$(strip $(BOOT_LOAD_ADDR)),0)
-CFG_FLAGS = $(DEFS) -DNDF_BOOT_LOAD_ADDR=$(LOAD_AT) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_PART_TABLE_ADDR=$(strip $(PART_TABLE_ADDR)) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h)
+CFG_FLAGS = $(DEFS) -DNDF_BOOT_LOAD_ADDR=$(LOAD_AT) -DNDF_XIP=$(XIP_NUM) -DNDF_XIP_ADDR=$(strip $(XIP_ADDR)) -DNDF_XIP_SIZE=$(strip $(XIP_SIZE)) -DNDF_OTA_XIP_OFF=$(strip $(OTA_XIP_OFF)) -DNDF_PART_TABLE_ADDR=$(strip $(PART_TABLE_ADDR)) $(if $(wildcard $(APP)/ndf_config.h),-include $(APP)/ndf_config.h)
 ifeq ($(NO_ACCEL),1)
   ACCEL_FLAGS = -DNDF_NO_ACCEL       # every accelerated path off: tests the portable fallbacks
   SOC_LOOPFIX := 0
@@ -59,6 +60,7 @@ $(OUT)/app.bin: $(OUT)/app.elf
 	@test $$(stat -c%s $(OUT)/xip.bin) -le $$(( $(strip $(XIP_SIZE)) )) || (echo "xip.bin larger than XIP_SIZE"; rm -f $@; false)
 	@python3 tools/mkunwind.py $(PFX)readelf $(PFX)nm $< $@ >/dev/null   # exact panic backtraces: unwind table in flash
 	@test $$(( $$(stat -c%s $@) + $(LOAD_AT) )) -le $$(( $(strip $(PART_TABLE_ADDR)) )) || (echo "image larger than PART_TABLE_ADDR ($(strip $(PART_TABLE_ADDR))): would overwrite the partition table"; rm -f $@; false)
+	@python3 -c "import sys; a=open('$@','rb').read(); x=open('$(OUT)/xip.bin','rb').read(); o=$(strip $(OTA_XIP_OFF)); assert len(a)<=o, 'app.bin larger than OTA_XIP_OFF'; open('$(OUT)/ota.bin','wb').write(a+b'\\xff'*(o-len(a))+x if x else a)"   # OTA image
 	@echo "built $@"
 
 $(OUT)/loader.bin: soc/$(SOC)/loader/loader.S soc/$(SOC)/loader/loader.c soc/$(SOC)/loader/loader.ld soc/$(SOC)/regi2c.c $(OUT)/config.stamp

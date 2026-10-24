@@ -70,6 +70,12 @@ pll_ready:                  /* the core voltage is analog too: still set */
 #define NDF_BOOT_RTC  1                 /* warm resets skip the ROM; esptool's reset (cause 21/22) still reaches it */
 #endif
 #define RTC_STAGE     0x50000000u
+#if NDF_OTA && !NDF_LOADER_RTC
+#define OTA_PENDING ota_pending
+#else
+#define OTA_PENDING 0
+#endif
+#define OTA_NOTE      0x50001FF0u     /* RTC slow memory: "OTAS", image offset, its XIP flash offset (cache.c, ota.c) */
 #define QE_NOTE       0x50001FFCu     /* RTC slow memory: "QE" + quad-enable bit, for the warm-reset stage */
 #define RTC_FAST      0x600FE000u     /* RTC fast memory: the stage runs here (loader_rtc.ld) */
 #define RTC_STAGE_SRC 0x1000u          /* in flash: "RTCB", jump size, stage size, jump, stage (build/<app>/rtcboot.bin) */
@@ -85,6 +91,108 @@ static uint32_t spi1_rd(uint8_t cmd)              /* 1-bit command, first data b
     for (uint32_t k = 0; (REG(0x60002000u) & (1u << 18)) && k < 100000; k++) {}
     return REG(0x60002058u);
 }
+
+#if NDF_OTA && !NDF_LOADER_RTC
+/* ---- OTA slot choice, ESP-IDF format and rules (bootloader_utility.c, bootloader_common_loader.c, esp_ota_ops.c):
+ * partition table at NDF_PART_TABLE_ADDR, otadata = two 32-byte select entries (one per 4 KB sector): seq, label,
+ * state, crc32_le(~0, seq). Highest valid seq -> slot (seq - 1) % slots. Rollback: NEW -> image SHA-256 checked once,
+ * PENDING_VERIFY; PENDING_VERIFY on the next boot (the app did not confirm) -> ABORTED, fall back. */
+enum { ST_NEW = 0, ST_PENDING = 1, ST_VALID = 2, ST_INVALID = 3, ST_ABORTED = 4 };
+typedef struct { uint32_t seq; uint8_t label[20]; uint32_t state; uint32_t crc; } ota_sel_t;
+
+static uint32_t crc32_le(uint32_t crc, const uint8_t *p, int n)
+{
+    crc = ~crc;
+    while (n--) { crc ^= *p++; for (int k = 0; k < 8; k++) crc = crc >> 1 ^ (0xEDB88320u & -(crc & 1)); }
+    return ~crc;
+}
+static void spi1_cmd(uint8_t cmd, int abits, uint32_t addr, const uint32_t *w, int nw)   /* 1-bit, data out */
+{
+    REG(0x60002008u) &= ~((1u << 13) | (1u << 14) | (1u << 20) | (1u << 23) | (1u << 24));
+    REG(0x60002018u) = 1u << 31 | (abits ? 1u << 30 : 0) | (nw ? 1u << 27 : 0) | 1u << 6 | 1u << 7;
+    REG(0x6000201Cu) = (uint32_t)(abits ? abits - 1 : 0) << 26;
+    REG(0x60002020u) = 7u << 28 | cmd;
+    REG(0x60002004u) = addr;
+    REG(0x60002024u) = nw ? nw * 32 - 1 : 0;
+    for (int i = 0; i < nw; i++) REG(0x60002058u + 4 * i) = w[i];
+    REG(0x60002000u) = 1u << 18;
+    while (REG(0x60002000u) & (1u << 18)) {}
+}
+static void spi1_idle(void) { while (spi1_rd(0x05) & 1) {} }
+static void sel_write(uint32_t at, ota_sel_t *e)                     /* rewrite one select entry (its own sector) */
+{
+    spi1_idle(); spi1_cmd(0x06, 0, 0, 0, 0); spi1_cmd(0x20, 24, at, 0, 0); spi1_idle();
+    spi1_cmd(0x06, 0, 0, 0, 0); spi1_cmd(0x02, 24, at, (const uint32_t *)e, 8); spi1_idle();
+    for (uint32_t a = (FLASH_DBUS + at) & ~63u; a < FLASH_DBUS + at + 32; a += 64) {   /* drop the cached copy */
+        REG(DCACHE_SYNC_ADDR) = a; REG(DCACHE_SYNC_SIZE) = 64; REG(DCACHE_SYNC) = 1; while (!(REG(DCACHE_SYNC) & 8u)) {}
+    }
+}
+static bool image_ok(uint32_t off)                                    /* appended SHA-256 (hardware engine) */
+{
+    const uint8_t *im = (const uint8_t *)(FLASH_DBUS + off), *p = im + 24;
+    if (im[0] != 0xE9) return false;
+    for (uint32_t s = 0, n = im[1]; s < n; s++) p += 8 + rd32(p + 4);
+    uint32_t len = ((uint32_t)(p - im) + 16) & ~15u;                  /* padding + checksum byte */
+    if (!im[23]) return true;                                         /* no hash appended: header check only */
+    REG(0x600C001Cu) |= 1u << 2; REG(0x600C0024u) &= ~((1u << 2) | (1u << 4) | (1u << 5));   /* SHA clock, out of reset */
+    const uint8_t *q = im; uint32_t left = len, w[16]; bool first = true, padded = false;
+    for (;;) {
+        uint32_t n = left < 64 ? left : 64;
+        for (int i = 0; i < 16; i++) w[i] = 0;
+        for (uint32_t i = 0; i < n; i++) ((uint8_t *)w)[i] = q[i];
+        q += n; left -= n;
+        bool last = false;
+        if (n < 64) {
+            if (!padded) { ((uint8_t *)w)[n] = 0x80; padded = true; }
+            if (n < 56) { uint32_t lo = len << 3, hi = len >> 29;            /* bit length, big-endian, no 64-bit math */
+                for (int i = 0; i < 4; i++) { ((uint8_t *)w)[63 - i] = (uint8_t)(lo >> (8 * i)); ((uint8_t *)w)[59 - i] = (uint8_t)(hi >> (8 * i)); }
+                last = true; }
+        }
+        REG(0x6003B000u) = 2;                                         /* SHA-256 */
+        for (int i = 0; i < 16; i++) REG(0x6003B080u + 4 * i) = w[i];
+        REG(first ? 0x6003B010u : 0x6003B014u) = 1; first = false;
+        while (REG(0x6003B018u)) {}
+        if (last) break;
+    }
+    for (int i = 0; i < 8; i++) if (REG(0x6003B040u + 4 * i) != rd32(im + len + 4 * i)) return false;
+    return true;
+}
+static bool ota_pending;              /* booting an unconfirmed image: next reset must come back here (rollback) */
+static uint32_t choose_image(uint32_t *xip)                          /* flash offset of the image to boot */
+{
+    const uint8_t *pt = (const uint8_t *)(FLASH_DBUS + NDF_PART_TABLE_ADDR);
+    uint32_t factory = NDF_BOOT_LOAD_ADDR, otad = 0, slot[16], ns = 0;
+    ota_pending = false;                                              /* .bss is not cleared in the loader */
+    for (int i = 0; i < 95; i++, pt += 32) {
+        if (pt[0] != 0xAA || pt[1] != 0x50) break;
+        uint32_t o = rd32(pt + 4);
+        if (pt[2] == 0 && pt[3] >= 0x10 && pt[3] < 0x20 && ns < 16) slot[ns++] = o;
+        else if (pt[2] == 1 && pt[3] == 0) otad = o;
+    }
+    *xip = NDF_XIP_ADDR;
+    if (!otad || !ns) return factory;
+    for (;;) {
+        ota_sel_t e[2]; int best = -1;
+        for (int k = 0; k < 2; k++) {
+            const uint8_t *src = (const uint8_t *)(FLASH_DBUS + otad + 0x1000 * k);
+            for (int i = 0; i < 32; i++) ((uint8_t *)&e[k])[i] = src[i];
+            bool ok = e[k].seq != 0xFFFFFFFFu && e[k].state != ST_INVALID && e[k].state != ST_ABORTED &&
+                      e[k].crc == crc32_le(0xFFFFFFFFu, (const uint8_t *)&e[k].seq, 4);
+            if (ok && (best < 0 || e[k].seq > e[best].seq)) best = k;
+        }
+        if (best < 0) return factory;
+        uint32_t at = otad + 0x1000 * best, img = slot[(e[best].seq - 1) % ns];
+        if (NDF_OTA_ROLLBACK && e[best].state == ST_PENDING) { e[best].state = ST_ABORTED; sel_write(at, &e[best]); continue; }
+        if (e[best].state == ST_NEW) {
+            if (!image_ok(img)) { e[best].state = ST_INVALID; sel_write(at, &e[best]); continue; }
+            if (NDF_OTA_ROLLBACK) { e[best].state = ST_PENDING; sel_write(at, &e[best]); ota_pending = true; }
+        }
+        if (((const uint8_t *)(FLASH_DBUS + img))[0] != 0xE9) { e[best].state = ST_INVALID; sel_write(at, &e[best]); continue; }
+        *xip = img + NDF_OTA_XIP_OFF;
+        return img;
+    }
+}
+#endif
 
 static void to_rom(void)                /* hand this reset to the ROM: vector back, system reset */
 {
@@ -132,14 +240,22 @@ void loader_main(void)
 #endif
     REG(DCACHE_CTRL) &= ~1u;
     REG(DCACHE_CTRL) = (REG(DCACHE_CTRL) & ~(3u << 3)) | 2u << 3;          /* 64-byte lines */
-    uint32_t first = NDF_BOOT_LOAD_ADDR >> 16, pages = 8;                 /* the image lies within 512 KB */
-    for (uint32_t i = first; i < first + pages; i++) REG(MMU(i)) = i;      /* flash page i at 0x3C000000 + 64K*i */
+#if NDF_LOADER_RTC          /* warm: only the pages of the image to copy (it lies within 512 KB) */
+    uint32_t pg = (REG(OTA_NOTE) == 0x5341544Fu ? REG(OTA_NOTE + 4) : NDF_BOOT_LOAD_ADDR) >> 16;
+    for (uint32_t i = pg; i < pg + 8; i++) REG(MMU(i)) = i;
+#else                       /* cold: the first 16 MB (partition table, otadata, slots) */
+    for (uint32_t i = 0; i < 256; i++) REG(MMU(i)) = i;                   /* flash page i at 0x3C000000 + 64K*i */
+#endif
     dcache_invalidate();
     REG(DCACHE_CTRL1) &= ~1u;
     REG(DCACHE_CTRL) |= 1u;
     __asm__ volatile("memw" ::: "memory");                              /* no flash read may move above the enable */
 
-    const volatile uint8_t *img = (const volatile uint8_t *)(FLASH_DBUS + NDF_BOOT_LOAD_ADDR);
+    uint32_t img_off = NDF_BOOT_LOAD_ADDR;
+#if NDF_LOADER_RTC          /* warm reset: the image the cold path chose (its note), if the cold path left one */
+    if (REG(OTA_NOTE) == 0x5341544Fu) img_off = REG(OTA_NOTE + 4);
+#endif
+    const volatile uint8_t *img = (const volatile uint8_t *)(FLASH_DBUS + img_off);
     /* QIO (0xEB, 6 dummy clocks) as drivers/flash/flash.c, only if the chip's quad-enable bit is set (read over SPI1
      * first, as IDF's bootloader: a quad command to a chip with QE clear leaves it unreadable until power-off):
      * MXIC/ISSI SR1 bit 6, others SR2 bit 1. WP/HD pads to their SPI function (the ROM boots in DIO, leaves them GPIO) */
@@ -172,8 +288,17 @@ bus_ready:
     if (img[0] != 0xE9) to_rom();                                         /* flash not readable from here: the ROM boots */
 #else
     if (img[0] != 0xE9) for (;;) {}                                       /* no image: stay (download mode still works) */
+#if NDF_OTA
+    {   uint32_t xip, o = choose_image(&xip);
+        if (o != NDF_BOOT_LOAD_ADDR) { REG(OTA_NOTE) = 0x5341544Fu; REG(OTA_NOTE + 4) = o; REG(OTA_NOTE + 8) = xip; img = (const volatile uint8_t *)(FLASH_DBUS + o); }
+        else REG(OTA_NOTE) = 0;
+        if (img[0] != 0xE9) for (;;) {}
+    }
+#else
+    REG(OTA_NOTE) = 0;
+#endif
     const uint32_t *rs = (const uint32_t *)(FLASH_DBUS + RTC_STAGE_SRC);  /* install the RTC boot stage for warm resets */
-    if (NDF_BOOT_RTC && rs[0] == 0x42435452u && rs[1] && rs[1] <= 0x100u && rs[2] && rs[2] <= 0x2000u) {
+    if (NDF_BOOT_RTC && !OTA_PENDING && rs[0] == 0x42435452u && rs[1] && rs[1] <= 0x100u && rs[2] && rs[2] <= 0x2000u) {
         volatile uint32_t *rj = (volatile uint32_t *)RTC_STAGE, *rf = (volatile uint32_t *)RTC_FAST;
         for (uint32_t k = 0; k < rs[1] / 4; k++) rj[k] = rs[3 + k];       /* jump at the reset vector */
         for (uint32_t k = 0; k < rs[2] / 4; k++) rf[k] = rs[3 + rs[1] / 4 + k];   /* the stage */

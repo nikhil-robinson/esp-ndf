@@ -750,3 +750,15 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 NIST vectors PASS: SHA-1 / 224 / 256 / 384 / 512 / 512-224 / 512-256 "abc", SHA-256 empty and 448-bit, SHA-1 448-bit,
 SHA-256 and SHA-512 one million 'a' (1000 updates). Split + interleaved (two contexts) + unaligned updates equal the
 one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
+
+## OTA (`examples/ota_test`, real resets, XIP=lib, 2026-10-24)
+
+| step | result |
+|---|---|
+| factory copies itself into ota_0 (RAM image + code window), ota_end SHA-256, ota_set_boot | PASS |
+| ota_0 first boot: PENDING_VERIFY, ota_mark_valid -> VALID | PASS |
+| ota_1 installed, booted, not confirmed, reset | loader marks ABORTED, boots ota_0 (VALID): PASS |
+| corrupted image: ota_end rejects it; booted anyway | loader marks INVALID (SHA-256), stays on ota_0: PASS |
+| otadata erased | factory boots: PASS |
+| IDF otatool switch_ota_partition --slot 1 | our loader boots ota_1 |
+| our ota_set_boot(ota_0) | IDF otatool reads seq 1, crc 0x4743989a (valid) |

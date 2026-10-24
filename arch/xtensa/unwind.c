@@ -25,8 +25,9 @@ static bool find_table(void)
     if (tbl) return true;
     if (nfde == 0xFFFF) return false;    /* looked before: none */
     uint8_t h[24];
-    if (flash_read_raw(NDF_BOOT_LOAD_ADDR, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
-    uint32_t off = NDF_BOOT_LOAD_ADDR + 24;   /* image start: 0x0, or the fast-boot load offset */
+    uint32_t base = REG(0x50001FF0u) == 0x5341544Fu ? REG(0x50001FF4u) : NDF_BOOT_LOAD_ADDR;   /* OTA slot (ota.h) */
+    if (flash_read_raw(base, h, sizeof h) || h[0] != 0xE9) { nfde = 0xFFFF; return false; }
+    uint32_t off = base + 24;                 /* image start: the fast-boot load offset or the OTA slot */
     for (int i = 0; i < h[1]; i++) {
         uint32_t seg[2];
         if (flash_read_raw(off, seg, 8)) { nfde = 0xFFFF; return false; }

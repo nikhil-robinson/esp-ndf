@@ -27,7 +27,7 @@ static void core1_loop(void)
     uint32_t last = ccount();
     while (!c1_stop) {
         if (!c1_go) { last = ccount(); continue; }
-        cache_invalidate_code_range((uint32_t)flash_kernel - 0x42000000u, 64);   /* next call fetches from flash */
+        cache_invalidate_code_range(cache_flash_addr((const void *)flash_kernel), 64);   /* next call fetches from flash */
         uint32_t x = c1_runs;
         if (flash_kernel(x) != ram_kernel(x)) c1_bad++;
         if (REG(0x600020F8u) & 2) { c1_sus++; REG(0x600020F4u) = 2; }   /* SPI1 PES_END: a suspend happened */
@@ -88,14 +88,14 @@ int main(void)
         for (int k = 0; k < 1000; k++) flash_kernel(k);
         uint32_t hit = (ccount() - c0) / 1000;
         c0 = ccount();
-        for (int k = 0; k < 1000; k++) { cache_invalidate_code_range((uint32_t)flash_kernel - 0x42000000u, 64); flash_kernel(k); }
+        for (int k = 0; k < 1000; k++) { cache_invalidate_code_range(cache_flash_addr((const void *)flash_kernel), 64); flash_kernel(k); }
         uint32_t miss = (ccount() - c0) / 1000;
         c0 = ccount();
         for (int k = 0; k < 1000; k++) { cache_invalidate_code_range(0x200000, 64); flash_kernel(k); }
         uint32_t inv = (ccount() - c0) / 1000;
         volatile uint32_t sink = 0;
         c0 = ccount();
-        for (int k = 0; k < 1000; k++) { cache_invalidate_code_range((uint32_t)flash_kernel - 0x42000000u, 64); sink += flash_kernel(k); }
+        for (int k = 0; k < 1000; k++) { cache_invalidate_code_range(cache_flash_addr((const void *)flash_kernel), 64); sink += flash_kernel(k); }
         uint32_t miss2 = (ccount() - c0) / 1000;
         c0 = ccount();
         for (int k = 0; k < 1000; k++) { cache_invalidate_code_range(0x200000, 64); sink += flash_kernel(k); }
