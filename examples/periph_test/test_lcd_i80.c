@@ -72,7 +72,7 @@ void test_lcd_i80(void)
     delay_us(100000);
     int32_t pc = pcnt_get(2), hs = pcnt_get(3);
     uint32_t fr = lcd_rgb_frames() - f0;
-    lcd_rgb_stop();
+    lcd_cam_release();
     printf("    RGB 32x8 @%lu Hz: %lu frames in 100 ms, %ld pclk, %ld hsync -> %ld pclk/line, %ld lines/frame (44, 14)\n",
            rhz, fr, pc, hs, hs ? pc / hs : 0, fr ? (hs + (int32_t)fr / 2) / (int32_t)fr : 0);
     CHECK(fr >= 160 && fr <= 166 && hs && pc / hs == 44 && (hs + (int32_t)fr / 2) / (int32_t)fr == 14);   /* window edges: round */
@@ -95,7 +95,7 @@ void test_cam(void)
     CHECK(cam_init(&c) == 0);
     int n1 = (cam_capture(got, sizeof got), cam_wait(100000));    /* first may be partial */
     int n = (cam_capture(got, sizeof got), cam_wait(100000));
-    lcd_rgb_stop();
+    lcd_cam_release();
     int bad = 0, off = 0;
     for (int i = 0; i < 256 && i < n; i++) bad += got[i] != fb[i];
     if (bad) for (off = 1; off < 4; off++) { int b2 = 0; for (int i = 0; i + off < n && i < 250; i++) b2 += got[i + off] != fb[i]; if (!b2) break; }

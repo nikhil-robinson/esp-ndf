@@ -29,3 +29,5 @@ typedef struct {
 uint32_t lcd_rgb_start(const lcd_rgb_cfg_t *c, const void *fb);
 void     lcd_rgb_stop(void);
 uint32_t lcd_rgb_frames(void);                               /* VSYNC count since start */
+
+void     lcd_cam_release(void);                           /* LCD + camera off, DMA channel freed */

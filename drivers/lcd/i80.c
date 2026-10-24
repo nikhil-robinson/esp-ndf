@@ -185,3 +185,10 @@ void lcd_rgb_stop(void)
 }
 
 uint32_t lcd_rgb_frames(void) { return frames; }
+
+void lcd_cam_release(void)                     /* stop both halves, give the GDMA channel back */
+{
+    lcd_rgb_stop();
+    REG_CLR(INT_ENA, BIT(0) | BIT(1));
+    if (dma >= 0) { gdma_stop(dma); gdma_free(dma); dma = -1; }
+}
