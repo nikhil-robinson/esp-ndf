@@ -506,3 +506,16 @@ finishes, reported as a failure); 100 us passes every case with the shortest pau
 
 Engine DMA mode for >= 4 blocks in internal RAM (62 MB/s at 64 KB, the engine's rate), CPU-fed blocks below (no
 descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.
+
+## RSA / big-number (`examples/rsa_test` vs `bench/idf_rsa`, C9:D0, 2026-10-24)
+
+| us | esp-ndf | ESP-IDF mbedtls (hardware MPI) | gain |
+|---|---|---|---|
+| RSA-1024 prepare modulus (R² mod M) | 2 100 | 3 170 (first exp, incl. 313 exp) | 1.75x |
+| RSA-2048 prepare modulus | 8 000 | 13 660 (incl. 1 075) | 1.8x |
+| RSA-4096 prepare modulus | 31 700 | 55 553 (incl. 4 061) | 1.9x |
+| x^65537, 1024 / 2048 / 4096 | 281 / 1 042 / 4 029 | 313 / 1 075 / 4 061 | 1.11 / 1.03 / 1.01x |
+| x^d, 1024 / 2048 / 4096 | 21 700 / 163 000 / 1 277 418 | 21 760 / 163 354 / 1 277 450 | equal |
+
+Exponentiation is the engine's own time (both drive the same block), so x^d is at the floor; the gain is R² preparation
+(top-bit trick + doublings instead of mbedtls' generic division) and less per-call overhead on short exponents.

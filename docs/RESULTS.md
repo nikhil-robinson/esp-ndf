@@ -822,3 +822,8 @@ equal the raw bits** (12 espefuse entries have no bit position to compare). Read
 
 NIST SP 800-38A F.1-F.5 (ECB, CBC, CFB128, OFB, CTR; AES-128) PASS by DMA, block by block and decrypting. AES-256,
 64 KB random data, every mode: DMA output and final IV equal the CPU path, decryption restores the plaintext.
+
+## RSA / big-number accelerator (`examples/rsa_test`, 2026-10-24)
+
+RSA-1024/2048/4096: x^65537, x^d and x*y mod M all equal Python pow() vectors (bench/rsa/gen_vectors.py) on C9:D0;
+IDF sibling bench/idf_rsa gives the same results. Timings in PERFORMANCE.md.

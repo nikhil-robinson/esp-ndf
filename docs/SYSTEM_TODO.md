@@ -40,7 +40,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
 | | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF (GCM open) |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
-| | E4 RSA / big-number accelerator | **none** |
+| | E4 RSA / big-number accelerator | **done**: exp/mul mod 1024-4096, R² prep 1.5-1.75x IDF, exp equal (same engine) |
 | | E5 HMAC, Digital Signature (DS) | **none** |
 | | E6 Software crypto with no hardware block (ECC, AES-GCM tag, ...) | **none** |
 | | E7 eFuse: fields, key blocks, burn opt-in | **done** (read): IDF field table by name, all 11 blocks, 100/100 vs espefuse; burning not implemented (approval rule) |
@@ -137,7 +137,7 @@ other core without running code there.
 at boot. Missing: RTC watchdog (boot-hang protection, chip-reset stage), super watchdog, TG1 MWDT, XTAL32K watchdog.
 Reference: `hal/esp32s3/include/hal/rwdt_ll.h`, `mwdt_ll.h`, `esp_system/int_wdt.c`, `esp_system/task_wdt/`.
 
-**C7 Brownout, clock glitch — none (TRM 10, 24).** Reset causes are decoded; the detectors are not configured. Brownout
+**C7 Brownout, clock glitch — done (TRM 10, 24).** soc/esp32s3/brownout.c. Was: Reset causes are decoded; the detectors are not configured. Brownout
 level + interrupt (cut motors, flush logs before the reset), clock-glitch detector. Reference: `esp_system/port/brownout.c`,
 `hal/esp32s3/include/hal/brownout_ll.h`.
 
@@ -165,7 +165,7 @@ mbedTLS on IDF. Reference: `mbedtls/port/aes/`.
 **E3 SHA — done (TRM 18).** drivers/crypto/sha.c. Was: SHA-1/224/256/384/512 (and 512/t), block and DMA mode, HMAC-SHA in software. Needed by C3
 (image check). Reference: `mbedtls/port/sha/`, `hal/esp32s3/include/hal/sha_ll.h`.
 
-**E4 RSA / big-number — none (TRM 20).** Modular exponentiation and multiplication up to 4096 bits: RSA signatures,
+**E4 RSA / big-number — done (TRM 20).** drivers/crypto/rsa.c (`rsa_mod_init`, `rsa_exp_mod`, `rsa_mul_mod`); vectors from Python pow(). Was: Modular exponentiation and multiplication up to 4096 bits: RSA signatures,
 secure boot v2 verification. Reference: `mbedtls/port/bignum/`.
 
 **E5 HMAC, DS — none (TRM 21, 22).** HMAC from eFuse keys (key never readable: NVS key derivation, JTAG re-enable), and
