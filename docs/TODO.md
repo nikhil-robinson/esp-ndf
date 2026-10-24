@@ -43,7 +43,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [~] Interrupt matrix: per-core routing, priorities, line sharing done; [ ] NMI (level 7) use
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)
 - [x] System timer, software timers
-- [ ] System time kept across sleep, gettimeofday-like (with D1)
+- [x] gettimeofday / settimeofday / clock_gettime (lib/time.c); [ ] wall time kept across sleep / reset (with D1)
 - [x] Own 2nd-stage loader, warm boot 0.9 ms, OTA A/B + rollback, SHA-256 image check
 - [x] Chip info incl. PSRAM size
 - [x] ROM-free (no ROM calls in our code)
@@ -99,8 +99,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 ## 7. Peripherals not started
 
 - [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV
-- [ ] **USB OTG** (ch. 32): device stack (CDC-ACM, HID, MSC, vendor), host
-      (CDC, MSC, HID), OTG role switch
+- [~] **USB OTG** (ch. 32): device CDC-ACM done (1.32x / 1.97x IDF); **todo**: HID, MSC, vendor, host, role switch.
+      Safety first (PHY mux RTC_CNTL_USB_CONF is RTC domain): arm the RTC watchdog with RTC reset for every OTG
+      window, prove on a harmless path that this reset clears RTC_CNTL registers, then run new class code
 - [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
 - [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); [ ] threshold interrupt
@@ -110,7 +111,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] libc: `snprintf` family with %f/%e/%g, `strtol/ul/ll/ull`, `strtof/strtod` (float precision), `qsort`, `bsearch`, `atoi`;
       float runtime (`__divsf3`, `sqrtf`, conversions) IEEE-exact; double arithmetic (asm fast paths, faster than IDF ROM);
-      correctly rounded `strtod`/`strtof`; exact `printf` (any precision, %a); [ ] `time()`/`gmtime` functions, libm (sinf, expf, ...)
+      correctly rounded `strtod`/`strtof`; exact `printf` (any precision, %a); libm (lib/math.c, mathf.c);
+      [x] `time`/`gettimeofday`/`settimeofday`/`clock_gettime`, `gmtime_r`/`mktime`/`timegm`/`strftime` (UTC, 11-75x newlib)
 - [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
 - [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
 - [ ] Event dispatch (lightweight, no RTOS)

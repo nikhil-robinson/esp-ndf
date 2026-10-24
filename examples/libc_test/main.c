@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <limits.h>
 #include "vectors.h"
+#include "time_vectors.h"
+#include <time.h>
+#include <sys/time.h>
+time_t timegm(struct tm *);                        /* GNU/BSD extension: not prototyped by default */
 static inline uint32_t dcc(void) { return ccount(); }
 #include "dbench.inc"
 
@@ -203,6 +207,29 @@ int main(void)
         t0 = ccount(); for (int i = 0; i < 10; i++) (void)strtod("2.2250738585072011e-308", 0); uint32_t a4 = (ccount() - t0) / 10;
         printf("     snprintf %%.17g 1.23e300 %lu, denormal %lu, strtod 16 digits %lu, hard case %lu cycles\n",
                (unsigned long)a1, (unsigned long)a2, (unsigned long)a3, (unsigned long)a4); }
+    {   /* calendar time vs Python time.gmtime: gmtime_r and timegm round trip over 0001..9999 */
+        int bad = 0;
+        for (unsigned i = 0; i < sizeof tv_ref / sizeof tv_ref[0]; i++) {
+            time_t t = (time_t)tv_ref[i].t; struct tm m;
+            gmtime_r(&t, &m);
+            bad += m.tm_year != tv_ref[i].y || m.tm_mon != tv_ref[i].mo || m.tm_mday != tv_ref[i].d || m.tm_hour != tv_ref[i].h ||
+                   m.tm_min != tv_ref[i].mi || m.tm_sec != tv_ref[i].s || m.tm_wday != tv_ref[i].wd || m.tm_yday != tv_ref[i].yd;
+            bad += timegm(&m) != t;
+        }
+        CHECK(bad == 0, "gmtime_r / timegm: %u host vectors (year 1..9999, negative times), %d wrong", (unsigned)(sizeof tv_ref / sizeof tv_ref[0]), bad);
+        struct tm n = { .tm_year = 124, .tm_mon = 13, .tm_mday = 32, .tm_hour = 25 };   /* 2024-14-32 25:00 -> 2025-03-05 01:00 */
+        time_t nt = mktime(&n);
+        char b[64]; strftime(b, sizeof b, "%F %T %a %b %j", &n);
+        CHECK(!strcmp(b, "2025-03-05 01:00:00 Wed Mar 064") && nt == 1741136400, "mktime normalises + strftime: %s (%lld)", b, (long long)nt);
+        struct timeval tv = { .tv_sec = 1761350400 }; settimeofday(&tv, 0);
+        (void)time(0); uint32_t c0 = ccount(); time_t now = time(0); uint32_t tc = ccount() - c0;
+        struct timeval g; gettimeofday(&g, 0);
+        CHECK(now == 1761350400 && g.tv_sec == 1761350400, "settimeofday / time / gettimeofday: %lld, time() %lu cycles", (long long)now, (unsigned long)tc);
+        c0 = ccount(); struct tm m; gmtime_r(&now, &m); uint32_t gc = ccount() - c0;
+        c0 = ccount(); struct tm mm = m; (void)mktime(&mm); uint32_t mc = ccount() - c0;
+        c0 = ccount(); strftime(b, sizeof b, "%F %T", &m); uint32_t sc2 = ccount() - c0;
+        printf("     gmtime_r %lu, mktime %lu, strftime %%F %%T %lu cycles\n", (unsigned long)gc, (unsigned long)mc, (unsigned long)sc2);
+    }
     printf("=== %s (%d failures) ===\n", fails ? "FAILED" : "ALL PASS", fails);
     for (;;) {}
 }
