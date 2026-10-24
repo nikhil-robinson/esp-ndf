@@ -1,4 +1,4 @@
-/* On-chip temperature sensor (SAR, ESP32-S3), range -10..80 C (+-1 C, uncalibrated). */
+/* On-chip temperature sensor (SAR, ESP32-S3), range -10..100 C, eFuse per-chip trim applied. */
 #pragma once
 #include "ndf.h"
 

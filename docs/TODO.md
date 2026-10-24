@@ -101,9 +101,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [ ] **Camera** (LCD_CAM camera, DVP 8/16-bit) + JPEG/YUV handling example
 - [ ] **USB OTG** (ch. 32): device stack (CDC-ACM, HID, MSC, vendor), host
       (CDC, MSC, HID), OTG role switch
-- [~] USB Serial/JTAG: console done; **todo**: RX path (input), JTAG-only mode, disconnect detection
+- [~] USB Serial/JTAG: console out + input (`console_getc`) done; **todo**: JTAG-only mode, disconnect detection
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
-- [ ] **Temperature sensor** (ch. 39.4)
+- [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); [ ] threshold interrupt
 - [ ] Analog comparator, DAC, SDIO slave, Ethernet MAC, ISP, JPEG codec, PPA, parallel IO (n/a on S3)
 
 ## 8. Runtime and libraries (IDF: esp_system, newlib, log, ringbuf, console, cxx...)

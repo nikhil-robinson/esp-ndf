@@ -290,6 +290,17 @@ RGB needs the blank-region enable even with 0 extra cycles (IDF sets blank 1/1),
 
 I2C 0x5D: product id "911", 320 x 240, report poll 29.7k cycles at 400 kHz (bus-bound), no false reports.
 
+## Temperature sensor (`examples/tsens_test` vs `bench/idf_tsens`, C9:D0, runs alternated)
+
+| run | esp-ndf | ESP-IDF |
+|---|---|---|
+| 1 | 49.8 C | 50.4 C |
+| 2 | 48.3 C | 48.2 C |
+| read | **568 cycles** | 1830 cycles |
+
+Before: 1 C low (sensor clocked without the digital RC_FAST clock IDF enables) and 1 ms per read (range
+re-selected each time). eFuse TEMP_CALIB (0x005 = -0.5 C here) applied as IDF.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |
