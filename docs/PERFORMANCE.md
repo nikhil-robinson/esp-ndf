@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| TWAI | bus-off recovery -> RECOVERED alert, 500k (`test_twai_alerts` vs `bench/idf_twai_ext`) | **2816 us** (floor 2816) | 2831 us | at floor | done; alerts + error states |
 | ADC monitor | ADC1 ch 9 > 3000 for 100 ms (`test_adc_filter` vs `bench/idf_adc_ext`) | **every sample** | 0 events (IDF channel encoding bug) | works vs broken | done; IIR filter k=16 matches the model |
 | Touch | raw read (`touch_read` vs `touch_pad_read_raw_data`, `bench/idf_touch_ext`) | **99 cycles** | 532 cycles | 5.4x | done; filter/baseline/threshold events/proximity |
 | LEDC | duty update (`ledc_duty` vs `ledc_set_duty`+`ledc_update_duty`, `bench/idf_ledc_ext`) | **38 cycles** | 765 cycles | 20x | done; + gamma fade (IDF: none on S3) |

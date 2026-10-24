@@ -19,4 +19,14 @@ void twai_filter(uint32_t code, uint32_t mask, bool ext);
 int  twai_send(const twai_frame_t *f, uint32_t timeout_us);
 int  twai_recv(twai_frame_t *f, uint32_t timeout_us);      /* 0 ok, -1 timeout */
 void twai_counters(uint8_t *tx_err, uint8_t *rx_err, uint32_t *rx_dropped);
-void twai_recover(void);                                     /* leave bus-off */
+void twai_recover(void);        /* from bus-off: start recovery (128 x 11 recessive bits), then twai_start() */
+void twai_start(void);          /* back on the bus after recovery */
+
+/* Alerts (as IDF's TWAI_ALERT_*), from the interrupt; twai_alerts() returns and clears the ones so far. */
+enum { TWAI_ALERT_TX_DONE = 1, TWAI_ALERT_RX_OVERRUN = 2, TWAI_ALERT_ARB_LOST = 4, TWAI_ALERT_BUS_ERROR = 8,
+       TWAI_ALERT_ABOVE_ERR_WARN = 16, TWAI_ALERT_BELOW_ERR_WARN = 32, TWAI_ALERT_ERR_PASSIVE = 64,
+       TWAI_ALERT_ERR_ACTIVE = 128, TWAI_ALERT_BUS_OFF = 256, TWAI_ALERT_RECOVERED = 512 };
+enum { TWAI_ST_ACTIVE, TWAI_ST_PASSIVE, TWAI_ST_BUS_OFF, TWAI_ST_RECOVERING };
+uint32_t twai_alerts(void);
+int      twai_state(void);
+void     twai_on_alert(void (*fn)(uint32_t alerts, void *arg), void *arg);

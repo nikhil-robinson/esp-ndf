@@ -42,3 +42,34 @@ void test_twai(void)
     METRIC("twai_send() 8 bytes @1M (wire incl.)", "%lu cycles", ({ twai_init(10, 11, 1000000, TWAI_SELFTEST); twai_frame_t f = { .id = 1, .dlc = 8 };
         uint32_t t = ccount(); twai_send(&f, 10000); ccount() - t; }));
 }
+
+/* Error states without a second node: NORMAL mode on the jumper -> no ACK -> error warning, error passive;
+ * RX held recessive -> every dominant bit is a bit error -> bus-off; RX back -> recovery -> RECOVERED. */
+void test_twai_alerts(void)
+{
+    __asm__ volatile("rsil a2, 0" ::: "a2");
+    CHECK(twai_init(10, 11, 500000, TWAI_NORMAL) == 0);
+    twai_frame_t f = { .id = 0x321, .dlc = 2, .data = { 1, 2 } };
+    twai_send(&f, 30000);                                    /* retransmits until aborted at the timeout */
+    uint32_t a1 = twai_alerts(); uint8_t te; twai_counters(&te, 0, 0);
+    int st1 = twai_state();
+    printf("    no ACK: alerts %03lx, TEC %d, state %d (1 = passive)\n", a1, te, st1);
+    CHECK((a1 & TWAI_ALERT_ABOVE_ERR_WARN) && (a1 & TWAI_ALERT_ERR_PASSIVE) && st1 == TWAI_ST_PASSIVE && te >= 128);
+
+    gpio_in_signal(GPIO_IN_HIGH, 116, false);                /* RX stuck recessive */
+    twai_send(&f, 30000);
+    uint32_t a2 = twai_alerts(); int st2 = twai_state();
+    printf("    RX stuck recessive: alerts %03lx, state %d (2 = bus-off)\n", a2, st2);
+    CHECK((a2 & TWAI_ALERT_BUS_OFF) && st2 == TWAI_ST_BUS_OFF);
+
+    gpio_in_signal(11, 116, false);
+    uint32_t t0 = ccount();
+    twai_recover();
+    while (twai_state() != TWAI_ST_ACTIVE && ccount() - t0 < 240000u * 50) {}
+    uint32_t us = (ccount() - t0) / 240, a3 = twai_alerts();
+    printf("    recovery: alerts %03lx after %lu us (128 x 11 bits @500k = 2816 us)\n", a3, us);
+    CHECK((a3 & TWAI_ALERT_RECOVERED) && us >= 2800 && us < 4000);
+    twai_init(10, 11, 500000, TWAI_SELFTEST);
+    twai_frame_t g;
+    CHECK(twai_send(&f, 10000) == 0 && twai_recv(&g, 10000) == 0 && g.id == 0x321);
+}

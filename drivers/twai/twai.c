@@ -27,6 +27,8 @@ static twai_frame_t ring[RING];
 static volatile uint32_t rh, rt, dropped;
 static twai_mode_t mode_;
 static bool irq_on;
+static void (*alert_fn)(uint32_t, void *); static void *alert_arg;
+static volatile uint32_t alerts, state = TWAI_ST_ACTIVE;
 
 static void reset_mode(bool on)
 {
@@ -34,11 +36,27 @@ static void reset_mode(bool on)
     else    { REG_CLR(MOD, BIT(0)); while (REG(MOD) & BIT(0)) {} }
 }
 
-RAM_FN static void twai_isr(void *a)
+RAM_FN static void twai_isr(void *arg)
 {
-    (void)a;
+    (void)arg;
     uint32_t ir = REG(IR);                                  /* reading clears */
     if (ir & BIT(3)) REG(CMR) = BIT(3);                     /* overrun: clear */
+    uint32_t a = 0, sr = REG(SR);
+    if (ir & BIT(1)) a |= TWAI_ALERT_TX_DONE;
+    if (ir & BIT(3)) a |= TWAI_ALERT_RX_OVERRUN;
+    if (ir & BIT(6)) a |= TWAI_ALERT_ARB_LOST;
+    if (ir & BIT(7)) a |= TWAI_ALERT_BUS_ERROR;
+    if (ir & BIT(5)) {                                      /* error passive change (IDF twai_handle_err_passive) */
+        bool passive = REG(TXERR) > 127 || REG(RXERR) > 127;
+        a |= passive ? TWAI_ALERT_ERR_PASSIVE : TWAI_ALERT_ERR_ACTIVE;
+        if (state != TWAI_ST_BUS_OFF && state != TWAI_ST_RECOVERING) state = passive ? TWAI_ST_PASSIVE : TWAI_ST_ACTIVE;
+    }
+    if (ir & BIT(2)) {                                      /* error warning / bus status change */
+        if (sr & BIT(7)) { a |= TWAI_ALERT_BUS_OFF; state = TWAI_ST_BUS_OFF; }
+        else if (state == TWAI_ST_RECOVERING) { a |= TWAI_ALERT_RECOVERED; state = TWAI_ST_ACTIVE; reset_mode(true); }
+        else a |= sr & BIT(6) ? TWAI_ALERT_ABOVE_ERR_WARN : TWAI_ALERT_BELOW_ERR_WARN;
+    }
+    if (a) { alerts |= a; if (alert_fn) alert_fn(a, alert_arg); }
     while (REG(SR) & BIT(0)) {                              /* drain the 64-byte RX FIFO */
         uint32_t info = REG(BUF(0));
         twai_frame_t f = { .ext = info >> 7 & 1, .rtr = info >> 6 & 1, .dlc = info & 15 };
@@ -71,7 +89,8 @@ int twai_init(int tx, int rx, uint32_t bitrate, twai_mode_t mode)
     REG(BTR1) = (15 - 1) | (4 - 1) << 4;
     REG(MOD) = BIT(0) | BIT(3) | (mode == TWAI_SELFTEST ? BIT(2) : 0) | (mode == TWAI_LISTEN ? BIT(1) : 0);
     for (int i = 0; i < 4; i++) { REG(BUF(i)) = 0; REG(BUF(4 + i)) = 0xFF; }   /* accept everything */
-    REG(IER) = BIT(0) | BIT(3);
+    REG(IER) = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(5) | BIT(6) | BIT(7);   /* rx, tx, err warn, overrun, passive, arb, bus err */
+    state = TWAI_ST_ACTIVE; alerts = 0;
     mode_ = mode;
     rh = rt = dropped = 0;
     gpio_config(tx, GPIO_OUTPUT | GPIO_INPUT); gpio_set(tx);
@@ -132,6 +151,15 @@ void twai_counters(uint8_t *tx, uint8_t *rx, uint32_t *drop)
 
 void twai_recover(void)
 {
-    /* bus-off sets reset mode; leaving it starts the 128 x 11 recessive-bit recovery */
+    /* bus-off sets reset mode; leaving it starts the 128 x 11 recessive-bit recovery. The controller raises
+     * the error interrupt again when it is done (IDF: TWAI_ALERT_BUS_RECOVERED), then stays stopped in reset
+     * mode as IDF does: twai_start() puts it back on the bus. */
+    if (state != TWAI_ST_BUS_OFF) return;
+    state = TWAI_ST_RECOVERING;
     reset_mode(false);
 }
+
+void twai_start(void) { if (state != TWAI_ST_BUS_OFF && state != TWAI_ST_RECOVERING) reset_mode(false); }
+int  twai_state(void) { return state; }
+uint32_t twai_alerts(void) { uint32_t ps = irq_lock(); uint32_t a = alerts; alerts = 0; irq_unlock(ps); return a; }
+void twai_on_alert(void (*fn)(uint32_t alerts, void *arg), void *arg) { alert_fn = fn; alert_arg = arg; }

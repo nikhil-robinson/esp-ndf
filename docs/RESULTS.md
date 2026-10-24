@@ -265,6 +265,16 @@ The filter/monitor channel field is unit << 4 | channel (measured). IDF uses (un
 filter and unit << 3 | (ch & 7) for the monitor: ADC1 channels 8/9 cannot be monitored and filters on ch 0-7
 land on another channel.
 
+## TWAI alerts and error states (`periph_test` twai_alerts vs `bench/idf_twai_ext`, C9:D0, jumper 10 -> 11)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| NORMAL mode, no ACK | above-warn + error-passive alerts, TEC 128, state passive | - |
+| RX held recessive (matrix constant 1) | bus-off alert, state bus-off | bus-off alert |
+| recovery (128 x 11 bits @ 500k = 2816 us) | RECOVERED after **2816 us** | 2831 us |
+
+RX inverted does not reach bus-off (the node sees a dominant bus and never starts): RX stuck recessive does.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

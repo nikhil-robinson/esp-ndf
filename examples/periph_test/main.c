@@ -41,6 +41,7 @@ int main(void)
     run("adc_cont", test_adc_cont);
     run("adc_filter", test_adc_filter);
     run("twai", test_twai);
+    run("twai_alerts", test_twai_alerts);
     run("touch", test_touch);
     run("touch_ext", test_touch_ext);
     run("flash", test_flash);

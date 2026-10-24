@@ -91,9 +91,9 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       channel setup), [ ] waterproof (needs a shield electrode), [ ] touch wake (with sleep)
 - [x] **ADC**: one-shot + continuous, hardware IIR filters and threshold monitors (correct channel encoding);
       ADC2 continuous: n/a on S3; [ ] ADC2 one-shot arbitration notes (with Wi-Fi)
-- [~] **GDMA**: done; **todo**: priorities, ETM (n/a), burst/ext-mem rules once PSRAM is up, weight arbitration
+- [x] **GDMA**: priorities, PSRAM (burst/ext-mem rules), owner check, error recovery; ETM n/a; weight arbitration n/a (S3 has priority only)
 - [~] **LCD**: SPI panel done; **todo**: **i80 parallel bus** (8/16-bit) and **RGB panels** via LCD_CAM, more panel drivers (ST7789, GC9A01), touch controller (Box-3 TT21100/GT911)
-- [~] **TWAI**: done; **todo**: bus-off recovery API, error-passive callbacks, alert interrupts
+- [x] **TWAI**: alerts (tx, arb lost, bus error, warn, passive/active, bus-off, recovered), state, bus-off recovery + restart
 
 ## 7. Peripherals not started
 
