@@ -1,5 +1,6 @@
 /* Sleep (TRM 10; ESP-IDF esp_sleep / rtc_sleep.c). Deep sleep: everything but the RTC domain is off; the wake is a
- * reset (cause RESET_DEEPSLEEP) through the warm-boot stage (no ROM), RTC_DATA_ATTR / RTC_BSS_ATTR keep their values.
+ * reset (cause RESET_DEEPSLEEP) through the ROM, RTC_DATA_ATTR / RTC_BSS_ATTR keep their values. NOT YET VERIFIED ON
+ * HARDWARE (docs/RESULTS.md): run only with the logic analyzer watching.
  * Wake sources: RTC timer, EXT0 (one RTC GPIO at a level), EXT1 (a set of RTC GPIOs: any high, or all low). */
 #pragma once
 #include "ndf.h"

@@ -259,12 +259,13 @@ void loader_main(void)
     uint32_t t_entry = sys16();
 #if NDF_LOADER_RTC          /* started by the CPU reset vector, no ROM before us: anything but a normal flash boot is
                              * the ROM's job (download mode by strapping or by the USB-JTAG force-download flag) */
-    /* only our own warm resets: 3 system / 12 CPU software reset, 5 deep-sleep wake, 7/8 timer-group, 9/16 RTC
-     * watchdog. Others (21/22
+    /* only our own warm resets: 3 system / 12 CPU software reset, 7/8 timer-group, 9/16 RTC watchdog. A deep-sleep
+     * wake (5) goes to the ROM: it brings the USB Serial/JTAG back after the digital power-down (two boards lost
+     * their USB link when the stage took that wake). Others (21/22
      * USB-UART/JTAG reset = esptool) go to the ROM. No strap check: GPIO_STRAP reads 0 here, and a BOOT-button download
      * comes with a power-on/EN reset, which sets the vector back to the ROM in hardware */
     uint32_t why = REG(RESET_STATE) & 0x3Fu;
-    if (why > 16 || !(((BIT(3) | BIT(5) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
+    if (why > 16 || !(((BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
         (REG(0x6000703Cu) & (1u << 9)))       /* octal flash (eFuse FLASH_TYPE): the ROM sets that bus up */
         { REG(CAUSE_NOTE) = 0x52430000u | why; to_rom(); }          /* the app still sees the real cause */
     /* a system reset returns SPI0 and the flash pads to their defaults; the ROM's flash attach would set them. Same
