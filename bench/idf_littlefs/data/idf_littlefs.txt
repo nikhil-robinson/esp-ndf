@@ -1,0 +1,8 @@
+# bench/idf_littlefs on C9:D0 (DEVKIT), esp_littlefs 1.14.8, IDF v5.3.5, partition "spiffs" 0x200000 1 MB, 2026-10-25
+    format 87 ms, mount 452 us (0)
+    30 KB file: write 433 ms, read 8053 us (30000 B, 0 wrong)
+    log 500 x 64 B, sync after each: 24662 ms (49324 us per line)
+    40 x 30 KB rewrites: 17797 ms
+    remount after all that: 3138 us (0)
+    104 KB used of 1024 KB
+idf_littlefs done

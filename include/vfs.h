@@ -20,6 +20,7 @@ typedef struct {
 
 extern const vfs_ops_t vfs_fat_ops;     /* FAT (fat.h) as a VFS filesystem */
 extern const vfs_ops_t vfs_spiffs_ops;  /* SPIFFS (spiffs.h), flat: no mkdir */
+extern const vfs_ops_t vfs_pfs_ops;     /* PFS (pfs.h), power-safe, flat: no mkdir */
 
 int vfs_register(const char *prefix, const vfs_ops_t *ops);
 int vfs_unregister(const char *prefix);

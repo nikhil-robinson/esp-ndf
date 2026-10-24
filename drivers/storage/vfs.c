@@ -3,6 +3,7 @@
 #include "ndf_config.h"
 #include "fat.h"
 #include "spiffs.h"
+#include "pfs.h"
 #include "console.h"
 #include <string.h>
 
@@ -17,6 +18,8 @@ const vfs_ops_t vfs_fat_ops = { fat_open, fat_read, fat_write, fat_seek, fat_clo
                                 fat_mkdir, fat_stat, fat_opendir, fat_readdir, fat_closedir };
 const vfs_ops_t vfs_spiffs_ops = { spiffs_open, spiffs_read, spiffs_write, spiffs_seek, spiffs_close, spiffs_unlink,
                                    NULL, spiffs_stat, spiffs_opendir, spiffs_readdir, spiffs_closedir };
+const vfs_ops_t vfs_pfs_ops = { pfs_open, pfs_read, pfs_write, pfs_seek, pfs_close, pfs_unlink,
+                                NULL, pfs_stat, pfs_opendir, pfs_readdir, pfs_closedir };
 
 int vfs_register(const char *prefix, const vfs_ops_t *ops)
 {

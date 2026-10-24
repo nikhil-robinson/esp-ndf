@@ -218,6 +218,11 @@ vector unit is off there).
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
 | SPIFFS 40 × 30 KB rewrites | **7.4–8.4 s** | 10.9 s | 1.3–1.5× | flash-chip bound (write time drifts run to run; A/B cache vs SPI1 read path: <1 % apart) |
+| PFS (power-safe FS) vs esp_littlefs 1.14.8: log line 64 B + fsync | **1.25 ms** | 49.3 ms | **39×** | one data program + one 20 B log record; LittleFS rewrites its metadata pair. Floor ~2 page programs (~0.6 ms) |
+| PFS read 30 KB | **0.68 ms** | 8.05 ms | **12×** | extent list in RAM: no flash walk |
+| PFS remount after workload (~900 log records) | **2.4 ms** | 3.1 ms | 1.3× | CRC + replay; was 17 ms before per-file extent lists, table CRC, O(1) append replay |
+| PFS format / first mount | **82 ms / 60 µs** | 87 ms / 452 µs | 1.06× / 7.5× | log blocks erased lazily (2 erases at format) |
+| PFS 40 × 30 KB rewrites / 30 KB write | **15.8 s / 433 ms** | 17.8 s / 433 ms | 1.13× / 1.0× | erase-bound (one 4 KB erase per 4 KB written, both) |
 | FAT open, repeated path (path cache) | **814** (was 65 882) | 70 187 | **86×** | — |
 | FAT open, first time (one directory sector read) | ~51 000 | 70 187 | 1.37× | flash-read bound |
 | NVS boot reader, 8 keys | **456 µs** (was 618) | not in IDF 5.3 | — | — |

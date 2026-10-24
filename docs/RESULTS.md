@@ -1140,3 +1140,24 @@ the CPU at 240 MHz while a task runs (scaling happens in its idle task only).
 JEDEC c86018, 16 MB, SFDP, quad (QE method 1), suspend 75/7a, 120 MHz: erase / write / read all PASS with data
 checked; with core 1 running flash code during a 64 KB erase + 4 KB write the longest core-1 pause is 215-284 us
 (suspend), no wrong data. bench/flash_box3_result.txt.
+
+## PFS power-safe filesystem vs esp_littlefs (`periph_test` pfs vs `bench/idf_littlefs`, C9:D0, 2026-10-25)
+
+Same 1 MB partition (spiffs label, 0x200000), same workload. Data: bench/idf_littlefs/data/.
+
+| | esp-ndf PFS | IDF esp_littlefs 1.14.8 |
+|---|---|---|
+| format / mount | 82 ms / 60 us | 87 ms / 452 us |
+| 30 KB write / read | 433 ms / 680 us | 433 ms / 8053 us |
+| log 500 x 64 B, fsync each | 623 ms (1.25 ms/line) | 24 662 ms (49.3 ms/line) |
+| 40 x 30 KB rewrites | 15.8 s | 17.8 s |
+| remount after it all | 2.4 ms | 3.1 ms |
+
+Power safety: tools/test_pfs.c (host, simulated NOR: program = AND, erase = 0xFF) cuts the power after a random
+number of flash operations (torn program = half the bytes, skipped erase) during random replace / append / patch /
+rename / unlink transactions on a volume kept ~85 % full (GC and log compaction under pressure), with a re-format
+over the used volume halfway: 164 000 cuts over 8.9 M transactions, every remount showed exactly the old or the new
+state, never a torn one. STRICT=1 also remounts after every transaction. Found and fixed on the way: an unfinished
+group left in the log was later "completed" by the next group; the blank check at the log end read into the next,
+not yet erased block. On the device, 40 cuts on the real flash during a synced log: every synced line kept.
+

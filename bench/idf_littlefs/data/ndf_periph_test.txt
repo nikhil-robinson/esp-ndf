@@ -1,0 +1,292 @@
+
+=== esp-ndf peripheral tests ===
+[rtcio]
+    rtcio_write()                      24 cycles
+    rtcio_read()                       100 cycles
+    pulls up/down 1/0, open-drain 0/1 -> 0/1, held 1, released 0
+    system reset with GPIO10 held high...
+
+=== esp-ndf peripheral tests ===
+[rtcio]
+    after system reset: pad 10 hold kept, level 1; released -> 0
+  PASS rtcio
+[gpio]
+    gpio_set+gpio_clr                  10 cycles
+    pin write -> ISR (rising, L1)      min 193 max 291 cycles
+    dgpio_write x2                     3 cycles
+  PASS gpio
+[clkout]
+    CLK_OUT1 GPIO41: RC slow 138370 Hz (calibrated 138387 Hz), RC fast 20150 kHz
+  PASS clkout
+[gptimer]
+    1 MHz over 10 ms (expect 10000)    10000 ticks
+    gpt_get()                          112 cycles
+    alarm -> callback (L1)             min 875 max 875 ns
+    10 kHz period jitter (L1)          max 18 cycles
+    10 kHz period jitter (L5 fast)     max 12 cycles
+  PASS gptimer
+[ledc]
+    asked 20 kHz/10 bit, got           20000.000 Hz
+    period / high (cycles)             11992 / 2983
+    after ledc_duty(768): period/high  11992 / 9010
+    ledc_duty()                        38 cycles
+    asked 33333 Hz/8 bit, got          33333.333 Hz
+  PASS ledc
+[ledc_gamma]
+    gamma 2.2, 0 -> 1024 in 160 ms, per mille every 10 ms: 1 10 26 46 74 113 161 211 274 339 429 525 623 720 817 | end 1000 after 162 ms
+  PASS ledc_gamma
+[mcpwm]
+    20 kHz edge-aligned: period        8000 ticks @ 160 MHz
+    captured high / period             1000 / 4000 (12.5 ns ticks)
+    center-aligned high / period       1000 / 4000
+    complementary edges A / B          8 / 8
+    dead band A->B / B->A              81 / 81 ticks (80 = 1 us)
+    mcpwm_cmp()                        3 cycles
+    synced timer phase lag             1001 ticks (1000 = 90 deg)
+    period IRQ jitter (20 kHz, L1)     max 0 cycles
+  PASS mcpwm
+[mcpwm_ext]
+    one-shot fault: running 8485, tripped 0 (event 1), fault gone 0 (latched), released 8878
+    cycle-by-cycle fault: tripped 0, fault gone 8888 (back by itself)
+    carrier 1250000 Hz on 1 kHz PWM: 6241 pulses in 10 ms (ideal 6250), without carrier 10
+    capture /4: 8 captures in 30 ms, delta 320000 ticks (4 ms = 320000)
+  PASS mcpwm_ext
+[pcnt]
+    20 kHz fwd, 10 ms (expect 800)     800
+    20 kHz rev, 10 ms (expect -800)    -800
+    1 MHz fwd, 100 ms (expect 400000)  400003
+    backward steps while wrapping      0
+    pcnt_get()                         91 cycles
+    100 kHz, 1 s, IRQ-only (expect 400000) 400000
+  PASS pcnt
+[pcnt_ext]
+    quadrature: +100 -> 100, -40 -> 60
+    watch: thres0=25 -> 1 event (ev 1 at 25); back to 0 -> 3 total; thres1=-10 -> ev 2 at -10
+    step 10: 7 calls: 10 20 30 20 10 0 -10
+    index: latched 77 at Z, count after Z +5 = 5
+  PASS pcnt_ext
+[rmt]
+    TX 100 items / RX received         100 items (+1 end marker)
+    worst duration error               0 ticks (100 ns)
+    TX time / signal length            1792 / 1785 us
+    rmt_tx() start (100 items)         1359 cycles
+  PASS rmt
+[rmt_ext]
+    loop 3 items x 100: TX done, RX 300 items, 300 pulses (300)
+    start skew ch0/ch1: 1329 cycles without sync, 0 with sync
+    38 kHz bursts 5 x 600 us: raw 115 items, demodulated 5 items, high 621 us
+    TX DMA (ch 3) 1000 items -> RX: 1000 items, 0 off by > 1 tick
+    TX -> RX DMA (ch 3): 1000 items, 0 off by > 1 tick
+    WS2812 3 LEDs: 72 items, decoded ok (T1H 8, T0H 4 ticks)
+    WS2812 3 LEDs encode + rmt_tx()    2287 cycles
+    WS2812 3 LEDs until done           23394 cycles (wire 21600)
+  PASS rmt_ext
+[sdm]
+    density  -64: duty 25.0 % (expect 25 %)
+    density    0: duty 49.9 % (expect 50 %)
+    density   64: duty 74.9 % (expect 75 %)
+    sdm_density()                      38 cycles
+  PASS sdm
+[uart]
+     115200 baud (actual 115201): 4096/4096 bytes, 0 wrong, 355628 us (wire 355555 us), ovf 0
+    2000000 baud (actual 2000000): 4096/4096 bytes, 0 wrong, 20502 us (wire 20480 us), ovf 0
+    5000000 baud (actual 5000000): 4096/4096 bytes, 0 wrong, 8211 us (wire 8192 us), ovf 0
+    uart_write() 16 bytes              298 cycles
+    analyzer: UART2 0x55 @115200 on GPIO4
+  PASS uart
+[uart_modes]
+    flow: RX FIFO held at 64 (RTS at 64), FIFO overflow no, then 300/300 B, ok
+    RS485: DE idle low, high while sending yes, low after 906 cycles from the last edge (stop bit 240), echo 0 B
+    RS485 DE release after stop bit    666 cycles
+    RS485 collision detect: own echo 64/64 B ok, clashes 0; with a 2nd driver: clashes 64
+    IrDA UART2 -> UART1: 64/64 B ok
+    pattern '+++': 13 B, at offset 5 (5), next -1
+  PASS uart_modes
+[i2c]
+    bus rise time: SDA 512 ns, SCL 425 ns (spec: 1000 ns @100k, 300 ns @400k)
+    -- 100000 Hz (actual 100000) --
+    write 16: err 0, slave got 16, 1552 us
+    write 100: err 0, slave got 100, 0 wrong
+    read 8: err 0, 0 wrong (got a0 a1 .. a7)
+    write to 0x50 (absent): err -1 (expect -1)
+    analyzer: SCL 100k burst
+    400 kHz skipped: bus rise time out of Fast-mode spec (add 2.2-4.7k pull-ups)
+  PASS i2c
+[i2c_ext]
+    10-bit 0x2A5: write err 0, slave got 8 ok; read err 0 c0 c1 c2 c3; 0x1A5 -> -1 (NACK)
+    i2c 10-bit write 8 B @100k         221549 cycles
+    after the foreign-address NACK: write to 0x2A5 err 0, slave got 8
+    stuck SDA: low yes, recovered after 3 clocks, SDA now high
+    SCL stretched 20 ms: err -2 (timeout -2) after 6584 us, timeout set 3276 us
+    2 masters x10: I2C0 (0x50) lost 0, I2C1 (0x51) lost 10, exactly one loser 10, no overlap 0
+    loser retries alone: err -1 (NACK -1)
+  PASS i2c_ext
+[gdma]
+    DMA copy 32 KB                     124460 cycles (63 MB/s), 0 words wrong
+    CPU word copy 32 KB                49267 cycles (159 MB/s)
+  PASS gdma
+[spi]
+    10 MHz: 64 B PIO 0 wrong (13287 cycles), 4 KB DMA 0 wrong, 3281 us (wire 3276 us)
+    20 MHz: 64 B PIO 0 wrong (7069 cycles), 4 KB DMA 0 wrong, 1641 us (wire 1638 us)
+    40 MHz: 64 B PIO 0 wrong (3982 cycles), 4 KB DMA 0 wrong, 822 us (wire 819 us)
+    spi_xfer() 4 bytes                 565 cycles
+    spi_xfer() 4 bytes @40 MHz (wire 192) 571 cycles
+    spi_xfer() 32 bytes @40 MHz (wire 1536) 2163 cycles
+    analyzer: SPI 10 MHz burst
+    mode 0 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 1 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 2 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 3 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+  PASS spi
+[spi_hd]
+    1-line data, 1-line addr, 32 B @ 0: write ok, read ok
+    2-line data, 1-line addr, 32 B @ 4: write ok, read ok
+    4-line data, 1-line addr, 48 B @ 8: write ok, read ok
+    2-line data, 2-line addr, 64 B @ 0: write ok, read ok
+    4-line data, 4-line addr, 16 B @ 16: write ok, read ok
+    spi_hd_xfer() quad write 32 B @10 MHz 2909 cycles
+    octal write 16 B: 16 clocks captured, 0 bytes wrong
+  PASS spi_hd
+[i2s]
+    48 kHz requested, achieved 48000.000 Hz
+    analyzer: I2S streaming
+    received 65536 bytes, 32256 samples checked, 0 discontinuities, tx underruns 0, rx overruns 0
+    i2s_write() 1 KB (space free)      588 cycles
+  PASS i2s
+[i2s_modes]
+    i2s_init() TDM TX                  24360 cycles
+    TDM 4x16: fs 48001.567 Hz (BCK 3.072 MHz)
+    TDM: 23943 samples, 7981 masked zeros, 0 errors, und 0 ovr 0
+    i2s_init() PDM TX+RX               24237 cycles
+    PDM duplex: fs 52083.333 Hz (integer divider as IDF: PDM clock = 128 fs)
+    PDM loop: 24128 samples, 998 Hz (1000 sent), peak -5363..5364, SNR 33 dB, und 0 ovr 0
+  PASS i2s_modes
+[lcd_i80]
+    i80 8-bit WR clock 25000 Hz (asked 25 kHz)
+    cmd 2A + 4 params, cmd 2C + 300 bytes: 306 WR strobes captured, 0 wrong
+    lcd_i80_send_async() 300 B start   1568 cycles
+    RGB 32x8 @1006289 Hz: 164 frames in 100 ms, 100630 pclk, 2287 hsync -> 44 pclk/line, 14 lines/frame (44, 14)
+  PASS lcd_i80
+[cam]
+    DVP loop 32x8: frames of 256 / 256 bytes, 0 of 256 wrong
+  PASS cam
+[adc]
+    eFuse MAC 24:58:7c:e2:c9:d0, ADC calibration v1 present
+    GPIO11 low (0 V)       raw mean    0 (min    0 max    0)  =    0 mV
+    pull-up/pull-down      raw mean 1871 (min 1819 max 1924)  = 1500 mV
+    GPIO11 high (3.3 V)    raw mean 4095 (min 4095 max 4095)  = 3063 mV
+    raw 1859 -> 1490 mV (IDF 1490), raw 4095 -> 3063 mV (IDF 3063)
+    adc_read_raw()                     1839 cycles
+  PASS adc
+[adc_cont]
+    GPIO11 low/high: mean raw 0 / 4095
+    1 kHz square: 50 rising edges per frame, 20.000 samples/period (ideal 20)
+    frame interval 12000000..12000004 cycles = 50.0000 ms (ideal 50 ms), jitter 4 cycles
+    2 channels: 999/999 neighbours alternate 9/0, ch9 mean 4095 (GPIO11 high), ch0 mean 1394 (GPIO1 open)
+    mid level: continuous mean 1867, one-shot mean 1862 (1497 mV vs 1492 mV)
+    overruns 0, sync errors 0
+  PASS adc_cont
+[adc_filter]
+    1 kHz square p-p: raw 4095, IIR k=16 1278 (expect ~1269)
+    monitor low 1000 / high 3000: input low -> 1000 low, 0 high events; input high -> 0 low, 1000 high (per 50 ms)
+  PASS adc_filter
+[twai]
+     125 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+    1000 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+     500 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+    analyzer: TWAI 500k
+    filter 0x123: first recv id 0x123, second recv none (0x124 rejected)
+    twai_send() 8 bytes @1M (wire incl.) 31226 cycles
+  PASS twai
+[twai_alerts]
+    no ACK: alerts 058, TEC 128, state 1 (1 = passive)
+    RX stuck recessive: alerts 101, state 2 (2 = bus-off)
+    recovery: alerts 200 after 2818 us (128 x 11 bits @500k = 2816 us)
+  PASS twai_alerts
+[touch]
+    raw: pad1 16527, pad14 22179, pad10 55130 (jumper)
+    touch_read()                       97 cycles
+  PASS touch
+[touch_ext]
+    filter: raw 55126, smooth 55126, baseline 55125; threshold 2756: touch -> 1 event(s) pad 10 (active 0400), release -> 1
+    proximity pad 10, 50 scans: count 49
+  PASS touch_ext
+[flash]
+    JEDEC id b4200c, size 16 MB
+    read mode: 4 data lines
+    4 KB: erase 661 us, write 15655 us, read 91 us, 0 bytes wrong (erased 4096/4096 = 0xFF)
+  PASS flash
+[partition]
+    11 partitions (MD5 verified):
+      nvs              type 01 sub 02  0x090000    24576 bytes
+      phy              type 01 sub 01  0x096000     4096 bytes
+      nvs_keys         type 01 sub 04  0x097000     4096 bytes
+      nvs_enc          type 01 sub 02  0x098000    24576 bytes
+      otadata          type 01 sub 00  0x09e000     8192 bytes
+      coredump         type 01 sub 03  0x0a0000    65536 bytes
+      fat              type 01 sub 81  0x100000  1048576 bytes
+      spiffs           type 01 sub 82  0x200000  1048576 bytes
+      xip              type 01 sub 40  0x300000  1048576 bytes
+      ota_0            type 00 sub 10  0x400000  1572864 bytes
+      ota_1            type 00 sub 11  0x580000  1572864 bytes
+  PASS partition
+[nvs]
+    crc32_le(0xffffffff, "123456789") = d202d277
+    (no ESP-IDF data on flash yet)
+    nvs_boot_read() 8 keys, 6 pages, no mount: 215 us
+    600 updates: 0 failures, 636 us each; entries used 421 free 236
+    nvs_get_u32()                      534 cycles
+  PASS nvs
+[nvs_enc]
+    (no nvs_keys partition content: skipped)
+  PASS nvs_enc
+[fat]
+    wl: 250 sectors, dummy at 58, moves 50, id 34af309f
+    existing volume tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+    formatted FAT12 in 576 ms: 972 KB, 972 KB free
+    20 KB file: write 729 ms, read 0 ms
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+    936 KB free after files; long file name.bin crc32 018a2379
+    wl: dummy 61 -> 155 after 300 rewrites, remount ok
+    FAT1 copy erased: repaired from mirror, 932 KB free, 20 KB file intact
+    FAT2 copy erased: repaired from mirror, 932 KB free, 20 KB file intact
+    vfs_open() incl. FAT lookup 950 cycles; vfs_write(1, ...) -> console
+  PASS fat
+[fat_ext]
+    rename + move (file, dir with files, between dirs), '..' updated, EEXIST / into-itself refused
+    file written at 2025-10-25 12:34:56: mtime 2025-10-25 12:34:56
+  PASS fat_ext
+[spiffs]
+    format 1 MB + mount 9010 ms
+    30 KB file (2 index pages): write 113 ms, read 0 ms
+    40 x 30 KB rewrites (GC): 9150 ms
+      data/big.bin  30003
+      hello.txt  24
+    31 KB used of 960 KB
+  PASS spiffs
+[spiffs_rename]
+    rename: content kept, old name gone after remount, EEXIST / open file refused
+  PASS spiffs_rename
+[pfs]
+    format 82 ms, mount 60 us
+    30 KB file: write 433 ms, read 680 us
+    log 500 x 64 B, sync after each: 623 ms (1246 us per line)
+    40 x 30 KB rewrites: 15779 ms
+    remount after all that: 2432 us
+    40 power cuts on flash: log intact, 1147 lines, every synced line kept
+      data/big.bin  30003
+      old/log.txt  73408
+    100 KB used of 960 KB
+  PASS pfs
+=== ALL PASS (0 failures) ===

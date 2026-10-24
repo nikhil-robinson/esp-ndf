@@ -55,6 +55,7 @@ int main(void)
     run("fat_ext", test_fat_ext);
     run("spiffs", test_spiffs);
     run("spiffs_rename", test_spiffs_rename);
+    run("pfs", test_pfs);
     printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
     return 0;
 }

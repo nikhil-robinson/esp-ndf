@@ -155,6 +155,21 @@
 #ifndef NDF_FAT_PATH_CACHE
 #define NDF_FAT_PATH_CACHE      4       /* resolved-path cache entries  */
 #endif
+#ifndef NDF_PFS_MAX_FILES
+#define NDF_PFS_MAX_FILES       4       /* PFS open files (264 B each) */
+#endif
+#ifndef NDF_PFS_MAX_DIRS
+#define NDF_PFS_MAX_DIRS        2
+#endif
+#ifndef NDF_PFS_MAX_NAMES
+#define NDF_PFS_MAX_NAMES       32      /* files on the volume (72 B each) */
+#endif
+#ifndef NDF_PFS_MAX_EXTENTS
+#define NDF_PFS_MAX_EXTENTS     512     /* extents on the volume (12 B each) */
+#endif
+#ifndef NDF_PFS_MAX_BLOCKS
+#define NDF_PFS_MAX_BLOCKS      256     /* largest volume in 4 KB blocks (2 B each) */
+#endif
 #ifndef NDF_SPIFFS_MAX_FILES
 #define NDF_SPIFFS_MAX_FILES    4
 #endif
