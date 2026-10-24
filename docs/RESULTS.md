@@ -293,6 +293,16 @@ captures it from the same pads by DMA (VSYNC ends the frame): 256 / 256 bytes pe
 Both halves share one GDMA channel (LCD = OUT, camera = IN). IDF 5.3 has no S3 DVP driver (esp32-camera is
 an external component), so there is no IDF sibling for this one.
 
+## IDF siblings added for older drivers (C9:D0)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| ADC continuous 20 kHz, 1000-sample frames: frame interval jitter (`bench/idf_adc_cont`) | **2 cycles** | 76 cycles |
+| RTC pad hold through a software system reset, GPIO4 on the analyzer (`bench/idf_rtc_hold`) | held, one fall at release | held, one fall at release |
+
+Analyzer note: flashing and run_app.py each reset the board, so a short capture can hold two runs of the hold test;
+a 1 s / 1 s timeline separates them (no glitch in either).
+
 ## BOX-3 microphones end to end (`examples/box3_mic`, BOX-3)
 
 ES8311 plays 1 kHz through the speaker while the ES7210 (I2C 0x40, Linux es7210.c sequence, normal I2S 16 bit,

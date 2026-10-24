@@ -144,7 +144,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 ## 11. Verification and documentation backlog
 
-- [ ] IDF siblings still missing: ADC continuous, LCD, RTC hold through reset
+- [x] IDF siblings for ADC continuous (jitter 2 vs 76 cycles), LCD (i80 2.76x), RTC hold (both hold cleanly) through reset
 - [x] Box-3 microphones end to end (ES7210 normal I2S, full duplex with the speaker: 38 / 27 dB 1 kHz SNR); [ ] ES7210 4-slot TDM mode
 - [ ] Long-run soak test (24 h) of the full suite with power-cut fault testing
 - [ ] Per-driver API docs + porting guide (rule 3: other chip families)
