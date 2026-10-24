@@ -5,7 +5,7 @@
 #define P 4
 
 /* Measure one PWM period by polling the pad (resolution ~ one GPIO read). */
-static void measure(uint32_t *period, uint32_t *high)
+RAM_FN static void measure(uint32_t *period, uint32_t *high)   /* RAM: no cache misses in the timing loop (XIP=all) */
 {
     uint32_t t = ccount();
     while (gpio_read(P) && ccount() - t < 24000000) {}
