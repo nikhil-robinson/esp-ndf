@@ -653,3 +653,25 @@ rotation instead of cosf per sample; FIR / conv / corr share one 4-output kernel
 At parity, by construction: float and int16 matrix multiply (21 instructions per 16 MACs / 2 per 8 MACs - the same
 inner loop as ESP-DSP's aes3 code: the issue floor), add_s16 (3 instructions per 8), dot_f32 (load-bound). ESP-DSP's
 add_s16 aes3 ignores its shift argument (output unshifted, unlike its ansi reference); ours honours it.
+
+## int8 NN layers vs ESP-NN 1.4.1 (`examples/nn_lib` vs `bench/idf_nn`, BOX-3, single core, best of 3, 2026-10-24)
+
+| layer | esp-ndf cycles | ESP-NN 1.4.1 cycles | gain | bit-exact |
+|---|---|---|---|---|
+| conv1x1 32x32x16->32 | 1007821 | 1138795 | 1.13x | yes |
+| conv3x3 16x16x16->32 p1 | 577203 | 628073 | 1.09x | yes |
+| dwconv3x3 32x32x32 s1 | 1244040 | 1255262 | 1.01x | yes |
+| dwconv3x3 32x32x32 s2 | 313925 | 333788 | 1.06x | yes |
+| fc 512->64 | 11948 | 26693 | 2.23x | yes |
+| maxpool 2x2 32x32x16 | 16292 | 46268 | 2.84x | yes |
+| avgpool 2x2 32x32x16 | 23716 | 120049 | 5.06x | yes |
+| add 4096 | 125892 | 153649 | 1.22x | yes |
+| relu6 4096 | 1953 | 3904 | 2.00x | yes |
+| softmax 100x10 | 120516 | 226620 | 1.88x | yes |
+
+Bit-exact = the weighted output checksum equals ESP-NN's (TFLite int8 arithmetic). Where it comes from: the input
+offset folded into a per-channel bias (padded taps fed -in_off so they vanish), PIE int8 dots on im2col rows with a
+fused MAC + load and register rotation, the TFLite requantisation as floor((x m + 2^30) / 2^31) + (r + 2^(e-1) -
+[r < 0]) >> e (both proven equal to the reference) hand-scheduled in assembly, QACC lane sums for depthwise /
+average pooling, int16 PIE arithmetic for 2x2 pooling, 256-entry tables for add and a cached exp table for softmax.
+Floor: per-output requantisation (~22 instructions, scalar mull/mulsh as in ESP-NN) bounds conv / dwconv near parity.

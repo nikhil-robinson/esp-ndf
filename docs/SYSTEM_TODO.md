@@ -18,7 +18,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | A2 FPU | **done**: floats in handlers of any level (lazy save), 0 cost when unused; IDF S3: not allowed |
 | | A3 PIE vector unit (the S3's "AI acceleration", TRM 1) | **done**: PIE in ISRs (lazy save), cookbook docs/PIE.md; QACC kernels in A5 |
 | | A4 DSP library (ESP-DSP equivalent) | **done**: FFT/rFFT/s16 FFT, windows, FIR/FIRD, biquad, vector, matrix, conv/corr, DCT, Kalman; 1.17-33x ESP-DSP, matmul/add_s16/dot at parity (same instruction floor) |
-| | A5 AI / NN library (ESP-NN equivalent) | **none** |
+| | A5 AI / NN library (ESP-NN equivalent) | **partial**: conv/dwconv/fc/pool/add/mul/relu6/softmax, bit-exact with ESP-NN, 1.01-5x; end-to-end model run pending (boards off the bus) |
 | | A6 Math library (libm, fast math) | partial |
 | | A7 Multi-core | **done**: xc_call 24x esp_ipc, core stall/unstall |
 | | A8 Profiling and debug (perf counters, debug assist, breakpoints, trace) | **done**: perf counters (read 7x IDF), watchpoints with callback, SP stack guard from boot (0 cost) |
@@ -70,7 +70,7 @@ documented instruction cookbook (measured cycle counts, alignment rules, the S3 
 - convolution / correlation, DCT, Kalman filter (ESP-DSP has an EKF for IMU fusion), moving average, peak detection
 - Reference: `espressif__esp-dsp/modules/` (fft, fir, iir, dotprod, math, matrix, conv, dct, kalman, windows).
 
-**A5 AI / NN library — none.** An ESP-NN equivalent on PIE, benchmarked layer by layer against ESP-NN on the same
+**A5 AI / NN library — partial.** lib/nn.c + lib/nn_s8.S, include/nn.h, examples/nn_lib vs bench/idf_nn (bench/nn/layers.h shared shapes/data); every layer's checksum equals ESP-NN's. Open: the end-to-end tiny-model run (written, both sides) and regenerating bench/nn/*_result.txt. Was: none. An ESP-NN equivalent on PIE, benchmarked layer by layer against ESP-NN on the same
 shapes:
 - int8 conv2d, depthwise conv2d, fully connected, pooling (max/avg), activation (ReLU, ReLU6, sigmoid, softmax),
   element-wise add/mul, quantise/requantise (per-tensor and per-channel scales, TFLite-compatible rounding)

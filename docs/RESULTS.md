@@ -897,3 +897,11 @@ PIE truncation bias, bit-identical to ESP-DSP), windows (Hann exact, flat-top = 
 FIR 64 taps, decimating FIR, biquad, vector ops, int16 add/mul, matmul f32/s16, conv, corr, DCT-II (vs direct sum),
 Kalman (2-state constant velocity from noisy positions: v 0.5025 for 0.5). Bugs on the way: twiddle table only
 4-byte aligned broke EE.LDF.64 (NaN); EE.LDF.64.XP stepped before the load; fmax() hid NaNs in the check.
+
+## int8 NN layers (`examples/nn_lib`, BOX-3, 2026-10-24)
+
+10 layer types bit-exact with ESP-NN (checksums equal): conv 1x1 and 3x3 pad 1, depthwise 3x3 stride 1/2, FC with
+input offset, max/avg pool 2x2, add with input rescales, relu6, softmax. The end-to-end model comparison was cut
+short: the IDF sibling's new static buffers starved its scratch allocation, ESP-NN panicked and the IDF default
+(panic -> reboot) produced a reboot storm that took the BOX-3 off the host's USB. Fixed in code (checked heap
+allocations, buffers reused) and every bench/idf_* sdkconfig.defaults now sets CONFIG_ESP_SYSTEM_PANIC_PRINT_HALT.
