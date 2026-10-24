@@ -160,6 +160,21 @@ SPI2 master pads 14/15/16-18/21 (+38-41), SPI3 HD slave drives 1/2/42/47, inputs
 
 Slave-HD init makes SCLK/CS inputs: when master and slave share pads, init the slave first.
 
+## UART modes (`periph_test` uart_modes vs `bench/idf_uart_modes`, C9:D0, jumper 12->13, pads 16/17)
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| HW flow control (RTS pad looped to CTS, RX ISR off) | FIFO held at 64 (threshold), no overflow, 300/300 B after | - |
+| RS485 half duplex: DE high while sending, echo dropped | yes, 0 echo bytes | yes, 0 echo |
+| RS485 DE release after stop bit, 1 Mbaud | **669 cycles** | 1311 cycles |
+| RS485 collision detect: own echo / 2nd driver on RX | 64/64, 0 clashes / 64 clashes | - |
+| IrDA SIR UART2 -> UART1 | 64/64 B | - |
+| pattern '+++' in "hello+++world" | position 5 | position 5 |
+
+IrDA is half duplex: the sender needs irda_tx_en (set while sending, cleared on TX_DONE), and its own receiver is
+blind meanwhile, so a pin loop on one UART cannot work (irda_dplx is an internal loopback). Flow control: configure
+CTS before RTS when they share a pad.
+
 ## ADC one-shot (ADC1 ch9 = GPIO10, voltage set through the GPIO11 jumper, 12 dB)
 
 | | esp-ndf | ESP-IDF (adc_oneshot + curve fitting) |

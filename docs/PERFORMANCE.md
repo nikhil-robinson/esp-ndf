@@ -151,6 +151,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
+| UART RS485 | DE release after the stop bit, 1 Mbaud (`test_uart_modes` vs `bench/idf_uart_modes`) | **669 cycles** | 1311 cycles | 1.96x | done; both from the TX_DONE interrupt (floor: IRQ entry ~100) |
 | SPI half duplex | quad write 32 B, cmd+addr+dummy, 10 MHz (`test_spi_hd` vs `bench/idf_spi_hd`) | **2902 cycles** | 5754 cycles | 1.98x | done; floor 2112 (88 SCLK), 790 left |
 | I2S TDM | init 4 slots x 16 bit TX (`test_i2s_modes` vs `bench/idf_i2s_modes`) | **24.4k cycles** | 181k cycles | 7.4x | done; stream 0 errors both |
 | I2S PDM | init TX+RX duplex (IDF: TX alone) | **27.4k cycles** | 167k cycles | >6.1x | done; loop SNR 33 dB vs IDF 38 dB (registers identical, gap open) |

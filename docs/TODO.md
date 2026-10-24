@@ -78,8 +78,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **SPI master**: full duplex, half duplex cmd/addr/dummy on 1/2/4/8 lines (octal SPI2), SPI3 master,
       CS setup/hold, DMA chains to 32 KB per call (split above); [ ] DTR (DDR) phases, [ ] octal read (no octal slave to test)
 - [~] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) done; [ ] HD DMA (WRDMA/RDDMA), segmented transfer
-- [~] **UART**: done; **todo**: RS485 (half-duplex, collision detect), IrDA,
-      hardware flow control test, pattern/AT-command detection, UART wake-up, UHCI DMA
+- [x] **UART**: RS485 half duplex (DE) + collision detect, IrDA, HW flow control, pattern/AT detection;
+      [ ] UHCI DMA (not needed so far: IRQ rings already at wire speed at 5 Mbaud), [ ] UART wake-up (with sleep)
 - [~] **I2C**: master/slave done; **todo**: 10-bit address, clock stretching
       timeout tuning, SCL glitch filter config, bus-clear/recovery, multi-master arbitration loss handling
 - [~] **RMT**: done incl. carrier/filter; **todo**: TX loop count + sync of several channels, RX demodulation, DMA mode (ch 3/7), encoders (WS2812 driver as example)
