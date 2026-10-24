@@ -38,7 +38,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Watchdogs: TG0/TG1 (report + reset), RTC WDT, super watchdog
 - [x] Reset reason per core (kept across the warm stage); [ ] wake cause (with sleep, D1)
 - [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
-- [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [ ] core dump to flash
+- [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [x] core dump to flash ("coredump" partition 0xA0000, tools/coredump.py: regs + addr2line backtrace)
 - [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
 - [~] Interrupt matrix: per-core routing, priorities, line sharing done; [x] NMI (level 7): `irq_attach_nmi`, gpt_alarm level 7; fires inside irq_lock (runtime_test)
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)

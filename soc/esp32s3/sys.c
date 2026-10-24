@@ -196,6 +196,8 @@ bool sys_last_crash(sys_crash_t *c)
     return true;
 }
 
+bool sys_peek_crash(sys_crash_t *c) { if (crash_rec.magic != CRASH_MAGIC) return false; *c = crash_rec; return true; }
+
 uint32_t sys_crash_count(void) { return (crash_count_v & 0xFFFF0000u) == 0x5A5A0000u ? crash_count_v & 0xFFFF : 0; }
 
 void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)
@@ -239,6 +241,9 @@ void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint3
     }
     printf("\n");
     crash_rec.magic = CRASH_MAGIC;                  /* complete: the next boot may read it */
+    extern void ndf_coredump(const char *, uint32_t, const uint32_t *, uint32_t, uint32_t, int);
+    ndf_coredump(why, pc, frame, sp, core ? (uint32_t)_stack1_top : (uint32_t)_stack0_top, core);
+    printf("    core dump written (tools/coredump.py)\n");
 }
 
 NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)

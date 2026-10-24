@@ -11,7 +11,7 @@ typedef struct {
 } partition_t;
 
 enum { PART_APP = 0x00, PART_DATA = 0x01 };
-enum { PART_SUB_NVS = 0x02, PART_SUB_NVS_KEYS = 0x04, PART_SUB_PHY = 0x01, PART_SUB_FAT = 0x81, PART_SUB_SPIFFS = 0x82, PART_SUB_ANY = 0xFF };
+enum { PART_SUB_NVS = 0x02, PART_SUB_NVS_KEYS = 0x04, PART_SUB_PHY = 0x01, PART_SUB_FAT = 0x81, PART_SUB_SPIFFS = 0x82, PART_SUB_COREDUMP = 0x03, PART_SUB_ANY = 0xFF };
 
 /* Loads and checks the table (MD5 entry verified when present). Returns
  * number of entries, -1 on bad table. */
