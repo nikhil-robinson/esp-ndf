@@ -805,3 +805,9 @@ Not run: 32 kHz crystal / external oscillator and its watchdog (no crystal on th
 | data in PSRAM blocks, all frees return both regions to their start | PASS |
 | PSRAM left with another read latency (MR0 kept through resets) | psram_init now finds it (latency search) |
 | flash at 120 MHz + PSRAM | psram_init returns the flash to 80 MHz first (shared MSPI core clock, as IDF) |
+
+## Flash on the BOX-3 (GD25LQ128, 2026-10-24)
+
+flash_test PASS x3: chip detected (QE method 16-bit status, SFDP 16 dwords, suspend from SFDP), 120 MHz tuning, erase /
+write / read exact, flash code on core 1 correct during erase + write with hardware auto-suspend for misses every
+0, 20, 50, 100, 200, 500, 1000 us (hold 100 us).

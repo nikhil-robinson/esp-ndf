@@ -481,3 +481,18 @@ nominal 136), so timeouts are within 1 %. Super WDT: ~3.4 s at this slow clock.
 First-fit boundary-tag heap, regions internal (internal + DMA caps) and PSRAM (heap_add_psram); malloc >= 16 KB tries
 PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL). Ceiling: first fit is O(free blocks) under heavy fragmentation
 (segregated lists if a profile shows it). RTC_DATA_ATTR / RTC_BSS_ATTR / RTC_NOINIT_ATTR in RTC slow memory.
+
+### Flash suspend on a chip that supports it (BOX-3, GD25LQ128 0xC86018, SFDP 16 dwords, 2026-10-24)
+
+Not on IDF's suspend list (IDF stalls flash code for the whole operation); our SFDP check enables it.
+
+| flash code on core 1 (miss every call) during erase 64 KB + write 4 KB | esp-ndf (auto-suspend, hold 100 us) | ESP-IDF |
+|---|---|---|
+| core 1 runs during the operation | **~700-1300** | 15 |
+| longest pause of flash code | **284 us** | ~25 ms |
+| erase + write time, misses every 20 us .. 1 ms | 106-314 ms, data correct | ~100 ms (other core stopped) |
+| write 4 KB / 64 KB | **5.0 / 77 ms** | 7.3 / 115 ms (1.45x / 1.5x) |
+| read 4 KB / 64 KB (120 MHz) | **91 / 1 447 us** | 348 / 5 165 us (3.8x / 3.6x) |
+
+Hold after resume (NDF_FLASH_SUS_HOLD_US): IDF's 50 us starves the erase when flash is touched every 20-50 us (never
+finishes, reported as a failure); 100 us passes every case with the shortest pauses (200 us: 548 us, 400 us: 1 ms).

@@ -23,7 +23,7 @@
 #define NDF_FLASH_SUSPEND       1       /* erase/program auto-suspend: 0 off, 1 IDF's chip list + SFDP, 2 force (chip tested) */
 #endif
 #ifndef NDF_FLASH_SUS_HOLD_US
-#define NDF_FLASH_SUS_HOLD_US   50      /* suspend: tSUS, wait after suspend/resume (IDF default 50) */
+#define NDF_FLASH_SUS_HOLD_US   100     /* suspend: wait after suspend/resume; 100 lets a busy erase progress (IDF 50 starves at a miss every 20-50 us) */
 #endif
 #ifndef NDF_PSRAM_MALLOC_MIN
 #define NDF_PSRAM_MALLOC_MIN    16384   /* malloc: blocks this big try PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL) */

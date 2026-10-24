@@ -25,9 +25,9 @@ static uint32_t select(uint8_t block)
 
 static uint32_t xfer(uint32_t ctrl, uint32_t cmd)
 {
-    while (REG(ctrl) & BIT(25)) {}
+    for (uint32_t k = 0; (REG(ctrl) & BIT(25)) && k < 100000; k++) {}   /* bounded: I2C master unpowered */
     REG(ctrl) = cmd;
-    while (REG(ctrl) & BIT(25)) {}
+    for (uint32_t k = 0; (REG(ctrl) & BIT(25)) && k < 100000; k++) {}   /* bounded: I2C master unpowered */
     return (REG(ctrl) >> 16) & 0xFF;
 }
 

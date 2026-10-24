@@ -41,7 +41,7 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='A cache miss from either core suspends a running erase/program in hardware, reads, and resumes it: '
                   'flash code keeps running during an erase instead of pausing. auto: the chips ESP-IDF validates '
                   '(GD25Q64/128, XMC-D, FM) and chips whose SFDP table says so. Not for Boya BY25Q (tested: never resumes).'),
-        dict(key='NDF_FLASH_SUS_HOLD_US', type='int', default=50, target='h', label='Suspend: tSUS (us)', range=(20, 400),
+        dict(key='NDF_FLASH_SUS_HOLD_US', type='int', default=100, target='h', label='Suspend: tSUS (us)', range=(20, 400),
              depends=('NDF_FLASH_SUSPEND', '!0'), help='Wait after suspend/resume (flash datasheet tSUS; ESP-IDF default 50).'),
         dict(key='NDF_FLASH_QE_SET', type='bool', default=True, target='h', label='Set quad-enable bit',
              help='If the chip\'s QE bit is clear, set it (one non-volatile status-register write) so reads use QIO. '

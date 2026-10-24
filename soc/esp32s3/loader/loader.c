@@ -34,15 +34,17 @@ static uint32_t sys16(void)                     /* system timer, 16 MHz from res
 /* PLL 480 MHz and the CPU at NDF_CPU_MHZ: the same register steps as soc/esp32s3/clk.c (clk_bbpll_init +
  * clk_cpu_set_mhz), only the path from the ROM's XTAL clock up (the ROM loads every loader byte at ~0.68 us). */
 static void spin(uint32_t cycles) { uint32_t t; __asm__ volatile("rsr.ccount %0" : "=r"(t)); for (uint32_t c = t; c - t < cycles; ) __asm__ volatile("rsr.ccount %0" : "=r"(c)); }
+static void boot_fail(void);
 static void boot_clock(void)
 {
     REG_FIELD(SYSTEM_SYSCLK_CONF, 10, 2, 0);                              /* CPU on XTAL /1 meanwhile */
     REG_FIELD(SYSTEM_SYSCLK_CONF, 0, 10, 0);
     REG_FIELD(SYSTEM_CPU_PER, 2, 1, 1);                                   /* PLL 480 MHz */
 #if NDF_LOADER_RTC          /* warm reset: the BBPLL and core voltage (analog, RTC domain) are still set, PLL locked */
-    if (!(REG(RTC_OPTIONS0) & (BIT(6) | BIT(8) | BIT(10)))) goto pll_ready;
+    if ((REG(0x60008038u) & 0x3F) != 5 && !(REG(RTC_OPTIONS0) & (BIT(6) | BIT(8) | BIT(10)))) goto pll_ready;   /* not after deep sleep: PLL off */
 #endif
     REG_CLR(RTC_OPTIONS0, BIT(6) | BIT(8) | BIT(10));                     /* BBPLL + its i2c powered */
+    REG(0x60008034u) |= BIT(30) | BIT(31);       /* ANA_CONF: CKGEN + PLL analog I2C power (sleep entry clears them) */
     REG_CLR(I2C_ANA_CONF0, BIT(2)); REG_SET(I2C_ANA_CONF0, BIT(3));       /* calibration start */
     regi2c_write(REGI2C_BBPLL, 4, 0x6B);
     regi2c_write(REGI2C_BBPLL, 2, 5 << 4);
@@ -51,7 +53,7 @@ static void boot_clock(void)
     regi2c_write_mask(REGI2C_BBPLL, 5, 6, 4, 0);
     regi2c_write(REGI2C_BBPLL, 6, 1 << 6 | 3 << 4 | 3);
     regi2c_write_mask(REGI2C_BBPLL, 9, 1, 0, 3);
-    while (!(REG(I2C_ANA_CONF0) & BIT(24))) {}
+    for (uint32_t k = 0; !(REG(I2C_ANA_CONF0) & BIT(24)); k++) if (k > 4000000) boot_fail();   /* no lock: ROM */
     spin(400);                                                            /* 10 us at 40 MHz */
     REG_CLR(I2C_ANA_CONF0, BIT(3)); REG_SET(I2C_ANA_CONF0, BIT(2));
     if (NDF_CPU_MHZ == 240) {                                             /* core voltage up first (clk.c dig_dbias) */
@@ -231,6 +233,17 @@ static void tune120(void)
 }
 #endif
 
+static void to_rom(void);
+static void boot_fail(void)             /* the warm stage must never hang: hand the boot to the ROM */
+{
+#if NDF_LOADER_RTC
+    REG(CAUSE_NOTE) = 0x52430000u | (REG(RESET_STATE) & 0x3F);
+    to_rom();
+#else
+    for (;;) {}
+#endif
+}
+
 static void to_rom(void)                /* hand this reset to the ROM: vector back, system reset */
 {
     REG_SET(RESET_STATE, BIT(13));
@@ -246,11 +259,12 @@ void loader_main(void)
     uint32_t t_entry = sys16();
 #if NDF_LOADER_RTC          /* started by the CPU reset vector, no ROM before us: anything but a normal flash boot is
                              * the ROM's job (download mode by strapping or by the USB-JTAG force-download flag) */
-    /* only our own warm resets: 3 system / 12 CPU software reset, 7/8 timer-group, 9/16 RTC watchdog. Others (21/22
+    /* only our own warm resets: 3 system / 12 CPU software reset, 5 deep-sleep wake, 7/8 timer-group, 9/16 RTC
+     * watchdog. Others (21/22
      * USB-UART/JTAG reset = esptool) go to the ROM. No strap check: GPIO_STRAP reads 0 here, and a BOOT-button download
      * comes with a power-on/EN reset, which sets the vector back to the ROM in hardware */
     uint32_t why = REG(RESET_STATE) & 0x3Fu;
-    if (why > 16 || !(((BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
+    if (why > 16 || !(((BIT(3) | BIT(5) | BIT(7) | BIT(8) | BIT(9) | BIT(12) | BIT(16)) >> why) & 1) || (REG(0x6000812Cu) & 1) ||
         (REG(0x6000703Cu) & (1u << 9)))       /* octal flash (eFuse FLASH_TYPE): the ROM sets that bus up */
         { REG(CAUSE_NOTE) = 0x52430000u | why; to_rom(); }          /* the app still sees the real cause */
     /* a system reset returns SPI0 and the flash pads to their defaults; the ROM's flash attach would set them. Same
