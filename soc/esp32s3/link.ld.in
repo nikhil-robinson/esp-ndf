@@ -1,3 +1,7 @@
+#ifndef NDF_APPTRACE
+#define NDF_APPTRACE 0        /* 1: app trace over JTAG (trace.h): TRAX blocks 28/29 = 0x3FCE8000-0x3FCEFFFF, DRAM ends 4 KB earlier */
+#endif
+#define RAM_END (NDF_APPTRACE ? 0x3FCE8000 : 0x3FCE9000)
 #ifndef NDF_ULP_RESERVE
 #define NDF_ULP_RESERVE 0     /* bytes of RTC slow memory from 0x50000000 for a ULP program (ulp.h) */
 #endif
@@ -15,8 +19,8 @@ ENTRY(_start0)
 
 MEMORY
 {
-    iram (RWX) : ORIGIN = 0x40378000, LENGTH = 0x3FCE9000 - 0x3FC88000
-    dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = 0x3FCE9000 - 0x3FC88000
+    iram (RWX) : ORIGIN = 0x40378000, LENGTH = RAM_END - 0x3FC88000
+    dram (RW)  : ORIGIN = 0x3FC88000, LENGTH = RAM_END - 0x3FC88000
     irom (RX)  : ORIGIN = 0x42000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
     drom (R)   : ORIGIN = 0x3C000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE
     rtcslow (RW) : ORIGIN = 0x50000010 + NDF_ULP_RESERVE, LENGTH = 0x1000 - 0x10 - NDF_ULP_RESERVE   /* after the warm-boot jump and the ULP program; 0x50001000+: notes */
@@ -99,6 +103,6 @@ SECTIONS
 ASSERT(_vector_table == 0x40378000, "vector table must be first in IRAM")
 ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (MMU entries 496-511)")
 ASSERT(!NDF_BOOT_FAST || _data_end <= 0x3FCE8000, "fast boot: the loaded image must end below the loader (0x3FCE8000)")
-ASSERT(_stack1_top <= 0x3FCE9000, "RAM full: code + data + stacks exceed SRAM below the ROM loader area")
+ASSERT(_stack1_top <= RAM_END, "RAM full: code + data + stacks exceed SRAM below the ROM loader area (or the trace blocks)")
 /* the baseband dump engine writes SRAM banks 0x3FCB0000..0x3FCDFFFF (drivers/rf/rf_dump.c) */
 ASSERT(SIZEOF(.rfmark) == 0 || _stack1_top <= 0x3FCB0000, "RF dump engine in use: code + data + stacks must end below 0x3FCB0000")

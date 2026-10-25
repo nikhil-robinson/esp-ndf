@@ -126,7 +126,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [x] periph_test runs on it (41 tests, ordered by registry name prefix, PT_FILTER for one test)
 - [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
 - [x] Cooperative tasks (`coop.h`): spawn / yield / sleep, CALL0 context (6 registers), hardware stack guard follows the task
-- [x] JTAG debugging guide + `tools/gdb.sh` (docs/DEBUG.md, verified: breakpoint, backtrace, variables); [ ] app trace over JTAG
+- [x] JTAG debugging guide + `tools/gdb.sh` (docs/DEBUG.md, verified: breakpoint, backtrace, variables); [x] app trace over JTAG (trace.h, IDF apptrace protocol: OpenOCD "esp apptrace" reads it; NDF_APPTRACE, 4 KB DRAM; tools/trace_test.sh)
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
 - [x] System API (`system.h`): chip revision, MAC, flash id/size/read path, clocks, reset cause per core, restart, boot banner
 - [x] UART0 console option; storage limits (VFS/FAT/SPIFFS/NVS) configurable; config changes trigger a rebuild

@@ -27,10 +27,14 @@ RAM_FN static void guard_isr(void *a)
     int c = core_id();
     if (!(REG(RAW(c)) & SP_BITS)) return;
     uint32_t pc = REG(SP_PC(c));
+    uint32_t sp; __asm__ volatile("mov %0, a1" : "=r"(sp));
+    if (sp >= REG(SP_MIN(c)) && sp <= REG(SP_MAX(c))) {   /* SP is fine again: a debugger halt (OpenOCD runs code */
+        REG(CLR(c)) = SP_BITS;                            /* in debug mode with its own a1), not an overflow - on a */
+        return;                                           /* real one this handler still runs on the bad stack */
+    }
     REG(ENA(c)) &= ~SP_BITS; REG(RLS(c)) &= ~SP_BITS;
     REG(CLR(c)) = SP_BITS;
     if (guard_fn[c]) { guard_fn[c](c, pc); return; }
-    uint32_t sp; __asm__ volatile("mov %0, a1" : "=r"(sp));
     ndf_panic("stack overflow (SP left its stack)", pc, 0, sp);
 }
 

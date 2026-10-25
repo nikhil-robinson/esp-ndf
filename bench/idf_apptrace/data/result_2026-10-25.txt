@@ -1,0 +1,4 @@
+# C9:D0 2026-10-25, OpenOCD v0.12.0-esp32-20251215 "esp apptrace start file://.. 0 -1 8 0 0", 64 x 1020 B records
+ndf trace.h: 65280 B received, 64 records 0 bad; trace_write best 540 cycles; host rate 7.34 KiB/s (OpenOCD poll bound)
+IDF esp_apptrace: 65280 B received, 64 records 0 bad; host rate 7.45 KiB/s; target timing line not visible on the console while OpenOCD holds the link
+OpenOCD attach right after a reset is racy for both (tools/trace_test.sh waits 3 s; one IDF run got 0 records)
