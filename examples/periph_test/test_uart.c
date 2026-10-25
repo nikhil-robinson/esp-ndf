@@ -24,12 +24,34 @@ static void run_baud(uint32_t baud)
     CHECK(n == LEN && bad == 0 && uart_overflows(1) == 0);
 }
 
+/* UHCI DMA, 4 KB each way at 5 Mbaud over the same jumper; CPU time = cycles inside the driver calls */
+static void dma(void)
+{
+    uart_cfg_t c = { .baud = 5000000, .tx_pin = 12, .rx_pin = 13 };
+    uart_init(1, &c);
+    CHECK(uart_dma_start(1, 0) == 0);
+    for (int i = 0; i < LEN; i++) { tx[i] = i * 7 + 3; rx[i] = 0; }
+    uint32_t c0 = ccount();
+    CHECK(uart_dma_read_start(1, rx, LEN) == 0);
+    uint32_t c1 = ccount();
+    CHECK(uart_dma_write(1, tx, LEN, 0) == LEN);             /* async: the CPU is free from here */
+    uint32_t c2 = ccount();
+    int n; while (((n = uart_dma_read_done(1)) < 0 || !uart_dma_write_done(1)) && ccount() - c0 < 240000000u) {}
+    uint32_t us = (ccount() - c0) / 240;
+    int bad = 0; for (int i = 0; i < LEN; i++) bad += rx[i] != tx[i];
+    uart_dma_stop(1);
+    printf("    DMA 5 Mbaud: %d/%d bytes, %d wrong, %lu us (wire %u us), CPU in calls %lu + %lu cycles\n",
+           n, LEN, bad, us, LEN * 10 / 5, c1 - c0, c2 - c1);
+    CHECK(n == LEN && bad == 0);
+}
+
 void test_uart(void)
 {
     __asm__ volatile("rsil a2, 0" ::: "a2");
     run_baud(115200);
     run_baud(2000000);
     run_baud(5000000);
+    dma();
     uint8_t m[16] = "0123456789abcdef";
     METRIC("uart_write() 16 bytes", "%lu cycles", CYCLES(uart_write(1, m, 16)));
     uart_flush(1);

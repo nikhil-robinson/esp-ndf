@@ -4,6 +4,8 @@
 #include "clk.h"
 #include "irq.h"
 #include "xtensa.h"
+#include "gdma.h"
+#include "sys.h"
 
 #define U_BASE(p)     ((p) == 0 ? 0x60000000 : (p) == 1 ? 0x60010000 : 0x6002E000)
 #define FIFO(p)       (U_BASE(p) + 0x00)
@@ -230,3 +232,74 @@ int uart_pattern_pop(int p)
     int pos = (int)(u->pat[u->pt++ & 7] - u->rt);            /* offset from the next byte uart_read returns */
     return pos;
 }
+
+/* ---- DMA through UHCI0 (one UART at a time), transparent: no SLIP escapes, no packet header (UHCI CONF0
+ * head_en / seper_en off, ESCAPE_CONF 0). TX = one GDMA chain; RX ends at line idle (IDLE_CONF threshold,
+ * uart_idle_eof_en) or when the buffer is full. The UART's own RX interrupt is off while DMA owns the port. */
+#define UHCI_CONF0   0x60014000
+#define UHCI_CONF1   0x60014018
+#define UHCI_ESCAPE  0x60014024
+#define IDLE_CONF(p) (U_BASE(p) + 0x48)              /* b9:0 rx idle threshold (bit times) */
+static int uh_port = -1, uh_ch = -1;
+static gdma_desc_t uh_txd[8], uh_rxd[8];
+
+int uart_dma_start(int p, uint32_t idle_bits)
+{
+    if (p < 0 || p > 2 || uh_port >= 0) return -1;
+    if (uh_ch < 0 && (uh_ch = gdma_alloc()) < 0) return -1;
+    periph_enable(PERIPH_UHCI0);
+    gdma_connect(uh_ch, GDMA_UHCI0);
+    REG(UHCI_CONF0) = BIT(11);                       /* clk_en (IDF uhci_ll_init) */
+    REG(UHCI_CONF0) = BIT(11) | BIT(2 + p) | BIT(8); /* uartN_ce, idle eof */
+    REG(UHCI_CONF1) = 0;
+    REG(UHCI_ESCAPE) = 0;
+    REG_FIELD(IDLE_CONF(p), 0, 10, idle_bits ? idle_bits : 20);
+    REG_CLR(INT_ENA(p), I_RXFULL | I_RXTOUT | I_RXOVF);
+    uh_port = p;
+    return 0;
+}
+
+void uart_dma_stop(int p)
+{
+    if (p != uh_port) return;
+    gdma_reset(uh_ch);
+    REG(UHCI_CONF0) = BIT(11);
+    REG(INT_CLR(p)) = ~0u;
+    REG_SET(INT_ENA(p), I_RXFULL | I_RXTOUT | I_RXOVF);
+    uh_port = -1;
+}
+
+int uart_dma_write(int p, const void *buf, size_t n, uint32_t timeout_us)
+{
+    if (p != uh_port || gdma_chain(uh_txd, 8, (void *)buf, n, true) < 0) return -1;
+    gdma_out_reset(uh_ch);
+    gdma_out_start(uh_ch, uh_txd);
+    if (!timeout_us) return n;                        /* async: poll uart_dma_write_done() */
+    uint32_t t0 = ccount(), lim = timeout_us * (sys_cpu_hz() / 1000000);
+    while (!gdma_out_eof(uh_ch)) if (ccount() - t0 > lim) return -1;
+    return n;                                         /* in the UART FIFO; uart_flush waits for the wire */
+}
+
+bool uart_dma_write_done(int p) { return p == uh_port && gdma_out_eof(uh_ch); }
+
+int uart_dma_read_start(int p, void *buf, size_t max)
+{
+    if (p != uh_port || gdma_chain(uh_rxd, 8, buf, max, false) < 0) return -1;
+    gdma_in_reset(uh_ch);
+    gdma_in_start(uh_ch, uh_rxd);
+    return 0;
+}
+
+int uart_dma_read_done(int p)                         /* bytes once the frame ended (idle / full), -1 before */
+{
+    if (p != uh_port || !gdma_in_eof(uh_ch)) {
+        if (p == uh_port) {                           /* buffer full also ends it */
+            gdma_desc_t *d = uh_rxd; while (d->next) d = d->next;
+            if (d->owner) return -1;
+        } else return -1;
+    }
+    int n = 0;
+    for (gdma_desc_t *d = uh_rxd; d && !d->owner; d = d->next) n += d->length;
+    return n;
+}
+

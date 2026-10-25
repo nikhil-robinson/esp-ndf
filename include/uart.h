@@ -35,3 +35,13 @@ uint32_t uart_rs485_clashes(int port);
  * uart_pattern_pop: offset of the next pattern from the next byte uart_read() returns, -1 none (queue of 8). */
 int      uart_set_pattern(int port, char c, int n, uint32_t gap, uint32_t pre, uint32_t post);
 int      uart_pattern_pop(int port);
+
+/* DMA through UHCI0 (one port at a time; buffers in DRAM, <= 32 KB per call). While started, the port's
+ * interrupt-driven RX is off: read with uart_dma_read_*. RX ends at idle_bits of line idle (0 = 20) or full. */
+int  uart_dma_start(int port, uint32_t idle_bits);
+void uart_dma_stop(int port);
+int  uart_dma_write(int port, const void *buf, size_t n, uint32_t timeout_us);   /* returns once in the FIFO; 0 = async */
+bool uart_dma_write_done(int port);
+int  uart_dma_read_start(int port, void *buf, size_t max);
+int  uart_dma_read_done(int port);                   /* bytes received, -1 while the frame is still open */
+

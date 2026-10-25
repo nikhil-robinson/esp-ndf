@@ -81,7 +81,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       CS setup/hold, DMA chains to 32 KB per call (split above); [x] DTR (DDR) phases (IDF has none; checked on both SCLK edges by core-1 pad sampling), [ ] octal read (no octal slave to test)
 - [x] **SPI slave**: full duplex + **half-duplex buffer mode** (WRBUF/RDBUF 1/2/4 lines) + **HD DMA segment mode** (WRDMA/RDDMA segments, WR_END/INT0; 3096 B 4-line 635 vs IDF 673 us)
 - [x] **UART**: RS485 half duplex (DE) + collision detect, IrDA, HW flow control, pattern/AT detection;
-      [ ] UHCI DMA (not needed so far: IRQ rings already at wire speed at 5 Mbaud), [ ] UART wake-up (with sleep)
+      [x] UHCI DMA (uart_dma_*: 4 KB both ways at 5 Mbaud in 8201 us = wire + 0.1 %, 1.1k CPU cycles vs IDF uhci 36k), [ ] UART wake-up (with sleep)
 - [x] **I2C**: master/slave, 10-bit address (both), SCL timeout API, glitch filter API, bus clear (IDF order),
       arbitration loss (waits for the winner, retry), clean controller rebuild after errors
 - [x] **RMT**: carrier/filter, TX loop count, multi-channel sync, RX demodulation, DMA (TX/RX ch 3), WS2812 encoder

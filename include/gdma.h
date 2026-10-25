@@ -14,7 +14,7 @@ typedef struct gdma_desc {
 
 #define GDMA_DESC_MAX 4092                 /* bytes per descriptor (word aligned) */
 
-enum { GDMA_SPI2 = 0, GDMA_SPI3 = 1, GDMA_I2S0 = 3, GDMA_I2S1 = 4, GDMA_LCD_CAM = 5,
+enum { GDMA_SPI2 = 0, GDMA_SPI3 = 1, GDMA_UHCI0 = 2, GDMA_I2S0 = 3, GDMA_I2S1 = 4, GDMA_LCD_CAM = 5,
        GDMA_AES = 6, GDMA_SHA = 7, GDMA_ADC = 8, GDMA_RMT = 9, GDMA_M2M = 63 };
 
 int  gdma_alloc(void);                     /* returns channel 0..4, -1 if none */

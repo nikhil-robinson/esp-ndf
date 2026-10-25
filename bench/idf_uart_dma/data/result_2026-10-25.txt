@@ -1,0 +1,3 @@
+# C9:D0 2026-10-25, UART1 5 Mbaud, 12->13 jumper, 4096 B each way
+IDF uhci: 4096 B (32 mismatched, sibling callback copy - cause not chased), 8413 us, CPU in calls 25710 + 10769 cycles
+ndf uart_dma: 4096 B 0 wrong, 8201 us (wire 8192), CPU in calls 531 + 602 cycles
