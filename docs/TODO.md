@@ -40,7 +40,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
 - [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [x] core dump to flash ("coredump" partition 0xA0000, tools/coredump.py: regs + addr2line backtrace)
 - [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
-- [~] Interrupt matrix: per-core routing, priorities, line sharing done; [x] NMI (level 7): `irq_attach_nmi`, gpt_alarm level 7; fires inside irq_lock (runtime_test)
+- [x] Interrupt matrix: per-core routing, priorities, line sharing (pool NDF_IRQ_SHARES); [x] NMI (level 7): `irq_attach_nmi`, gpt_alarm level 7; fires inside irq_lock (runtime_test)
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)
 - [x] System timer, software timers
 - [x] gettimeofday / settimeofday / clock_gettime (lib/time.c); [ ] wall time kept across sleep / reset (with D1)
@@ -103,7 +103,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV
 - [~] **USB OTG** (ch. 32): device CDC-ACM (1.32x / 1.97x IDF), **MSC** (BOT + SCSI over any bdev: kernel enumerates,
       READ CAPACITY / READ(10) data proven by udev's FAT probe, 0 SCSI errors), **HID** (vendor 64-byte reports: report
-      descriptor parsed by the kernel); [ ] HID/MSC data transfer test from the host (needs root for hidraw / sdX),
+      descriptor parsed by the kernel); [x] MSC data from the host (READ(10) checked by udev's FAT probe, also in the composite); [-] HID report data: needs root for hidraw,
       [x] composite device CDC-ACM + MSC (USB_FN_CDC_MSC, IAD; tools/usb_comp_test.py: disk + 64 KB echo at once), [-] host mode, role switch: needs new hardware (an OTG adapter with 5 V VBUS + a device on the S3 port; the DEVKIT port is the laptop link)
       [x] OTG guard: usb_dev_start arms the RTC watchdog (RTC reset), usb_dev_poll feeds it, usb_dev_stop disarms;
       proof that the RTC reset clears RTC_CNTL and the console returns: examples/usb_safety_proof + tools/usb_safety_proof.py;
@@ -111,7 +111,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] USB Serial/JTAG: console out + input (`console_getc`); host presence `console_host_present()` (USB start-of-frame number moves every 1 ms, check 49 cycles; unplugged writes drop at once, IDF waits its TX timeout). JTAG-only mode: n/a (the console is ours; JTAG works with or without it)
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
 - [x] **Temperature sensor**: eFuse trim, auto range, RC_FAST clock as IDF (within 0.6 C of IDF, 3.2x faster read); threshold interrupt: n/a on S3 (C6+ hardware)
-- [ ] Analog comparator, DAC, SDIO slave, Ethernet MAC, ISP, JPEG codec, PPA, parallel IO (n/a on S3)
+- [-] Analog comparator, DAC, SDIO slave, Ethernet MAC, ISP, JPEG codec, PPA, parallel IO: n/a on S3 (not in the chip)
 
 ## 8. Runtime and libraries (IDF: esp_system, newlib, log, ringbuf, console, cxx...)
 
