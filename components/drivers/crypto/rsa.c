@@ -102,8 +102,9 @@ static void run(uint32_t start, uint32_t *z, int words)
     for (int i = 0; i < words; i++) z[i] = REG(MEM_Z + 4 * i);
 }
 
-/* secret: constant time (TRM: CONSTANT_TIME 1 = no acceleration, no exponent search), so the run time does not
- * depend on the exponent's bits or length; otherwise the IDF fast path (acceleration + search from the top bit) */
+/* secret and NDF_RSA_CONST_TIME: constant time (TRM: CONSTANT_TIME 1 = no acceleration, no exponent search), so the run
+ * time does not depend on the exponent's bits or length; otherwise the IDF fast path (acceleration + search from the top
+ * bit): for a fixed key that shows only its length and Hamming weight, the same on every call */
 static int exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words, bool secret_in)
 {
     bool secret = secret_in && NDF_RSA_CONST_TIME;

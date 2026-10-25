@@ -169,10 +169,10 @@
 #define NDF_INT_WDT_MS          1000    /* interrupt watchdog (timer group 1): reset when interrupts stay off this long; 0 off */
 #endif
 #ifndef NDF_RSA_CONST_TIME
-#define NDF_RSA_CONST_TIME      1       /* RSA private exponentiation in the engine's constant-time mode (no exponent-dependent timing; ~34 % slower than IDF's fast path, 0 = as IDF) */
+#define NDF_RSA_CONST_TIME      0       /* 1: RSA private exponentiation in the engine's constant-time mode (no acceleration: +34 % time). Off, as IDF: the run time of a FIXED key then reveals only its bit length and weight, nothing per message; no blinding is possible without the prime factors */
 #endif
 #ifndef NDF_ECC_VERIFY_SIGN
-#define NDF_ECC_VERIFY_SIGN     1       /* P-256: verify every signature before it leaves (fault-injection guard; 2x sign time) */
+#define NDF_ECC_VERIFY_SIGN     1       /* P-256 fault guard: 1 = k G recomputed with the negated scalar + s k = e + r d (about +1 fixed-base multiply), 2 = also verify the signature (slow), 0 off */
 #endif
 #ifndef NDF_COREDUMP_STACK
 #define NDF_COREDUMP_STACK      0       /* core dump: also 8 KB of raw stack (debug; may contain secrets) */

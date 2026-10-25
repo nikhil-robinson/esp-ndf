@@ -12,11 +12,11 @@ PASS SHA-256 1M 'a' (1000 x 1000-byte updates)
 PASS SHA-512 1M 'a'
 PASS split / interleaved / unaligned updates match one-shot
 speed SHA-256     64 B:    2005 cycles (8 us, 7 MB/s)
-speed SHA-256   1024 B:    4458 cycles (18 us, 55 MB/s)
-speed SHA-256   4096 B:   10632 cycles (44 us, 92 MB/s)
-speed SHA-256  65536 B:  132048 cycles (550 us, 119 MB/s)
-speed SHA-512     64 B:    1879 cycles (7 us, 8 MB/s)
-speed SHA-512   1024 B:    5122 cycles (21 us, 47 MB/s)
-speed SHA-512   4096 B:   10969 cycles (45 us, 89 MB/s)
-speed SHA-512  65536 B:  153904 cycles (641 us, 102 MB/s)
+speed SHA-256   1024 B:    4554 cycles (18 us, 53 MB/s)
+speed SHA-256   4096 B:   10728 cycles (44 us, 91 MB/s)
+speed SHA-256  65536 B:  132144 cycles (550 us, 119 MB/s)
+speed SHA-512     64 B:    1876 cycles (7 us, 8 MB/s)
+speed SHA-512   1024 B:    5218 cycles (21 us, 47 MB/s)
+speed SHA-512   4096 B:   11065 cycles (46 us, 88 MB/s)
+speed SHA-512  65536 B:  154000 cycles (641 us, 102 MB/s)
 sha_test PASS done

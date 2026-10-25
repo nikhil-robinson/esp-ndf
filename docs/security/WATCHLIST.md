@@ -91,8 +91,8 @@ Every item of the watchlist, with what the SDK does and the evidence. **Fixed** 
 | Key storage / access control | Accepted | NVS encryption available; key protection at rest needs eFuse HMAC/DS (excluded) |
 | Secrets in logs / dumps | Fixed | core dump without stacks by default; printf %n off |
 | Sensitive RAM clearing | Fixed | WIPE on every ECC / RSA / GCM path |
-| Timing / power side channels | Fixed (timing) | RSA constant time by default, branch-free P-256 ladder, constant-time tag compare; power analysis needs hardware countermeasures (not in SDK) |
-| Fault injection on crypto | Fixed | verify-after-sign (NDF_ECC_VERIFY_SIGN), hedged nonces, glitch + brownout reset on |
+| Timing / power side channels | Fixed (timing) | P-256: fixed number of correction passes in the field reduction, every table entry read (fixed-base comb and 4-bit window), branch-free point code; constant-time tag compare. RSA: the engine's fast path shows a FIXED key's bit length and Hamming weight, the same on every call, nothing per message (`NDF_RSA_CONST_TIME 1` removes even that, +34 %); power analysis needs hardware countermeasures (not in SDK) |
+| Fault injection on crypto | Fixed | ECDSA: k G recomputed with the negated scalar (different digits and table entries) and s k = e + r d re-checked before a signature leaves (`NDF_ECC_VERIFY_SIGN`, tested by injecting faults: `ecc_unit`); level 2 also verifies. Hedged nonces, glitch + brownout reset on |
 | Authentication / replay | Fixed | OTA version floor; GCM tags; replay windows are protocol-level (wireless audit later) |
 
 ## RTOS & Concurrency

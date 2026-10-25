@@ -1,0 +1,1 @@
+#define NDF_ECC_TEST_FAULT 1

@@ -14,8 +14,8 @@ data on flash filesystems, correct actuator control (robots: a wrong output is a
 | External devices on buses | I2C/SPI/UART/TWAI/camera/touch data | counts and lengths capped (GT911 points, DMA lengths), bounded waits on every bus |
 | Untrusted data in the app | NN models, printf formats, caller arguments | model parameter checks, %n off, index checks on every driver API |
 | Physical attacker with JTAG / flash access | everything | NOT mitigated in this SDK: secure boot, flash encryption and JTAG disable need eFuses (owner decision: no eFuse burns). Accepted risk; a product must enable them. |
-| Fault injection (glitch) | crypto operations | verify-after-sign (ECDSA), hedged nonces; glitch / brownout resets on |
-| Timing side channels | RSA, ECC, MAC compare | RSA constant-time mode by default, branch-free P-256 scalar mult, constant-time tag compares |
+| Fault injection (glitch) | crypto operations | ECDSA double computation of k G (negated scalar) + s k = e + r d check, hedged nonces; glitch / brownout resets on |
+| Timing side channels | RSA, ECC, MAC compare | branch-free P-256 field and point code with full table scans, constant-time tag compares; RSA fast path leaks only a fixed key's length / weight (constant-time engine mode optional) |
 
 ## Trust assumptions
 All code in the image is trusted (no privilege separation between tasks: bare metal, one world). The running image

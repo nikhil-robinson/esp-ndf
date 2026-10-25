@@ -7,6 +7,6 @@ PASS zero-copy reserve/commit/peek: same buffer, wraps around
 PASS item larger than out buffer stays queued
 PASS released, empty
      ringbuf 16 B put+get 326 cycles, zero-copy reserve+commit+peek+release 109 cycles
-PASS core1 -> core0: 20000 variable items (1..200 B) intact, 1090 cycles/item, producer waited 0 times
-PASS async DMA 65472 B: correct; start returns in 1890 cycles
-     done callback after 248461 cycles = 63 MB/s; CPU looped 16424 times meanwhile
+PASS core1 -> core0: 20000 variable items (1..200 B) intact, 1098 cycles/item, producer waited 0 times
+PASS async DMA 65472 B: correct; start returns in 1888 cycles
+     done callback after 248459 cycles = 63 MB/s; CPU looped 16424 times meanwhile

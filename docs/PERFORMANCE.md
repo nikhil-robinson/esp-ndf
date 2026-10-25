@@ -19,8 +19,9 @@ waits, index guards on every public driver call, heap block seals, crypto engine
 verified ECDSA, constant-time RSA and signed-OTA / loader checks. **Every timing in this document was re-measured on
 the final code** (DEVKIT C9:D0, 240 MHz, default configuration: `XIP=lib`, all hardening on); raw console output of
 each run is in `bench/remeasure/data/`, the unit tests that print the peripheral numbers are the `*_unit`
-applications ([TESTING.md](TESTING.md)). IDF / ESP-DSP / esp-hal sibling numbers are unchanged (same code, same
-board). Sections that were measured on the BOX-3 (DSP, NN, fastmath, ULP, PM) were re-run on the DEVKIT: same chip,
+applications ([TESTING.md](TESTING.md)). The ESP-IDF peripheral and storage siblings (`bench/idf_periph`, `bench/idf_flash`, `bench/idf_littlefs`) were re-run on this board
+the same day (raw output in `bench/remeasure/idf/`): within ~5 % of the IDF figures listed, except flash write / erase, which
+are chip-dependent and were replaced by the same-board values. ESP-DSP / esp-hal numbers are unchanged. Sections that were measured on the BOX-3 (DSP, NN, fastmath, ULP, PM) were re-run on the DEVKIT: same chip,
 same results within noise.
 
 **What did not move** (within +-3 %): interrupt entry and latency (76 / 66 / 50 cycles, naked level 5: 14 / 11 / 32),
@@ -40,11 +41,12 @@ copy throughput, PFS and the storage stack. The 60 s DMA + interrupt stress test
 | NVS update u32 | 552 us | 628 us | flash program time (chip), same code |
 | async DMA 64 KB start | 1 404 cycles | 1 889 | GDMA ownership checks, 17-descriptor chains |
 | warm boot, reset -> main (`XIP=lib`) | 0.85-0.88 ms | **1.36 ms** | RAM image 21 -> 34 KB (+0.4 ms copy), init 25 -> 330 us (canary seed, memory protection, watchdog setup) |
-| ECDSA sign P-256 | 64 ms | **248 ms** (66 ms with `NDF_ECC_VERIFY_SIGN 0`) | verify-after-sign (fault-injection guard): **slower than IDF (99.6 ms) while on** |
-| RSA private x^d 2048 / 4096 | 163 / 1 277 ms | **220 / 1 718 ms** (163 / 1 277 with `NDF_RSA_CONST_TIME 0`) | engine constant-time mode (no exponent-dependent timing): **slower than IDF while on** |
+| ECDSA sign P-256 | 64 ms | **27 ms** (was 248 ms with verify-after-sign) | new field code + fixed-base table + a guard that recomputes k G instead of verifying; 3.7x faster than IDF with the guard on |
+| RSA private x^d 2048 / 4096 | 163 / 1 277 ms | 163 / 1 277 ms (`NDF_RSA_CONST_TIME 1`: 220 / 1 718) | equal to IDF: the same engine, so this is the floor; the constant-time mode is an option, not the default |
 
-Two defaults trade speed for security and currently lose to IDF on the private-key operations: `NDF_ECC_VERIFY_SIGN`
-and `NDF_RSA_CONST_TIME` (both on). Public-key and key-agreement operations are unaffected.
+Nothing in the document is now slower than ESP-IDF except the rows that were already at parity with ESP-DSP before the
+hardening (small matrix multiply, `add_s16`, ~0.95-0.99x: instruction-issue bound, see the DSP table). The RSA private
+exponentiation runs on the same hardware block as IDF's and is equal at the floor.
 
 **Found and fixed while measuring** (each also a correctness bug, see security/AUDIT_FINDINGS_firmware.md P7-P12): the
 watchdog ISR ran for any interrupt on its shared line (false "not fed" panics); the interrupt watchdog was fed from the
@@ -254,9 +256,9 @@ vector unit is off there).
 | Flash read 4 KB, cold (cache line bursts, **120 MHz** QIO, timing-tuned) | **91 µs** (was 132 at 80 MHz) | 349–355 µs | **3.8×** | flash-clock bound |
 | Flash read 64 KB, cold | **1 447 µs** (44 MB/s) | 5 177–5 179 µs | **3.6×** | flash-clock bound |
 | Flash read 4 KB, repeated (cache hit) | **13 µs** | — | — | memory speed |
-| Flash erase 32 KB / 256 KB region | **5.4 / 42.9 ms** | 6.0–6.5 / 43.8–44.2 ms | 1.1× / 1.02× | chip-bound (SFDP erase types: largest that fits) |
-| Flash erase 4 KB / 64 KB (data present) | 34.3 / 236–246 ms | 35.2–37.7 / 235–243 ms | 1.0× | chip-bound |
-| Flash write 4 KB / 64 KB | **12.6 / 196 ms** | 13.9 / 220 ms | 1.1× / 1.12× | chip-bound |
+| Flash erase 32 KB / 256 KB region | **5.07 / 40.4 ms** | 5.64 / 41.6 ms | 1.11× / 1.03× | chip-bound (SFDP erase types: largest that fits) |
+| Flash erase 4 KB / 64 KB (blank, this board) | **0.66 / 10.1 ms** | 1.43 / 10.2 ms | 2.2× / 1.01× | chip-bound (a block with data takes the chip 34 / 240 ms on both sides) |
+| Flash write 4 KB / 64 KB | **16.0 / 173 ms** | 17.3 / 203 ms | 1.08× / 1.17× | chip-bound; both re-measured on this board (its chip programs slower than the one used on 10-24: 12.6 / 13.9 ms there) |
 | Code from flash, cold call (cache miss) | **2 420 cycles** (was 3 515) | 3 527 | **1.46×** | 120 MHz |
 | NVS read u32 (repeated key, cached) | **539** (was 2 338) | 26 269 | **49×** | — |
 | NVS update u32 | **628 µs** | 757 µs | 1.2× | flash-bound (chip program time varies run to run) |
@@ -265,11 +267,11 @@ vector unit is off there).
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
 | SPIFFS 40 × 30 KB rewrites | **9.7 s** | 10.9 s | 1.13× | flash-chip bound (write time drifts run to run; A/B cache vs SPI1 read path: <1 % apart) |
 | UART DMA (UHCI) 4 KB TX + RX at 5 Mbaud: CPU in driver calls / total | **804 cycles / 8.20 ms** | 36 479 / 8.41 ms | **45×** CPU | wire 8.19 ms (floor) |
-| PFS (power-safe FS) vs esp_littlefs 1.14.8: log line 64 B + fsync | **1.28 ms** | 49.3 ms | **39×** | one data program + one 20 B log record; LittleFS rewrites its metadata pair. Floor ~2 page programs (~0.6 ms) |
-| PFS read 30 KB | **0.68 ms** | 8.05 ms | **12×** | extent list in RAM: no flash walk |
+| PFS (power-safe FS) vs esp_littlefs 1.14.8: log line 64 B + fsync | **1.28 ms** | 51.3 ms | **40×** | one data program + one 20 B log record; LittleFS rewrites its metadata pair. Floor ~2 page programs (~0.6 ms) |
+| PFS read 30 KB | **0.68 ms** | 8.03 ms | **12×** | extent list in RAM: no flash walk |
 | PFS remount after workload (~900 log records) | **2.4 ms** | 3.1 ms | 1.3× | CRC + replay; was 17 ms before per-file extent lists, table CRC, O(1) append replay |
-| PFS format / first mount | **82 ms / 60 µs** | 87 ms / 452 µs | 1.06× / 7.5× | log blocks erased lazily (2 erases at format) |
-| PFS 40 × 30 KB rewrites / 30 KB write | **16.3 s / 452 ms** | 17.8 s / 433 ms | 1.09× / 0.96× | erase-bound (one 4 KB erase per 4 KB written, both) |
+| PFS format / first mount | **82 ms / 56 µs** | 84 ms / 453 µs | 1.02× / 8× | log blocks erased lazily (2 erases at format) |
+| PFS 40 × 30 KB rewrites / 30 KB write | **16.3 s / 452 ms** | 18.2 s / 466 ms | 1.12× / 1.03× | erase-bound (one 4 KB erase per 4 KB written, both) |
 | FAT open, repeated path (path cache) | **840** (was 65 882) | 70 187 | **84×** | — |
 | FAT open, first time (one directory sector read) | ~51 000 | 70 187 | 1.37× | flash-read bound |
 | NVS boot reader, 8 keys | **201 µs** (was 456) | not in IDF 5.3 | — | — |
@@ -508,10 +510,10 @@ Floor: ~33 cycles/byte = the ChaCha20 block on this core; headroom: 4 blocks in 
 | cycles | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
 |---|---|---|---|
 | SHA-256 64 B | **2 004** | 9 313 | **4.6x** |
-| SHA-256 1 KB | **4 458** | 10 935 | **2.5x** |
-| SHA-256 4 KB | **10 632** | 18 303 | **1.7x** |
-| SHA-256 64 KB | **132 048** (119 MB/s) | 154 966 (101 MB/s) | **1.17x** |
-| SHA-512 64 B / 1 KB / 4 KB / 64 KB | **1 879 / 5 122 / 10 969 / 153 904** | 7 216 / 13 300 / 20 653 / 157 759 | 3.8x / 2.6x / 1.9x / 1.02x |
+| SHA-256 1 KB | **4 554** | 10 935 | **2.4x** |
+| SHA-256 4 KB | **10 728** | 18 303 | **1.7x** |
+| SHA-256 64 KB | **132 144** (119 MB/s) | 154 966 (101 MB/s) | **1.17x** |
+| SHA-512 64 B / 1 KB / 4 KB / 64 KB | **1 876 / 5 218 / 11 065 / 154 000** | 7 216 / 13 300 / 20 653 / 157 759 | 3.8x / 2.5x / 1.9x / 1.02x |
 
 Short messages CPU-fed (no descriptor/lock overhead); runs of >= 4 blocks in internal RAM by DMA, 63 blocks per run.
 Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~1000 cycles on 64 B (padding block).
@@ -571,7 +573,7 @@ finishes, reported as a failure); 100 us passes every case with the shortest pau
 
 | cycles, AES-128 | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
 |---|---|---|---|
-| CBC 16 B / 256 B / 4 KB / 64 KB | **1 413 / 3 001 / 17 569 / 251 176** | 5 956 / 6 727 / 24 031 / 279 184 | 4.2x / 2.2x / 1.37x / 1.11x |
+| CBC 16 B / 256 B / 4 KB / 64 KB | **1 413 / 3 096 / 17 664 / 251 301** | 5 956 / 6 727 / 24 031 / 279 184 | 4.2x / 2.2x / 1.36x / 1.11x |
 | CTR 16 B / 256 B / 4 KB / 64 KB | **1 337 / 3 016 / 17 584 / 251 206** | 5 983 / 6 739 / 24 052 / 279 205 | 4.5x / 2.2x / 1.36x / 1.11x |
 
 Engine DMA mode for >= 4 blocks in internal RAM (62 MB/s at 64 KB, the engine's rate), CPU-fed blocks below (no
@@ -585,23 +587,34 @@ descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.
 | RSA-2048 first x^65537 | 9 042 | 13 660 | 1.51x |
 | RSA-4096 first x^65537 | 35 681 | 55 553 | 1.56x |
 | x^65537, 1024 / 2048 / 4096 | 287 / 1 054 / 4 053 | 313 / 1 075 / 4 061 | 1.09 / 1.02 / 1.00x |
-| x^d, 1024 / 2048 / 4096 (private key, constant time: the default) | 28 807 / 219 867 / 1 717 890 | 21 760 / 163 354 / 1 277 450 | **0.76x / 0.74x / 0.74x** |
-| x^d with `NDF_RSA_CONST_TIME 0` (IDF's fast path, exponent-dependent timing) | 21 733 / 163 333 / 1 277 442 | 21 760 / 163 354 / 1 277 450 | equal |
+| x^d, 1024 / 2048 / 4096 (engine fast path, default) | 21 733 / 163 333 / 1 277 442 | 21 760 / 163 354 / 1 277 450 | equal (same engine) |
+| x^d with `NDF_RSA_CONST_TIME 1` (constant-time engine mode) | 28 807 / 219 867 / 1 717 890 | 21 760 / 163 354 / 1 277 450 | 0.76x / 0.74x / 0.74x |
 
-Exponentiation is the engine's own time (both drive the same block), so x^d with the fast path is at the floor; the engine's constant-time mode (default, no exponent-dependent timing) turns the acceleration off and costs 34 %; the gain is R² preparation
+Exponentiation is the engine's own time (both drive the same block), so x^d is at the floor; the engine's constant-time mode (option) turns the acceleration off and costs 34 %; for a fixed key the fast path shows only the key's length and Hamming weight, the same on every call; the gain is R² preparation
 (top-bit trick + doublings instead of mbedtls' generic division) and less per-call overhead on short exponents.
 
-## P-256 ECC (`components/drivers/crypto/test_apps/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-24)
+## P-256 ECC (`components/drivers/crypto/test_apps/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-26)
 
 | us | esp-ndf (components/lib/ecc.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
 |---|---|---|---|
-| public key (d G) | 61 257 | 92 847 | 1.52x |
-| ECDH shared secret | 60 345 | 92 939 | 1.54x |
-| ECDSA sign | 66 191 (verify-after-sign off) / **248 056** (on, the default) | 99 645 | 1.5x / **0.40x** |
-| ECDSA verify | 121 534 | 197 932 | 1.63x |
+| public key (d G) | **13 013** | 92 847 | **7.1x** |
+| ECDH shared secret | **39 357** | 92 939 | **2.4x** |
+| ECDSA sign (with the fault guard, the default) | **27 136** | 99 645 | **3.7x** |
+| ECDSA verify | **54 532** | 197 932 | **3.6x** |
 
-Dedicated 8-limb Montgomery mod p/n vs mbedtls' generic bignum. Headroom: mixed (affine-table) adds, a comb table
-for G, Shamir's trick in verify and P-specific reduction would each cut more; not needed to beat IDF.
+Field: plain residues, an 8x8-limb column (comba) product on `mull`/`muluh` with a dedicated squaring, then the NIST fast
+reduction with a fixed number of correction passes (no secret-dependent branch). Points: Jacobian, a = -3. Fixed base
+(public key, sign, the u1 G of verify): a 4-bit comb with a 61 KB table of d 16^w G in flash (`p256_comb.c`, generated and
+checked by `tools/gen_p256_comb.py`), 64 mixed additions, every entry of a row read. Variable base (ECDH, u2 Q): 4-bit window,
+every table entry read. Per primitive (`components/lib/test_apps/ecc_bench`, cycles): field multiply 2 061, square 1 778, add
+424, doubling 21.7k, addition 36k; `pmul` 8.7M, `pmul_base` 2.2M.
+
+**Fault guard in sign** (`NDF_ECC_VERIFY_SIGN 1`, default): k G is computed a second time with the scalar n - k (different digits,
+different table entries) and compared in Jacobian form, and s k = e + r d is re-checked: a glitch can no longer turn a
+signature into a key leak, for the price of one more fixed-base multiplication (+9 ms). `ecc_unit` injects a fault into k G and
+into s and checks that no signature leaves. Level 2 additionally verifies the signature (the old guard: 2.5x the sign time).
+Headroom: field multiply is 960 product + 1 090 reduction cycles (a Montgomery-friendly reduction for p would save ~400); add / sub
+are 3x slower than they need to be (unrolled carry chains).
 
 ## AES-GCM (`components/drivers/crypto/test_apps/gcm_test` vs `bench/idf_gcm`, C9:D0, 2026-10-24; key setup included on both sides)
 

@@ -1,8 +1,8 @@
 PASS GCM-128 iv 12 aad 20 len     0: tag 1, decrypt 1, tamper 1 | encrypt 155 us, decrypt 45 us
 PASS GCM-128 iv 12 aad 20 len    15: tag 1, decrypt 1, tamper 1 | encrypt 52 us, decrypt 52 us
-PASS GCM-128 iv 12 aad 0 len    64: tag 1, decrypt 1, tamper 1 | encrypt 58 us, decrypt 58 us
-PASS GCM-128 iv 12 aad 20 len  1000: tag 1, decrypt 1, tamper 1 | encrypt 206 us, decrypt 207 us
-PASS GCM-256 iv 12 aad 13 len  1000: tag 1, decrypt 1, tamper 1 | encrypt 206 us, decrypt 207 us
+PASS GCM-128 iv 12 aad 0 len    64: tag 1, decrypt 1, tamper 1 | encrypt 58 us, decrypt 59 us
+PASS GCM-128 iv 12 aad 20 len  1000: tag 1, decrypt 1, tamper 1 | encrypt 207 us, decrypt 207 us
+PASS GCM-256 iv 12 aad 13 len  1000: tag 1, decrypt 1, tamper 1 | encrypt 207 us, decrypt 207 us
 PASS GCM-128 iv 16 aad 20 len   100: tag 1, decrypt 1, tamper 1 | encrypt 79 us, decrypt 79 us
 PASS GCM-128 iv 12 aad 20 len 16384: tag 1, decrypt 1, tamper 1 | encrypt 2491 us, decrypt 2491 us
 PASS GCM-256 iv 12 aad 20 len 16384: tag 1, decrypt 1, tamper 1 | encrypt 2504 us, decrypt 2504 us

@@ -1,0 +1,1120 @@
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4037b89a
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1828
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc40
+load:0x403cb700,len:0x2ec8
+entry 0x403c8908
+[0;32mI (26) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (27) boot: compile time Oct 18 2026 12:08:51[0m
+[0;32mI (27) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (27) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (28) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (28) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (28) boot: Enabling RNG early entropy source...[0m
+[0;32mI (28) boot: Partition Table:[0m
+[0;32mI (29) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (29) boot:  0 nvs              WiFi data        01 02 00090000 00006000[0m
+[0;32mI (29) boot:  1 phy              RF data          01 01 00096000 00001000[0m
+[0;32mI (30) boot:  2 nvs_keys         NVS keys         01 04 00097000 00001000[0m
+[0;32mI (30) boot:  3 nvs_enc          WiFi data        01 02 00098000 00006000[0m
+[0;32mI (30) boot:  4 fat              Unknown data     01 81 00100000 00100000[0m
+[0;32mI (31) boot:  5 spiffs           Unknown data     01 82 00200000 00100000[0m
+[0;32mI (31) boot:  6 factory          factory app      00 00 00300000 00100000[0m
+[0;32mI (32) boot: End of partition table[0m
+[0;32mI (32) esp_image: segment 0: paddr=00300020 vaddr=3c060020 size=18ae8h (101096) map[0m
+[0;32mI (51) esp_image: segment 1: paddr=00318b10 vaddr=3fc97400 size=0349ch ( 13468) load[0m
+[0;32mI (54) esp_image: segment 2: paddr=0031bfb4 vaddr=40374000 size=04064h ( 16484) load[0m
+[0;32mI (59) esp_image: segment 3: paddr=00320020 vaddr=42000020 size=502d8h (328408) map[0m
+[0;32mI (119) esp_image: segment 4: paddr=00370300 vaddr=40378064 size=0f344h ( 62276) load[0m
+[0;32mI (133) esp_image: segment 5: paddr=0037f64c vaddr=50000000 size=00004h (     4) load[0m
+[0;32mI (141) boot: Loaded app from partition at offset 0x300000[0m
+[0;32mI (141) boot: Disabling RNG early entropy source...[0m
+[0;32mI (143) cpu_start: Multicore app[0m
+[0;32mI (152) cpu_start: Pro cpu start user code[0m
+[0;32mI (152) cpu_start: cpu freq: 240000000 Hz[0m
+[0;32mI (152) app_init: Application information:[0m
+[0;32mI (152) app_init: Project name:     idf_periph[0m
+[0;32mI (152) app_init: App version:      0d8c0d0-dirty[0m
+[0;32mI (152) app_init: Compile time:     Oct 18 2026 13:20:53[0m
+[0;32mI (153) app_init: ELF file SHA256:  40d82ceb2...[0m
+[0;32mI (153) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (153) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (153) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (153) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (153) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (154) heap_init: At 3FCB5BC0 len 00033B50 (206 KiB): RAM[0m
+[0;32mI (154) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (154) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (154) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM[0m
+[0;32mI (155) spi_flash: detected chip: boya[0m
+[0;32mI (155) spi_flash: flash io: dio[0m
+[0;32mI (156) sleep: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (156) sleep: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (157) main_task: Started on CPU0[0m
+[0;32mI (158) main_task: Calling app_main()[0m
+
+=== ESP-IDF peripheral timings ===
+[core]
+    esp_timer_get_time()               193 cycles
+    esp_rom_delay_us(10000)            10005 us
+    vTaskDelay(250 ms)                 249646 us
+    esp_timer 1 ms: calls in 1 s       999
+    esp_timer period min..max          984..1000 us
+    esp_timer span drift               -16 us
+    malloc+free 64 B                   1346 cycles
+    heap free (internal)               253980 bytes
+    float divide                       78 cycles
+    sqrtf                              122 cycles
+    snprintf %.3f                      12085 cycles
+    snprintf %d                        3042 cycles
+    strtof                             2899 cycles (r=278)
+    qsort 2000 ints                    829969 cycles
+    ringbuf 16 B send+receive+return   1102 cycles
+    ringbuf zero-copy acquire+complete+recv+return 1234 cycles
+    async memcpy 65472 B: start        56639 cycles (ESP_OK, data ok)
+    async memcpy done after            304737 cycles = 51 MB/s
+    esp_task_wdt_reset()               362 cycles
+     add same sign  51 cycles/call
+     add diff sign  52 cycles/call
+     add d = 33     45 cycles/call
+     sub cancel     74 cycles/call
+     mul            83 cycles/call
+     div            526 cycles/call
+     math: cycles per call
+     sinf      (0.7f   )     79
+     sinf      (2.5f   )    196
+     sinf      (1e4f   )   2907
+     cosf      (0.7f   )    105
+     cosf      (2.5f   )    211
+     tanf      (0.7f   )    226
+     tanf      (2.5f   )    235
+     asinf     (0.3f   )    175
+     asinf     (0.8f   )    334
+     acosf     (0.8f   )    305
+     atanf     (0.7f   )    191
+     atanf     (3.0f   )    188
+     atan2f    (1.2f,-0.7f)    344
+     expf      (2.3f   )    232
+     exp2f     (2.3f   )    641
+     expm1f    (0.01f  )    144
+     logf      (3.7f   )    205
+     log2f     (3.7f   )    267
+     log10f    (3.7f   )    268
+     log1pf    (0.01f  )    163
+     powf      (2.1f,3.3f)    629
+     sqrtf     (2.0f   )     59
+     cbrtf     (2.0f   )    219
+     hypotf    (3.0f,4.0f)    204
+     sinhf     (0.7f   )    361
+     coshf     (0.7f   )    309
+     tanhf     (0.7f   )    338
+     floorf    (2.5f   )     38
+     roundf    (2.5f   )     23
+     fmodf     (10.3f,3.0f)    120
+     sin       (0.7    )   1200
+     sin       (2.5    )   2364
+     sin       (1e4    )   2330
+     cos       (0.7    )   1620
+     tan       (0.7    )   3768
+     asin      (0.3    )   2435
+     acos      (0.8    )   4311
+     atan      (0.7    )   2849
+     atan2     (1.2,-0.7)   3814
+     exp       (2.3    )   2542
+     exp2      (2.3    )   6361
+     expm1     (0.01   )   2295
+     log       (3.7    )   2593
+     log2      (3.7    )   3138
+     log10     (3.7    )   3079
+     log1p     (0.01   )   2188
+     pow       (2.1,3.3)   8338
+     sqrt      (2.0    )   1057
+     cbrt      (2.0    )   3766
+     hypot     (3.0,4.0)   1355
+     sinh      (0.7    )   3963
+     cosh      (0.7    )   2856
+     tanh      (0.7    )   4203
+     floor     (2.5    )    116
+     round     (2.5    )     34
+     fmod      (10.3,3.0)    195
+    double add / mul / div             65 / 101 / 546 cycles (r=979)
+    snprintf %.17g 1.23e300            40392 cycles
+    snprintf %.17g denormal            30861 cycles
+    strtod 16 digits                   8075 cycles
+    strtod hard case                   13441 cycles
+[rtcio]
+    loopback 100/100, held 1, released 0
+    rtc_gpio_set_level()             460 cycles
+    rtc_gpio_get_level()             144 cycles
+[0;32mI (1476) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1476) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[nvs_enc]
+    secure init: ESP_OK
+    100 encrypted updates: 1086 us each
+[spiffs]
+[0;31mE (1630) SPIFFS: mount failed, -10025[0m
+    mount: ESP_FAIL
+[fat]
+    mount wear-levelled rw: ESP_OK
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+    long file name.bin: 20000 bytes crc32 018a2379; hello.txt: "Hello from esp-ndf"
+    wl.bin = 299
+    fopen() via VFS+FatFs+WL 70580 cycles
+[nvs]
+    crc32_le(0xffffffff, "123456789") = d202d277
+    init: ESP_OK
+    read esp-ndf data: 7/7 keys correct (name="esp-ndf robot v1", counter=599)
+    nvs_get_u32()                      26279 cycles
+    100 updates: 776 us each
+    wrote from_idf / idf_str / idf_blob for esp-ndf
+[partition]
+      nvs              type 01 sub 02  0x090000    24576 bytes
+      phy              type 01 sub 01  0x096000     4096 bytes
+      nvs_keys         type 01 sub 04  0x097000     4096 bytes
+      nvs_enc          type 01 sub 02  0x098000    24576 bytes
+      fat              type 01 sub 81  0x100000  1048576 bytes
+      spiffs           type 01 sub 82  0x200000  1048576 bytes
+      factory          type 00 sub 00  0x300000  1048576 bytes
+[flash]
+    JEDEC id 684018; 4 KB: erase 750 us, write 17247 us, read 464 us, 0 bytes wrong
+[touch]
+[0;32mI (104822) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    raw: pad1 14343, pad14 2457329, pad10 4185115 (jumper)
+    touch_read()                       532 cycles
+[0;32mI (104876) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[twai]
+[0;32mI (104876) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (104877) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+     125 kbit/s: 100/100 frames round-trip identical
+    1000 kbit/s: 100/100 frames round-trip identical
+    twai_send() 8 bytes @1M (wire incl.) 33115 cycles
+     500 kbit/s: 100/100 frames round-trip identical
+[adc]
+    calibration: curve fitting
+[0;32mI (104983) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    GPIO11 low (0 V)       raw mean    0 (min    0 max   21)  =    0 mV
+    pull-up/pull-down      raw mean 1869 (min 1813 max 1937)  = 1499 mV
+    GPIO11 high (3.3 V)    raw mean 4095 (min 4095 max 4095)  = 3063 mV
+    adc_read_raw()                     6766 cycles
+[0;32mI (105071) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[i2s]
+[0;32mI (105071) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105071) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105072) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105072) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105072) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105072) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105073) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    received 66240 bytes, 30240 samples checked, 0 discontinuities
+[spi]
+[0;32mI (105425) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105425) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105426) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105426) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105426) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105427) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (105427) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;31mE (105427) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+[0;31mE (105428) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+    10 MHz: 64 B 64 wrong (17772 cycles), 4 KB DMA 4080 wrong, 3336 us (wire 3276 us)
+[0;32mI (105432) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    20 MHz: 64 B 64 wrong (11468 cycles), 4 KB DMA 4080 wrong, 1675 us (wire 1638 us)
+[0;32mI (105435) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    40 MHz: 64 B 64 wrong (8362 cycles), 4 KB DMA 4080 wrong, 860 us (wire 819 us)
+    spi_xfer() 4 bytes                 4753 cycles
+[gpio]
+[0;32mI (105437) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    gpio_set+gpio_clr                  95 cycles
+    pin write -> ISR (rising, L1)      min 349 max 377 cycles
+    dgpio_write x2                     45 cycles
+[gptimer]
+    gpt_get()                          407 cycles
+    alarm -> callback (L1)             min 2700 max 7100 ns
+    10 kHz period jitter (L1)          max 915 cycles
+[ledc]
+    asked 20 kHz/10 bit, got           20000 Hz
+    ledc_duty()                        763 cycles
+    asked 33333 Hz/8 bit, got          33333 Hz (integer only)
+[mcpwm]
+[0;32mI (105943) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    mcpwm_cmp()                        74 cycles
+    period IRQ jitter (20 kHz, L1)     max 57 cycles
+[pcnt]
+[0;32mI (106194) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106195) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106195) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106195) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106196) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (106196) gpio: GPIO[5]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    1 MHz fwd, 100 ms (expect 400000)  400024
+    backward steps while wrapping      0
+    pcnt_get()                         331 cycles
+[rmt]
+[0;32mI (106299) gpio: GPIO[10]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106299) gpio: GPIO[11]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    TX 100 items / RX received         100 items
+    worst duration error               0 ticks (100 ns)
+    rmt_tx() start (100 items)         9725 cycles
+[sdm]
+[0;32mI (106303) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    density  -64: duty 24.9 %
+    density    0: duty 49.9 %
+    density   64: duty 74.9 %
+    sdm_density()                      318 cycles
+[uart]
+     115200 baud (actual 115201): 4096/4096 bytes, 0 wrong, 356490 us (wire 355555 us)
+    2000000 baud (actual 2000000): 4096/4096 bytes, 0 wrong, 20571 us (wire 20480 us)
+    5000000 baud (actual 5000000): 4096/4096 bytes, 0 wrong, 8254 us (wire 8192 us)
+    uart_write() 16 bytes              2467 cycles
+[i2c]
+[0;32mI (106798) gpio: GPIO[10]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106798) gpio: GPIO[12]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106799) gpio: GPIO[11]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (106799) gpio: GPIO[13]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    write 16: err 0, slave done 1, 0 wrong, 1797 us
+    write 100: err 0, slave done 1, 0 wrong
+[0;31mE (106818) i2c.master: i2c_master_transmit(1193): I2C transaction failed[0m
+    write to 0x50 (absent): err 0x103 (ESP_ERR_INVALID_STATE/NACK expected)
+[0;32mI (106819) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106819) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106819) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106820) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[gdma]
+Guru Meditation Error: Core  0 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  0 register dump:
+PC      : 0x4200b1fc  PS      : 0x00060730  A0      : 0x8200a452  A1      : 0x3fcb93f0
+A2      : 0x0000000a  A3      : 0x00000000  A4      : 0x00000000  A5      : 0x00000000
+A6      : 0x00000000  A7      : 0x00000000  A8      : 0x00000000  A9      : 0x00000000
+A10     : 0x9e3779b1  A11     : 0x00000000  A12     : 0x00000001  A13     : 0x00002000
+A14     : 0x3fce422c  A15     : 0x00008000  SAR     : 0x00000011  EXCCAUSE: 0x0000001d
+EXCVADDR: 0x00000000  LBEG    : 0x4200b1fc  LEND    : 0x4200b208  LCOUNT  : 0x00001fff
+
+
+Backtrace: 0x4200b1f9:0x3fcb93f0 0x4200a44f:0x3fcb9430 0x4204f490:0x3fcb9450
+
+
+
+
+ELF file SHA256: 40d82ceb2
+
+Rebooting...
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40375cf4
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1828
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc40
+load:0x403cb700,len:0x2ec8
+entry 0x403c8908
+[0;32mI (26) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time Oct 18 2026 12:08:51[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (27) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (27) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (27) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (28) boot: Enabling RNG early entropy source...[0m
+[0;32mI (28) boot: Partition Table:[0m
+[0;32mI (28) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (28) boot:  0 nvs              WiFi data        01 02 00090000 00006000[0m
+[0;32mI (29) boot:  1 phy              RF data          01 01 00096000 00001000[0m
+[0;32mI (29) boot:  2 nvs_keys         NVS keys         01 04 00097000 00001000[0m
+[0;32mI (30) boot:  3 nvs_enc          WiFi data        01 02 00098000 00006000[0m
+[0;32mI (30) boot:  4 fat              Unknown data     01 81 00100000 00100000[0m
+[0;32mI (30) boot:  5 spiffs           Unknown data     01 82 00200000 00100000[0m
+[0;32mI (31) boot:  6 factory          factory app      00 00 00300000 00100000[0m
+[0;32mI (31) boot: End of partition table[0m
+[0;32mI (31) esp_image: segment 0: paddr=00300020 vaddr=3c060020 size=18ae8h (101096) map[0m
+[0;32mI (50) esp_image: segment 1: paddr=00318b10 vaddr=3fc97400 size=0349ch ( 13468) load[0m
+[0;32mI (54) esp_image: segment 2: paddr=0031bfb4 vaddr=40374000 size=04064h ( 16484) load[0m
+[0;32mI (58) esp_image: segment 3: paddr=00320020 vaddr=42000020 size=502d8h (328408) map[0m
+[0;32mI (118) esp_image: segment 4: paddr=00370300 vaddr=40378064 size=0f344h ( 62276) load[0m
+[0;32mI (133) esp_image: segment 5: paddr=0037f64c vaddr=50000000 size=00004h (     4) load[0m
+[0;32mI (140) boot: Loaded app from partition at offset 0x300000[0m
+[0;32mI (141) boot: Disabling RNG early entropy source...[0m
+[0;32mI (142) cpu_start: Multicore app[0m
+[0;32mI (151) cpu_start: Pro cpu start user code[0m
+[0;32mI (151) cpu_start: cpu freq: 240000000 Hz[0m
+[0;32mI (151) app_init: Application information:[0m
+[0;32mI (151) app_init: Project name:     idf_periph[0m
+[0;32mI (151) app_init: App version:      0d8c0d0-dirty[0m
+[0;32mI (151) app_init: Compile time:     Oct 18 2026 13:20:53[0m
+[0;32mI (152) app_init: ELF file SHA256:  40d82ceb2...[0m
+[0;32mI (152) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (152) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (152) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (152) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (153) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (153) heap_init: At 3FCB5BC0 len 00033B50 (206 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (153) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM[0m
+[0;32mI (155) spi_flash: detected chip: boya[0m
+[0;32mI (155) spi_flash: flash io: dio[0m
+[0;32mI (155) sleep: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (156) sleep: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (156) main_task: Started on CPU0[0m
+[0;32mI (157) main_task: Calling app_main()[0m
+
+=== ESP-IDF peripheral timings ===
+[core]
+    esp_timer_get_time()               193 cycles
+    esp_rom_delay_us(10000)            10005 us
+    vTaskDelay(250 ms)                 249641 us
+    esp_timer 1 ms: calls in 1 s       999
+    esp_timer period min..max          984..1000 us
+    esp_timer span drift               -16 us
+    malloc+free 64 B                   1346 cycles
+    heap free (internal)               253980 bytes
+    float divide                       78 cycles
+    sqrtf                              122 cycles
+    snprintf %.3f                      12077 cycles
+    snprintf %d                        3042 cycles
+    strtof                             2899 cycles (r=278)
+    qsort 2000 ints                    829941 cycles
+    ringbuf 16 B send+receive+return   1102 cycles
+    ringbuf zero-copy acquire+complete+recv+return 1234 cycles
+    async memcpy 65472 B: start        56629 cycles (ESP_OK, data ok)
+    async memcpy done after            304727 cycles = 51 MB/s
+    esp_task_wdt_reset()               362 cycles
+     add same sign  51 cycles/call
+     add diff sign  52 cycles/call
+     add d = 33     45 cycles/call
+     sub cancel     74 cycles/call
+     mul            83 cycles/call
+     div            526 cycles/call
+     math: cycles per call
+     sinf      (0.7f   )     79
+     sinf      (2.5f   )    196
+     sinf      (1e4f   )   2907
+     cosf      (0.7f   )    105
+     cosf      (2.5f   )    211
+     tanf      (0.7f   )    226
+     tanf      (2.5f   )    235
+     asinf     (0.3f   )    175
+     asinf     (0.8f   )    334
+     acosf     (0.8f   )    305
+     atanf     (0.7f   )    191
+     atanf     (3.0f   )    188
+     atan2f    (1.2f,-0.7f)    344
+     expf      (2.3f   )    232
+     exp2f     (2.3f   )    641
+     expm1f    (0.01f  )    144
+     logf      (3.7f   )    205
+     log2f     (3.7f   )    267
+     log10f    (3.7f   )    268
+     log1pf    (0.01f  )    163
+     powf      (2.1f,3.3f)    629
+     sqrtf     (2.0f   )     59
+     cbrtf     (2.0f   )    219
+     hypotf    (3.0f,4.0f)    204
+     sinhf     (0.7f   )    361
+     coshf     (0.7f   )    309
+     tanhf     (0.7f   )    338
+     floorf    (2.5f   )     38
+     roundf    (2.5f   )     23
+     fmodf     (10.3f,3.0f)    120
+     sin       (0.7    )   1200
+     sin       (2.5    )   2364
+     sin       (1e4    )   2330
+     cos       (0.7    )   1620
+     tan       (0.7    )   3768
+     asin      (0.3    )   2435
+     acos      (0.8    )   4311
+     atan      (0.7    )   2849
+     atan2     (1.2,-0.7)   3814
+     exp       (2.3    )   2542
+     exp2      (2.3    )   6361
+     expm1     (0.01   )   2295
+     log       (3.7    )   2593
+     log2      (3.7    )   3138
+     log10     (3.7    )   3079
+     log1p     (0.01   )   2188
+     pow       (2.1,3.3)   8339
+     sqrt      (2.0    )   1057
+     cbrt      (2.0    )   3766
+     hypot     (3.0,4.0)   1355
+     sinh      (0.7    )   3963
+     cosh      (0.7    )   2856
+     tanh      (0.7    )   4203
+     floor     (2.5    )    116
+     round     (2.5    )     34
+     fmod      (10.3,3.0)    195
+    double add / mul / div             65 / 101 / 546 cycles (r=979)
+    snprintf %.17g 1.23e300            40309 cycles
+    snprintf %.17g denormal            30995 cycles
+    strtod 16 digits                   8006 cycles
+    strtod hard case                   13685 cycles
+[rtcio]
+    loopback 100/100, held 1, released 0
+    rtc_gpio_set_level()             463 cycles
+    rtc_gpio_get_level()             144 cycles
+[0;32mI (1475) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1475) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[nvs_enc]
+    secure init: ESP_OK
+    100 encrypted updates: 1516 us each
+[spiffs]
+[0;31mE (1633) SPIFFS: mount failed, -10025[0m
+    mount: ESP_FAIL
+[fat]
+    mount wear-levelled rw: ESP_OK
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+      idf.txt  27
+    long file name.bin: 20000 bytes crc32 018a2379; hello.txt: "Hello from esp-ndf"
+    wl.bin = 299
+    fopen() via VFS+FatFs+WL 61895 cycles
+[nvs]
+    crc32_le(0xffffffff, "123456789") = d202d277
+    init: ESP_OK
+    read esp-ndf data: 7/7 keys correct (name="esp-ndf robot v1", counter=599)
+    nvs_get_u32()                      25727 cycles
+    100 updates: 2419 us each
+    idf_blob write: ESP_ERR_NVS_NOT_ENOUGH_SPACE
+    wrote from_idf / idf_str / idf_blob for esp-ndf
+[partition]
+      nvs              type 01 sub 02  0x090000    24576 bytes
+      phy              type 01 sub 01  0x096000     4096 bytes
+      nvs_keys         type 01 sub 04  0x097000     4096 bytes
+      nvs_enc          type 01 sub 02  0x098000    24576 bytes
+      fat              type 01 sub 81  0x100000  1048576 bytes
+      spiffs           type 01 sub 82  0x200000  1048576 bytes
+      factory          type 00 sub 00  0x300000  1048576 bytes
+[flash]
+    JEDEC id 684018; 4 KB: erase 764 us, write 17300 us, read 461 us, 0 bytes wrong
+[touch]
+[0;32mI (106248) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    raw: pad1 14432, pad14 2457329, pad10 4185115 (jumper)
+    touch_read()                       532 cycles
+[0;32mI (106302) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[twai]
+[0;32mI (106302) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106303) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+     125 kbit/s: 100/100 frames round-trip identical
+    1000 kbit/s: 100/100 frames round-trip identical
+    twai_send() 8 bytes @1M (wire incl.) 33482 cycles
+     500 kbit/s: 100/100 frames round-trip identical
+[adc]
+    calibration: curve fitting
+[0;32mI (106409) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    GPIO11 low (0 V)       raw mean    0 (min    0 max   37)  =    0 mV
+    pull-up/pull-down      raw mean 1870 (min 1805 max 1934)  = 1499 mV
+    GPIO11 high (3.3 V)    raw mean 4095 (min 4095 max 4095)  = 3063 mV
+    adc_read_raw()                     6762 cycles
+[0;32mI (106497) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[i2s]
+[0;32mI (106497) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106497) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106498) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106498) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106498) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106498) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106499) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    received 66240 bytes, 30240 samples checked, 0 discontinuities
+[spi]
+[0;32mI (106851) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106852) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106852) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106852) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106852) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106853) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (106853) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;31mE (106853) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+[0;31mE (106854) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+    10 MHz: 64 B 64 wrong (17772 cycles), 4 KB DMA 4080 wrong, 3336 us (wire 3276 us)
+[0;32mI (106858) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    20 MHz: 64 B 64 wrong (11468 cycles), 4 KB DMA 4080 wrong, 1674 us (wire 1638 us)
+[0;32mI (106861) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    40 MHz: 64 B 64 wrong (8362 cycles), 4 KB DMA 4080 wrong, 857 us (wire 819 us)
+    spi_xfer() 4 bytes                 4753 cycles
+[gpio]
+[0;32mI (106863) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    gpio_set+gpio_clr                  95 cycles
+    pin write -> ISR (rising, L1)      min 353 max 381 cycles
+    dgpio_write x2                     45 cycles
+[gptimer]
+    gpt_get()                          407 cycles
+    alarm -> callback (L1)             min 2775 max 7075 ns
+    10 kHz period jitter (L1)          max 906 cycles
+[ledc]
+    asked 20 kHz/10 bit, got           20000 Hz
+    ledc_duty()                        763 cycles
+    asked 33333 Hz/8 bit, got          33333 Hz (integer only)
+[mcpwm]
+[0;32mI (107369) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    mcpwm_cmp()                        74 cycles
+    period IRQ jitter (20 kHz, L1)     max 18 cycles
+[pcnt]
+[0;32mI (107620) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (107621) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (107621) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (107621) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (107622) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (107622) gpio: GPIO[5]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    1 MHz fwd, 100 ms (expect 400000)  400023
+    backward steps while wrapping      0
+    pcnt_get()                         331 cycles
+[rmt]
+[0;32mI (107725) gpio: GPIO[10]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (107725) gpio: GPIO[11]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    TX 100 items / RX received         100 items
+    worst duration error               0 ticks (100 ns)
+    rmt_tx() start (100 items)         9725 cycles
+[sdm]
+[0;32mI (107729) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    density  -64: duty 24.9 %
+    density    0: duty 49.9 %
+    density   64: duty 74.9 %
+    sdm_density()                      318 cycles
+[uart]
+     115200 baud (actual 115201): 4096/4096 bytes, 0 wrong, 356490 us (wire 355555 us)
+    2000000 baud (actual 2000000): 4096/4096 bytes, 0 wrong, 20571 us (wire 20480 us)
+    5000000 baud (actual 5000000): 4096/4096 bytes, 0 wrong, 8254 us (wire 8192 us)
+    uart_write() 16 bytes              2467 cycles
+[i2c]
+[0;32mI (108224) gpio: GPIO[10]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108224) gpio: GPIO[12]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108225) gpio: GPIO[11]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (108225) gpio: GPIO[13]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    write 16: err 0, slave done 1, 0 wrong, 1795 us
+    write 100: err 0, slave done 1, 0 wrong
+[0;31mE (108244) i2c.master: i2c_master_transmit(1193): I2C transaction failed[0m
+    write to 0x50 (absent): err 0x103 (ESP_ERR_INVALID_STATE/NACK expected)
+[0;32mI (108245) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108246) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[gdma]
+Guru Meditation Error: Core  0 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  0 register dump:
+PC      : 0x4200b1fc  PS      : 0x00060730  A0      : 0x8200a452  A1      : 0x3fcb93f0
+A2      : 0x0000000a  A3      : 0x00000000  A4      : 0x00000000  A5      : 0x00000000
+A6      : 0x00000000  A7      : 0x00000000  A8      : 0x00000000  A9      : 0x00000000
+A10     : 0x9e3779b1  A11     : 0x00000000  A12     : 0x00000001  A13     : 0x00002000
+A14     : 0x3fce4240  A15     : 0x00008000  SAR     : 0x00000011  EXCCAUSE: 0x0000001d
+EXCVADDR: 0x00000000  LBEG    : 0x4200b1fc  LEND    : 0x4200b208  LCOUNT  : 0x00001fff
+
+
+Backtrace: 0x4200b1f9:0x3fcb93f0 0x4200a44f:0x3fcb9430 0x4204f490:0x3fcb9450
+
+
+
+
+ELF file SHA256: 40d82ceb2
+
+Rebooting...
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40375cf4
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1828
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc40
+load:0x403cb700,len:0x2ec8
+entry 0x403c8908
+[0;32mI (26) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time Oct 18 2026 12:08:51[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (27) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (27) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (27) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (28) boot: Enabling RNG early entropy source...[0m
+[0;32mI (28) boot: Partition Table:[0m
+[0;32mI (28) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (28) boot:  0 nvs              WiFi data        01 02 00090000 00006000[0m
+[0;32mI (29) boot:  1 phy              RF data          01 01 00096000 00001000[0m
+[0;32mI (29) boot:  2 nvs_keys         NVS keys         01 04 00097000 00001000[0m
+[0;32mI (30) boot:  3 nvs_enc          WiFi data        01 02 00098000 00006000[0m
+[0;32mI (30) boot:  4 fat              Unknown data     01 81 00100000 00100000[0m
+[0;32mI (30) boot:  5 spiffs           Unknown data     01 82 00200000 00100000[0m
+[0;32mI (31) boot:  6 factory          factory app      00 00 00300000 00100000[0m
+[0;32mI (31) boot: End of partition table[0m
+[0;32mI (31) esp_image: segment 0: paddr=00300020 vaddr=3c060020 size=18ae8h (101096) map[0m
+[0;32mI (50) esp_image: segment 1: paddr=00318b10 vaddr=3fc97400 size=0349ch ( 13468) load[0m
+[0;32mI (54) esp_image: segment 2: paddr=0031bfb4 vaddr=40374000 size=04064h ( 16484) load[0m
+[0;32mI (58) esp_image: segment 3: paddr=00320020 vaddr=42000020 size=502d8h (328408) map[0m
+[0;32mI (118) esp_image: segment 4: paddr=00370300 vaddr=40378064 size=0f344h ( 62276) load[0m
+[0;32mI (133) esp_image: segment 5: paddr=0037f64c vaddr=50000000 size=00004h (     4) load[0m
+[0;32mI (140) boot: Loaded app from partition at offset 0x300000[0m
+[0;32mI (141) boot: Disabling RNG early entropy source...[0m
+[0;32mI (142) cpu_start: Multicore app[0m
+[0;32mI (151) cpu_start: Pro cpu start user code[0m
+[0;32mI (151) cpu_start: cpu freq: 240000000 Hz[0m
+[0;32mI (151) app_init: Application information:[0m
+[0;32mI (151) app_init: Project name:     idf_periph[0m
+[0;32mI (151) app_init: App version:      0d8c0d0-dirty[0m
+[0;32mI (152) app_init: Compile time:     Oct 18 2026 13:20:53[0m
+[0;32mI (152) app_init: ELF file SHA256:  40d82ceb2...[0m
+[0;32mI (152) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (152) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (152) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (152) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (153) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (153) heap_init: At 3FCB5BC0 len 00033B50 (206 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (154) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM[0m
+[0;32mI (155) spi_flash: detected chip: boya[0m
+[0;32mI (155) spi_flash: flash io: dio[0m
+[0;32mI (155) sleep: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (156) sleep: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (156) main_task: Started on CPU0[0m
+[0;32mI (157) main_task: Calling app_main()[0m
+
+=== ESP-IDF peripheral timings ===
+[core]
+    esp_timer_get_time()               193 cycles
+    esp_rom_delay_us(10000)            10005 us
+    vTaskDelay(250 ms)                 249641 us
+    esp_timer 1 ms: calls in 1 s       999
+    esp_timer period min..max          984..1000 us
+    esp_timer span drift               -16 us
+    malloc+free 64 B                   1346 cycles
+    heap free (internal)               253980 bytes
+    float divide                       78 cycles
+    sqrtf                              122 cycles
+    snprintf %.3f                      12026 cycles
+    snprintf %d                        3042 cycles
+    strtof                             2899 cycles (r=278)
+    qsort 2000 ints                    829969 cycles
+    ringbuf 16 B send+receive+return   1102 cycles
+    ringbuf zero-copy acquire+complete+recv+return 1234 cycles
+    async memcpy 65472 B: start        56629 cycles (ESP_OK, data ok)
+    async memcpy done after            304727 cycles = 51 MB/s
+    esp_task_wdt_reset()               362 cycles
+     add same sign  51 cycles/call
+     add diff sign  52 cycles/call
+     add d = 33     45 cycles/call
+     sub cancel     74 cycles/call
+     mul            83 cycles/call
+     div            526 cycles/call
+     math: cycles per call
+     sinf      (0.7f   )     79
+     sinf      (2.5f   )    196
+     sinf      (1e4f   )   2907
+     cosf      (0.7f   )    105
+     cosf      (2.5f   )    211
+     tanf      (0.7f   )    226
+     tanf      (2.5f   )    235
+     asinf     (0.3f   )    175
+     asinf     (0.8f   )    334
+     acosf     (0.8f   )    305
+     atanf     (0.7f   )    191
+     atanf     (3.0f   )    188
+     atan2f    (1.2f,-0.7f)    344
+     expf      (2.3f   )    232
+     exp2f     (2.3f   )    641
+     expm1f    (0.01f  )    144
+     logf      (3.7f   )    205
+     log2f     (3.7f   )    267
+     log10f    (3.7f   )    268
+     log1pf    (0.01f  )    163
+     powf      (2.1f,3.3f)    629
+     sqrtf     (2.0f   )     59
+     cbrtf     (2.0f   )    219
+     hypotf    (3.0f,4.0f)    204
+     sinhf     (0.7f   )    361
+     coshf     (0.7f   )    309
+     tanhf     (0.7f   )    338
+     floorf    (2.5f   )     38
+     roundf    (2.5f   )     23
+     fmodf     (10.3f,3.0f)    120
+     sin       (0.7    )   1200
+     sin       (2.5    )   2364
+     sin       (1e4    )   2330
+     cos       (0.7    )   1620
+     tan       (0.7    )   3768
+     asin      (0.3    )   2435
+     acos      (0.8    )   4311
+     atan      (0.7    )   2849
+     atan2     (1.2,-0.7)   3814
+     exp       (2.3    )   2542
+     exp2      (2.3    )   6361
+     expm1     (0.01   )   2295
+     log       (3.7    )   2593
+     log2      (3.7    )   3138
+     log10     (3.7    )   3079
+     log1p     (0.01   )   2188
+     pow       (2.1,3.3)   8338
+     sqrt      (2.0    )   1057
+     cbrt      (2.0    )   3766
+     hypot     (3.0,4.0)   1355
+     sinh      (0.7    )   3963
+     cosh      (0.7    )   2856
+     tanh      (0.7    )   4203
+     floor     (2.5    )    116
+     round     (2.5    )     34
+     fmod      (10.3,3.0)    195
+    double add / mul / div             65 / 101 / 546 cycles (r=979)
+    snprintf %.17g 1.23e300            40328 cycles
+    snprintf %.17g denormal            30870 cycles
+    strtod 16 digits                   8078 cycles
+    strtod hard case                   13589 cycles
+[rtcio]
+    loopback 100/100, held 1, released 0
+    rtc_gpio_set_level()             460 cycles
+    rtc_gpio_get_level()             144 cycles
+[0;32mI (1475) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1475) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[nvs_enc]
+    secure init: ESP_OK
+    100 encrypted updates: 1505 us each
+[spiffs]
+[0;31mE (1632) SPIFFS: mount failed, -10025[0m
+    mount: ESP_FAIL
+[fat]
+    mount wear-levelled rw: ESP_OK
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+      idf.txt  27
+    long file name.bin: 20000 bytes crc32 018a2379; hello.txt: "Hello from esp-ndf"
+    wl.bin = 299
+    fopen() via VFS+FatFs+WL 61862 cycles
+[nvs]
+    crc32_le(0xffffffff, "123456789") = d202d277
+    init: ESP_OK
+    read esp-ndf data: 7/7 keys correct (name="esp-ndf robot v1", counter=599)
+    nvs_get_u32()                      26333 cycles
+    100 updates: 1247 us each
+    wrote from_idf / idf_str / idf_blob for esp-ndf
+[partition]
+      nvs              type 01 sub 02  0x090000    24576 bytes
+      phy              type 01 sub 01  0x096000     4096 bytes
+      nvs_keys         type 01 sub 04  0x097000     4096 bytes
+      nvs_enc          type 01 sub 02  0x098000    24576 bytes
+      fat              type 01 sub 81  0x100000  1048576 bytes
+      spiffs           type 01 sub 82  0x200000  1048576 bytes
+      factory          type 00 sub 00  0x300000  1048576 bytes
+[flash]
+    JEDEC id 684018; 4 KB: erase 759 us, write 17198 us, read 457 us, 0 bytes wrong
+[touch]
+[0;32mI (107995) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    raw: pad1 14428, pad14 2457329, pad10 4185115 (jumper)
+    touch_read()                       532 cycles
+[0;32mI (108049) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[twai]
+[0;32mI (108049) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108050) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+     125 kbit/s: 100/100 frames round-trip identical
+    1000 kbit/s: 100/100 frames round-trip identical
+    twai_send() 8 bytes @1M (wire incl.) 33446 cycles
+     500 kbit/s: 100/100 frames round-trip identical
+[adc]
+    calibration: curve fitting
+[0;32mI (108156) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    GPIO11 low (0 V)       raw mean    0 (min    0 max   19)  =    0 mV
+    pull-up/pull-down      raw mean 1870 (min 1805 max 1959)  = 1499 mV
+    GPIO11 high (3.3 V)    raw mean 4095 (min 4095 max 4095)  = 3063 mV
+    adc_read_raw()                     6762 cycles
+[0;32mI (108244) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[i2s]
+[0;32mI (108244) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108244) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108245) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108246) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    received 66240 bytes, 30240 samples checked, 0 discontinuities
+[spi]
+[0;32mI (108598) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108599) gpio: GPIO[5]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108599) gpio: GPIO[6]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108599) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108599) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108600) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (108600) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;31mE (108600) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+[0;31mE (108601) gdma: gdma_connect(304): peripheral 0 is already used by another channel[0m
+    10 MHz: 64 B 64 wrong (17772 cycles), 4 KB DMA 4080 wrong, 3336 us (wire 3276 us)
+[0;32mI (108606) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    20 MHz: 64 B 64 wrong (11477 cycles), 4 KB DMA 4080 wrong, 1674 us (wire 1638 us)
+[0;32mI (108608) gpio: GPIO[4]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    40 MHz: 64 B 64 wrong (8362 cycles), 4 KB DMA 4080 wrong, 857 us (wire 819 us)
+    spi_xfer() 4 bytes                 4753 cycles
+[gpio]
+[0;32mI (108610) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    gpio_set+gpio_clr                  95 cycles
+    pin write -> ISR (rising, L1)      min 353 max 378 cycles
+    dgpio_write x2                     45 cycles
+[gptimer]
+    gpt_get()                          407 cycles
+    alarm -> callback (L1)             min 2900 max 7025 ns
+    10 kHz period jitter (L1)          max 894 cycles
+[ledc]
+    asked 20 kHz/10 bit, got           20000 Hz
+    ledc_duty()                        763 cycles
+    asked 33333 Hz/8 bit, got          33333 Hz (integer only)
+[mcpwm]
+[0;32mI (109116) gpio: GPIO[4]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    mcpwm_cmp()                        74 cycles
+    period IRQ jitter (20 kHz, L1)     max 33 cycles
+[pcnt]
+[0;32mI (109367) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109368) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109368) gpio: GPIO[5]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109368) gpio: GPIO[4]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109369) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (109370) gpio: GPIO[5]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    1 MHz fwd, 100 ms (expect 400000)  400028
+    backward steps while wrapping      0
+    pcnt_get()                         331 cycles
+[rmt]
+[0;32mI (109472) gpio: GPIO[10]| InputEn: 0| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109473) gpio: GPIO[11]| InputEn: 1| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    TX 100 items / RX received         100 items
+    worst duration error               0 ticks (100 ns)
+    rmt_tx() start (100 items)         9725 cycles
+[sdm]
+[0;32mI (109476) gpio: GPIO[4]| InputEn: 1| OutputEn: 1| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+    density  -64: duty 25.0 %
+    density    0: duty 50.0 %
+    density   64: duty 75.0 %
+    sdm_density()                      318 cycles
+[uart]
+     115200 baud (actual 115201): 4096/4096 bytes, 0 wrong, 356490 us (wire 355555 us)
+    2000000 baud (actual 2000000): 4096/4096 bytes, 0 wrong, 20571 us (wire 20480 us)
+    5000000 baud (actual 5000000): 4096/4096 bytes, 0 wrong, 8254 us (wire 8192 us)
+    uart_write() 16 bytes              2467 cycles
+[i2c]
+[0;32mI (109971) gpio: GPIO[10]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109972) gpio: GPIO[12]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109972) gpio: GPIO[11]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+[0;32mI (109973) gpio: GPIO[13]| InputEn: 1| OutputEn: 1| OpenDrain: 1| Pullup: 0| Pulldown: 0| Intr:0 [0m
+    write 16: err 0, slave done 1, 0 wrong, 1795 us
+    write 100: err 0, slave done 1, 0 wrong
+[0;31mE (109991) i2c.master: i2c_master_transmit(1193): I2C transaction failed[0m
+    write to 0x50 (absent): err 0x103 (ESP_ERR_INVALID_STATE/NACK expected)
+[0;32mI (109992) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109992) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109992) gpio: GPIO[12]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (109993) gpio: GPIO[13]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[gdma]
+Guru Meditation Error: Core  0 panic'ed (StoreProhibited). Exception was unhandled.
+
+Core  0 register dump:
+PC      : 0x4200b1fc  PS      : 0x00060730  A0      : 0x8200a452  A1      : 0x3fcb93f0
+A2      : 0x0000000a  A3      : 0x00000000  A4      : 0x00000000  A5      : 0x00000000
+A6      : 0x00000000  A7      : 0x00000000  A8      : 0x00000000  A9      : 0x00000000
+A10     : 0x9e3779b1  A11     : 0x00000000  A12     : 0x00000001  A13     : 0x00002000
+A14     : 0x3fce4240  A15     : 0x00008000  SAR     : 0x00000011  EXCCAUSE: 0x0000001d
+EXCVADDR: 0x00000000  LBEG    : 0x4200b1fc  LEND    : 0x4200b208  LCOUNT  : 0x00001fff
+
+
+Backtrace: 0x4200b1f9:0x3fcb93f0 0x4200a44f:0x3fcb9430 0x4204f490:0x3fcb9450
+
+
+
+
+ELF file SHA256: 40d82ceb2
+
+Rebooting...
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0xc (RTC_SW_CPU_RST),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x40375cf4
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1828
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc40
+load:0x403cb700,len:0x2ec8
+entry 0x403c8908
+[0;32mI (26) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (26) boot: compile time Oct 18 2026 12:08:51[0m
+[0;32mI (26) boot: Multicore bootloader[0m
+[0;32mI (27) boot: chip revision: v0.2[0m
+[0;32mI (27) boot: efuse block revision: v1.3[0m
+[0;32mI (27) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (27) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (27) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (28) boot: Enabling RNG early entropy source...[0m
+[0;32mI (28) boot: Partition Table:[0m
+[0;32mI (28) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (28) boot:  0 nvs              WiFi data        01 02 00090000 00006000[0m
+[0;32mI (29) boot:  1 phy              RF data          01 01 00096000 00001000[0m
+[0;32mI (29) boot:  2 nvs_keys         NVS keys         01 04 00097000 00001000[0m
+[0;32mI (29) boot:  3 nvs_enc          WiFi data        01 02 00098000 00006000[0m
+[0;32mI (30) boot:  4 fat              Unknown data     01 81 00100000 00100000[0m
+[0;32mI (30) boot:  5 spiffs           Unknown data     01 82 00200000 00100000[0m
+[0;32mI (31) boot:  6 factory          factory app      00 00 00300000 00100000[0m
+[0;32mI (31) boot: End of partition table[0m
+[0;32mI (31) esp_image: segment 0: paddr=00300020 vaddr=3c060020 size=18ae8h (101096) map[0m
+[0;32mI (50) esp_image: segment 1: paddr=00318b10 vaddr=3fc97400 size=0349ch ( 13468) load[0m
+[0;32mI (54) esp_image: segment 2: paddr=0031bfb4 vaddr=40374000 size=04064h ( 16484) load[0m
+[0;32mI (58) esp_image: segment 3: paddr=00320020 vaddr=42000020 size=502d8h (328408) map[0m
+[0;32mI (118) esp_image: segment 4: paddr=00370300 vaddr=40378064 size=0f344h ( 62276) load[0m
+[0;32mI (133) esp_image: segment 5: paddr=0037f64c vaddr=50000000 size=00004h (     4) load[0m
+[0;32mI (140) boot: Loaded app from partition at offset 0x300000[0m
+[0;32mI (141) boot: Disabling RNG early entropy source...[0m
+[0;32mI (142) cpu_start: Multicore app[0m
+[0;32mI (151) cpu_start: Pro cpu start user code[0m
+[0;32mI (151) cpu_start: cpu freq: 240000000 Hz[0m
+[0;32mI (151) app_init: Application information:[0m
+[0;32mI (151) app_init: Project name:     idf_periph[0m
+[0;32mI (151) app_init: App version:      0d8c0d0-dirty[0m
+[0;32mI (152) app_init: Compile time:     Oct 18 2026 13:20:53[0m
+[0;32mI (152) app_init: ELF file SHA256:  40d82ceb2...[0m
+[0;32mI (152) app_init: ESP-IDF:          v5.3.5[0m
+[0;32mI (152) efuse_init: Min chip rev:     v0.0[0m
+[0;32mI (152) efuse_init: Max chip rev:     v0.99 [0m
+[0;32mI (152) efuse_init: Chip rev:         v0.2[0m
+[0;32mI (153) heap_init: Initializing. RAM available for dynamic allocation:[0m
+[0;32mI (153) heap_init: At 3FCB5BC0 len 00033B50 (206 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCE9710 len 00005724 (21 KiB): RAM[0m
+[0;32mI (153) heap_init: At 3FCF0000 len 00008000 (32 KiB): DRAM[0m
+[0;32mI (154) heap_init: At 600FE000 len 00001FE8 (7 KiB): RTCRAM[0m
+[0;32mI (155) spi_flash: detected chip: boya[0m
+[0;32mI (155) spi_flash: flash io: dio[0m
+[0;32mI (155) sleep: Configure to isolate all GPIO pins in sleep state[0m
+[0;32mI (156) sleep: Enable automatic switching of GPIO sleep configuration[0m
+[0;32mI (156) main_task: Started on CPU0[0m
+[0;32mI (157) main_task: Calling app_main()[0m
+
+=== ESP-IDF peripheral timings ===
+[core]
+    esp_timer_get_time()               193 cycles
+    esp_rom_delay_us(10000)            10004 us
+    vTaskDelay(250 ms)                 249558 us
+    esp_timer 1 ms: calls in 1 s       999
+    esp_timer period min..max          984..1000 us
+    esp_timer span drift               -16 us
+    malloc+free 64 B                   1346 cycles
+    heap free (internal)               253980 bytes
+    float divide                       78 cycles
+    sqrtf                              122 cycles
+    snprintf %.3f                      12062 cycles
+    snprintf %d                        2992 cycles
+    strtof                             2899 cycles (r=278)
+    qsort 2000 ints                    829973 cycles
+    ringbuf 16 B send+receive+return   1102 cycles
+    ringbuf zero-copy acquire+complete+recv+return 1234 cycles
+    async memcpy 65472 B: start        56639 cycles (ESP_OK, data ok)
+    async memcpy done after            304737 cycles = 51 MB/s
+    esp_task_wdt_reset()               362 cycles
+     add same sign  51 cycles/call
+     add diff sign  52 cycles/call
+     add d = 33     45 cycles/call
+     sub cancel     74 cycles/call
+     mul            83 cycles/call
+     div            526 cycles/call
+     math: cycles per call
+     sinf      (0.7f   )     79
+     sinf      (2.5f   )    196
+     sinf      (1e4f   )   2907
+     cosf      (0.7f   )    105
+     cosf      (2.5f   )    211
+     tanf      (0.7f   )    226
+     tanf      (2.5f   )    235
+     asinf     (0.3f   )    175
+     asinf     (0.8f   )    334
+     acosf     (0.8f   )    305
+     atanf     (0.7f   )    191
+     atanf     (3.0f   )    188
+     atan2f    (1.2f,-0.7f)    344
+     expf      (2.3f   )    232
+     exp2f     (2.3f   )    641
+     expm1f    (0.01f  )    144
+     logf      (3.7f   )    205
+     log2f     (3.7f   )    267
+     log10f    (3.7f   )    268
+     log1pf    (0.01f  )    163
+     powf      (2.1f,3.3f)    629
+     sqrtf     (2.0f   )     59
+     cbrtf     (2.0f   )    219
+     hypotf    (3.0f,4.0f)    204
+     sinhf     (0.7f   )    361
+     coshf     (0.7f   )    309
+     tanhf     (0.7f   )    338
+     floorf    (2.5f   )     38
+     roundf    (2.5f   )     23
+     fmodf     (10.3f,3.0f)    120
+     sin       (0.7    )   1200
+     sin       (2.5    )   2364
+     sin       (1e4    )   2330
+     cos       (0.7    )   1620
+     tan       (0.7    )   3768
+     asin      (0.3    )   2435
+     acos      (0.8    )   4311
+     atan      (0.7    )   2849
+     atan2     (1.2,-0.7)   3814
+     exp       (2.3    )   2542
+     exp2      (2.3    )   6361
+     expm1     (0.01   )   2295
+     log       (3.7    )   2593
+     log2      (3.7    )   3138
+     log10     (3.7    )   3079
+     log1p     (0.01   )   2188
+     pow       (2.1,3.3)   8339
+     sqrt      (2.0    )   1057
+     cbrt      (2.0    )   3766
+     hypot     (3.0,4.0)   1355
+     sinh      (0.7    )   3963
+     cosh      (0.7    )   2856
+     tanh      (0.7    )   4203
+     floor     (2.5    )    116
+     round     (2.5    )     34
+     fmod      (10.3,3.0)    195
+    double add / mul / div             65 / 101 / 546 cycles (r=979)
+    snprintf %.17g 1.23e300            40336 cycles
+    snprintf %.17g denormal            30867 cycles
+    strtod 16 digits                   8069 cycles
+    strtod hard case                   13443 cycles
+[rtcio]
+    loopback 100/100, held 1, released 0
+    rtc_gpio_set_level()             463 cycles
+    rtc_gpio_get_level()             144 cycles
+[0;32mI (1475) gpio: GPIO[10]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[0;32mI (1475) gpio: GPIO[11]| InputEn: 0| OutputEn: 0| OpenDrain: 0| Pullup: 1| Pulldown: 0| Intr:0 [0m
+[nvs_enc]
+    secure init: ESP_OK
+    100 encrypted updates: 1541 us each
+[spiffs]
+[0;31mE (1635) SPIFFS: mount failed, -10025[0m
+    mount: ESP_FAIL
+[fat]
+    mount wear-levelled rw: ESP_OK
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+      idf.txt  27
+    long file name.bin: 20000 bytes crc32 018a2379; hello.txt: "Hello from esp-ndf"
+    wl.bin = 299

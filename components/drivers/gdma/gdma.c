@@ -36,22 +36,36 @@
 #define SRC_OUT(c)       (71 + (c))
 
 static uint8_t used;
+/* Channel bookkeeping (used, peri_of, m2m_conn) is shared by both cores - crypto takes a channel per operation on
+ * whichever core runs it: a spinlock with interrupts off on this core (a non-atomic "used |= BIT(c)" once handed the
+ * same channel to SPI on core 0 and AES on core 1). */
+static volatile uint32_t gk;
+static uint32_t glock(void) { uint32_t ps = irq_lock(); while (__atomic_exchange_n(&gk, 1, __ATOMIC_ACQUIRE)) {} return ps; }
+static void gunlock(uint32_t ps) { __atomic_store_n(&gk, 0, __ATOMIC_RELEASE); irq_unlock(ps); }
 static bool ext(const void *p) { uint32_t a = (uint32_t)p; return a >= 0x3C000000u && a < 0x3E000000u; }   /* PSRAM data window */
 
 int gdma_alloc(void)
 {
+    uint32_t ps = glock();
     if (!used) {
         periph_enable(PERIPH_GDMA);
         REG_SET(MISC_CONF, BIT(4));
         REG_SET(MISC_CONF, BIT(0)); REG_CLR(MISC_CONF, BIT(0));
     }
-    for (int c = 0; c < 5; c++) if (!(used & BIT(c))) { used |= BIT(c); return c; }
-    return -1;
+    int r = -1;
+    for (int c = 0; c < 5 && r < 0; c++) if (!(used & BIT(c))) { used |= BIT(c); r = c; }
+    gunlock(ps);
+    return r;
 }
 
 static int8_t peri_of[5] = { -1, -1, -1, -1, -1 };     /* peripheral id each channel is connected to */
 static uint8_t m2m_conn;                                /* channels connected as memory-to-memory */
-void gdma_free(int c) { if (c < 0 || c >= 5) return; gdma_stop(c); used &= ~BIT(c); peri_of[c] = -1; m2m_conn &= ~BIT(c); }
+void gdma_free(int c)
+{
+    if (c < 0 || c >= 5) return;
+    gdma_stop(c);
+    uint32_t ps = glock(); used &= ~BIT(c); peri_of[c] = -1; m2m_conn &= ~BIT(c); gunlock(ps);
+}
 
 void gdma_connect(int c, int periph)
 {
@@ -66,7 +80,7 @@ void gdma_connect(int c, int periph)
      * descriptor error) - one no other channel is connected to (as IDF's m2m_free_periph_mask), else the two would
      * trigger each other (measured: AES DMA on core 1 broke memcpy on core 0 when both used 6) */
     int sel = periph;
-    uint32_t ps = irq_lock();
+    uint32_t ps = glock();
     if (periph == GDMA_M2M) {
         uint32_t busy = 0;
         for (int k = 0; k < 5; k++) if (k != c && peri_of[k] >= 0) busy |= BIT(peri_of[k]);
@@ -76,7 +90,7 @@ void gdma_connect(int c, int periph)
     }
     peri_of[c] = (int8_t)sel;
     if (periph == GDMA_M2M) m2m_conn |= BIT(c); else m2m_conn &= ~BIT(c);
-    irq_unlock(ps);
+    gunlock(ps);
     REG(IN_PERI(c)) = sel;
     REG(OUT_PERI(c)) = sel;
 }

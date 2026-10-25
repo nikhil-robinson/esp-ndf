@@ -1,2 +1,2 @@
-PASS P-256: pubkey 1, ecdh 1, sign 1, verify 1, roundtrip 1, tamper 1, off-curve 1 | pubkey 61257 us, ecdh 60345 us, sign 248056 us, verify 121534 us
+PASS P-256: pubkey 1, ecdh 1, sign 1, verify 1, roundtrip 1, tamPASS P-256: pubkey 1, ecdh 1, sign 1, verify 1, roundtrip 1, tamper 1, off-curve 1 | pubkey 13013 us, ecdh 39357 us, sign 27136 us, verify 54532 us
 p256_test PASS done

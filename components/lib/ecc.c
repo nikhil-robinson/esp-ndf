@@ -53,8 +53,227 @@ static void msub(const mod_t *M, fe r, const fe a, const fe b)
     fe d; uint32_t bo = sub8(r, a, b);
     add8(d, r, M->m); sel(r, d, -bo);
 }
+/* ---- P-256 field arithmetic: plain residues (not Montgomery), 8x8 limb comba product on mull/muluh, then the NIST
+ * fast reduction (FIPS 186-3 D.2.3) with a fixed number of correction passes: no secret-dependent branch or index.
+ * mmul() sends the p-field here, so every FM() in the point code uses it; the n-field and X25519 keep generic CIOS. */
+#define MAC(x, y)  do { lo = (x) * (y); hi = (uint32_t)(((uint64_t)(x) * (y)) >> 32); a0 += lo; hi += a0 < lo; a1 += hi; a2 += a1 < hi; } while (0)
+#define MACT(x, y) do { lo = (x) * (y); hi = (uint32_t)(((uint64_t)(x) * (y)) >> 32); t0 += lo; hi += t0 < lo; t1 += hi; t2 += t1 < hi; } while (0)
+static void fp_mul_full(uint32_t c[16], const uint32_t *a, const uint32_t *b)   /* 8x8 limbs, column by column (generated) */
+{
+    uint32_t a0=0, a1=0, a2=0, lo, hi;
+    MAC(a[0], b[0]);
+    c[0] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[1]);
+    MAC(a[1], b[0]);
+    c[1] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[2]);
+    MAC(a[1], b[1]);
+    MAC(a[2], b[0]);
+    c[2] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[3]);
+    MAC(a[1], b[2]);
+    MAC(a[2], b[1]);
+    MAC(a[3], b[0]);
+    c[3] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[4]);
+    MAC(a[1], b[3]);
+    MAC(a[2], b[2]);
+    MAC(a[3], b[1]);
+    MAC(a[4], b[0]);
+    c[4] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[5]);
+    MAC(a[1], b[4]);
+    MAC(a[2], b[3]);
+    MAC(a[3], b[2]);
+    MAC(a[4], b[1]);
+    MAC(a[5], b[0]);
+    c[5] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[6]);
+    MAC(a[1], b[5]);
+    MAC(a[2], b[4]);
+    MAC(a[3], b[3]);
+    MAC(a[4], b[2]);
+    MAC(a[5], b[1]);
+    MAC(a[6], b[0]);
+    c[6] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[0], b[7]);
+    MAC(a[1], b[6]);
+    MAC(a[2], b[5]);
+    MAC(a[3], b[4]);
+    MAC(a[4], b[3]);
+    MAC(a[5], b[2]);
+    MAC(a[6], b[1]);
+    MAC(a[7], b[0]);
+    c[7] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[1], b[7]);
+    MAC(a[2], b[6]);
+    MAC(a[3], b[5]);
+    MAC(a[4], b[4]);
+    MAC(a[5], b[3]);
+    MAC(a[6], b[2]);
+    MAC(a[7], b[1]);
+    c[8] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[2], b[7]);
+    MAC(a[3], b[6]);
+    MAC(a[4], b[5]);
+    MAC(a[5], b[4]);
+    MAC(a[6], b[3]);
+    MAC(a[7], b[2]);
+    c[9] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[3], b[7]);
+    MAC(a[4], b[6]);
+    MAC(a[5], b[5]);
+    MAC(a[6], b[4]);
+    MAC(a[7], b[3]);
+    c[10] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[4], b[7]);
+    MAC(a[5], b[6]);
+    MAC(a[6], b[5]);
+    MAC(a[7], b[4]);
+    c[11] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[5], b[7]);
+    MAC(a[6], b[6]);
+    MAC(a[7], b[5]);
+    c[12] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[6], b[7]);
+    MAC(a[7], b[6]);
+    c[13] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[7], b[7]);
+    c[14] = a0; a0 = a1; a1 = a2; a2 = 0;
+    c[15] = a0;
+}
+
+static void fp_sqr_full(uint32_t c[16], const uint32_t *a)   /* cross terms once, doubled (generated) */
+{
+    uint32_t a0=0, a1=0, a2=0, lo, hi, t0, t1, t2;
+    MAC(a[0], a[0]);
+    c[0] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[1]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[1] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[2]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[1], a[1]);
+    c[2] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[3]);
+    MACT(a[1], a[2]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[3] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[4]);
+    MACT(a[1], a[3]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[2], a[2]);
+    c[4] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[5]);
+    MACT(a[1], a[4]);
+    MACT(a[2], a[3]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[5] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[6]);
+    MACT(a[1], a[5]);
+    MACT(a[2], a[4]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[3], a[3]);
+    c[6] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[0], a[7]);
+    MACT(a[1], a[6]);
+    MACT(a[2], a[5]);
+    MACT(a[3], a[4]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[7] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[1], a[7]);
+    MACT(a[2], a[6]);
+    MACT(a[3], a[5]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[4], a[4]);
+    c[8] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[2], a[7]);
+    MACT(a[3], a[6]);
+    MACT(a[4], a[5]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[9] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[3], a[7]);
+    MACT(a[4], a[6]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[5], a[5]);
+    c[10] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[4], a[7]);
+    MACT(a[5], a[6]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[11] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[5], a[7]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    MAC(a[6], a[6]);
+    c[12] = a0; a0 = a1; a1 = a2; a2 = 0;
+    t0 = t1 = t2 = 0;
+    MACT(a[6], a[7]);
+    t2 = t2 << 1 | t1 >> 31; t1 = t1 << 1 | t0 >> 31; t0 <<= 1;
+    a0 += t0; hi = a0 < t0; a1 += t1; a2 += a1 < t1; a1 += hi; a2 += a1 < hi; a2 += t2;
+    c[13] = a0; a0 = a1; a1 = a2; a2 = 0;
+    MAC(a[7], a[7]);
+    c[14] = a0; a0 = a1; a1 = a2; a2 = 0;
+    c[15] = a0;
+}
+
+static const uint32_t PK[8] = { 0x1, 0x0, 0x0, 0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe, 0x0 };   /* 2^256 mod p */
+
+static void fp_reduce(fe r, const uint32_t c[16])
+{
+    int64_t t[8];
+    t[0] = (int64_t)c[0] + c[8] + c[9] - c[11] - c[12] - c[13] - c[14];
+    t[1] = (int64_t)c[1] + c[9] + c[10] - c[12] - c[13] - c[14] - c[15];
+    t[2] = (int64_t)c[2] + c[10] + c[11] - c[13] - c[14] - c[15];
+    t[3] = (int64_t)c[3] + 2 * (int64_t)c[11] + 2 * (int64_t)c[12] + c[13] - c[15] - c[8] - c[9];
+    t[4] = (int64_t)c[4] + 2 * (int64_t)c[12] + 2 * (int64_t)c[13] + c[14] - c[9] - c[10];
+    t[5] = (int64_t)c[5] + 2 * (int64_t)c[13] + 2 * (int64_t)c[14] + c[15] - c[10] - c[11];
+    t[6] = (int64_t)c[6] + 3 * (int64_t)c[14] + 2 * (int64_t)c[15] + c[13] - c[8] - c[9];
+    t[7] = (int64_t)c[7] + 3 * (int64_t)c[15] + c[8] - c[10] - c[11] - c[12] - c[13];
+    int64_t cy = 0;
+    for (int i = 0; i < 8; i++) { int64_t v = t[i] + cy; r[i] = (uint32_t)v; cy = v >> 32; }
+    int64_t k = cy;                                   /* -4 .. 7: value = r + k 2^256 = r + k PK */
+    int64_t d[8] = { k, 0, 0, -k, 0, 0, -k, k };      /* PK = 2^224 - 2^192 - 2^96 + 1 */
+    cy = 0;
+    for (int i = 0; i < 8; i++) { int64_t v = (int64_t)r[i] + d[i] + cy; r[i] = (uint32_t)v; cy = v >> 32; }
+    uint32_t m1 = -(uint32_t)(cy == 1), m2 = -(uint32_t)(cy == -1);   /* carried out once more / went negative */
+    fe f; for (int i = 0; i < 8; i++) f[i] = (PK[i] & m1) | (P[i] & m2);
+    add8(r, r, f);                                    /* the carry out cancels the -1 / is absorbed */
+    fe s; uint32_t bo = sub8(s, r, P);                /* r < 2^256 < 2p: one conditional subtraction */
+    sel(r, s, -(uint32_t)(bo ^ 1));
+}
+static void fp_mul(fe r, const fe a, const fe b)
+{
+    uint32_t c[16];
+    if (a == b) fp_sqr_full(c, a); else fp_mul_full(c, a, b);
+    fp_reduce(r, c);
+}
+
 static void mmul(const mod_t *M, fe r, const fe a, const fe b)   /* r = a b R^-1 mod m (CIOS) */
 {
+    if (M == &mp_) { fp_mul(r, a, b); return; }
     uint32_t t[10] = { 0 };
     const uint32_t *m = M->m;
     for (int i = 0; i < 8; i++) {
@@ -93,6 +312,7 @@ static void init(void)
 {
     if (ready) return;
     mod_setup(&mp_, P); mod_setup(&mn_, N);
+    memset(mp_.one, 0, 32); mp_.one[0] = 1; memcpy(mp_.rr, mp_.one, 32);   /* p-field residues are plain: to_m / from_m are the identity */
     fe t; from_be(t, B_BE); to_m(&mp_, b_m, t);
     from_be(t, GX_BE); to_m(&mp_, G.x, t); from_be(t, GY_BE); to_m(&mp_, G.y, t); memcpy(G.z, mp_.one, 32);
     ready = 1;
@@ -127,6 +347,42 @@ static void padd(pt *r, const pt *p, const pt *q)              /* add-2007-bl; p
     FA(t, p->z, q->z); FM(t, t, t); FS(t, t, z1); FS(t, t, z2); FM(r->z, t, h);
 }
 static void pt_sel(pt *r, const pt *a, uint32_t mask) { sel(r->x, a->x, mask); sel(r->y, a->y, mask); sel(r->z, a->z, mask); }
+
+/* Jacobian + affine (madd-2007-bl, 7M + 4S); p != infinity, p != +-(x2, y2) (the caller's guarantee) */
+static void pmadd(pt *r, const pt *p, const fe x2, const fe y2)
+{
+    fe z1z1, u2, s2, h, hh, i, j, rr, v, t, x3, y3, z3;
+    FM(z1z1, p->z, p->z); FM(u2, x2, z1z1); FM(s2, y2, p->z); FM(s2, s2, z1z1);
+    FS(h, u2, p->x); FM(hh, h, h); FA(i, hh, hh); FA(i, i, i);
+    FM(j, h, i); FS(rr, s2, p->y); FA(rr, rr, rr); FM(v, p->x, i);
+    FM(t, rr, rr); FS(t, t, j); FS(t, t, v); FS(x3, t, v);
+    FS(t, v, x3); FM(t, rr, t); FM(s2, p->y, j); FA(s2, s2, s2); FS(y3, t, s2);
+    FA(t, p->z, h); FM(t, t, t); FS(t, t, z1z1); FS(z3, t, hh);
+    memcpy(r->x, x3, 32); memcpy(r->y, y3, 32); memcpy(r->z, z3, 32);
+}
+
+extern const uint32_t p256_comb[64][15][16];   /* p256_comb.c (tools/gen_p256_comb.py): d * 16^w * G, affine */
+
+/* r = k G, k in [1, n-1]: 64 mixed additions of table entries [w][digit], every entry of a row read (constant time).
+ * Walking up from the lowest digit the running sum is (k mod 16^w) G and the entry d 16^w G: they are never equal or
+ * opposite for k < n, so only "sum is still infinity" and "digit is 0" need masked fix-ups. */
+static void pmul_base(pt *r, const fe k)
+{
+    pt R; memset(&R, 0, sizeof R);
+    for (int w = 0; w < 64; w++) {
+        uint32_t d = k[w >> 3] >> ((w & 7) * 4) & 15;
+        fe tx = { 0 }, ty = { 0 };
+        for (uint32_t i = 1; i < 16; i++) {
+            uint32_t m = -(uint32_t)(i == d); const uint32_t *e = p256_comb[w][i - 1];
+            for (int j = 0; j < 8; j++) { tx[j] |= e[j] & m; ty[j] |= e[8 + j] & m; }
+        }
+        pt s, t1; pmadd(&s, &R, tx, ty);
+        memcpy(t1.x, tx, 32); memcpy(t1.y, ty, 32); memcpy(t1.z, mp_.one, 32);
+        pt_sel(&s, &t1, is_zero(R.z)); pt_sel(&s, &R, -(uint32_t)(d == 0));
+        R = s;
+    }
+    *r = R;
+}
 
 /* r = k p, k in [1, n-1]: 4-bit fixed window, every table entry read, every step adds. For such k the running sum is
  * never +-T[d] (prefix*16 + d <= k < n), so only infinity needs a masked fix-up, no branches on secret data. */
@@ -183,7 +439,7 @@ static int pubkey_nolock(uint8_t pub[64], const uint8_t priv[32])
 {
     fe d, x, y; pt q; int r = -1;
     from_be(d, priv);
-    if (scalar_ok(d)) { pmul(&q, d, &G); if (!affine(x, y, &q)) { to_be(pub, x); to_be(pub + 32, y); r = 0; } }
+    if (scalar_ok(d)) { pmul_base(&q, d); if (!affine(x, y, &q)) { to_be(pub, x); to_be(pub + 32, y); r = 0; } }
     WIPE(d); explicit_bzero(&q, sizeof q);
     return r;
 }
@@ -216,20 +472,47 @@ int p256_ecdh(uint8_t shared[32], const uint8_t priv[32], const uint8_t peer[64]
 
 static void hash_mod_n(fe e, const uint8_t hash[32]) { from_be(e, hash); fe t; if (!sub8(t, e, N)) memcpy(e, t, 32); }
 
+/* fault guard for k G (a glitch can turn a signature into a key leak): k' = n - k gives -(k G) by a different digit pattern
+ * and different table entries; a single fault cannot hit both runs the same way. Compare in Jacobian form. */
+#ifdef NDF_ECC_TEST_FAULT                       /* components/lib/test_apps/ecc_unit: inject a fault, expect the guard to refuse */
+int p256_test_fault;                           /* 1: flip a bit of the first k G, 2: flip a bit of s */
+#define FAULT(n, v) do { if (p256_test_fault == (n)) (v)[0] ^= 1; } while (0)
+#else
+#define FAULT(n, v) do { } while (0)
+#endif
+static int guard_point(const pt *q, const fe k)
+{
+    fe kn; sub8(kn, N, k);
+    pt q2; pmul_base(&q2, kn);
+    fe z1, z2, ua, ub, ya, yb;
+    FM(z1, q->z, q->z); FM(z2, q2.z, q2.z);
+    FM(ua, q->x, z2); FM(ub, q2.x, z1);                        /* x1 z2^2 == x2 z1^2 */
+    FM(ya, q->y, z2); FM(ya, ya, q2.z); FM(yb, q2.y, z1); FM(yb, yb, q->z);
+    FA(ya, ya, yb);                                            /* y1 z2^3 == -(y2 z1^3) */
+    int ok = !memcmp(ua, ub, 32) && is_zero(ya) && !is_zero(q->z);
+    explicit_bzero(&q2, sizeof q2); WIPE(kn);
+    return ok;
+}
+
 static int sign_k_nolock(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
 {
     fe d, k, e, x, r, s, t; pt q; int rc = -1;
     from_be(d, priv); from_be(k, kb);
     if (!scalar_ok(d) || !scalar_ok(k)) goto out;
-    pmul(&q, k, &G);
+    pmul_base(&q, k);
+    FAULT(1, q.x);
+    if (NDF_ECC_VERIFY_SIGN && !guard_point(&q, k)) goto out;     /* fault guard: k G again, with the negated scalar */
     if (affine(x, 0, &q)) goto out;
     if (sub8(r, x, N)) memcpy(r, x, 32);                       /* r = x mod n (x < p < 2n) */
     if (is_zero(r)) goto out;
     hash_mod_n(e, hash);
-    to_m(&mn_, k, k); minv(&mn_, k, k);                        /* k^-1, Montgomery */
+    fe km; to_m(&mn_, km, k); minv(&mn_, k, km);               /* k, k^-1 (Montgomery) */
     to_m(&mn_, t, r); to_m(&mn_, d, d); mmul(&mn_, t, t, d);   /* r d */
     to_m(&mn_, e, e); madd(&mn_, t, t, e);                     /* e + r d */
-    mmul(&mn_, s, t, k); from_m(&mn_, s, s);
+    mmul(&mn_, s, t, k);
+    FAULT(2, s);
+    if (NDF_ECC_VERIFY_SIGN) { fe chk; mmul(&mn_, chk, s, km); if (memcmp(chk, t, 32)) { WIPE(km, chk); goto out; } WIPE(chk); }   /* s k = e + r d */
+    WIPE(km); from_m(&mn_, s, s);
     if (is_zero(s)) goto out;
     to_be(sig, r); to_be(sig + 32, s);
     rc = 0;
@@ -244,7 +527,7 @@ static int verify_nolock(const uint8_t pub[64], const uint8_t hash[32], const ui
 static int sign_checked(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
 {
     int rc = sign_k_nolock(sig, priv, hash, kb);
-    if (!rc && NDF_ECC_VERIFY_SIGN) {
+    if (!rc && NDF_ECC_VERIFY_SIGN >= 2) {
         uint8_t pub[64];
         if (pubkey_nolock(pub, priv) || verify_nolock(pub, hash, sig)) { explicit_bzero(sig, 64); rc = -1; }
     }
@@ -293,7 +576,7 @@ static int verify_nolock(const uint8_t pub[64], const uint8_t hash[32], const ui
     int i1 = is_zero(u1) != 0;
     pmul(&b, u2, &q);
     if (!i1) {
-        pmul(&a, u1, &G);
+        pmul_base(&a, u1);
         fe ua, ub, sa, sb, z1, z2;                              /* a == +-b?  compare X Z^2 and Y Z^3 */
         FM(z1, a.z, a.z); FM(z2, b.z, b.z); FM(ua, a.x, z2); FM(ub, b.x, z1);
         if (memcmp(ua, ub, 32)) padd(&b, &a, &b);
@@ -353,3 +636,28 @@ int x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t u[32])
 }
 
 int x25519_base(uint8_t pub[32], const uint8_t priv[32]) { static const uint8_t nine[32] = { 9 }; return x25519(pub, priv, nine); }
+
+#ifdef NDF_ECC_BENCH                                           /* components/lib/test_apps/ecc_bench: cycles per primitive */
+#include "console.h"
+#include "xtensa.h"
+#define BEST(stmt) ({ unsigned long b_ = ~0ul; for (int i_ = 0; i_ < 8; i_++) { uint32_t t_ = ccount(); for (int j_ = 0; j_ < 16; j_++) { stmt; } unsigned long d_ = (ccount() - t_) / 16; if (d_ < b_) b_ = d_; } b_; })
+void p256_bench(void)
+{
+    ecc_lock(); init();
+    fe a, b, r; pt p, q, T[16];
+    for (int i = 0; i < 8; i++) { a[i] = 0x9E3779B9u * (i + 1); b[i] = 0x85EBCA6Bu * (i + 3); }
+    a[7] &= 0x7FFFFFFF; b[7] &= 0x7FFFFFFF;
+    printf("  fp_mul %lu  fp_sqr %lu  madd %lu  msub %lu  mmul(n) %lu cycles\n", BEST(fp_mul(r, a, b)), BEST(fp_mul(r, a, a)),
+           BEST(madd(&mp_, r, a, b)), BEST(msub(&mp_, r, a, b)), BEST(mmul(&mn_, r, a, b)));
+    { uint32_t cc[16]; fp_mul_full(cc, a, b);
+      printf("  comba product %lu  reduction %lu  sqr product %lu cycles\n", BEST(fp_mul_full(cc, a, b)), BEST(fp_reduce(r, cc)), BEST(fp_sqr_full(cc, a))); }
+    p = G; q = G;
+    pdbl(&q, &p); padd(&q, &q, &p);
+    printf("  pdbl %lu  padd %lu  pt_sel %lu cycles\n", BEST(pdbl(&q, &p)), BEST(padd(&q, &p, &G)), BEST(pt_sel(&q, &p, 0xFFFFFFFFu)));
+    fe k = { 0x1234567, 0x89ABCDEF, 0xFEDCBA98, 0x76543210, 0x13579BDF, 0x2468ACE0, 0x0F0F0F0F, 0x70F0F0F0 };
+    uint32_t t0 = ccount(); pmul(&q, k, &G); printf("  pmul %lu cycles\n", (unsigned long)(ccount() - t0));
+    t0 = ccount(); pmul_base(&q, k); printf("  pmul_base %lu cycles\n", (unsigned long)(ccount() - t0));
+    (void)T;
+    ecc_unlock();
+}
+#endif

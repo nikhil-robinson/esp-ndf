@@ -48,8 +48,13 @@ def info(app):
     return kv
 
 
-def port_ready(port):
-    return os.path.exists(port)
+def port_ready(port, grace=20):
+    """the port of a board that just reset on purpose comes back within a few seconds; a board that does not is left alone"""
+    t = time.time()
+    while not os.path.exists(port):
+        if time.time() - t > grace: return False
+        time.sleep(0.5)
+    return True
 
 
 def run_one(app, kv, port, build=True):

@@ -1,0 +1,7 @@
+ecc_bench
+  fp_mul 2061  fp_sqr 1778  madd 424  msub 413  mmul(n) 3300 cycles
+  comba product 971  reduction 1093  sqr product 0 cycles
+  pdbl 21748  padd 36247  pt_sel 157 cycles
+  pmul 8730084 cycles
+  pmul_base 2158256 cycles
+ecc_bench done
