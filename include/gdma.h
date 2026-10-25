@@ -25,6 +25,10 @@ void gdma_connect(int ch, int periph);     /* both halves; GDMA_M2M = memory to 
  * Returns descriptors used, or -1 if n is too small. */
 int  gdma_chain(gdma_desc_t *d, int n, void *buf, size_t len, bool eof);
 
+/* Peripheral TX DMA (SPI, UHCI, LCD, RMT) does not read PSRAM correctly (measured; memory-to-memory and peripheral RX
+ * do): the drivers refuse PSRAM sources with this check. Open bring-up item in docs/TODO.md. */
+static inline bool gdma_is_psram(const void *p) { uint32_t a = (uint32_t)p; return a >= 0x3C000000u && a < 0x3E000000u; }
+
 void gdma_out_start(int ch, gdma_desc_t *first);
 void gdma_in_start(int ch, gdma_desc_t *first);
 bool gdma_out_eof(int ch);                 /* OUT finished its EOF descriptor */

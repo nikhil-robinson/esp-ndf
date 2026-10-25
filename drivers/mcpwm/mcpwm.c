@@ -83,6 +83,7 @@ static int unit_irq(int u, int level)
 
 uint32_t mcpwm_timer(int u, int t, uint32_t hz, mcpwm_mode_t mode, uint32_t *tick_hz)
 {
+    if (!(u >= 0 && u < 2)) return 0;      /* caller index: never past the hardware */
     if (u < 0 || u > 1 || t < 0 || t > 2 || !hz) return 0;
     unit_up(u);
     /* ticks per period at 160 MHz; up-down counts twice per period */
@@ -110,11 +111,16 @@ uint32_t mcpwm_timer(int u, int t, uint32_t hz, mcpwm_mode_t mode, uint32_t *tic
     return 0;
 }
 
-void mcpwm_start(int u, int t) { REG_FIELD(T_CFG1(u, t), 0, 3, 2); }   /* run free */
-void mcpwm_stop(int u, int t)  { REG_FIELD(T_CFG1(u, t), 0, 3, 0); }   /* stop at zero */
+void mcpwm_start(int u, int t) {
+    if (!(u >= 0 && u < 2)) return;      /* caller index: never past the hardware */
+    REG_FIELD(T_CFG1(u, t), 0, 3, 2); }   /* run free */
+void mcpwm_stop(int u, int t)  {
+    if (!(u >= 0 && u < 2)) return;      /* caller index: never past the hardware */
+    REG_FIELD(T_CFG1(u, t), 0, 3, 0); }   /* stop at zero */
 
 void mcpwm_sync(int u, int t, int master, uint32_t phase)
 {
+    if (!(u >= 0 && u < 2)) return;      /* caller index: never past the hardware */
     REG_FIELD(T_SYNC(u, master), 2, 2, 1);                 /* master sync-out at TEZ */
     REG_FIELD(SYNCI_CFG(u), 3 * t, 3, master + 1);         /* t listens to master's sync-out */
     REG(T_SYNC(u, t)) = BIT(0) | 3u << 2 | (phase & 0xFFFF) << 4;   /* synci_en, synco none */
@@ -122,6 +128,7 @@ void mcpwm_sync(int u, int t, int master, uint32_t phase)
 
 int mcpwm_on_period(int u, int t, irq_fn_t fn, void *arg, int level)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     REG_CLR(INT_ENA(u), BIT(3 + t));
     unit[u].tez_fn[t] = fn; unit[u].tez_arg[t] = arg;
     if (!fn) return 0;                                     /* NULL = off */
@@ -153,6 +160,7 @@ static uint32_t act_for(int u, int op, int ev_cmp_up, int ev_cmp_dn)
 
 int mcpwm_pwm(int u, int op, int t, int pin_a, int pin_b)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     op_bind(u, op, t);
     REG(G_ACT(u, op, 0)) = act_for(u, op, UTEA, DTEA);
     REG(G_ACT(u, op, 1)) = act_for(u, op, UTEB, DTEB);
@@ -170,6 +178,7 @@ int mcpwm_pwm(int u, int op, int t, int pin_a, int pin_b)
 
 int mcpwm_complementary(int u, int op, int t, int hi, int lo, uint32_t red, uint32_t fed)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     if (mcpwm_pwm(u, op, t, hi, lo) < 0) return -1;
     REG(DT_RED(u, op)) = red & 0xFFFF;
     REG(DT_FED(u, op)) = fed & 0xFFFF;
@@ -182,6 +191,7 @@ int mcpwm_complementary(int u, int op, int t, int hi, int lo, uint32_t red, uint
  * the real pins (a generator force would come out inverted on B). */
 void mcpwm_force(int u, int op, int level)
 {
+    if (!(u >= 0 && u < 2)) return;      /* caller index: never past the hardware */
     if (level < 0) {                                       /* release: rising edge on clr_ost */
         REG_CLR(FH_CFG1(u, op), BIT(0));
         REG_SET(FH_CFG1(u, op), BIT(0));
@@ -195,6 +205,7 @@ void mcpwm_force(int u, int op, int level)
 
 int mcpwm_capture(int u, int ch, int pin, mcpwm_edge_t e, mcpwm_cap_fn_t fn, void *arg, int level)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     unit_up(u);
     REG(CAP_TIMER_CFG(u)) = BIT(0);                         /* capture timer on (APB) */
     gpio_in_signal(pin, SIG_CAP0(u) + ch, false);       /* enables pad input; output untouched */
@@ -213,6 +224,7 @@ int mcpwm_capture(int u, int ch, int pin, mcpwm_edge_t e, mcpwm_cap_fn_t fn, voi
 
 uint32_t mcpwm_carrier(int u, int op, uint32_t hz, int duty_eighths, int first_pulses)
 {
+    if (!(u >= 0 && u < 2)) return 0;      /* caller index: never past the hardware */
     if (!hz) { REG(CARRIER(u, op)) = 0; return 0; }
     /* IDF mcpwm_carrier: f = 160 MHz / 8 / prescale (1..16), duty n/8 (0..6), first pulse n periods (1..16) */
     uint32_t p = (160000000u / 8 + hz / 2) / hz;
@@ -228,6 +240,7 @@ uint32_t mcpwm_carrier(int u, int op, uint32_t hz, int duty_eighths, int first_p
 
 int mcpwm_fault_pin(int u, int f, int pin, bool active_high)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     if (u < 0 || u > 1 || f < 0 || f > 2) return -1;
     unit_up(u);
     gpio_config(pin, GPIO_INPUT);
@@ -238,6 +251,7 @@ int mcpwm_fault_pin(int u, int f, int pin, bool active_high)
 
 int mcpwm_fault_action(int u, int op, int f, bool one_shot, int level)
 {
+    if (!(u >= 0 && u < 2)) return -1;      /* caller index: never past the hardware */
     if (u < 0 || u > 1 || op < 0 || op > 2 || f < 0 || f > 2) return -1;
     /* trip select: cbc bits 3-f, ost bits 7-f; actions on A and B, up and down counting: 1 low 2 high */
     uint32_t a = level ? 2 : 1, v = REG(FH_CFG0(u, op));
@@ -250,10 +264,13 @@ int mcpwm_fault_action(int u, int op, int f, bool one_shot, int level)
     return 0;
 }
 
-bool mcpwm_fault_active(int u, int f) { return (REG(FAULT_DET(u)) >> (6 + f)) & 1; }
+bool mcpwm_fault_active(int u, int f) {
+    if (!(u >= 0 && u < 2)) return false;      /* caller index: never past the hardware */
+    return (REG(FAULT_DET(u)) >> (6 + f)) & 1; }
 
 uint32_t mcpwm_capture_prescale(int u, int ch, uint32_t n)
 {
+    if (!(u >= 0 && u < 2)) return 0;      /* caller index: never past the hardware */
     /* measured on the S3 (periph_test mcpwm_ext): field 0 = every edge, field f >= 1 = every 2f-th edge
      * (the TRM/IDF "f + 1" does not hold), so only 1 and even divisors exist; odd n rounds up */
     uint32_t f = n <= 1 ? 0 : (n + 1) / 2;

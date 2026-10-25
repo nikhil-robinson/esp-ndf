@@ -98,6 +98,10 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       (BOX-3); [ ] ST7789 / GC9A01 init tables (no such panel here), [ ] RGB on a real panel
 - [x] **TWAI**: alerts (tx, arb lost, bus error, warn, passive/active, bus-off, recovered), state, bus-off recovery + restart
 
+- [ ] Peripheral TX DMA from PSRAM (SPI, UHCI, LCD, RMT) reads wrong data while GDMA memory-to-memory from PSRAM and
+      peripheral RX into PSRAM work (examples/dma_psram_test); the drivers refuse PSRAM TX sources until it is understood
+      (EDMA permissions are open by default, block size 64 B, cache written back before start)
+
 ## 7. Peripherals not started
 
 - [x] **Camera** (DVP 8/16-bit, VSYNC frames, XCLK out), verified by an LCD->camera loop; [ ] sensor example (no camera module here), JPEG/YUV

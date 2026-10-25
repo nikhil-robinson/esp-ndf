@@ -21,6 +21,7 @@
 
 int rtcio_config(int pin, uint32_t flags)
 {
+    if (!(pin >= 0 && pin <= 21)) return -1;      /* caller index: never past the hardware */
     if (pin < 0 || pin > 21) return -1;
     if ((pin == 19 || pin == 20) && !(flags & GPIO_FORCE)) return -1;   /* USB console pads */
     REG_SET(SENS_CLK_GATE, BIT(31));
@@ -42,17 +43,21 @@ void rtcio_release(int pin)
     REG_CLR(PAD_REG(pin), P_MUX);
 }
 
-void rtcio_write(int pin, bool v) { REG(v ? OUT_W1TS : OUT_W1TC) = BIT(pin + 10); }
+void rtcio_write(int pin, bool v) {
+    if (!(pin >= 0 && pin <= 21)) return;      /* caller index: never past the hardware */
+    REG(v ? OUT_W1TS : OUT_W1TC) = BIT(pin + 10); }
 bool rtcio_read(int pin)          { return REG(IN_REG) >> (pin + 10) & 1; }
 
 void rtcio_drive(int pin, int s)
 {
+    if (!(pin >= 0 && pin <= 21)) return;      /* caller index: never past the hardware */
     if (pin == 17 || pin == 18) s = (s & 1) << 1 | (s & 2) >> 1;        /* DRV bits swapped on these pads */
     REG_FIELD(PAD_REG(pin), 29, 2, s & 3);
 }
 
 void rtcio_hold(int pin, bool on)
 {
+    if (!(pin >= 0 && pin <= 21)) return;      /* caller index: never past the hardware */
     if (pin < 0 || pin > 21) return;
     if (on) REG_SET(PAD_HOLD_REG, BIT(pin)); else REG_CLR(PAD_HOLD_REG, BIT(pin));
 }

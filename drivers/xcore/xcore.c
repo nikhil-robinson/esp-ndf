@@ -42,6 +42,7 @@ int xc_call_init(int level)
 
 int xc_call(int core, int (*fn)(void *), void *arg, int *ret)
 {
+    if (!(core >= 0 && core < 2)) return -1;      /* caller index: never past the hardware */
     int r;
     if (core == core_id()) r = fn(arg);
     else {

@@ -86,6 +86,7 @@ RAM_FN static void uart_isr(void *arg)
 
 uint32_t uart_init(int p, const uart_cfg_t *c)
 {
+    if (!(p >= 0 && p < 3)) return 0;      /* caller index: never past the hardware */
     if (p < 0 || p > 2 || !c->baud) return 0;
     /* clkdiv (x16) = 80 MHz * 16 / baud, split over sclk_div if > 12 bits */
     uint32_t sdiv = (80000000 / 4095 + c->baud - 1) / c->baud;      /* >= 1 */
@@ -124,6 +125,7 @@ uint32_t uart_init(int p, const uart_cfg_t *c)
 
 int uart_write(int p, const void *buf, size_t n)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     port_t *u = &up[p];
     const uint8_t *b = buf;
     size_t i = 0;
@@ -154,6 +156,7 @@ int uart_write(int p, const void *buf, size_t n)
 
 int uart_read(int p, void *buf, size_t n)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     port_t *u = &up[p];
     uint8_t *b = buf;
     size_t k = 0;
@@ -180,6 +183,7 @@ void uart_flush(int p)
 
 int uart_set_flow(int p, int rts_pin, int cts_pin, uint32_t rx_thresh)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p < 0 || p > 2 || rx_thresh > 127) return -1;
     if (cts_pin >= 0) {                                      /* first: RTS may share the pad (loop test) */
         gpio_config(cts_pin, GPIO_INPUT | GPIO_PULLUP);
@@ -197,6 +201,7 @@ int uart_set_flow(int p, int rts_pin, int cts_pin, uint32_t rx_thresh)
 
 int uart_set_mode(int p, int mode, int de_pin)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p < 0 || p > 2) return -1;
     port_t *u = &up[p];
     uint32_t ps = irq_lock();
@@ -221,6 +226,7 @@ uint32_t uart_rs485_clashes(int p) { return up[p].clash; }
 
 int uart_set_pattern(int p, char c, int n, uint32_t gap, uint32_t pre, uint32_t post)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p < 0 || p > 2 || n < 0 || n > 255) return -1;
     port_t *u = &up[p];
     if (!n) { REG_CLR(INT_ENA(p), I_AT); return 0; }          /* n = 0: off */
@@ -252,6 +258,7 @@ static gdma_desc_t uh_txd[8], uh_rxd[8];
 
 int uart_dma_start(int p, uint32_t idle_bits)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p < 0 || p > 2 || uh_port >= 0) return -1;
     if (uh_ch < 0 && (uh_ch = gdma_alloc()) < 0) return -1;
     periph_enable(PERIPH_UHCI0);
@@ -278,6 +285,8 @@ void uart_dma_stop(int p)
 
 int uart_dma_write(int p, const void *buf, size_t n, uint32_t timeout_us)
 {
+    if (gdma_is_psram(buf)) return -1;                          /* TX DMA from PSRAM: refused (gdma.h) */
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p != uh_port || gdma_chain(uh_txd, 8, (void *)buf, n, true) < 0) return -1;
     gdma_out_reset(uh_ch);
     gdma_out_start(uh_ch, uh_txd);
@@ -291,6 +300,7 @@ bool uart_dma_write_done(int p) { return p == uh_port && gdma_out_eof(uh_ch); }
 
 int uart_dma_read_start(int p, void *buf, size_t max)
 {
+    if (!(p >= 0 && p < 3)) return -1;      /* caller index: never past the hardware */
     if (p != uh_port || gdma_chain(uh_rxd, 8, buf, max, false) < 0) return -1;
     gdma_in_reset(uh_ch);
     gdma_in_start(uh_ch, uh_rxd);

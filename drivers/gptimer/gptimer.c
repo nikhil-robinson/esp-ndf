@@ -32,6 +32,7 @@ static gpt_t gpt[GPT_COUNT];
 
 uint32_t gpt_init(int id, uint32_t hz)
 {
+    if (!(id >= 0 && id < GPT_COUNT)) return 0;      /* caller index: never past the hardware */
     if (id < 0 || id >= GPT_COUNT || !hz) return 0;
     uint32_t base, div;
     if (80000000 % hz == 0 && (div = 80000000 / hz) >= 2 && div <= 65536) base = 0;
@@ -50,6 +51,7 @@ void gpt_stop(int id)  { REG_CLR(T_CONFIG(id), CFG_EN); }
 
 void gpt_set(int id, uint64_t c)
 {
+    if (!(id >= 0 && id < GPT_COUNT)) return;      /* caller index: never past the hardware */
     REG(T_LOADLO(id)) = (uint32_t)c;
     REG(T_LOADHI(id)) = (uint32_t)(c >> 32);
     REG(T_LOAD(id)) = 1;
@@ -80,6 +82,7 @@ RAM_FN static void gpt_isr(void *arg)
 
 int gpt_alarm(int id, uint64_t alarm, bool periodic, irq_fn_t fn, void *arg, int level)
 {
+    if (!(id >= 0 && id < GPT_COUNT)) return -1;      /* caller index: never past the hardware */
     if (id < 0 || id >= GPT_COUNT) return -1;
     gpt_alarm_off(id);
     REG(T_ALARMLO(id)) = (uint32_t)alarm;

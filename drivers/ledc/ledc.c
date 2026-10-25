@@ -46,6 +46,7 @@ static void latch(int ch)
 
 int ledc_channel(int ch, int t, int pin, uint32_t duty)
 {
+    if (!(ch >= 0 && ch < LEDC_CHANNELS)) return -1;      /* caller index: never past the hardware */
     if (ch < 0 || ch >= LEDC_CHANNELS || t < 0 || t >= LEDC_TIMERS) return -1;
     if (gpio_config(pin, GPIO_OUTPUT | GPIO_INPUT) < 0) return -1;   /* input: readback for tests */
     ch_tm[ch] = t;
@@ -60,6 +61,7 @@ int ledc_channel(int ch, int t, int pin, uint32_t duty)
 
 void ledc_stop(int ch, bool idle)
 {
+    if (!(ch >= 0 && ch < LEDC_CHANNELS)) return;      /* caller index: never past the hardware */
     REG(CH_CONF0(ch)) = ch_tm[ch] | (idle ? BIT(3) : 0);
     REG_SET(CH_CONF0(ch), BIT(4));
 }
@@ -81,6 +83,7 @@ RAM_FN void ledc_duty(int ch, uint32_t duty)
 
 void ledc_fade(int ch, uint32_t from, bool up, uint32_t steps, uint32_t cycles)
 {
+    if (!(ch >= 0 && ch < LEDC_CHANNELS)) return;      /* caller index: never past the hardware */
     REG(CH_DUTY(ch)) = from << 4;
     REG(CH_CONF1(ch)) = BIT(31) | (up ? BIT(30) : 0) | (steps & 0x3FF) << 20 |
                         (cycles & 0x3FF) << 10 | 1;          /* scale: duty units (IDF fade_with_step) */
@@ -124,6 +127,7 @@ RAM_FN static void ledc_isr(void *arg)
 
 int ledc_fade_gamma(int ch, uint32_t from, uint32_t to, uint32_t ms, uint32_t gamma_x100)
 {
+    if (!(ch >= 0 && ch < LEDC_CHANNELS)) return -1;      /* caller index: never past the hardware */
     if (ch < 0 || ch >= LEDC_CHANNELS || gf[ch].busy || !ms || !gamma_x100) return -1;
     if (ledc_int < 0 && (ledc_int = irq_attach(SRC_LEDC, 1, ledc_isr, 0)) < 0) return -1;
     float g = gamma_x100 / 100.0f, max = (float)(1u << tm_res[ch_tm[ch]]);

@@ -110,6 +110,7 @@ RAM_FN static void rx_done(void *a)                         /* blocks filled */
 
 uint64_t i2s_init(int port, const i2s_cfg_t *c)
 {
+    if (!(port >= 0 && port < 2)) return 0;      /* caller index: never past the hardware */
     uint32_t ns = c->mode == I2S_TDM && c->slots ? c->slots : 2, bits = c->bits;
     uint32_t mask = c->mask ? c->mask : (1u << ns) - 1;
     bool pdm = c->mode == I2S_PDM;
@@ -189,6 +190,7 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
 
 void i2s_start(int port, bool tx, bool rx)
 {
+    if (!(port >= 0 && port < 2)) return;      /* caller index: never past the hardware */
     port_t *p = &P[port];
     gdma_reset(p->ch);                                      /* as IDF: else the EOF descriptor of the last run is reported */
     if (rx) {
@@ -212,6 +214,7 @@ void i2s_stop(int port)
 
 int i2s_write(int port, const void *buf, size_t len, uint32_t us)
 {
+    if (!(port >= 0 && port < 2)) return -1;      /* caller index: never past the hardware */
     port_t *p = &P[port];
     const uint8_t *b = buf;
     uint32_t t0 = ccount(), lim = us * (sys_cpu_hz() / 1000000);
@@ -232,6 +235,7 @@ int i2s_write(int port, const void *buf, size_t len, uint32_t us)
 
 int i2s_read(int port, void *buf, size_t len, uint32_t us)
 {
+    if (!(port >= 0 && port < 2)) return -1;      /* caller index: never past the hardware */
     port_t *p = &P[port];
     uint8_t *b = buf;
     uint32_t t0 = ccount(), lim = us * (sys_cpu_hz() / 1000000);

@@ -47,6 +47,7 @@ static void sync_cfg(int h)                     /* push config into the SPI cloc
 
 uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t hz, int mode)
 {
+    if (!(h == 2 || h == 3)) return 0;      /* caller index: never past the hardware */
     if ((h != 2 && h != 3) || !hz || 80000000 % hz) return 0;
     uint32_t div = 80000000 / hz, pre = 0, n = 0;
     for (uint32_t p = 1; p <= 16; p++)                           /* 80 MHz / (pre * n), n <= 64 */
@@ -105,9 +106,14 @@ RAM_FN static void xfer_pio(int h, const uint8_t *tx, uint8_t *rx, size_t len, u
     }
 }
 
+/* SPI TX DMA cannot keep the FIFO fed from PSRAM (measured: only the first 32 bytes are right; IDF's spi_master copies
+ * such buffers to internal RAM). TX buffers in PSRAM are refused; RX into PSRAM works (cache kept coherent by gdma). */
+#define in_psram gdma_is_psram
+
 static int xfer_dma(int h, const void *tx, void *rx, size_t len, uint32_t user, bool hd)
 {
     int k = h - 2;
+    if (tx && in_psram(tx)) return -1;
     static uint8_t dummy[4] __attribute__((aligned(4)));
     if (dma_ch[k] < 0) {
         if ((dma_ch[k] = gdma_alloc()) < 0) return -1;
@@ -143,6 +149,7 @@ static void hd_off(int h)                               /* back to plain full du
 
 int spi_xfer(int h, const void *tx, void *rx, size_t len)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (!len) return 0;
     if (hd_on[h - 2]) hd_off(h);
     uint32_t fd = user_base[h - 2] | BIT(27) | BIT(28);
@@ -160,6 +167,7 @@ int spi_xfer(int h, const void *tx, void *rx, size_t len)
 
 int spi_master_io(int h, int line, int pin)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if ((h != 2 && h != 3) || line < 0 || line > (h == 2 ? 7 : 3)) return -1;
     gpio_config(pin, GPIO_OUTPUT | GPIO_INPUT);
     gpio_out_signal(pin, S(h).io[line], false);
@@ -169,6 +177,7 @@ int spi_master_io(int h, int line, int pin)
 
 void spi_master_cs_timing(int h, uint32_t setup, uint32_t hold)
 {
+    if (!(h == 2 || h == 3)) return;      /* caller index: never past the hardware */
     /* cs_setup/cs_hold enable bits are on from init; the time fields add (n) extra SCLK cycles */
     user1_base[h - 2] = (setup > 31 ? 31 : setup) << 17 | (hold > 31 ? 31 : hold) << 22;
     REG(USER1(h)) = user1_base[h - 2];
@@ -178,6 +187,7 @@ static uint32_t lines_sh(uint8_t n) { return n == 2 ? 0 : n == 4 ? 1 : n == 8 ? 
 
 int spi_hd_xfer(int h, const spi_hd_t *t, const void *tx, void *rx, size_t len)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if ((h != 2 && h != 3) || (tx && rx) || t->cmd_bits > 16 || t->addr_bits > 32 ||
         (h == 3 && (t->lines == 8 || t->cmd_lines == 8 || t->addr_lines == 8))) return -1;
     int k = h - 2;
@@ -204,6 +214,7 @@ int spi_hd_xfer(int h, const spi_hd_t *t, const void *tx, void *rx, size_t len)
  * them. Command bits 0x10/0x20 (+0x40/0x80 for dual/quad address) select 2/4 data lines. */
 int spi_slave_hd_init(int h, int sclk, int cs, const int8_t io[4], int mode)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (h != 2 && h != 3) return -1;
     periph_enable(h == 2 ? PERIPH_SPI2 : PERIPH_SPI3);
     REG(CLK_GATE(h)) = BIT(0);
@@ -229,6 +240,7 @@ int spi_slave_hd_init(int h, int sclk, int cs, const int8_t io[4], int mode)
 
 void spi_slave_hd_buf_write(int h, uint32_t addr, const void *src, size_t len)
 {
+    if (!(h == 2 || h == 3)) return;      /* caller index: never past the hardware */
     const uint8_t *b = src;
     for (size_t i = 0; i < len && addr + i < 64; i++) {
         uint32_t a = addr + i, sh = 8 * (a & 3);
@@ -238,6 +250,7 @@ void spi_slave_hd_buf_write(int h, uint32_t addr, const void *src, size_t len)
 
 void spi_slave_hd_buf_read(int h, uint32_t addr, void *dst, size_t len)
 {
+    if (!(h == 2 || h == 3)) return;      /* caller index: never past the hardware */
     uint8_t *b = dst;
     for (size_t i = 0; i < len && addr + i < 64; i++) b[i] = REG(W(h, (addr + i) / 4)) >> (8 * ((addr + i) & 3));
 }
@@ -268,6 +281,7 @@ static int hd_dma(int h)
 
 int spi_slave_hd_dma_rx(int h, void *buf, size_t len)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     int c = hd_dma(h);
     if (c < 0 || gdma_chain(hd_rxd, 8, buf, len, false) < 0) return -1;
     REG_SET(DMA_CONF(h), BIT(29)); REG_CLR(DMA_CONF(h), BIT(29));        /* rx afifo */
@@ -289,6 +303,8 @@ int spi_slave_hd_dma_rx_done(int h)
 
 int spi_slave_hd_dma_tx(int h, const void *buf, size_t len)
 {
+    if (in_psram(buf)) return -1;                         /* see xfer_dma: TX DMA from PSRAM is not reliable */
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     int c = hd_dma(h);
     if (c < 0 || gdma_chain(hd_txd, 8, (void *)buf, len, true) < 0) return -1;
     REG_SET(DMA_CONF(h), BIT(31)); REG_CLR(DMA_CONF(h), BIT(31));        /* dma afifo */
@@ -315,6 +331,7 @@ static uint8_t slv_len[2];
 
 int spi_slave_init(int h, int sclk, int mosi, int miso, int cs, int mode)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (h != 2 && h != 3) return -1;
     periph_enable(h == 2 ? PERIPH_SPI2 : PERIPH_SPI3);
     REG(CLK_GATE(h)) = BIT(0);
@@ -337,6 +354,7 @@ int spi_slave_init(int h, int sclk, int mosi, int miso, int cs, int mode)
 
 int spi_slave_arm(int h, const void *tx, size_t len)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (len > 64) return -1;
     const uint8_t *t = tx;
     /* reset, load W0.., then flush the TX prefetch so the shifter reloads W0 */
@@ -357,6 +375,7 @@ int spi_slave_arm(int h, const void *tx, size_t len)
 
 int spi_slave_result(int h, void *rx, size_t len)
 {
+    if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (!(REG(INT_RAW(h)) & DONE)) return -1;
     uint8_t *r = rx;
     size_t n = len < slv_len[h - 2] ? len : slv_len[h - 2];

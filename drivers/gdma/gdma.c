@@ -53,6 +53,7 @@ void gdma_free(int c) { gdma_stop(c); used &= ~BIT(c); }
 
 void gdma_connect(int c, int periph)
 {
+    if (!(c >= 0 && c < 5)) return;      /* caller index: never past the hardware */
     REG_SET(IN_CONF0(c), BIT(0));  REG_CLR(IN_CONF0(c), BIT(0));
     REG_SET(OUT_CONF0(c), BIT(0)); REG_CLR(OUT_CONF0(c), BIT(0));
     REG(IN_CONF0(c)) = BIT(2) | BIT(3) | (periph == GDMA_M2M ? BIT(4) : 0);
@@ -67,10 +68,13 @@ void gdma_connect(int c, int periph)
     REG(OUT_PERI(c)) = sel;
 }
 
-void gdma_set_priority(int c, int prio) { REG(IN_PRI(c)) = prio; REG(OUT_PRI(c)) = prio; }
+void gdma_set_priority(int c, int prio) {
+    if (!(c >= 0 && c < 5)) return;      /* caller index: never past the hardware */
+    REG(IN_PRI(c)) = prio; REG(OUT_PRI(c)) = prio; }
 
 void gdma_check_owner(int c, bool on)
 {
+    if (!(c >= 0 && c < 5)) return;      /* caller index: never past the hardware */
     if (on) { REG_SET(IN_CONF1(c), CONF1_OWNER); REG_SET(OUT_CONF1(c), CONF1_OWNER); }
     else    { REG_CLR(IN_CONF1(c), CONF1_OWNER); REG_CLR(OUT_CONF1(c), CONF1_OWNER); }
 }
@@ -95,6 +99,8 @@ int gdma_chain(gdma_desc_t *d, int n, void *buf, size_t len, bool eof)
 {
     uint8_t *p = buf;
     int i = 0;
+    if (ext(buf) && (((uintptr_t)buf | len) & 63)) return -1;     /* PSRAM: whole cache lines only (gdma.h), else the
+                                                                     cache sync would touch a neighbour's data */
     size_t max = ext(buf) ? GDMA_DESC_MAX & ~63u : GDMA_DESC_MAX;   /* PSRAM: whole 64-byte blocks per descriptor */
     do {
         if (i >= n) return -1;
@@ -113,8 +119,22 @@ int gdma_chain(gdma_desc_t *d, int n, void *buf, size_t len, bool eof)
     return i;
 }
 
+/* PSRAM buffers go through the data cache: before OUT the CPU's writes must reach PSRAM, before IN the cache must
+ * hold no line of the buffer (no stale data after the DMA, no dirty line evicted over it). Rings end at their start. */
+static void cache_sync(gdma_desc_t *d, bool in)
+{
+    gdma_desc_t *first = d;
+    for (int n = 0; d && n < 256; n++) {
+        if (ext(d->buf)) { psram_writeback(d->buf, d->size); if (in) psram_invalidate(d->buf, d->size); }
+        d = d->next;
+        if (d == first) break;
+    }
+}
+
 void gdma_out_start(int c, gdma_desc_t *d)
 {
+    if (!(c >= 0 && c < 5)) return;      /* caller index: never past the hardware */
+    cache_sync(d, false);
     REG(OUT_INT_CLR(c)) = ~0u;
     REG(OUT_LINK(c)) = ((uint32_t)d & 0xFFFFF);
     REG_SET(OUT_LINK(c), BIT(21));
@@ -122,6 +142,8 @@ void gdma_out_start(int c, gdma_desc_t *d)
 
 void gdma_in_start(int c, gdma_desc_t *d)
 {
+    if (!(c >= 0 && c < 5)) return;      /* caller index: never past the hardware */
+    cache_sync(d, true);
     REG(IN_INT_CLR(c)) = ~0u;
     REG(IN_LINK(c)) = ((uint32_t)d & 0xFFFFF);
     REG_SET(IN_LINK(c), BIT(22));
@@ -162,6 +184,7 @@ RAM_FN static void in_isr(void *a)
 
 int gdma_on_out_eof(int c, void (*fn)(void *), void *arg, int level)
 {
+    if (!(c >= 0 && c < 5)) return -1;      /* caller index: never past the hardware */
     REG_CLR(OUT_INT_ENA(c), BIT(1));
     out_cb[c] = (cb_t){ fn, arg };
     if (!fn) return 0;
@@ -173,6 +196,7 @@ int gdma_on_out_eof(int c, void (*fn)(void *), void *arg, int level)
 
 int gdma_on_in_done(int c, void (*fn)(void *), void *arg, int level)
 {
+    if (!(c >= 0 && c < 5)) return -1;      /* caller index: never past the hardware */
     REG_CLR(IN_INT_ENA(c), BIT(0));
     in_cb[c] = (cb_t){ fn, arg };
     if (!fn) return 0;
@@ -210,6 +234,7 @@ static int m2m_start(int c, void *dst, const void *src, size_t len)
 
 int gdma_memcpy(int c, void *dst, const void *src, size_t len)
 {
+    if (!(c >= 0 && c < 5)) return -1;      /* caller index: never past the hardware */
     uint8_t *d = dst; const uint8_t *s = src;
     while (len) {
         size_t k = len > M2M_MAX ? M2M_MAX : len;
@@ -227,6 +252,7 @@ int gdma_memcpy(int c, void *dst, const void *src, size_t len)
 
 int gdma_memcpy_async(int c, void *dst, const void *src, size_t len, void (*done)(void *), void *arg, int level)
 {
+    if (!(c >= 0 && c < 5)) return -1;      /* caller index: never past the hardware */
     if (!len || len > M2M_MAX) return -1;
     if (done) {
         if (in_int[c] < 0 && (in_int[c] = irq_attach(SRC_IN(c), level, in_isr, (void *)c)) < 0) return -1;

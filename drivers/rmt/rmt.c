@@ -46,7 +46,7 @@
 #define HALF 24
 
 typedef struct { const uint32_t *src; size_t left; volatile bool busy; uint32_t base; bool dma; } tx_t;
-typedef struct { uint32_t *dst; size_t max, got; volatile int done; uint32_t rd; } rx_t;
+typedef struct { uint32_t *dst; size_t max; volatile size_t got; volatile int done; uint32_t rd; } rx_t;
 static tx_t tx[4];
 static rx_t rx[4];
 static int cpu_int = -1;
@@ -111,6 +111,7 @@ RAM_FN void rmt_isr(void *arg)
 
 uint32_t rmt_tx_init(int c, int pin, uint32_t hz, bool idle)
 {
+    if (!(c >= 0 && c < 4)) return 0;      /* caller index: never past the hardware */
     if (c < 0 || c > 3 || !hz || 80000000 % hz) return 0;
     uint32_t div = 80000000 / hz;
     if (div < 1 || div > 255) return 0;
@@ -125,6 +126,7 @@ uint32_t rmt_tx_init(int c, int pin, uint32_t hz, bool idle)
 
 int rmt_tx(int c, const rmt_item_t *items, size_t n)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     tx_t *t = &tx[c];
     if (t->busy) return -1;
     t->src = (const uint32_t *)items; t->left = n; t->busy = true; t->base = 0;
@@ -144,6 +146,7 @@ bool rmt_tx_wait(int c) { return SPIN_US(!READ_ONCE(tx[c].busy), 60000000u); }  
 
 void rmt_tx_carrier(int c, uint32_t hz, int duty)
 {
+    if (!(c >= 0 && c < 4)) return;      /* caller index: never past the hardware */
     if (!hz) { REG_CLR(TX_CONF0(c), TX_CARRIER); return; }
     uint32_t per = 80000000 / hz, hi = per * duty / 100;
     REG(CARRIER(c)) = hi << 16 | (per - hi);
@@ -152,6 +155,7 @@ void rmt_tx_carrier(int c, uint32_t hz, int duty)
 
 uint32_t rmt_rx_init(int c, int pin, uint32_t hz, uint32_t idle, uint32_t filter_ns)
 {
+    if (!(c >= 0 && c < 4)) return 0;      /* caller index: never past the hardware */
     if (c < 0 || c > 3 || !hz || 80000000 % hz) return 0;
     uint32_t div = 80000000 / hz, filt = filter_ns * 80 / 1000;
     if (div < 1 || div > 255 || idle > 32767 || filt > 255) return 0;
@@ -166,6 +170,7 @@ uint32_t rmt_rx_init(int c, int pin, uint32_t hz, uint32_t idle, uint32_t filter
 
 int rmt_rx_start(int c, rmt_item_t *buf, size_t max)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     rx[c] = (rx_t){ .dst = (uint32_t *)buf, .max = max };
     REG_CLR(RX_CONF0(c), BIT(23));                          /* back from DMA mode */
     REG(RX_LIM(c)) = HALF;
@@ -179,6 +184,7 @@ int rmt_rx_start(int c, rmt_item_t *buf, size_t max)
 
 int rmt_rx_wait(int c, uint32_t us)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     uint32_t t = ccount(), lim = us * (sys_cpu_hz() / 1000000);
     while (!READ_ONCE(rx[c].done)) if (ccount() - t > lim) return -1;
     return rx[c].got;
@@ -188,6 +194,7 @@ int rmt_rx_wait(int c, uint32_t us)
 
 int rmt_tx_loop(int c, const rmt_item_t *items, size_t n, uint32_t loops)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     tx_t *t = &tx[c];
     if (c < 0 || c > 3 || t->busy || !n || n > 47 || loops > 1023) return -1;
     volatile uint32_t *ram = RMT_RAM(c);
@@ -223,6 +230,7 @@ void rmt_tx_sync(uint32_t mask)
 
 void rmt_rx_demod(int c, uint32_t hz, uint32_t res_hz, int duty_pct, bool active_high)
 {
+    if (!(c >= 0 && c < 4)) return;      /* caller index: never past the hardware */
     if (!hz) { REG_CLR(RX_CONF0(c), BIT(28)); return; }
     /* IDF rmt_rx_demodulate_carrier: thresholds in channel ticks */
     /* the thresholds are maxima: +25 % so a carrier at the nominal duty still counts */
@@ -247,6 +255,8 @@ static int dma_get(void)
 
 int rmt_tx_dma(int c, const rmt_item_t *items, size_t n)
 {
+    if (gdma_is_psram(items)) return -1;                          /* TX DMA from PSRAM: refused (gdma.h) */
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     tx_t *t = &tx[c];
     if (c != 3 || t->busy || dma_get() < 0) return -1;
     int k = gdma_chain(dtx, 8, (void *)items, n * 4, false);
@@ -268,6 +278,7 @@ int rmt_tx_dma(int c, const rmt_item_t *items, size_t n)
 
 int rmt_rx_dma_start(int c, rmt_item_t *buf, size_t max)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     if (c != 3 || dma_get() < 0) return -1;
     if (gdma_chain(drx, 8, buf, max * 4, false) < 0) return -1;
     rx[c] = (rx_t){ .dst = (uint32_t *)buf, .max = max };
@@ -286,6 +297,7 @@ int rmt_rx_dma_start(int c, rmt_item_t *buf, size_t max)
 
 int rmt_rx_dma_wait(int c, uint32_t us)
 {
+    if (!(c >= 0 && c < 4)) return -1;      /* caller index: never past the hardware */
     uint32_t t = ccount(), lim = us * (sys_cpu_hz() / 1000000);
     while (!READ_ONCE(rx[c].done)) if (ccount() - t > lim) return -1;
     size_t bytes = 0;

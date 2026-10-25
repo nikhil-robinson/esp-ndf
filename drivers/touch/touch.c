@@ -82,7 +82,9 @@ void touch_filter(bool on)
     REG(CHN_ST) = 0x7FFEu << 15;                            /* restart the benchmarks from the current value */
 }
 
-void touch_threshold(int pad, uint32_t thr) { REG(THRES(pad)) = thr & 0x3FFFFF; }
+void touch_threshold(int pad, uint32_t thr) {
+    if (!(pad >= 1 && pad <= 14)) return;      /* caller index: never past the hardware */
+    REG(THRES(pad)) = thr & 0x3FFFFF; }
 
 static touch_fn_t ev_fn; static void *ev_arg; static uint16_t last_active;
 

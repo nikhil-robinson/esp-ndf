@@ -70,6 +70,7 @@ static uint32_t init_code(int unit, int atten)
 
 void adc_load_code(int unit, int atten)
 {
+    if (!(unit >= 1 && unit <= 2)) return;      /* caller index: never past the hardware */
     if (code_atten[unit - 1] == atten) return;
     uint32_t code = adc_calibrated() ? init_code(unit, atten) : 0;
     regi2c_write_mask(REGI2C_SAR, unit == 1 ? 2 : 5, 6, 4, 4);              /* DREF = 4 */
@@ -80,6 +81,7 @@ void adc_load_code(int unit, int atten)
 
 int adc_channel(int unit, int ch, adc_atten_t atten)
 {
+    if (!(unit >= 1 && unit <= 2)) return -1;      /* caller index: never past the hardware */
     if (unit < 1 || unit > 2 || ch < 0 || ch > 9 || atten > 3) return -1;
     adc_power_up();
     int pin = unit == 1 ? ch + 1 : ch + 11;
@@ -136,6 +138,7 @@ static uint32_t cal_digi(int unit, int atten)       /* eFuse reference reading a
 
 int adc_raw_to_mv(int unit, adc_atten_t atten, int raw)
 {
+    if (!(unit >= 1 && unit <= 2)) return -1;      /* caller index: never past the hardware */
     if (!adc_calibrated() || raw < 0 || (unit != 1 && unit != 2) || (unsigned)atten > 3) return -1;
     uint32_t cd = cal_digi(unit, atten);
     if (!cd) return -1;
@@ -158,5 +161,6 @@ int adc_raw_to_mv(int unit, adc_atten_t atten, int raw)
 
 int adc_read_mv(int unit, int ch)
 {
+    if (!(unit >= 1 && unit <= 2)) return -1;      /* caller index: never past the hardware */
     return adc_raw_to_mv(unit, atten_of[unit - 1][ch], adc_read_raw(unit, ch));
 }

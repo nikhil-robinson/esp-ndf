@@ -37,6 +37,7 @@ static bool pin_ok(int pin, uint32_t flags)
 
 int gpio_config(int pin, uint32_t f)
 {
+    if (!(pin >= 0 && pin <= 48)) return -1;      /* caller index: never past the hardware */
     if (!pin_ok(pin, f)) return -1;
     if (pin <= 21) REG_CLR(RTCIO_PAD(pin), BIT(19));   /* take the pad back from the RTC mux */
     uint32_t mux = 1u << MUX_SEL_S | 2u << MUX_DRV_S;        /* function 1 = GPIO */
@@ -56,11 +57,13 @@ int gpio_config(int pin, uint32_t f)
 
 void gpio_drive(int pin, int s)
 {
+    if (!(pin >= 0 && pin <= 48)) return;      /* caller index: never past the hardware */
     REG_FIELD(IO_MUX_GPIO(pin), MUX_DRV_S, 2, s & 3);
 }
 
 void gpio_out_signal(int pin, int sig, bool inv)
 {
+    if (!(pin >= 0 && pin <= 48)) return;      /* caller index: never past the hardware */
     /* b10: output-enable comes from GPIO_ENABLE (always driven), not the peripheral */
     REG(GPIO_FUNC_OUT_SEL(pin)) = (sig & 0x1FF) | (inv ? BIT(9) : 0) | BIT(10);
     REG(pin < 32 ? GPIO_ENABLE_W1TS : GPIO_ENABLE1_W1TS) = BIT(pin & 31);
@@ -69,6 +72,7 @@ void gpio_out_signal(int pin, int sig, bool inv)
 
 void gpio_in_signal(int pin, int sig, bool inv)
 {
+    if (!((pin >= 0 && pin <= 48) || pin == GPIO_IN_HIGH || pin == GPIO_IN_LOW) || sig < 0 || sig > 255) return;   /* pin or the constant-1/0 inputs */
     REG(GPIO_FUNC_IN(sig)) = (pin & 0x3F) | (inv ? BIT(6) : 0) | BIT(7);
     if (pin < 49) REG_SET(IO_MUX_GPIO(pin), MUX_IE);
 }
@@ -90,6 +94,7 @@ RAM_FN static void gpio_isr(void *unused)
 
 int gpio_irq_attach(int pin, gpio_irq_t type, int level, irq_fn_t fn, void *arg)
 {
+    if (!(pin >= 0 && pin <= 48)) return -1;      /* caller index: never past the hardware */
     if (!pin_ok(pin, GPIO_FORCE) || !fn) return -1;
     int core = core_id();
     if (gpio_cpu_int[core] < 0) {

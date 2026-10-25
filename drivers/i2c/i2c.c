@@ -63,6 +63,7 @@ static void fifo_reset(int p)
 
 uint32_t i2c_master_init(int p, int sda, int scl, uint32_t hz, bool pu)
 {
+    if (!(p >= 0 && p < 2)) return 0;      /* caller index: never past the hardware */
     if (p < 0 || p > 1 || hz < 1000 || hz > 1000000) return 0;
     mcfg[p].hz = hz; mcfg[p].pu = pu; mcfg[p].filt = BIT(8) | BIT(9) | 0x77; mcfg[p].to = BIT(5) | 23;
     periph_enable(pid[p]);
@@ -130,6 +131,7 @@ static void wait_idle(int p, uint32_t t0, uint32_t lim)
 i2c_err_t i2c_master_xfer(int p, uint16_t addr, const uint8_t *w, size_t wl,
                           uint8_t *r, size_t rl, uint32_t us)
 {
+    if (!(p >= 0 && p < 2)) return -1;      /* caller index: never past the hardware */
     /* 10-bit (IDF i2c_master.c): header 11110 A9 A8 R/W, then A7..A0; a read sends the write header,
      * repeated start, then the header byte alone with R = 1 */
     bool ten = addr & I2C_ADDR10;
@@ -213,6 +215,7 @@ RAM_FN static void slave_isr(void *arg)
 
 int i2c_slave_init(int p, int sda, int scl, uint16_t addr, bool pu)
 {
+    if (!(p >= 0 && p < 2)) return -1;      /* caller index: never past the hardware */
     if (p < 0 || p > 1) return -1;
     periph_enable(pid[p]);
     periph_reset(pid[p]);                                   /* as IDF: no state left from an earlier role */
@@ -239,6 +242,7 @@ int i2c_slave_init(int p, int sda, int scl, uint16_t addr, bool pu)
 
 int i2c_slave_read(int p, uint8_t *b, size_t n)
 {
+    if (!(p >= 0 && p < 2)) return -1;      /* caller index: never past the hardware */
     size_t k = 0;
     while (k < n && st_[p] != sh[p]) b[k++] = srx[p][st_[p]++ & (SRING - 1)];
     return k;
@@ -246,6 +250,7 @@ int i2c_slave_read(int p, uint8_t *b, size_t n)
 
 int i2c_slave_write(int p, const uint8_t *b, size_t n)
 {
+    if (!(p >= 0 && p < 2)) return -1;      /* caller index: never past the hardware */
     size_t k = 0;
     while (k < n && ((REG(SR(p)) >> 18) & 0x3F) < 32) REG(DATA(p)) = b[k++];
     return k;
@@ -253,6 +258,7 @@ int i2c_slave_write(int p, const uint8_t *b, size_t n)
 
 void i2c_set_filter(int p, uint32_t cycles)
 {
+    if (!(p >= 0 && p < 2)) return;      /* caller index: never past the hardware */
     uint32_t c = cycles > 15 ? 15 : cycles;
     REG(FILTER(p)) = mcfg[p].filt = cycles ? BIT(8) | BIT(9) | c << 4 | c : 0;    /* SCL [3:0], SDA [7:4] */
     REG_SET(CTR(p), BIT(11));
@@ -260,6 +266,7 @@ void i2c_set_filter(int p, uint32_t cycles)
 
 uint32_t i2c_set_timeout(int p, uint32_t us)
 {
+    if (!(p >= 0 && p < 2)) return 0;      /* caller index: never past the hardware */
     /* TO counts 2^n source cycles (n 1..22) of SCL low/held; pick the smallest >= us */
     uint32_t sclk = 40000000 / ((REG(CLK_CONF(p)) & 0xFF) + 1), n = 1;
     while (n < 22 && ((uint64_t)1 << n) * 1000000 < (uint64_t)us * sclk) n++;

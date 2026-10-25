@@ -8,7 +8,8 @@
 /* Returns the achieved SCLK in Hz (exact divider of 80 MHz), 0 on error.
  * Pins < 0 are unused. mode = 0..3 (CPOL/CPHA). */
 uint32_t spi_master_init(int host, int sclk, int mosi, int miso, int cs, uint32_t hz, int mode);
-/* Full duplex: tx and/or rx may be NULL. Buffers for DMA (> 64 bytes) must be in DRAM. */
+/* Full duplex: tx and/or rx may be NULL. DMA (> 64 bytes): tx must be in internal RAM (PSRAM tx: -1), rx may be PSRAM
+ * (64-byte aligned, whole lines). */
 int      spi_xfer(int host, const void *tx, void *rx, size_t len);
 
 /* Slave: arm one full-duplex transfer of up to 64 bytes; done when CS rises. */

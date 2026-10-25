@@ -50,6 +50,7 @@ void sleep_wake_timer(uint64_t us) { timer_us = us; triggers |= WAKE_TIMER; }
 
 int sleep_wake_ext0(int pin, int level)
 {
+    if (!(pin >= 0 && pin <= 21)) return -1;      /* caller index: never past the hardware */
     if (rtcio_config(pin, GPIO_INPUT) < 0) return -1;
     FIELD(EXT_WAKEUP0, 31, 27, pin);
     FIELD(EXT_WAKEUP_CONF, 30, 30, level ? 1 : 0);

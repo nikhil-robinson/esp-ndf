@@ -87,6 +87,8 @@ static uint32_t em_addr(uint32_t off)
     return (uint32_t)em_buf + ble_em_segs[b].pos + off - ble_em_segs[b].em_off;
 }
 #define EM16(off) (*(volatile uint16_t *)em_addr(off))
+/* offsets come from descriptors the radio writes: a span must lie inside em_buf before anything is copied */
+static bool em_span_ok(uint32_t off, uint32_t n) { uint32_t a = em_addr(off); return a >= (uint32_t)em_buf && a + n <= (uint32_t)em_buf + sizeof em_buf && a + n >= a; }
 
 static uint32_t clkn(void)
 {
@@ -103,7 +105,7 @@ static void drain(void)
             st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
         }
         uint32_t n = (q_head + 1) % Q_N;
-        if (conn_on && cn.evt == 0 && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
+        if (conn_on && cn.evt == 0 && em_span_ok(EM16(d + 0x12), 6) && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
         if (n == q_tail) st.dropped++;
         else {
             ble_hw_pkt_t *p = &q[q_head];
@@ -111,7 +113,9 @@ static void drain(void)
             p->hdr0 = ph & 0xFF; p->len = ph >> 8; p->rssi = (int8_t)(ch & 0xFF); p->chan = (ch >> 8) & 0x3F;
             p->clkn = EM16(d + 8) | (uint32_t)EM16(d + 10) << 16;
             uint32_t len = p->len > 37 ? 37 : p->len;
-            memcpy(p->data, (const void *)em_addr(EM16(d + 0x12)), len);
+            p->len = len;                                /* consumers see what was copied, never more */
+            uint16_t src = EM16(d + 0x12);
+            if (em_span_ok(src, len)) memcpy(p->data, (const void *)em_addr(src), len); else { EM16(d) &= 0x7FFF; continue; }
             q_head = n;
         }
         st.packets++;
@@ -759,7 +763,10 @@ int ble_hw_raw_read3(uint8_t *buf, unsigned max, unsigned *len, uint16_t *status
             if (t_hu) *t_hu = (uint64_t)(EM16(d + 8) | (uint32_t)EM16(d + 10) << 16) * 625u + (624u - (EM16(d + 0x0C) & 0x3FF));   /* sync time */
             unsigned n = *len < max ? *len : max;
             uint16_t pp = EM16(d + 0x12);
-            memcpy(buf, pp >= TXBUF && pp < TXBUF + 0x400 ? (const void *)((uint8_t *)tx_buf + (pp - TXBUF)) : (const void *)em_addr(pp), n);
+            bool in_tx = pp >= TXBUF && pp + n <= TXBUF + 0x400u;
+            if (in_tx) memcpy(buf, (const void *)((uint8_t *)tx_buf + (pp - TXBUF)), n);
+            else if (em_span_ok(pp, n)) memcpy(buf, (const void *)em_addr(pp), n);
+            else n = 0;                                    /* descriptor points outside our buffers: drop */
             buf[0] = buf[0]; if (n == 0 && max) buf[0] = (uint8_t)h;
             EM16(d) &= 0x7FFF; EM16(d + 4) = 0;
             d = d + 0x14 < RING0 + raw_rx_n * 0x14 ? d + 0x14 : RING0;

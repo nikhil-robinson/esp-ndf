@@ -116,6 +116,7 @@ uint32_t lcd_i80_init(const lcd_i80_cfg_t *c)
 
 int lcd_i80_send_async(int cmd, const void *data, size_t n)
 {
+    if (gdma_is_psram(data)) return -1;                          /* TX DMA from PSRAM: refused (gdma.h) */
     lcd_i80_wait();
     if (n && gdma_chain(d, 8, (void *)data, n, true) < 0) return -1;
     uint32_t u = REG(LCD_USER) & (BIT(23) | BIT(13));
@@ -149,6 +150,7 @@ static gdma_desc_t fbd[64];
 
 uint32_t lcd_rgb_start(const lcd_rgb_cfg_t *c, const void *fb)
 {
+    if (gdma_is_psram(fb)) return 0;                          /* TX DMA from PSRAM: refused (gdma.h) */
     if (bus_up(c->bits) < 0) return 0;
     uint32_t hz = clock_set(c->pclk_hz);
     size_t bytes = (size_t)c->width * c->height * (c->bits / 8);

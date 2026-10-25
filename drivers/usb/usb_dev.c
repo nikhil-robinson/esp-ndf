@@ -422,6 +422,7 @@ bool usb_cdc_tx_idle(void) { return pp[0].tx_cur < 0; }
 
 size_t usb_pipe_read(int k, void *buf, size_t max)
 {
+    if (!(k >= 0 && k < 2)) return 0;      /* caller index: never past the hardware */
     pipe_t *q = &pp[k];
     uint8_t *p = buf; size_t n = 0; uint32_t c0 = ccount();
     while (n < max) {
@@ -444,6 +445,7 @@ size_t usb_pipe_read(int k, void *buf, size_t max)
 
 size_t usb_pipe_write(int k, const void *buf, size_t n)
 {
+    if (!(k >= 0 && k < 2)) return 0;      /* caller index: never past the hardware */
     pipe_t *q = &pp[k];
     if (!configured || q->tx_q >= 0 || !n) return 0;    /* both buffers in use */
     if (n > q->txmax) n = q->txmax;

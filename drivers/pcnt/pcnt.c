@@ -70,6 +70,7 @@ static void unit_init(int u)
 int pcnt_channel(int u, int c, int sig, int ctl, pcnt_edge_t pos, pcnt_edge_t neg,
                  pcnt_ctrl_t hi, pcnt_ctrl_t lo)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     if (u < 0 || u >= PCNT_UNITS || c < 0 || c > 1) return -1;
     unit_init(u);
     uint32_t mode = neg | pos << 2 | hi << 4 | lo << 6;
@@ -81,6 +82,7 @@ int pcnt_channel(int u, int c, int sig, int ctl, pcnt_edge_t pos, pcnt_edge_t ne
 
 int pcnt_quadrature(int u, int a, int b)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     /* x4: ch0 counts A edges qualified by B, ch1 counts B edges qualified by A */
     if (pcnt_channel(u, 0, a, b, PCNT_EDGE_UP, PCNT_EDGE_DOWN, PCNT_CTRL_INVERT, PCNT_CTRL_KEEP)) return -1;
     return pcnt_channel(u, 1, b, a, PCNT_EDGE_UP, PCNT_EDGE_DOWN, PCNT_CTRL_KEEP, PCNT_CTRL_INVERT);
@@ -88,6 +90,7 @@ int pcnt_quadrature(int u, int a, int b)
 
 void pcnt_filter(int u, uint32_t ns)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return;      /* caller index: never past the hardware */
     uint32_t cyc = ns * 80 / 1000;                  /* APB cycles */
     if (cyc > 1023) cyc = 1023;
     REG_FIELD(U_CONF0(u), 0, 11, cyc ? (cyc | BIT(10)) : 0);
@@ -135,10 +138,13 @@ static void rearm(int u, uint32_t conf1, int32_t limit)
     REG(INT_CLR) = BIT(u);
 }
 
-void pcnt_pause(int u, bool p) { REG_FIELD(CTRL, 2 * u + 1, 1, p); }
+void pcnt_pause(int u, bool p) {
+    if (!(u >= 0 && u < PCNT_UNITS)) return;      /* caller index: never past the hardware */
+    REG_FIELD(CTRL, 2 * u + 1, 1, p); }
 
 int pcnt_watch(int u, int16_t thres0, int16_t thres1, uint32_t events, pcnt_watch_fn_t fn, void *arg)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     if (u < 0 || u >= PCNT_UNITS) return -1;
     uint32_t ps = irq_lock();
     w[u].fn = fn; w[u].arg = arg; w[u].ev = events; w[u].step = false;
@@ -152,6 +158,7 @@ int pcnt_watch(int u, int16_t thres0, int16_t thres1, uint32_t events, pcnt_watc
 
 int pcnt_step_notify(int u, int32_t step, pcnt_watch_fn_t fn, void *arg)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     /* no hardware step notify on the S3 (IDF: P4 only): make the wrap limit = step. The counter then
      * wraps by itself at +-step, gap-free, and the existing wrap interrupt is the step event. */
     if (u < 0 || u >= PCNT_UNITS || step <= 0 || step > 32767) return -1;
@@ -172,6 +179,7 @@ static void on_index(void *arg)
 
 int pcnt_index(int u, int pin, bool rising)
 {
+    if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     /* no hardware clear input on the S3 (IDF SOC_PCNT_SUPPORT_CLEAR_SIGNAL: not here): GPIO interrupt */
     if (u < 0 || u >= PCNT_UNITS) return -1;
     if (!((pin < 32 ? REG(0x60004020) >> pin : REG(0x6000402C) >> (pin - 32)) & 1))   /* GPIO_ENABLE: */

@@ -19,6 +19,7 @@ static int wr8(uint16_t reg, uint8_t v)
 
 int gt911_init(int port, uint8_t addr, char id[5], uint16_t *xres, uint16_t *yres)
 {
+    if (!(port >= 0 && port < 2)) return -1;      /* caller index: never past the hardware */
     g_port = port; g_addr = addr;
     uint8_t b[8];
     if (rd(0x8140, b, 8)) return -1;                       /* product id (4 ascii), fw version, x res, y res */

@@ -33,8 +33,8 @@ static volatile uint32_t alerts, state = TWAI_ST_ACTIVE;
 
 static void reset_mode(bool on)
 {
-    if (on) { REG_SET(MOD, BIT(0)); SPIN_US(REG(MOD) & BIT(0), 1000); }
-    else    { REG_CLR(MOD, BIT(0)); SPIN_US(!(REG(MOD) & BIT(0)), 1000); }
+    if (on) { REG_SET(MOD, BIT(0)); SPIN_US(REG(MOD) & BIT(0), 100000); }
+    else    { REG_CLR(MOD, BIT(0)); SPIN_US(!(REG(MOD) & BIT(0)), 2000000); }   /* after bus-off: 128 x 11 recessive bits first */
 }
 
 RAM_FN static void twai_isr(void *arg)
