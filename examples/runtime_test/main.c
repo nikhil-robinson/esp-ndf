@@ -202,3 +202,19 @@ TEST(rng_quality)                                       /* 64 KB from rng_hw: mo
     printf("      rng_hw: ones %lu of %lu (%.4f), byte chi2 %.1f (255 dof, 99.9%% bound 330)\n", ones, n * 32, ones / (n * 32.0), chi);
     UASSERT(ones > n * 16 - 1500 && ones < n * 16 + 1500 && chi < 330);
 }
+
+#include "gpio.h"
+TEST(gpio_system_pads_refused)                          /* flash / octal PSRAM pads cannot be taken, even forced */
+{
+    UASSERT(gpio_config(27, GPIO_OUTPUT) < 0);
+    UASSERT(gpio_config(30, GPIO_OUTPUT | GPIO_FORCE) < 0);
+    UASSERT(gpio_config(19, GPIO_OUTPUT) < 0);           /* USB-JTAG pads: only with GPIO_FORCE */
+    UASSERT(gpio_config(4, GPIO_OUTPUT) == 0);
+}
+
+#include "irq.h"
+static void naked_dummy(void) {}
+TEST(memprot_locked_refuses_vector_patch)               /* NDF_MEMPROT 2: code stays read-only, the patch is refused */
+{
+    UASSERT_EQ(irq_naked(-1, 5, naked_dummy), -2);
+}

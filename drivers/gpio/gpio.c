@@ -1,5 +1,7 @@
 /* GPIO driver: IO_MUX pad config, GPIO matrix, pin interrupts, dedicated GPIO. */
 #include "gpio.h"
+#include "psram.h"
+#include "flash.h"
 #include "clk.h"
 #include "soc.h"
 #include "xtensa.h"
@@ -28,11 +30,16 @@
 #define DGPIO_SIG_CORE0  221
 #define DGPIO_SIG_CORE1  129
 
+/* Pads the running system depends on are never handed out: 26-32 carry SPI flash (and quad PSRAM), 33-37 octal
+ * PSRAM / octal flash when in use - reconfiguring them stops code fetch at once. GPIO_FORCE only opens the USB-JTAG
+ * pads 19/20 (the console and the debug link: the caller takes that on knowingly). */
 static bool pin_ok(int pin, uint32_t flags)
 {
     if (pin < 0 || pin > 48 || (pin >= 22 && pin <= 25)) return false;
+    if (pin >= 26 && pin <= 32) return false;
+    if (pin >= 33 && pin <= 37 && (psram_size() || flash_info()->octal)) return false;
     if (flags & GPIO_FORCE) return true;
-    return !(pin == 19 || pin == 20 || (pin >= 26 && pin <= 32));
+    return !(pin == 19 || pin == 20);
 }
 
 int gpio_config(int pin, uint32_t f)
@@ -63,7 +70,7 @@ void gpio_drive(int pin, int s)
 
 void gpio_out_signal(int pin, int sig, bool inv)
 {
-    if (!(pin >= 0 && pin <= 48)) return;      /* caller index: never past the hardware */
+    if (!pin_ok(pin, GPIO_FORCE) || sig < 0 || sig > 0x1FF) return;   /* never onto the flash / octal memory pads */
     /* b10: output-enable comes from GPIO_ENABLE (always driven), not the peripheral */
     REG(GPIO_FUNC_OUT_SEL(pin)) = (sig & 0x1FF) | (inv ? BIT(9) : 0) | BIT(10);
     REG(pin < 32 ? GPIO_ENABLE_W1TS : GPIO_ENABLE1_W1TS) = BIT(pin & 31);

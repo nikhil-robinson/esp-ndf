@@ -129,8 +129,9 @@
                                          * a core's stack (bytes left for the report); 0 off */
 #endif
 #ifndef NDF_MEMPROT
-#define NDF_MEMPROT             1       /* memory protection from boot: code not writable, data not executable (panic on
-                                         * a violation); 2 also locks the settings until reset; 0 off */
+#define NDF_MEMPROT             2       /* memory protection from boot: code not writable, data not executable (panic on
+                                         * a violation); 2 (default, as IDF) also locks it until reset: naked vector patching
+                                         * (irq_naked) then returns -2 - set 1 for it; 0 off */
 #endif
 #ifndef NDF_ULP_RESERVE
 #define NDF_ULP_RESERVE         0       /* RTC slow memory for a ULP program, from 0x50000000 (multiple of 16; RTC_DATA moves above it) */

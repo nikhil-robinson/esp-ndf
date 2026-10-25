@@ -129,27 +129,29 @@ uint32_t irq_naked_fn[2][SOC_CORES];           /* used by vectors.S: [level-4][c
 extern char _vec_l4_jump0[], _vec_l5_jump0[], _vec_l4_jump1[], _vec_l5_jump1[];
 extern char _l4_naked_0[], _l4_naked_1[], _l5_naked_0[], _l5_naked_1[];
 
-static void patch_j(char *at, char *to)
+static bool patch_j(char *at, char *to)                  /* false: code is locked read-only (NDF_MEMPROT 2) */
 {
     int32_t off = (int32_t)(to - at - 4);               /* J: target = PC + 4 + offset (18-bit) */
     uint32_t insn = 0x06 | ((uint32_t)off & 0x3FFFF) << 6;
     volatile uint8_t *d = (volatile uint8_t *)((uint32_t)at - 0x6F0000);   /* DRAM alias of IRAM */
     uint32_t ps = irq_lock();
     bool opened = memprot_code_write(true);             /* code is store-protected (memprot) */
+    if (!opened) { irq_unlock(ps); return false; }      /* locked: refuse, never write into protected code */
     d[0] = insn; d[1] = insn >> 8; d[2] = insn >> 16;
     __asm__ volatile("memw; isync");
-    if (opened) memprot_code_write(false);
+    memprot_code_write(false);
     irq_unlock(ps);
+    return true;
 }
 
 /* point this core's level-4/5 vector at handler: direct J if in range, else via the redirect */
-static void naked_vector(int core, int level, void (*handler)(void))
+static bool naked_vector(int core, int level, void (*handler)(void))
 {
     char *at = level == 4 ? (core ? _vec_l4_jump1 : _vec_l4_jump0) : (core ? _vec_l5_jump1 : _vec_l5_jump0);
     int32_t off = (int32_t)((char *)handler - at - 4);
     irq_naked_fn[level - 4][core] = (uint32_t)handler;
-    if (off >= -131072 && off < 131072) patch_j(at, (char *)handler);
-    else patch_j(at, level == 4 ? (core ? _l4_naked_1 : _l4_naked_0) : (core ? _l5_naked_1 : _l5_naked_0));
+    if (off >= -131072 && off < 131072) return patch_j(at, (char *)handler);
+    return patch_j(at, level == 4 ? (core ? _l4_naked_1 : _l4_naked_0) : (core ? _l5_naked_1 : _l5_naked_0));
 }
 
 int irq_naked(int src, int level, void (*handler)(void))
@@ -163,9 +165,9 @@ int irq_naked(int src, int level, void (*handler)(void))
     }
     if (n < 0) { irq_unlock(ps); return -1; }
     irq_tab[core][n] = (irq_slot_t){ (irq_fn_t)handler, 0 };   /* marks the line used */
-    if (src >= 0) soc_intr_route(core, src, n);
     irq_unlock(ps);
-    naked_vector(core, level, handler);
+    if (!naked_vector(core, level, handler)) { irq_tab[core][n].fn = 0; return -2; }   /* code locked (NDF_MEMPROT 2) */
+    if (src >= 0) soc_intr_route(core, src, n);
     intenable_set(n, true);
     return n;
 }
@@ -176,7 +178,7 @@ void irq_naked_install(int n, void (*handler)(void))
     int lvl = soc_intr_level(n), core = core_id();
     if (lvl < 4 || lvl > 5) return;
     irq_tab[core][n] = (irq_slot_t){ (irq_fn_t)handler, 0 };
-    naked_vector(core, lvl, handler);
+    if (!naked_vector(core, lvl, handler)) { irq_tab[core][n].fn = 0; return; }   /* code locked: not installed */
     intenable_set(n, true);
 }
 
