@@ -320,7 +320,7 @@ static uint64_t to_u64(uint64_t u, int *neg, int *big)
 int32_t __fixdfsi(double d)
 {
     int n, b; uint64_t v = to_u64(bits(d), &n, &b);
-    if (n) return v > 0x80000000ull ? INT32_MIN : -(int32_t)(uint32_t)v;
+    if (n) return v > 0x80000000ull ? INT32_MIN : (int32_t)(0u - (uint32_t)v);
     return v > 0x7FFFFFFF ? INT32_MAX : (int32_t)v;
 }
 uint32_t __fixunsdfsi(double d) { int n, b; uint64_t v = to_u64(bits(d), &n, &b); return n ? 0 : v > 0xFFFFFFFFull ? 0xFFFFFFFFu : (uint32_t)v; }

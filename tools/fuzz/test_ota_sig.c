@@ -5,6 +5,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "sha.h"
+/* signing is not exercised here: host stand-ins for the SHA engine calls the hedged nonce makes */
+void sha_start(sha_ctx_t *c, sha_type_t t) { (void)c; (void)t; }
+void sha_update(sha_ctx_t *c, const void *d, size_t n) { (void)c; (void)d; (void)n; }
+void sha_finish(sha_ctx_t *c, uint8_t *o) { (void)c; memset(o, 0x5A, 32); }
 void rng_fill(void *b, size_t n) { for (size_t i = 0; i < n; i++) ((uint8_t *)b)[i] = rand(); }
 static void hex(const char *h, uint8_t *o, int n) { for (int i = 0; i < n; i++) sscanf(h + 2 * i, "%2hhx", &o[i]); }
 int main(int argc, char **argv)

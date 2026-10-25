@@ -213,7 +213,7 @@ static void oct_init(void)
     }
     info.jedec_id = (uint32_t)id[0] << 16 | id[1] << 8 | id[2];
     uint8_t c = id[2]; if (c > 0x30) c -= 0x20;                        /* MXIC octal density codes */
-    info.size = 1u << c;
+    info.size = c >= 0x10 && c <= 0x1F ? 1u << c : 0;                 /* odd ID: unknown size, no undefined shift */
     info.erase_size[0] = 4096; info.erase_cmd[0] = 0x21;               /* 4-byte address commands only */
     info.erase_size[1] = 65536; info.erase_cmd[1] = 0xDC;
     info.erase_size[2] = 0;
@@ -233,7 +233,8 @@ const flash_info_t *flash_info(void)
     info.jedec_id = flash_jedec_id();
     uint8_t c = info.jedec_id & 0xFF;
     if ((info.jedec_id >> 16) == 0xC2 && c > 0x30) c -= 0x20;          /* MXIC octal density codes */
-    info.size = c >= 0x10 && c <= 0x21 ? 1u << c : 0;
+    if (c == 0x20 || c == 0x21) c -= 6;                                /* 512 Mb / 1 Gb codes: 64 / 128 MB */
+    info.size = c >= 0x10 && c <= 0x1F ? 1u << c : 0;
     info.erase_size[0] = 4096;  info.erase_cmd[0] = 0x20;              /* JEDEC defaults */
     info.erase_size[1] = 32768; info.erase_cmd[1] = 0x52;
     info.erase_size[2] = 65536; info.erase_cmd[2] = 0xD8;

@@ -59,7 +59,8 @@ static uint32_t clock_set(uint32_t hz)
     p = (tot + g / 2) / g;
     if (p < 1) p = 1;
     if (p > 64) p = 64;
-    REG(LCD_CLOCK) = (p == 1 ? BIT(6) : (p - 1)) | BIT(7) | g << 9 | 3u << 29 | BIT(31);   /* pclk idles high */
+    if (p < 2) p = 2;                                       /* erratum LCD-239: never CLK_EQU_SYSCLK (divider 1) */
+    REG(LCD_CLOCK) = (p - 1) | BIT(7) | g << 9 | 3u << 29 | BIT(31);   /* pclk idles high */
     return 160000000u / g / p;
 }
 
@@ -155,7 +156,7 @@ uint32_t lcd_rgb_start(const lcd_rgb_cfg_t *c, const void *fb)
     uint32_t hz = clock_set(c->pclk_hz);
     size_t bytes = (size_t)c->width * c->height * (c->bits / 8);
     int k = gdma_chain(fbd, 64, (void *)fb, bytes, false);
-    if (!hz || k < 0) return 0;
+    if (!hz || k <= 0) return 0;                            /* empty frame: no descriptor to loop */
     fbd[k - 1].next = &fbd[0];                              /* the frame buffer for ever */
     REG(LCD_USER) = (c->bits == 16 ? BIT(23) : 0) | BIT(13) | BIT(24);
     REG(LCD_MISC) = 17u << 1 | BIT(25) | BIT(26);           /* next frame automatically, porches (IDF blank 1/1) */

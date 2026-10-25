@@ -37,7 +37,6 @@ int main(void)
     rf_init_replay();
     rf_pll_result_t r; rf_pll_set_khz(2437000, &r);
     rf_rx_on();
-    uint32_t mhz = sys_cpu_hz() / 1000000;
     /* clock relations over 1 s of SYSTIMER (16 MHz, crystal): sample counter (circular write index,
      * polled and unwrapped), 0x60033D4C, CPU cycle counter */
     for (int rate = 0; rate < 2; rate++) {

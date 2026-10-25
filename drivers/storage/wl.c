@@ -7,6 +7,7 @@
 #include "wl.h"
 #include "flash.h"
 #include "crc32.h"
+#include "rng.h"
 #include "xtensa.h"
 #include <string.h>
 
@@ -51,11 +52,19 @@ static int state_copy(wl_t *w, uint32_t from, uint32_t to)
     return 0;
 }
 
+/* a CRC-valid state can still be crafted: its fields must match the layout this partition implies, else the
+ * position arithmetic (phys) would address outside the data area */
+static bool state_sane(const wl_t *w)
+{
+    uint32_t mp = 1 + w->flash_size / SEC;
+    return w->st.version == VERSION && w->st.block_size == SEC && w->st.max_pos == mp && w->st.move_count < mp;
+}
+
 static void recover_pos(wl_t *w)
 {
     uint32_t i = 0;
     while (i < w->st.max_pos && rec_ok(w, w->addr_state1, i)) i++;
-    w->st.dummy_pos = i == w->st.max_pos ? i - 1 : i;
+    w->st.dummy_pos = i == w->st.max_pos ? i - 1 : i;     /* max_pos >= 2 (state_sane): no underflow */
 }
 
 static int init_sections(wl_t *w)
@@ -64,7 +73,7 @@ static int init_sections(wl_t *w)
     w->st.max_erase_count = UPDATE_RATE;
     w->st.version = VERSION;
     w->st.block_size = SEC;
-    w->st.device_id = READ_ONCE(REG(0x6003507C)) ^ ccount();   /* RNG_DATA */
+    w->st.device_id = rng_u32();                          /* random: distinguishes this layout's records */
     w->st.max_pos = 1 + w->flash_size / SEC;
     w->st.crc32 = crc(&w->st, CRC_LEN);
     if (state_write(w, w->addr_state1) || state_write(w, w->addr_state2)) return -1;
@@ -154,18 +163,23 @@ int wl_mount(wl_t *w, bdev_t *b, const partition_t *p)
     if (ok1 && ok2) {
         if (w->st.version != VERSION) { if (init_sections(w)) return -1; }
         else if (w->st.crc32 != s2.crc32 && state_copy(w, w->addr_state1, w->addr_state2)) return -1;
+        if (!state_sane(w)) return -1;
         recover_pos(w);
     } else if (!ok1 && !ok2) {                       /* blank or foreign: new layout */
         if (init_sections(w)) return -1;           /* ponytail: no v1 -> v2 upgrade */
+        if (!state_sane(w)) return -1;
         recover_pos(w);
     } else if (ok1) {
         if (state_copy(w, w->addr_state1, w->addr_state2)) return -1;
+        if (!state_sane(w)) return -1;
         recover_pos(w);
     } else {
         w->st = s2;
         if (state_copy(w, w->addr_state2, w->addr_state1)) return -1;
+        if (!state_sane(w)) return -1;
         recover_pos(w);
     }
+    if (!state_sane(w)) return -1;                        /* crafted / inconsistent state: refuse, never guess */
     *b = (bdev_t){ SEC, w->flash_size / SEC, rd, wr, sync_, w };
     return 0;
 }

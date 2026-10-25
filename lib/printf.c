@@ -317,7 +317,8 @@ static int format(out_t *o, const char *f, va_list ap)
             if (v || prec != 0) do *--s = '0' + (v & 7); while (v >>= 3);
             if (alt && *s != '0') *--s = '0';     /* # : leading 0 */
             str = s; break;
-        case 'n':
+        case 'n':                                 /* writes memory: off unless NDF_PRINTF_N (format-string attacks) */
+            if (!NDF_PRINTF_N) { (void)va_arg(ap, int *); continue; }
             if (lng > 1) *va_arg(ap, int64_t *) = o->total;
             else if (sh == 1) *va_arg(ap, short *) = (short)o->total;
             else if (sh > 1) *va_arg(ap, signed char *) = (signed char)o->total;

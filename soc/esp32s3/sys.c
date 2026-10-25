@@ -231,9 +231,12 @@ bool sys_peek_crash(sys_crash_t *c) { if (crash_rec.magic != CRASH_MAGIC) return
 
 uint32_t sys_crash_count(void) { return (crash_count_v & 0xFFFF0000u) == 0x5A5A0000u ? crash_count_v & 0xFFFF : 0; }
 
+__attribute__((weak)) void ndf_on_panic(void) {}
+
 void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp)
 {
     irq_lock();
+    ndf_on_panic();                                   /* outputs to a safe state before anything that can fail */
     int core = core_id();
     printf("\n*** PANIC core%d: %s\n    PC 0x%08lx\n", core, why, (unsigned long)pc);
     crash_rec.magic = 0; crash_rec.core = (uint8_t)core; crash_rec.pc = pc; crash_rec.n_bt = 0;
@@ -290,6 +293,9 @@ NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uin
     delay_us(20000);                                      /* let the console drain */
     sys_restart();
 #else
+    for (int n = 0; n < 2; n++) {                         /* halt means halt: the interrupt watchdog would reset (reboot storm) */
+        REG(TIMG_WDTWPROTECT(n)) = WDT_WKEY; REG(TIMG_WDTCONFIG0(n)) = 0; REG(TIMG_WDTWPROTECT(n)) = 0;
+    }
     for (;;) {}
 #endif
 }

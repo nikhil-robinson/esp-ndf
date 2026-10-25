@@ -2,6 +2,7 @@
  * Register sequence from the TRM (SPI_MEM, IO MUX, cache MMU) and the vendor's octal driver as a reference
  * (esp_psram_impl_octal.c): pins, CS timing, mode registers over SPI1 in octal DTR, then SPI0's cache path. */
 #include "psram.h"
+#include "irq.h"
 #include "flash.h"
 #include "xtensa.h"
 #include "sys.h"
@@ -89,10 +90,22 @@ uint32_t psram_bench_jedec(void)
 }
 
 #define DCACHE_SYNC 0x600C4028u
+/* Erratum CACHE-126 (all revisions v0.0-v0.2): a write-back can return wrong data to a concurrent cache hit. As the
+ * errata workaround: interrupts off on this core and the D-cache frozen (EXTMEM_DCACHE_FREEZE, mode 0: the other
+ * core stalls on a miss) for the duration of the write-back. */
+#define DCACHE_FREEZE 0x600C4150u                          /* b0 ena b1 mode b2 done */
 static void dcache_op(uint32_t addr, uint32_t size, uint32_t op)   /* op: 1 invalidate, 4 write back (clean) */
 {
+    uint32_t ps = irq_lock();
+    bool wb = op == 4;
+    if (wb) {
+        *(volatile uint32_t *)DCACHE_FREEZE = BIT(0);
+        for (uint32_t t = ccount(); !(*(volatile uint32_t *)DCACHE_FREEZE & BIT(2)) && ccount() - t < 2400000; ) {}
+    }
     *(volatile uint32_t *)0x600C402C = addr; *(volatile uint32_t *)0x600C4030 = size; *(volatile uint32_t *)DCACHE_SYNC = op;
     uint32_t t = ccount(); while (!(*(volatile uint32_t *)DCACHE_SYNC & 8) && ccount() - t < 24000000) {}
+    if (wb) *(volatile uint32_t *)DCACHE_FREEZE = 0;
+    irq_unlock(ps);
 }
 void psram_writeback(void *p, size_t n) { uint32_t a = (uint32_t)p & ~63u; dcache_op(a, (((uint32_t)p + n + 63) & ~63u) - a, 4); }
 void psram_invalidate(void *p, size_t n) { uint32_t a = (uint32_t)p & ~63u; dcache_op(a, (((uint32_t)p + n + 63) & ~63u) - a, 1); }

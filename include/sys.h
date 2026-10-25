@@ -21,4 +21,8 @@ NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vad
  * "make backtrace APP=... ADDR='0x... 0x...'"). Then halts or restarts
  * (NDF_PANIC_RESTART). */
 NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp);
+/* Called first on every fault / assert / watchdog report, interrupts masked, on the panic stack: drive actuators to a
+ * safe state here (register writes only - no heap, no locks, no printf). Weak, default empty. A watchdog firing with
+ * interrupts masked is a hardware reset instead: no code runs, every pad returns to its reset state (input, no drive). */
+void ndf_on_panic(void);
 void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint32_t sp);   /* print only, interrupts left masked */

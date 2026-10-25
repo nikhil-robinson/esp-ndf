@@ -163,13 +163,14 @@ int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t i
     if ((mode == AES_ECB || mode == AES_CBC) && (len & 15)) return -1;
     const uint8_t *s = in; uint8_t *d = out;
     size_t full = len & ~(size_t)15;
-    if (full >= 16u * NDF_AES_DMA_MIN && dma_ok(s, full) && dma_ok(d, full) && (aes_ch >= 0 || (aes_ch = gdma_alloc()) >= 0)) {
+    if (full >= 16u * NDF_AES_DMA_MIN && dma_ok(s, full) && dma_ok(d, full) && (aes_ch = gdma_alloc()) >= 0) {   /* per call */
         uint32_t st = aes_lock();
         for (size_t j = 0; j < full; ) {
             size_t nb = (full - j) / 16; if (nb > DESCS * 255) nb = DESCS * 255;   /* 4080 B per descriptor */
             dma_run(mode, key, key_len, encrypt, iv, s + j, d + j, nb);
             j += nb * 16;
         }
+        gdma_free(aes_ch); aes_ch = -1;                   /* the chip has 5 channels: none kept idle */
         aes_unlock(st);
         s += full; d += full; len -= full;
     }

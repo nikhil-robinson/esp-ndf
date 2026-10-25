@@ -49,7 +49,9 @@ int gdma_alloc(void)
     return -1;
 }
 
-void gdma_free(int c) { gdma_stop(c); used &= ~BIT(c); }
+static int8_t peri_of[5] = { -1, -1, -1, -1, -1 };     /* peripheral id each channel is connected to */
+static uint8_t m2m_conn;                                /* channels connected as memory-to-memory */
+void gdma_free(int c) { if (c < 0 || c >= 5) return; gdma_stop(c); used &= ~BIT(c); peri_of[c] = -1; m2m_conn &= ~BIT(c); }
 
 void gdma_connect(int c, int periph)
 {
@@ -60,10 +62,21 @@ void gdma_connect(int c, int periph)
     REG(OUT_CONF0(c)) = BIT(3) | BIT(4) | BIT(5);      /* EOF when data popped by peripheral */
     REG(IN_CONF1(c)) = CONF1_BK(2);                    /* PSRAM in 64-byte blocks (one cache line) */
     REG(OUT_CONF1(c)) = CONF1_BK(2);
-    /* M2M must still use a valid peripheral id (0..9: PMS grants SRAM access
-     * per peripheral; 10+ is refused with a descriptor error). AES (6) is
-     * unused by esp-ndf, so memory-to-memory borrows it. */
-    int sel = periph == GDMA_M2M ? GDMA_AES : periph;
+    /* M2M must still use a valid peripheral id (0..9: PMS grants SRAM access per peripheral; 10+ is refused with a
+     * descriptor error) - one no other channel is connected to (as IDF's m2m_free_periph_mask), else the two would
+     * trigger each other (measured: AES DMA on core 1 broke memcpy on core 0 when both used 6) */
+    int sel = periph;
+    uint32_t ps = irq_lock();
+    if (periph == GDMA_M2M) {
+        uint32_t busy = 0;
+        for (int k = 0; k < 5; k++) if (k != c && peri_of[k] >= 0) busy |= BIT(peri_of[k]);
+        sel = -1;
+        for (int id = 9; id >= 0 && sel < 0; id--) if (!(busy & BIT(id))) sel = id;
+        if (sel < 0) sel = GDMA_AES;                       /* 5 channels, 10 ids: cannot happen */
+    }
+    peri_of[c] = (int8_t)sel;
+    if (periph == GDMA_M2M) m2m_conn |= BIT(c); else m2m_conn &= ~BIT(c);
+    irq_unlock(ps);
     REG(IN_PERI(c)) = sel;
     REG(OUT_PERI(c)) = sel;
 }
@@ -221,6 +234,7 @@ static gdma_desc_t m2m_out[5][16], m2m_in[5][16];
 
 static int m2m_start(int c, void *dst, const void *src, size_t len)
 {
+    if (!(m2m_conn & BIT(c))) return -1;                  /* not gdma_connect(c, GDMA_M2M): it would drive a peripheral */
     if ((ext(dst) || ext(src)) && (((uint32_t)dst | (uint32_t)src | len) & 63)) return -1;   /* PSRAM: 64-byte lines */
     if (ext(src)) psram_writeback((void *)src, len);       /* the DMA reads PSRAM, not the cache */
     if (ext(dst)) psram_writeback(dst, len);               /* no dirty line may land on top of the DMA data later */

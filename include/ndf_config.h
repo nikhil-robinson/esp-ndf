@@ -177,6 +177,9 @@
 #ifndef NDF_BOOT_VERIFY
 #define NDF_BOOT_VERIFY         1       /* loader checks image + segment ranges + SHA-256: 1 cold boots, 2 also warm resets (+29 ms), 0 off */
 #endif
+#ifndef NDF_PRINTF_N
+#define NDF_PRINTF_N            0       /* printf %n stores the count (C standard): off by default, as hardened libcs */
+#endif
 #ifndef NDF_APPTRACE
 #define NDF_APPTRACE            0       /* app trace over JTAG (trace.h): TRAX blocks 28/29, DRAM ends at 0x3FCE8000 */
 #endif

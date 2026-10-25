@@ -1,4 +1,4 @@
-# Firmware audit findings (esp-ndf, 2026-10-25) - code level, not fixed yet
+# Firmware audit findings (esp-ndf, 2026-10-25) - code level, ALL FIXED (status at the end)
 
 Tools: GCC 13 -fanalyzer, cppcheck 2.17, clang 19 analyzer, clang-tidy (cert/bugprone), semgrep (0 hits), flawfinder,
 host ASan/UBSan fuzzing (tools/fuzz/fuzz_fat.c, tools/fuzz/fuzz_flashfs.c, tools/test_pfs.c), manual review of every
@@ -27,5 +27,24 @@ trust boundary in AUDIT_MAP.md.
 | L5 | LOW | soc/esp32s3/system.c:65 | printf format/type mismatch | fix formats |
 
 False positives checked and dismissed: comparePointers on linker-section loops (cmd.c, unit.c, sys.c), ota.c:56
-uninit, i80.c:157 index, nvs.c:406 and heap reg[] bounds, 213 "use memcpy_s" advisories, -Wcast-align sites
+uninit, nvs.c:406 and heap reg[] bounds, 213 "use memcpy_s" advisories, -Wcast-align sites
 (all guarded by alignment tests except those listed).
+
+## Status (pass 2, 2026-10-25)
+Every row above is fixed (commits 4cd296e, 7c51a3f, be47436 and later); M5 is the accepted eFuse risk (THREAT_MODEL.md).
+Re-scan after the fixes (cppcheck --enable=warning, clang analyzer, semgrep p/c) found and fixed:
+
+| ID | Sev | Location | Issue | Fix |
+|---|---|---|---|---|
+| P1 | MEDIUM | drivers/lcd/i80.c lcd_rgb_start | a zero-byte frame gave k = 0 and wrote fbd[-1] (pass 1 wrongly dismissed it) | `k <= 0` refused |
+| P2 | LOW | drivers/flash/flash.c flash_info / oct_init | density codes 0x20/0x21 shifted by 32/33 (L3 fix incomplete); octal path unchecked | 0x20/0x21 mapped to 64/128 MB, everything else bounded |
+| P3 | LOW | lib/double.c __fixdfsi | negating INT32_MIN in signed arithmetic | negation done unsigned |
+| P4 | MEDIUM | lib/dsp_kalman.c | caller-set n/m larger than DSP_KF_MAX overflowed stack matrices | refused (predict returns, update -1) |
+| P5 | MEDIUM | soc/esp32s3/sys.c ndf_panic | default halt-on-panic spun with interrupts masked, so the new interrupt watchdog reset the chip: a boot-time fault became a reboot loop | halt path stops the timer-group watchdogs; examples/panic_halt_test |
+| P6 | MEDIUM | soc/esp32s3/sys.c | no way to put actuators in a safe state on a fault | weak ndf_on_panic() hook, first thing in the panic path; crash_test checks it |
+
+Also fixed in pass 2: GDMA channel exhaustion (crypto DMA allocated per operation), M2M peripheral-ID collision with
+AES DMA, WL state sanity before recovery (fuzz_wl), printf %n off by default, -Wformat-security, errata CACHE-126 and
+LCD-239 workarounds (ERRATA.md). Remaining analyzer reports are reviewed false positives: signed `>> 31`
+(implementation-defined, GCC arithmetic shift), `%lu` with uint32_t (unsigned long on Xtensa), loader/ota arrays
+filled byte-wise or by slots(), the FIR read-behind window (documented taps-1 history, callers pass it), dead stores.

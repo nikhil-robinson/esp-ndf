@@ -44,9 +44,9 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
     if (!c->first && owner != c)
         for (unsigned i = 0; i < hw; i++) REG(SHA_H(i)) = c->h[i];
     REG(SHA_MODE) = c->type;
-    static int ch = -1;
+    int ch = -1;                                          /* a GDMA channel only for this run: 5 for the whole chip */
     if (n >= NDF_SHA_DMA_MIN && (uintptr_t)p >= 0x3FC88000u && (uintptr_t)p + n * w * 4 <= 0x3FD00000u &&
-        !((uintptr_t)p & 3) && (ch >= 0 || (ch = gdma_alloc()) >= 0)) {
+        !((uintptr_t)p & 3) && (ch = gdma_alloc()) >= 0) {
         static gdma_desc_t d[2];
         gdma_connect(ch, GDMA_SHA);
         while (n) {
@@ -59,6 +59,7 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
             SPIN_US(!REG(SHA_BUSY), 100000);          /* bounded */
             p += k * w * 4; n -= k;
         }
+        gdma_free(ch);                                    /* none free: the CPU path below does the blocks */
     }
     for (; n; n--, p += w * 4) {
         SPIN_US(!REG(SHA_BUSY), 10000);

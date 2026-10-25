@@ -218,3 +218,11 @@ TEST(memprot_locked_refuses_vector_patch)               /* NDF_MEMPROT 2: code s
 {
     UASSERT_EQ(irq_naked(-1, 5, naked_dummy), -2);
 }
+
+#include <stdio.h>
+TEST(printf_n_disabled)                                 /* %n must not store anything (NDF_PRINTF_N 0) */
+{
+    char b[16]; int n = 12345;
+    snprintf(b, sizeof b, "abc%n", &n);
+    UASSERT_EQ(n, 12345);
+}

@@ -10,6 +10,9 @@
 
 #define STEP  (*(volatile uint32_t *)0x50001F70u)
 #define MAGIC (*(volatile uint32_t *)0x50001F74u)
+#define HOOK  (*(volatile uint32_t *)0x50001F78u)      /* ndf_on_panic runs: one bit per step */
+
+void ndf_on_panic(void) { HOOK |= 1u << STEP; }
 
 __attribute__((noinline)) void crash_here(void) { __builtin_trap(); }
 
@@ -24,7 +27,7 @@ int main(void)
 {
     int rc0 = sys_reset_cause(0);                      /* any reset but our own panic restarts / watchdog: start over */
     if (MAGIC != 0x43525348u || !(rc0 == RESET_SW_SYS || rc0 == RESET_SW_CPU || rc0 == RESET_TG1WDT_SYS || rc0 == RESET_TG1WDT_CPU))
-        { MAGIC = 0x43525348u; STEP = 0; }
+        { MAGIC = 0x43525348u; STEP = 0; HOOK = 0; }
     sys_crash_t c; bool had = sys_last_crash(&c);
     if (had) printf("crash_test: last crash \"%s\" pc 0x%08lx, count %lu\n", c.why, c.pc, sys_crash_count());
     switch (STEP) {
@@ -54,6 +57,8 @@ int main(void)
         int rc = sys_reset_cause(0);
         bool wd = (had && strstr(c.why, "atchdog")) || rc == RESET_TG1WDT_SYS || rc == RESET_TG1WDT_CPU;
         printf("%s interrupt watchdog (\"%s\", reset cause %s)\n", wd ? "PASS" : "FAIL", had ? c.why : "", sys_reset_cause_str(rc));
+        /* the masked-core watchdog is a hardware reset (pads back to reset state), no code runs: hook on steps 1-2 */
+        printf("%s safe-state hook ran on both software faults (0x%lx)\n", (HOOK & 0x6) == 0x6 ? "PASS" : "FAIL", HOOK);
         MAGIC = 0;
         printf("crash_test done\n");
         break;

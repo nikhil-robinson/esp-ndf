@@ -28,6 +28,7 @@ static int inv(float *A, float *I, int n)                                       
 void dsp_kf_predict(dsp_kf_t *k)
 {
     int n = k->n; float t[DSP_KF_MAX * DSP_KF_MAX], x[DSP_KF_MAX] = { 0 };
+    if (n < 1 || n > DSP_KF_MAX) return;                            /* caller-set size: never past the arrays */
     mm(k->F, k->x, x, n, n, 1); memcpy(k->x, x, sizeof(float) * n);
     mm(k->F, k->P, t, n, n, n); mmt(t, k->F, k->P, n, n, n);
     for (int i = 0; i < n * n; i++) k->P[i] += k->Q[i];
@@ -36,6 +37,7 @@ void dsp_kf_predict(dsp_kf_t *k)
 int dsp_kf_update(dsp_kf_t *k, const float *z)
 {
     int n = k->n, m = k->m;
+    if (n < 1 || n > DSP_KF_MAX || m < 1 || m > DSP_KF_MAX) return -1;
     float PHt[DSP_KF_MAX * DSP_KF_MAX], S[DSP_KF_MAX * DSP_KF_MAX], Si[DSP_KF_MAX * DSP_KF_MAX] = { 0 }, K[DSP_KF_MAX * DSP_KF_MAX], y[DSP_KF_MAX], t[DSP_KF_MAX * DSP_KF_MAX];
     mmt(k->P, k->H, PHt, n, n, m);                                  /* P H'  (n x m) */
     mm(k->H, PHt, S, m, n, m);                                      /* H P H' */

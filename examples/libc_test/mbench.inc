@@ -34,7 +34,7 @@ static double idd1(double a) { return a; }
 #define D2(fn, a, b) printf("     %-10s(%-7s) %6lu\n", #fn, #a "," #b, (unsigned long)(mcost_d2(fn, a, b) - b2))
 static void mbench(void)
 {
-    uint32_t b1 = mcost_f1(idf1, 1.0f), b2 = mcost_d1(idd1, 1.0);
+    uint32_t b1 = mcost_f1(idf1, 1.0f), b2 = mcost_d1(idd1, 1.0); (void)b2;   /* used by D1/D2 only */
     printf("     math: cycles per call\n");
     F1(sinf, 0.7f); F1(sinf, 2.5f); F1(sinf, 1e4f); F1(cosf, 0.7f); F1(cosf, 2.5f); F1(tanf, 0.7f); F1(tanf, 2.5f);
     F1(asinf, 0.3f); F1(asinf, 0.8f); F1(acosf, 0.8f); F1(atanf, 0.7f); F1(atanf, 3.0f); F2(atan2f, 1.2f, -0.7f);
