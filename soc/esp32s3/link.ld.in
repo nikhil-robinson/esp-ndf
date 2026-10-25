@@ -74,7 +74,7 @@ SECTIONS
         __init_array_end = .;
         . = ALIGN(4);                     /* compile-time registries */
         __cmd_start = .;  KEEP(*(SORT_BY_NAME(.ndf_reg.cmd.*)))  __cmd_end = .;    /* cmd.h */
-        __test_start = .; KEEP(*(.ndf_reg.test.*))               __test_end = .;   /* unit.h, in link order */
+        __test_start = .; KEEP(*(SORT(.ndf_reg.test.*)))         __test_end = .;   /* unit.h, by name */
         _data_end = .;
     } > dram
 

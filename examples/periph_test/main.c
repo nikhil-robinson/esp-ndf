@@ -5,58 +5,60 @@
 
 int test_fail;
 
-static void run(const char *name, void (*fn)(void))
-{
-    int before = test_fail;
-    printf("[%s]\n", name);
-    fn();
-    printf("  %s %s\n", test_fail == before ? "PASS" : "FAIL", name);
-}
+/* tests in run order (later ones depend on state left by earlier ones): unit.h registry, ordered by the
+ * section name prefix. PT_FILTER selects tests by name: make APP=examples/periph_test DEFS='-DPT_FILTER="\"pfs\""'
+ * (not a console line at boot: esptool's sync bytes, 0x55 = 'U', are still in the USB-JTAG RX FIFO then). */
+#ifndef PT_FILTER
+#define PT_FILTER NULL
+#endif
+#define PT(ord, n) static const unit_t __pt_##n __attribute__((used, aligned(4), section(".ndf_reg.test.p" #ord "_" #n))) = \
+    { #n, test_##n, __FILE__, __LINE__ };
+PT(010, rtcio)
+PT(020, gpio)
+PT(030, clkout)
+PT(040, gptimer)
+PT(050, ledc)
+PT(060, ledc_gamma)
+PT(070, mcpwm)
+PT(080, mcpwm_ext)
+PT(090, pcnt)
+PT(100, pcnt_ext)
+PT(110, rmt)
+PT(120, rmt_ext)
+PT(130, sdm)
+PT(140, uart)
+PT(150, uart_modes)
+PT(160, i2c)
+PT(170, i2c_ext)
+PT(180, gdma)
+PT(190, spi)
+PT(200, spi_hd)
+PT(210, i2s)
+PT(220, i2s_modes)
+PT(230, lcd_i80)
+PT(240, cam)
+PT(250, adc)
+PT(260, adc_cont)
+PT(270, adc_filter)
+PT(280, twai)
+PT(290, twai_alerts)
+PT(300, touch)
+PT(310, touch_ext)
+PT(320, touch_denoise)
+PT(330, flash)
+PT(340, partition)
+PT(350, nvs)
+PT(360, nvs_enc)
+PT(370, fat)
+PT(380, fat_ext)
+PT(390, spiffs)
+PT(400, spiffs_rename)
+PT(410, pfs)
 
 int main(void)
 {
     printf("\n=== esp-ndf peripheral tests ===\n");
-    run("rtcio", test_rtcio);
-    run("gpio", test_gpio);
-    run("clkout", test_clkout);
-    run("gptimer", test_gptimer);
-    run("ledc", test_ledc);
-    run("ledc_gamma", test_ledc_gamma);
-    run("mcpwm", test_mcpwm);
-    run("mcpwm_ext", test_mcpwm_ext);
-    run("pcnt", test_pcnt);
-    run("pcnt_ext", test_pcnt_ext);
-    run("rmt", test_rmt);
-    run("rmt_ext", test_rmt_ext);
-    run("sdm", test_sdm);
-    run("uart", test_uart);
-    run("uart_modes", test_uart_modes);
-    run("i2c", test_i2c);
-    run("i2c_ext", test_i2c_ext);
-    run("gdma", test_gdma);
-    run("spi", test_spi);
-    run("spi_hd", test_spi_hd);
-    run("i2s", test_i2s);
-    run("i2s_modes", test_i2s_modes);
-    run("lcd_i80", test_lcd_i80);
-    run("cam", test_cam);
-    run("adc", test_adc);
-    run("adc_cont", test_adc_cont);
-    run("adc_filter", test_adc_filter);
-    run("twai", test_twai);
-    run("twai_alerts", test_twai_alerts);
-    run("touch", test_touch);
-    run("touch_ext", test_touch_ext);
-    run("touch_denoise", test_touch_denoise);
-    run("flash", test_flash);
-    run("partition", test_partition);
-    run("nvs", test_nvs);
-    run("nvs_enc", test_nvs_enc);
-    run("fat", test_fat);
-    run("fat_ext", test_fat_ext);
-    run("spiffs", test_spiffs);
-    run("spiffs_rename", test_spiffs_rename);
-    run("pfs", test_pfs);
-    printf("=== %s (%d failures) ===\n", test_fail ? "FAILED" : "ALL PASS", test_fail);
+    int fails = unit_run(PT_FILTER);
+    printf("=== %s (%d failures) ===\n", fails ? "FAILED" : "ALL PASS", fails);
     return 0;
 }

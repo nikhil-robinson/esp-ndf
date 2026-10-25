@@ -123,7 +123,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
 - [x] Event dispatch (`event.h`): post from ISR / either core, handlers by id or any, drops counted (24x esp_event post)
 - [x] Command line (`cmd.h`): compile-time CMD() registry, line editing, quotes, help; host test tools/repl_test.py
-- [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [ ] port periph_test onto it
+- [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [x] periph_test runs on it (41 tests, ordered by registry name prefix, PT_FILTER for one test)
 - [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
 - [x] Cooperative tasks (`coop.h`): spawn / yield / sleep, CALL0 context (6 registers), hardware stack guard follows the task
 - [x] JTAG debugging guide + `tools/gdb.sh` (docs/DEBUG.md, verified: breakpoint, backtrace, variables); [ ] app trace over JTAG

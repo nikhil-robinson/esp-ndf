@@ -18,10 +18,11 @@ int unit_run(const char *filter)
     for (const unit_t *t = __test_start; t < __test_end; t++) {
         if (filter && !strstr(t->name, filter)) continue;
         failed_now = 0;
+        printf("[%s]\n", t->name);
         uint32_t c = ccount();
         t->fn();
         c = ccount() - c;
-        printf("  %s %-24s %lu cycles\n", failed_now ? "FAIL" : "ok  ", t->name, (unsigned long)c);
+        printf("  %s %s (%lu cycles)\n", failed_now ? "FAIL" : "PASS", t->name, (unsigned long)c);
         n++; fails += failed_now;
     }
     printf("=== unit: %d/%d passed ===\n", n - fails, n);
