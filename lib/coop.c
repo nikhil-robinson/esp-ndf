@@ -1,5 +1,6 @@
 /* Round-robin cooperative scheduler. Task 0..N-1 run on their own stacks; the scheduler context is the caller of
  * coop_run(). A new task starts in coop_entry (its context's a0 / a12 / a13 hold entry, fn, arg). */
+#include "ndf_config.h"
 #include "coop.h"
 #include "sys.h"
 #include "debug.h"
@@ -29,7 +30,8 @@ int coop_spawn(void (*fn)(void *), void *arg, void *stack, size_t n)
 {
     for (int i = 0; i < MAXT; i++) if (!t[i].state) {
         uint32_t top = ((uint32_t)stack + n) & ~15u;
-        t[i] = (task_t){ .fn = fn, .arg = arg, .state = 1, .lo = (uint32_t)stack, .hi = top };
+        uint32_t lo = (uint32_t)stack + (n >= 4 * NDF_STACK_GUARD ? NDF_STACK_GUARD : 0);   /* margin as the boot stacks: */
+        t[i] = (task_t){ .fn = fn, .arg = arg, .state = 1, .lo = lo, .hi = top };           /* frames still fit below */
         t[i].ctx[0] = (uint32_t)coop_entry;                  /* a0: "return" into the entry */
         t[i].ctx[1] = top - 16;                              /* a1: stack (16 B for the callee's spill area) */
         return i;
