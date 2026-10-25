@@ -48,6 +48,9 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
                   'Bit location per chip as ESP-IDF (SR1 bit 6, SR2 bit 1, 16-bit status, XMC OTP mode).'),
     ]),
     ('menu', 'Brownout and glitch', [
+        dict(key='NDF_FLASH_MHZ', type='choice', default='120', target='h', label='Flash clock at run time',
+             choices=[('120', '120 MHz (timing tuned at start, falls back to 80)'), ('80', '80 MHz')],
+             help='SPI flash clock after boot. 120 MHz is tuned at start; a chip that fails the tuning runs at 80 MHz.'),
         dict(key='NDF_BROWNOUT', type='int', default=7, target='h', label='Brownout level (0 = off)', range=(0, 7),
              help='1 3.30 V, 2 3.19 V, 3 2.98 V, 4 2.84 V, 5 2.67 V, 6 2.56 V, 7 2.44 V (IDF default 7). On detection flash '
                   'and RF are powered down and the hardware resets the chip (reset cause brownout), as IDF without the interrupt '
@@ -122,8 +125,17 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='Stack of the function started with cpu1_start() and core 1 interrupt handlers.'),
     ]),
     ('menu', 'Core services', [
+        dict(key='NDF_PSRAM_MALLOC_MIN', type='int', default=16384, target='h', label='malloc: PSRAM from this size', range=(0, 1048576),
+             help='Blocks at least this big try PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL). 0 = never PSRAM.'),
         dict(key='NDF_SWTIMER_LEVEL', type='int', default=1, target='h', label='Software timer IRQ level', range=(1, 3),
              help='Interrupt level the swtimer callbacks run at. Higher preempts more of the application.'),
+        dict(key='NDF_COREDUMP', type='bool', default=True, target='h', label='Core dump to flash on panic',
+             help='Registers, backtrace and stacks to the coredump partition; decode with tools/coredump.py.'),
+        dict(key='NDF_APPTRACE', type='bool', default=False, target='h', label='App trace over JTAG (trace.h)',
+             help='Reserves TRAX blocks 28/29 (0x3FCE8000-0x3FCEFFFF): DRAM ends 4 KB earlier. Host: OpenOCD esp apptrace.'),
+        dict(key='NDF_USB_GUARD_MS', type='int', default=3000, target='h', label='USB OTG guard watchdog (ms)', range=(0, 60000),
+             help='While the PHY belongs to USB OTG, the RTC watchdog resets the chip (PHY back to USB-JTAG) if '
+                  'usb_dev_poll stops for this long. 0 = off (only if the app runs the RTC watchdog itself).'),
         dict(key='NDF_LOG_LEVEL', type='choice', default='NDF_LOG_INFO', target='h', label='Log level',
              choices=[('NDF_LOG_NONE', 'none'), ('NDF_LOG_ERROR', 'error'), ('NDF_LOG_WARN', 'warning'), ('NDF_LOG_INFO', 'info'), ('NDF_LOG_DEBUG', 'debug')],
              help='LOGx() calls above this level compile to nothing: no code, no strings in the image.'),

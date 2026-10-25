@@ -24,6 +24,7 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
+| `NDF_FLASH_MHZ`<br>Flash clock at run time | ndf_config.h | `120` | `120` 120 MHz (timing tuned at start, falls back to 80)<br>`80` 80 MHz | SPI flash clock after boot. 120 MHz is tuned at start; a chip that fails the tuning runs at 80 MHz. |
 | `NDF_BROWNOUT`<br>Brownout level (0 = off) | ndf_config.h | `7` | 0 – 7 | 1 3.30 V, 2 3.19 V, 3 2.98 V, 4 2.84 V, 5 2.67 V, 6 2.56 V, 7 2.44 V (IDF default 7). On detection flash and RF are powered down and the hardware resets the chip (reset cause brownout), as IDF without the interrupt option; bod_start() for interrupt mode with a callback. Costs ~9 us of warm boot. |
 | `NDF_GLITCH_RESET`<br>Clock-glitch and super-WDT resets | ndf_config.h | `y` | y / n | As IDF bootloader: a clock glitch or a starved super watchdog resets the chip. |
 
@@ -85,9 +86,16 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
+| `NDF_PSRAM_MALLOC_MIN`<br>malloc: PSRAM from this size | ndf_config.h | `16384` | 0 – 1048576 | Blocks at least this big try PSRAM first (IDF SPIRAM_MALLOC_ALWAYSINTERNAL). 0 = never PSRAM. |
 | `NDF_SWTIMER_LEVEL`<br>Software timer IRQ level | ndf_config.h | `1` | 1 – 3 | Interrupt level the swtimer callbacks run at. Higher preempts more of the application. |
+| `NDF_COREDUMP`<br>Core dump to flash on panic | ndf_config.h | `y` | y / n | Registers, backtrace and stacks to the coredump partition; decode with tools/coredump.py. |
+| `NDF_APPTRACE`<br>App trace over JTAG (trace.h) | ndf_config.h | `n` | y / n | Reserves TRAX blocks 28/29 (0x3FCE8000-0x3FCEFFFF): DRAM ends 4 KB earlier. Host: OpenOCD esp apptrace. |
+| `NDF_USB_GUARD_MS`<br>USB OTG guard watchdog (ms) | ndf_config.h | `3000` | 0 – 60000 | While the PHY belongs to USB OTG, the RTC watchdog resets the chip (PHY back to USB-JTAG) if usb_dev_poll stops for this long. 0 = off (only if the app runs the RTC watchdog itself). |
 | `NDF_LOG_LEVEL`<br>Log level | ndf_config.h | `NDF_LOG_INFO` | `NDF_LOG_NONE` none<br>`NDF_LOG_ERROR` error<br>`NDF_LOG_WARN` warning<br>`NDF_LOG_INFO` info<br>`NDF_LOG_DEBUG` debug | LOGx() calls above this level compile to nothing: no code, no strings in the image. |
 | `NDF_PANIC_RESTART`<br>Restart after a panic | ndf_config.h | `n` | y / n | After a fault, failed NDF_ASSERT or watchdog report (registers + backtrace) the chip halts so a debugger can attach. On: it restarts instead (field devices). |
+| `NDF_STACK_GUARD`<br>Stack guard margin (bytes, 0 = off) | ndf_config.h | `256` | 0 – 4096 | The CPU debug assistant watches SP from boot on both cores and panics (or restarts) when it comes within this many bytes of the bottom of the stack: overflow caught before it corrupts other memory. No run-time cost. |
+| `NDF_MEMPROT`<br>Memory protection (0 off, 1 on, 2 on + locked) | ndf_config.h | `1` | 0 – 2 | PMS split at the end of code: stores into code and fetches from data are blocked and reported (panic). 2 locks the configuration until reset (registers only, no eFuse). |
+| `NDF_ULP_RESERVE`<br>ULP program memory (bytes) | ndf_config.h | `0` | 0 – 3824 | RTC slow memory kept for a ULP-RISC-V program (ulp.h). RTC_DATA_ATTR variables move above it; loading a ULP program makes every reset go through the ROM (the warm-boot jump shares 0x50000000). |
 | `NDF_ASSERT_ENABLE`<br>NDF_ASSERT checks | ndf_config.h | `y` | y / n | Off: NDF_ASSERT() compiles to nothing. |
 | `NDF_UART_RING`<br>UART software ring (bytes) | ndf_config.h | `2048` | 64 – 16384 | Per direction and per port (3 ports), power of 2. Lower it when RAM is tight (an app using the RF dump engine must end below 0x3FCB0000); a small TX ring only makes printf wait. |
 
@@ -103,6 +111,12 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_SPIFFS_MAX_FILES`<br>SPIFFS: open files | ndf_config.h | `4` | 1 – 32 | Open file handles. |
 | `NDF_SPIFFS_MAX_DIRS`<br>SPIFFS: open directories | ndf_config.h | `2` | 1 – 16 | Open directory handles. |
 | `NDF_SPIFFS_MAX_BLOCKS`<br>SPIFFS: max volume (4 KB blocks) | ndf_config.h | `256` | 16 – 4096 | Largest mountable volume; costs ~30 bytes of RAM per block for the lookup mirror. |
+| `NDF_IRQ_SHARES`<br>IRQ: shared-line members | ndf_config.h | `48` | 8 – 256 | Sources that share a CPU interrupt line once the free lines of a level are used up (16 B each). |
+| `NDF_PFS_MAX_FILES`<br>PFS: open files | ndf_config.h | `4` | 1 – 32 | Open file handles (264 B each: 256 B write buffer). |
+| `NDF_PFS_MAX_DIRS`<br>PFS: open directories | ndf_config.h | `2` | 1 – 16 | Open directory handles. |
+| `NDF_PFS_MAX_NAMES`<br>PFS: files on the volume | ndf_config.h | `32` | 4 – 1024 | File table in RAM, 72 B per file. |
+| `NDF_PFS_MAX_EXTENTS`<br>PFS: extents on the volume | ndf_config.h | `512` | 32 – 8192 | Extent list in RAM, 12 B each; a contiguous file of N KB needs about N/4 extents. |
+| `NDF_PFS_MAX_BLOCKS`<br>PFS: max volume (4 KB blocks) | ndf_config.h | `256` | 16 – 4096 | Largest mountable volume; 2 B of RAM per block. |
 | `NDF_NVS_CACHE`<br>NVS: item cache entries | ndf_config.h | `8` | 1 – 64 | Recently read items; repeated nvs_get hits skip the page scan. |
 
 ## Partitions
