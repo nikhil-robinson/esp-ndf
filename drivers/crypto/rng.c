@@ -19,6 +19,56 @@ static uint32_t since_seed;
 #define RSBUF 1024
 static uint8_t  buf[RSBUF] __attribute__((aligned(4))); static unsigned avail;   /* unused keystream: buf[RSBUF - avail..] */
 
+/* Boot seeding with the SAR ADC noise source switched on (IDF bootloader_random_enable / _disable for the S3, register
+ * for register): the RC 8 MHz source alone is not full entropy without RF; with the ADC sampling its internal reference
+ * the RNG words are. Runs once before main (no ADC user yet); the ADC is put back in reset afterwards. */
+#define SAR(o)  (0x60040000u + (o))
+#define SENS(o) (0x60008800u + (o))
+#define PERIP_CLK_EN0 0x600C0018u
+#define PERIP_RST_EN0 0x600C0020u
+#include "../rf/rf_regi2c.h"
+static void sar_entropy(bool on)
+{
+    if (on) {
+        REG_SET(PERIP_CLK_EN0, BIT(28)); REG_CLR(PERIP_CLK_EN0, BIT(28));     /* as IDF: pulse the clock enable */
+        REG_FIELD(SAR(0x70), 21, 2, 2);                                       /* CLKM: APB */
+        REG_SET(SAR(0x00), BIT(6));                                           /* SAR clock gated */
+        REG_SET(SAR(0x70), BIT(20));                                          /* CLKM enable */
+        REG_FIELD(SAR(0x70), 0, 8, 3);
+        REG_FIELD(SAR(0x00), 7, 8, 3);
+        REG_FIELD(SAR(0x04), 12, 12, 70);                                     /* timer target */
+        REG_CLR(SAR(0x00), BIT(0));                                           /* no start force */
+        REG_FIELD(SENS(0x3C), 29, 2, 3);                                      /* force XPD SAR */
+        REG_CLR(SAR(0x04), BIT(0));                                           /* no meas limit */
+        REG_FIELD(SAR(0x00), 3, 2, 1);                                        /* work mode */
+        REG_FIELD(SAR(0x00), 19, 4, 0); REG(SAR(0x28)) = 0xAFFFFF;            /* patterns: internal voltage (0xA) */
+        REG_FIELD(SAR(0x00), 15, 4, 0); REG(SAR(0x18)) = 0xAFFFFF;
+        REG_SET(SENS(0x10), BIT(31)); REG_CLR(SENS(0x34), BIT(31));
+        REG_CLR(SAR(0x38), BIT(5)); REG_CLR(SAR(0x38), BIT(12));
+        REG_FIELD(SAR(0x3C), 19, 5, 0xD); REG_FIELD(SAR(0x3C), 14, 5, 0xD);
+        REG_SET(SAR(0x04), BIT(11)); REG_SET(SAR(0x04), BIT(24));             /* timer select + enable */
+        rf_regi2c_write_bits(0x69, 7, 4, 4, 1); rf_regi2c_write_bits(0x69, 7, 2, 2, 1);
+        rf_regi2c_write_bits(0x69, 7, 3, 3, 0); rf_regi2c_write_bits(0x69, 7, 1, 0, 0);
+    } else {
+        rf_regi2c_write_bits(0x69, 7, 4, 4, 0); rf_regi2c_write_bits(0x69, 7, 2, 2, 0);
+        rf_regi2c_write_bits(0x69, 7, 3, 3, 0); rf_regi2c_write_bits(0x69, 7, 1, 0, 0);
+        REG_FIELD(SENS(0x3C), 29, 2, 0);
+        REG_CLR(SENS(0x10), BIT(31));
+        REG_CLR(SAR(0x04), BIT(24));
+        REG_CLR(PERIP_CLK_EN0, BIT(28));
+        REG_SET(PERIP_RST_EN0, BIT(28));
+    }
+}
+
+void rng_boot_seed(void)
+{
+    rng_init();
+    sar_entropy(true);
+    for (int r = 0; r < 4; r++) for (int i = 0; i < 8; i++) key[i] ^= rng_hw();   /* 1024 bits of hardware words */
+    sar_entropy(false);
+    since_seed = 0;
+}
+
 void rng_init(void)
 {
     REG_SET(WIFI_CLK_EN, BIT(15));

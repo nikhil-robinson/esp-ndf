@@ -1,6 +1,7 @@
 /* AES-GCM on top of aes_crypt (CTR, DMA for long runs); GHASH with Shoup's 8-bit table (4 KB; mbedtls uses 4-bit). See aes.h. */
 #include "aes.h"
 #include <string.h>
+#include <strings.h>
 
 typedef struct { uint32_t m[256][4]; uint8_t y[16]; } ghash_t;     /* m[i] = i * H; 128-bit values as big-endian words */
 static uint16_t r8[256];                                        /* reduction of the byte shifted out by z * x^8 (top 16 bits) */
@@ -52,8 +53,11 @@ static void gh_update(ghash_t *g, const uint8_t *p, size_t n)   /* zero-padded t
 int aes_gcm(const uint8_t *key, int key_len, bool encrypt, const uint8_t *iv, size_t iv_len, const void *aad, size_t aad_len,
             const void *in, void *out, size_t len, uint8_t tag[16])
 {
-    static ghash_t g;                                           /* ponytail: one caller at a time (4 KB not on the stack) */
+    static ghash_t g;                                           /* 4 KB, not on the stack: guarded by the AES engine lock */
+    if (!iv || !iv_len || (key_len != 16 && key_len != 32)) return -1;
     uint8_t h[16] = { 0 }, j0[16], ctr[16], ek[16], lens[16];
+    int r = 0;
+    uint32_t st = aes_lock();
     aes_block(key, key_len, true, h, h);
     gh_init(&g, h);
     if (iv_len == 12) { memcpy(j0, iv, 12); j0[12] = j0[13] = j0[14] = 0; j0[15] = 1; }
@@ -70,9 +74,13 @@ int aes_gcm(const uint8_t *key, int key_len, bool encrypt, const uint8_t *iv, si
     else gh_update(&g, in, len);
     put64(lens, (uint64_t)aad_len * 8); put64(lens + 8, (uint64_t)len * 8); gh_update(&g, lens, 16);
     for (int i = 0; i < 16; i++) g.y[i] ^= ek[i];
-    if (encrypt) { memcpy(tag, g.y, 16); return 0; }
-    uint8_t d = 0; for (int i = 0; i < 16; i++) d |= g.y[i] ^ tag[i];
-    if (d) { memset(out, 0, len); return -1; }
-    aes_crypt(AES_CTR, key, key_len, true, ctr, in, out, len);
-    return 0;
+    if (encrypt) memcpy(tag, g.y, 16);
+    else {
+        uint8_t d = 0; for (int i = 0; i < 16; i++) d |= g.y[i] ^ tag[i];
+        if (d) { memset(out, 0, len); r = -1; }                 /* no unauthenticated plaintext ever leaves */
+        else aes_crypt(AES_CTR, key, key_len, true, ctr, in, out, len);
+    }
+    explicit_bzero(&g, sizeof g); explicit_bzero(h, 16); explicit_bzero(j0, 16); explicit_bzero(ctr, 16); explicit_bzero(ek, 16);
+    aes_unlock(st);
+    return r;
 }

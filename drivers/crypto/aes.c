@@ -4,6 +4,9 @@
 #include "clk.h"
 #include "gdma.h"
 #include <string.h>
+#include <strings.h>
+#include "irq.h"
+#include "xtensa.h"
 
 #define AES_BASE    0x6003A000
 #define AES_KEY(i)  (AES_BASE + 0x00 + 4 * (i))
@@ -21,6 +24,33 @@
 
 static bool up;
 
+/* The engine is one per chip: callers on both cores and in interrupts are serialised (spinlock + interrupts off on
+ * this core); nested calls on the holding core (aes_xts -> aes_block, GCM) pass through. After every operation the key
+ * registers are cleared, so no key stays readable in the engine. Every hardware wait is bounded. */
+static volatile uint32_t lk; static volatile int owner = -1, depth;
+uint32_t aes_lock(void)
+{
+    uint32_t st = irq_lock();
+    if (owner == core_id()) { depth++; return st; }
+    while (__atomic_exchange_n(&lk, 1, __ATOMIC_ACQUIRE)) {}
+    owner = core_id(); depth = 1;
+    return st;
+}
+void aes_unlock(uint32_t st)
+{
+    if (--depth == 0) {
+        for (int i = 0; i < 8; i++) REG(AES_KEY(i)) = 0;
+        owner = -1;
+        __atomic_store_n(&lk, 0, __ATOMIC_RELEASE);
+    }
+    irq_unlock(st);
+}
+static bool wait_until(volatile uint32_t *r, uint32_t want_mask, uint32_t want)   /* bounded: 10 ms */
+{
+    for (uint32_t t = ccount(); (*r & want_mask) != want; ) if (ccount() - t > 2400000u) return false;
+    return true;
+}
+
 void aes_init(void)
 {
     periph_enable(PERIPH_AES);
@@ -35,17 +65,20 @@ void aes_block(const uint8_t *key, int key_len, bool encrypt, const uint8_t in[1
 {
     int mode = (key_len == 32 ? 2 : 0) | (encrypt ? 0 : 4);
     if (!up) aes_init();
+    uint32_t st = aes_lock();
     for (int i = 0; i < key_len / 4; i++) REG(AES_KEY(i)) = ld(key + 4 * i);   /* every block: a cache by pointer missed reused buffers */
     REG(AES_MODE) = mode;
     for (int i = 0; i < 4; i++) REG(AES_IN(i)) = ld(in + 4 * i);
     REG(AES_TRIGGER) = 1;
-    while (READ_ONCE(REG(AES_STATE))) ;
-    for (int i = 0; i < 4; i++) { uint32_t w = REG(AES_OUT(i)); memcpy(out + 4 * i, &w, 4); }
+    if (!wait_until(&REG(AES_STATE), ~0u, 0)) memset(out, 0, 16);              /* engine hung: no stale output */
+    else for (int i = 0; i < 4; i++) { uint32_t w = REG(AES_OUT(i)); memcpy(out + 4 * i, &w, 4); }
+    aes_unlock(st);
 }
 
 void aes_xts(const uint8_t key[64], uint32_t tweak, bool encrypt, const void *in, void *out, size_t n)
 {
     uint8_t t[16] = { 0 }, x[16];
+    uint32_t st = aes_lock();
     memcpy(t, &tweak, 4);
     aes_block(key + 32, 32, true, t, t);
     const uint8_t *s = in;
@@ -58,6 +91,8 @@ void aes_xts(const uint8_t key[64], uint32_t tweak, bool encrypt, const void *in
         for (int i = 15; i > 0; i--) t[i] = t[i] << 1 | t[i - 1] >> 7;
         t[0] = t[0] << 1 ^ (c ? 0x87 : 0);
     }
+    explicit_bzero(t, sizeof t); explicit_bzero(x, sizeof x);
+    aes_unlock(st);
 }
 
 /* ---- block modes by DMA (ESP-IDF port/aes/dma/esp_aes_dma_core.c: GDMA OUT -> AES -> GDMA IN, BLOCK_NUM blocks,
@@ -83,8 +118,8 @@ static void dma_run(int mode, const uint8_t *key, int key_len, bool enc, uint8_t
     gdma_out_start(aes_ch, dout);
     REG(AES_BNUM) = nb;
     REG(AES_TRIGGER) = 1;
-    while (!gdma_in_eof(aes_ch)) {}
-    while (REG(AES_STATE) != 2) {}
+    for (uint32_t t = ccount(); !gdma_in_eof(aes_ch) && ccount() - t < 240000000u; ) {}   /* bounded: 1 s */
+    wait_until(&REG(AES_STATE), ~0u, 2);
     if (mode != AES_ECB) for (int i = 0; i < 4; i++) { uint32_t w = REG(AES_IV(i)); memcpy(iv + 4 * i, &w, 4); }
     REG(AES_DEXIT) = 0;
     REG(AES_DMA_EN) = 0;
@@ -93,6 +128,7 @@ static void dma_run(int mode, const uint8_t *key, int key_len, bool enc, uint8_t
 static void cpu_mode(int mode, const uint8_t *key, int key_len, bool enc, uint8_t iv[16], const uint8_t *in, uint8_t *out, size_t len)
 {
     uint8_t k[16];
+    uint32_t st = aes_lock();
     for (size_t j = 0; j < len; j += 16) {
         size_t n = len - j < 16 ? len - j : 16;
         switch (mode) {
@@ -116,6 +152,8 @@ static void cpu_mode(int mode, const uint8_t *key, int key_len, bool enc, uint8_
             break;
         }
     }
+    explicit_bzero(k, sizeof k);
+    aes_unlock(st);
 }
 
 int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t iv[16], const void *in, void *out, size_t len)
@@ -126,11 +164,13 @@ int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t i
     const uint8_t *s = in; uint8_t *d = out;
     size_t full = len & ~(size_t)15;
     if (full >= 16u * NDF_AES_DMA_MIN && dma_ok(s, full) && dma_ok(d, full) && (aes_ch >= 0 || (aes_ch = gdma_alloc()) >= 0)) {
+        uint32_t st = aes_lock();
         for (size_t j = 0; j < full; ) {
             size_t nb = (full - j) / 16; if (nb > DESCS * 255) nb = DESCS * 255;   /* 4080 B per descriptor */
             dma_run(mode, key, key_len, encrypt, iv, s + j, d + j, nb);
             j += nb * 16;
         }
+        aes_unlock(st);
         s += full; d += full; len -= full;
     }
     if (len) cpu_mode(mode, key, key_len, encrypt, iv, s, d, len);     /* short requests, tails, non-DMA memory */

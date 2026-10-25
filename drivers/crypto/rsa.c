@@ -6,6 +6,7 @@
 #include "clk.h"
 #include "xtensa.h"
 #include <string.h>
+#include "irq.h"
 
 #define RSA_BASE   0x6003C000u
 #define MEM_M      (RSA_BASE + 0x000)
@@ -26,6 +27,14 @@
 #define RSA_PD     0x600C0040u           /* SYSTEM_RSA_PD_CTRL: b0 memory power-down */
 
 static bool up;
+static volatile uint32_t lk;                         /* one engine: callers on both cores are serialised; interrupts stay on */
+static uint32_t rsa_lock(void) { while (__atomic_exchange_n(&lk, 1, __ATOMIC_ACQUIRE)) {} return 0; }   /* (a 4096-bit modexp takes 1.3 s): not from an ISR */
+static void rsa_unlock(uint32_t st, int words)       /* operands (secret exponent, message) do not stay in the engine */
+{
+    for (int i = 0; i < words; i++) { REG(MEM_X + 4 * i) = 0; REG(MEM_Y + 4 * i) = 0; REG(MEM_Z + 4 * i) = 0; }
+    (void)st;
+    __atomic_store_n(&lk, 0, __ATOMIC_RELEASE);
+}
 static void hw_on(void)
 {
     if (up) return;
@@ -93,29 +102,37 @@ static void run(uint32_t start, uint32_t *z, int words)
     for (int i = 0; i < words; i++) z[i] = REG(MEM_Z + 4 * i);
 }
 
-int rsa_exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words)
+/* secret: constant time (TRM: CONSTANT_TIME 1 = no acceleration, no exponent search), so the run time does not
+ * depend on the exponent's bits or length; otherwise the IDF fast path (acceleration + search from the top bit) */
+static int exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words, bool secret)
 {
     int w = mod->words, yb = bits(y, y_words);
-    if (y_words > w) return -1;
+    if (y_words > w || y_words < 0) return -1;
     hw_on();
+    uint32_t st = rsa_lock();
     REG(LENGTH) = w - 1;
     load(MEM_X, x, w, w); load(MEM_Y, y, y_words, w); load(MEM_M, mod->m, w, w); load(MEM_Z, mod->rr, w, w);
     REG(M_DASH) = mod->mprime;
-    REG(CONST_TIME) = 0;
-    REG(SEARCH_EN) = 1;
-    REG(SEARCH_POS) = yb ? yb - 1 : 0;
+    REG(CONST_TIME) = secret ? 1 : 0;
+    REG(SEARCH_EN) = secret ? 0 : 1;
+    REG(SEARCH_POS) = secret ? 0 : (yb ? yb - 1 : 0);
     run(MODEXP, z, w);
-    REG(SEARCH_EN) = 0;
+    REG(SEARCH_EN) = 0; REG(CONST_TIME) = 1;
+    rsa_unlock(st, w);
     return 0;
 }
+int rsa_exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words) { return exp_mod(mod, z, x, y, y_words, true); }
+int rsa_exp_mod_public(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words) { return exp_mod(mod, z, x, y, y_words, false); }
 
 int rsa_mul_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y)
 {
     int w = mod->words;
     hw_on();
+    uint32_t st = rsa_lock();
     REG(LENGTH) = w - 1;
     load(MEM_X, x, w, w); load(MEM_Y, y, w, w); load(MEM_M, mod->m, w, w); load(MEM_Z, mod->rr, w, w);
     REG(M_DASH) = mod->mprime;
     run(MODMULT, z, w);
+    rsa_unlock(st, w);
     return 0;
 }

@@ -43,7 +43,7 @@ INCS  = -Iinclude -Iarch/$(ARCH) -Isoc/$(SOC) -Ibench -Ilib/musl
 
 # CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
 FLAGS = -mabi=call0 -mlongcalls -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
-        -ffunction-sections -fdata-sections -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(CFG_FLAGS) $(INCS)
+        -ffunction-sections -fdata-sections -fstack-protector-strong -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(CFG_FLAGS) $(INCS)
 
 # Rebuild everything when the effective configuration changes (app.mk, command
 # line, adding/removing <app>/ndf_config.h); its contents are tracked by .d files.

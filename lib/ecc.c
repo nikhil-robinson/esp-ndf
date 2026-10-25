@@ -4,6 +4,8 @@
 #include "x25519.h"
 #include "rng.h"
 #include <string.h>
+#include <strings.h>
+#include "sha.h"
 
 typedef uint32_t fe[8];                       /* little-endian limbs */
 typedef struct { const uint32_t *m; uint32_t mp; fe rr, one; } mod_t;   /* modulus, -m^-1 mod 2^32, R^2, R (mod m) */
@@ -167,76 +169,117 @@ static int load_pub(pt *q, const uint8_t pub[64])              /* range + curve 
     return memcmp(l, r, 32) ? -1 : 0;
 }
 
-int p256_check_pub(const uint8_t pub[64]) { init(); pt q; return load_pub(&q, pub); }
+/* P-256 operations share static tables (pmul's T[16], the Montgomery contexts): one caller at a time, both cores.
+ * Not from interrupts (an operation takes milliseconds). Secrets (scalars, nonces, intermediates) are wiped on
+ * every return path. */
+static volatile uint32_t ecc_lk;
+static void ecc_lock(void) { while (__atomic_exchange_n(&ecc_lk, 1, __ATOMIC_ACQUIRE)) {} }
+static void ecc_unlock(void) { __atomic_store_n(&ecc_lk, 0, __ATOMIC_RELEASE); }
+#define WIPE(...) do { void *w_[] = { __VA_ARGS__ }; for (unsigned i_ = 0; i_ < sizeof w_ / sizeof w_[0]; i_++) explicit_bzero(w_[i_], 32); } while (0)
+
+int p256_check_pub(const uint8_t pub[64]) { ecc_lock(); init(); pt q; int r = load_pub(&q, pub); ecc_unlock(); return r; }
+
+static int pubkey_nolock(uint8_t pub[64], const uint8_t priv[32])
+{
+    fe d, x, y; pt q; int r = -1;
+    from_be(d, priv);
+    if (scalar_ok(d)) { pmul(&q, d, &G); if (!affine(x, y, &q)) { to_be(pub, x); to_be(pub + 32, y); r = 0; } }
+    WIPE(d); explicit_bzero(&q, sizeof q);
+    return r;
+}
 
 int p256_pubkey(uint8_t pub[64], const uint8_t priv[32])
 {
-    init();
-    fe d, x, y; from_be(d, priv);
-    if (!scalar_ok(d)) return -1;
-    pt q; pmul(&q, d, &G);
-    if (affine(x, y, &q)) return -1;
-    to_be(pub, x); to_be(pub + 32, y);
-    return 0;
+    ecc_lock(); init();
+    int r = pubkey_nolock(pub, priv);
+    ecc_unlock();
+    return r;
 }
 
 int p256_keygen(uint8_t priv[32], uint8_t pub[64])
 {
-    init();
     fe d;
     do { rng_fill(priv, 32); from_be(d, priv); } while (!scalar_ok(d));
+    WIPE(d);
     return p256_pubkey(pub, priv);
 }
 
 int p256_ecdh(uint8_t shared[32], const uint8_t priv[32], const uint8_t peer[64])
 {
-    init();
-    fe d, x; pt q; from_be(d, priv);
-    if (!scalar_ok(d) || load_pub(&q, peer)) return -1;
-    pmul(&q, d, &q);
-    if (affine(x, 0, &q)) return -1;
-    to_be(shared, x);
-    return 0;
+    ecc_lock(); init();
+    fe d, x; pt q; int r = -1; from_be(d, priv);
+    if (scalar_ok(d) && !load_pub(&q, peer)) { pmul(&q, d, &q); if (!affine(x, 0, &q)) { to_be(shared, x); r = 0; } }
+    WIPE(d, x); explicit_bzero(&q, sizeof q);
+    ecc_unlock();
+    return r;
 }
 
 static void hash_mod_n(fe e, const uint8_t hash[32]) { from_be(e, hash); fe t; if (!sub8(t, e, N)) memcpy(e, t, 32); }
 
-int p256_sign_k(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
+static int sign_k_nolock(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
 {
-    init();
-    fe d, k, e, x, r, s, t; pt q;
+    fe d, k, e, x, r, s, t; pt q; int rc = -1;
     from_be(d, priv); from_be(k, kb);
-    if (!scalar_ok(d) || !scalar_ok(k)) return -1;
+    if (!scalar_ok(d) || !scalar_ok(k)) goto out;
     pmul(&q, k, &G);
-    if (affine(x, 0, &q)) return -1;
+    if (affine(x, 0, &q)) goto out;
     if (sub8(r, x, N)) memcpy(r, x, 32);                       /* r = x mod n (x < p < 2n) */
-    if (is_zero(r)) return -1;
+    if (is_zero(r)) goto out;
     hash_mod_n(e, hash);
     to_m(&mn_, k, k); minv(&mn_, k, k);                        /* k^-1, Montgomery */
     to_m(&mn_, t, r); to_m(&mn_, d, d); mmul(&mn_, t, t, d);   /* r d */
     to_m(&mn_, e, e); madd(&mn_, t, t, e);                     /* e + r d */
     mmul(&mn_, s, t, k); from_m(&mn_, s, s);
-    memset(d, 0, 32); memset(k, 0, 32);
-    if (is_zero(s)) return -1;
+    if (is_zero(s)) goto out;
     to_be(sig, r); to_be(sig + 32, s);
-    return 0;
+    rc = 0;
+out:
+    WIPE(d, k, e, x, t, s); explicit_bzero(&q, sizeof q);
+    return rc;
+}
+
+static int verify_nolock(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64]);
+
+/* a fault during signing (glitch) can leak the key through a wrong signature: check it before it leaves */
+static int sign_checked(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
+{
+    int rc = sign_k_nolock(sig, priv, hash, kb);
+    if (!rc && NDF_ECC_VERIFY_SIGN) {
+        uint8_t pub[64];
+        if (pubkey_nolock(pub, priv) || verify_nolock(pub, hash, sig)) { explicit_bzero(sig, 64); rc = -1; }
+    }
+    return rc;
+}
+
+int p256_sign_k(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t kb[32])
+{
+    ecc_lock(); init();
+    int rc = sign_checked(sig, priv, hash, kb);
+    ecc_unlock();
+    return rc;
 }
 
 int p256_sign(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32])
 {
-    init();
-    uint8_t kb[32]; fe k; int rc;
+    uint8_t kb[32], rnd[32]; fe k; int rc, tries = 0;
+    ecc_lock(); init();
     from_be(k, priv);
-    if (!scalar_ok(k)) return -1;
+    if (!scalar_ok(k)) { ecc_unlock(); return -1; }
     do {                                                       /* retries only on r = 0 or s = 0 */
-        do { rng_fill(kb, 32); from_be(k, kb); } while (!scalar_ok(k));
-        rc = p256_sign_k(sig, priv, hash, kb);
-    } while (rc);
-    memset(kb, 0, 32);
-    return 0;
+        /* hedged nonce: SHA-256(random || key || hash) - a weak or repeating RNG can never repeat k for a new hash */
+        do {
+            rng_fill(rnd, 32);
+            sha_ctx_t c; sha_start(&c, SHA256); sha_update(&c, rnd, 32); sha_update(&c, priv, 32); sha_update(&c, hash, 32);
+            sha_finish(&c, kb); from_be(k, kb);
+        } while (!scalar_ok(k));
+        rc = sign_checked(sig, priv, hash, kb);
+    } while (rc && ++tries < 8);
+    explicit_bzero(kb, 32); explicit_bzero(rnd, 32); WIPE(k);
+    ecc_unlock();
+    return rc;
 }
 
-int p256_verify(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64])
+static int verify_nolock(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64])
 {
     init();
     fe r, s, e, w, u1, u2, x; pt q, a, b;
@@ -272,6 +315,14 @@ static fe a24_m;
 
 static void cswap(fe a, fe b, uint32_t mask) { for (int i = 0; i < 8; i++) { uint32_t t = (a[i] ^ b[i]) & mask; a[i] ^= t; b[i] ^= t; } }
 
+int p256_verify(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64])
+{
+    ecc_lock(); init();
+    int r = verify_nolock(pub, hash, sig);
+    ecc_unlock();
+    return r;
+}
+
 int x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t u[32])
 {
     if (!m25.m) { mod_setup(&m25, P25); fe a = { 121665 }; to_m(&m25, a24_m, a); }
@@ -296,7 +347,7 @@ int x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t u[32])
     cswap(x2, x3, -swap); cswap(z2, z3, -swap);
     minv(M, z2, z2); mmul(M, x2, x2, z2); from_m(M, x2, x2);
     for (int i = 0; i < 8; i++) { out[4*i] = x2[i]; out[4*i+1] = x2[i] >> 8; out[4*i+2] = x2[i] >> 16; out[4*i+3] = x2[i] >> 24; }
-    memset(k, 0, 32);
+    explicit_bzero(k, 32);
     uint32_t o = 0; for (int i = 0; i < 8; i++) o |= x2[i];
     return o ? 0 : -1;                                          /* all-zero shared secret: low-order input */
 }

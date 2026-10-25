@@ -6,6 +6,7 @@
 #include "ndf.h"
 
 void     rng_init(void);                    /* RNG clock + entropy source on; called by the first use too */
+void     rng_boot_seed(void);               /* at boot, before main: seed with the SAR ADC noise source on (IDF bootloader_random) */
 uint32_t rng_hw(void);                      /* one true-random word (~22 us) */
 void     rng_fill(void *buf, size_t len);   /* fast cryptographic random bytes */
 uint32_t rng_u32(void);

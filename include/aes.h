@@ -3,6 +3,9 @@
 #include "ndf.h"
 
 void aes_init(void);
+/* engine lock (reentrant on the holding core; interrupts off on it): hold it across several calls that share state */
+uint32_t aes_lock(void);
+void     aes_unlock(uint32_t st);
 /* one 16-byte block; key_len 16 or 32 */
 void aes_block(const uint8_t *key, int key_len, bool encrypt, const uint8_t in[16], uint8_t out[16]);
 /* XTS-AES-256 (64-byte key: data key | tweak key), n a multiple of 16,

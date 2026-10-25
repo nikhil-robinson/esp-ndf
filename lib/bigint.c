@@ -35,6 +35,7 @@ void big_mul_pow10(big_t *b, int e)
 void big_shl(big_t *b, int k)
 {
     if (!b->n) return;
+    if (k <= 0) return;                                             /* k < 0: no shift (and no negative index) */
     int words = k >> 5, bits = k & 31;
     if (b->n + words + 1 > BIG_LIMBS) words = BIG_LIMBS - b->n - 1;   /* cannot happen within the callers' ranges */
     if (bits) {
@@ -90,6 +91,7 @@ uint32_t big_divmod_1e9(big_t *b)
 /* b >>= k; returns true if any 1 bit was shifted out */
 bool big_shr(big_t *b, int k)
 {
+    if (k <= 0) return false;
     int words = k >> 5, bits = k & 31;
     bool lost = false;
     for (int i = 0; i < words && i < b->n; i++) lost |= b->w[i] != 0;

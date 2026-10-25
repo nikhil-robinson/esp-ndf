@@ -19,6 +19,7 @@ static uint32_t hz_cache;
 uint32_t slow_clk_cal_hz(int src, uint32_t cycles)
 {
     static const uint8_t sel[3] = { 0, 2, 1 };                        /* RTC mux (RC), 32K XTAL, 8MD256 */
+    if ((unsigned)src >= sizeof sel) return 0;
     periph_enable(PERIPH_TIMG0);
     uint32_t conf = REG(CLK_CONF);
     if (src == SLOW_XTAL32K) REG_SET(CLK_CONF, BIT(8));

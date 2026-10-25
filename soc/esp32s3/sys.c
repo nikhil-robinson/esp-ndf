@@ -8,6 +8,31 @@
 #include "xtensa.h"
 #include "console.h"
 #include "unwind.h"
+#include "wdt.h"
+#include "swtimer.h"
+
+/* Stack canaries (-fstack-protector-strong): one guard for both cores, randomised at the top of sys_start0 (the only
+ * frame alive across the change is built without a canary); a smashed canary is a panic, never a return. */
+uintptr_t __stack_chk_guard = 0x5A3C9E17u;
+NORETURN void __stack_chk_fail(void)
+{
+    ndf_panic("stack smashing detected (canary)", (uint32_t)(uintptr_t)__builtin_return_address(0), 0, 0);
+}
+static __attribute__((no_stack_protector)) void canary_init(void)
+{
+    REG_SET(0x60026014u, BIT(15));                      /* RNG clock; RC 8 MHz entropy source */
+    REG_SET(0x60008074u, BIT(10));
+    uint32_t g = 0;
+    for (int i = 0; i < 64; i++) { g = (g << 5 | g >> 27) ^ REG(0x6003507Cu) ^ ccount(); for (volatile int d = 0; d < 50; d++) {} }
+    __stack_chk_guard = g & 0xFFFFFF00u;                /* low byte 0: string copies stop at the canary */
+}
+
+/* Interrupt watchdog (IDF ESP_INT_WDT): timer group 1 watchdog fed from a periodic timer interrupt on core 0; if
+ * interrupts stay masked or the core hangs for NDF_INT_WDT_MS, the watchdog reports and resets. */
+#if NDF_INT_WDT_MS
+static swtimer_t int_wdt_t;
+static void int_wdt_feed(void *a) { (void)a; wdt1_feed(); }
+#endif
 
 extern uint32_t _bss_start[], _bss_end[];
 extern void _start1(void);
@@ -108,10 +133,11 @@ void sys_boot_times(uint32_t *rom_us, uint32_t *init_us)
     if (init_us) *init_us = (uint32_t)((boot_t1 - boot_t0) / 16);
 }
 
-void sys_start0(void)
+__attribute__((no_stack_protector)) void sys_start0(void)
 {
     uint64_t t0 = time_ticks();                 /* first thing: ROM boot + image load ends here */
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
+    canary_init();
     if (((REG(0x60008038u) & 0x3F) != 5)) {      /* not a deep-sleep wake: RTC_BSS_ATTR zeroed (the loader skipped
                                                      .rtc.data likewise) */
         extern uint32_t _rtc_bss_start[], _rtc_bss_end[];
@@ -146,6 +172,7 @@ void sys_start0(void)
 #endif
     periph_enable(PERIPH_SYSTIMER);
     console_init();
+    { extern void rng_boot_seed(void); rng_boot_seed(); }   /* entropy before any app code can ask for keys */
 #if NDF_STACK_GUARD
     guard_boot(0);
 #endif
@@ -153,6 +180,9 @@ void sys_start0(void)
     { extern int memprot_init(bool); memprot_init(NDF_MEMPROT == 2); }
 #endif
     irq_enable_all();                       /* individual sources stay off until attached */
+#if NDF_INT_WDT_MS
+    if (!wdt1_start(NDF_INT_WDT_MS, true)) swt_start(&int_wdt_t, NDF_INT_WDT_MS * 250, true, int_wdt_feed, 0);
+#endif
 #if NDF_BOOT_BANNER
     sys_print_info();
 #endif
@@ -224,6 +254,7 @@ void ndf_panic_report(const char *why, uint32_t pc, const uint32_t *frame, uint3
     else {                                                              /* from here: through the caller(s) */
         uint32_t here_sp, here_a15;
         __asm__ volatile("mov %0, a1\n\tmov %1, a15" : "=r"(here_sp), "=r"(here_a15));
+        if (!sp) sp = here_sp;                                          /* callers without context: scan from here */
         ok = ndf_unwind((uint32_t)&&here, here_sp, 0, here_a15, emit_pc);
     here:;
     }

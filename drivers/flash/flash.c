@@ -249,7 +249,7 @@ const flash_info_t *flash_info(void)
         if (len >= 9 && !sfdp_read(ptr, d, len * 4)) {
             info.sfdp = (uint8_t)len;
             if (!(d[1] & BIT(31))) info.size = (d[1] + 1) / 8;         /* density: bits - 1 */
-            else if ((d[1] & 0x7FFFFFFF) < 40) info.size = 1u << ((d[1] & 0x7FFFFFFF) - 3);
+            else if ((d[1] & 0x7FFFFFFF) >= 3 && (d[1] & 0x7FFFFFFF) <= 34) info.size = 1u << ((d[1] & 0x7FFFFFFF) - 3);   /* 2^N bits; chip data: no UB shift */
             int n = 0;
             for (int k = 0; k < 4; k++) {                              /* erase types 1-4: size 2^N, opcode */
                 uint32_t w = d[7 + k / 2] >> (16 * (k & 1));

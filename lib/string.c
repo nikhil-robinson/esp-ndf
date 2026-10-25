@@ -163,3 +163,11 @@ char *strstr(const char *h, const char *n)
     for (; *h; h++) if (*h == *n && !strncmp(h, n, k)) return (char *)h;
     return 0;
 }
+
+/* clearing the compiler may not remove (keys, plaintext): volatile stores, then a compiler barrier */
+void explicit_bzero(void *p, size_t n)
+{
+    volatile uint8_t *v = p;
+    while (n--) *v++ = 0;
+    __asm__ volatile("" ::: "memory");
+}

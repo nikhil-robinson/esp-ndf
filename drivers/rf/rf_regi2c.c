@@ -26,7 +26,7 @@ RAM_FN static unsigned master(uint8_t block)
     return m;
 }
 
-RAM_FN static void wait(unsigned m) { while (REG(I2C_MST(m)) & BUSY) {} }
+RAM_FN static void wait(unsigned m) { for (uint32_t n = 0; (REG(I2C_MST(m)) & BUSY) && n < 100000u; n++) {} }   /* bounded: a stuck bus never hangs the caller */
 
 RAM_FN uint8_t rf_regi2c_read(uint8_t block, uint8_t reg)
 {

@@ -11,5 +11,9 @@ int      sleep_wake_ext0(int rtc_pin, int level);            /* RTC GPIO 0..21 *
 int      sleep_wake_ext1(uint32_t rtc_pin_mask, bool any_high);
 void     sleep_wake_none(void);
 NORETURN void sleep_deep(void);
+/* Light sleep until a wake source fires: RAM, CPU state and peripherals kept, returns the WAKE_* cause (0 = the
+ * hardware rejected the sleep, or no wake source set). The USB Serial/JTAG link drops while asleep (host re-plug). */
+uint32_t sleep_light(void);
+uint64_t sleep_rtc_us(void);                                 /* RTC timer, runs through every sleep */
 uint32_t sleep_wake_cause(void);                             /* WAKE_* bits of the last wake (after the reset) */
 uint32_t sleep_ext1_pins(void);                              /* EXT1 pins that woke the chip */

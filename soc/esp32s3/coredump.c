@@ -28,6 +28,7 @@ void ndf_coredump(const char *why, uint32_t pc, const uint32_t *frame, uint32_t 
     if (sys_peek_crash(&c)) { h.n_bt = c.n_bt; memcpy(h.bt, c.bt, sizeof h.bt); }
     uint32_t len = stack_top > sp && stack_top - sp < 0x20000 ? stack_top - sp : 0;
     if (len > STACK_MAX) len = STACK_MAX;
+    if (!NDF_COREDUMP_STACK) len = 0;                          /* raw stack may hold keys: off unless asked for */
     h.stack_len = len & ~3u;
     if (partition_erase(p, 0, (sizeof h + h.stack_len + 4095) & ~4095u)) return;
     partition_write(p, sizeof h, (const void *)sp, h.stack_len);   /* body first, header last: a torn dump has no magic */

@@ -164,6 +164,15 @@
 #ifndef NDF_OTA_REQUIRE_SIG
 #define NDF_OTA_REQUIRE_SIG     1       /* OTA images must carry a valid signature (ota_set_key) */
 #endif
+#ifndef NDF_INT_WDT_MS
+#define NDF_INT_WDT_MS          1000    /* interrupt watchdog (timer group 1): reset when interrupts stay off this long; 0 off */
+#endif
+#ifndef NDF_ECC_VERIFY_SIGN
+#define NDF_ECC_VERIFY_SIGN     1       /* P-256: verify every signature before it leaves (fault-injection guard; 2x sign time) */
+#endif
+#ifndef NDF_COREDUMP_STACK
+#define NDF_COREDUMP_STACK      0       /* core dump: also 8 KB of raw stack (debug; may contain secrets) */
+#endif
 #ifndef NDF_APPTRACE
 #define NDF_APPTRACE            0       /* app trace over JTAG (trace.h): TRAX blocks 28/29, DRAM ends at 0x3FCE8000 */
 #endif

@@ -6,6 +6,10 @@
 #include "rtcio.h"
 #include "regi2c.h"
 #include "xtensa.h"
+#include "clk.h"
+#include "cache.h"
+#include "xcore.h"
+#include "sys.h"
 
 #define R(o)            (0x60008000u + (o))
 #define OPTIONS0        R(0x00)
@@ -33,7 +37,10 @@
 #define EXT_WAKEUP1     R(0xE0)   /* b21:0 pins, b22 status clear */
 #define EXT_WAKEUP1_ST  R(0xE4)
 #define WAKEUP_CAUSE    R(0x130)
+#define REG_DRV         R(0x8C)   /* b19:12 DG_VDD_DRV_B_SLP */
 #define EXT_WAKEUP0     0x600084DCu   /* RTC IO: b31:27 EXT0 pin */
+#define USJ_CONF0       0x60038018u   /* b14 USB pad enable */
+#define PERIP_CLK_EN1   0x600C001Cu   /* b2 USB_DEVICE (Serial/JTAG) clock */
 #define FIELD(reg, hi, lo, v) (REG(reg) = (REG(reg) & ~(((1u << ((hi) - (lo) + 1)) - 1) << (lo))) | ((uint32_t)(v) << (lo)))
 
 static uint32_t triggers;
@@ -65,17 +72,87 @@ void sleep_wake_none(void) { triggers = 0; timer_us = 0; }
 uint32_t sleep_wake_cause(void) { return REG(WAKEUP_CAUSE) & 0x1FFFF; }
 uint32_t sleep_ext1_pins(void) { return REG(EXT_WAKEUP1_ST) & 0x3FFFFF; }
 
+static uint64_t rtc_ticks(void)
+{
+    REG(TIME_UPDATE) = BIT(31); for (volatile int k = 0; k < 200; k++) {}
+    return (uint64_t)REG(TIME_HI) << 32 | REG(TIME_LO);
+}
+uint64_t sleep_rtc_us(void) { return rtc_ticks() * 1000000u / rtc_slow_hz(); }
+
+static void arm_timer(void)
+{
+    if (!(triggers & WAKE_TIMER)) return;
+    uint64_t t = rtc_ticks() + timer_us * rtc_slow_hz() / 1000000u;
+    REG(SLP_TIMER0) = (uint32_t)t; REG(SLP_TIMER1) = (uint32_t)(t >> 32) & 0xFFFF;
+    REG(INT_CLR) = BIT(10);
+    REG_SET(SLP_TIMER1, BIT(16));
+}
+
+/* Light sleep, IDF esp_sleep_start(LIGHT) with rtc_sleep_get_default_config for XTAL kept on (digital 1.1 V, no
+ * drop): RAM, CPU state, peripherals and flash stay powered; XTAL, BBPLL and RC8M are forced on so the wake needs
+ * no PLL relock (ponytail: lowest-risk bring-up, not lowest current; drop them as IDF does once measured). USB
+ * Serial/JTAG pad + clock off over the sleep as IDF (the host sees a re-plug), core 1 stalled, cache suspended. */
+RAM_FN static uint32_t light_core(void)
+{
+    REG(WAKEUP_STATE) = (REG(WAKEUP_STATE) & 0x7FFF) | triggers << 15;
+    FIELD(SLP_REJECT, 29, 12, 0);
+    REG(INT_CLR) = BIT(0) | BIT(1);
+    REG_SET(STATE0, BIT(1));
+    REG_SET(STATE0, BIT(31));
+    uint32_t t = 0;
+    while (!(REG(INT_RAW) & (BIT(0) | BIT(1)))) if (++t == 0) break;          /* wake or reject */
+    uint32_t reject = REG(INT_RAW) & BIT(1);
+    REG(INT_CLR) = BIT(0) | BIT(1);
+    FIELD(TIMER2, 23, 15, 0x10);                                              /* touch/ULP wait default */
+    return reject ? 0 : 1;
+}
+
+uint32_t sleep_light(void)
+{
+    if (!triggers) return 0;
+    uint32_t ps = irq_lock();
+    bool c1 = sys_cpu1_running();
+    if (c1) xc_stall(1);
+    uint32_t mhz = clk_cpu_hz() / 1000000;
+    uint32_t opt0 = REG(OPTIONS0);
+    REG_SET(OPTIONS0, BIT(11) | BIT(9) | BIT(13));                            /* BBPLL, its I2C, XTAL forced on */
+    clk_cpu_set_mhz(40);
+    uint32_t usj_pad = REG(USJ_CONF0) & BIT(14), usj_clk = REG(PERIP_CLK_EN1) & BIT(2);
+    REG_CLR(USJ_CONF0, BIT(14)); REG_CLR(PERIP_CLK_EN1, BIT(2));
+    arm_timer();
+    /* rtc_sleep_low_init(light) */
+    uint32_t xtl_wait = 250u * rtc_slow_hz() / 1000000u + 1;
+    FIELD(TIMER1, 31, 24, 1); FIELD(TIMER1, 23, 14, xtl_wait > 1023 ? 1023 : xtl_wait); FIELD(TIMER1, 13, 6, 4);
+    /* rtc_sleep_init(light, XTAL on) */
+    REG_CLR(DIG_PWC, BIT(30) | BIT(29) | BIT(28)); REG_CLR(PWC, BIT(20));    /* modem, CPU, digital + RTC periph kept */
+    regi2c_write_mask(REGI2C_DIG, 5, 4, 0, 23);                                /* RTC 1.10 V in sleep */
+    regi2c_write_mask(REGI2C_DIG, 7, 4, 0, 23);                                /* digital 1.10 V in sleep */
+    FIELD(BIAS_CONF, 21, 18, 0); FIELD(BIAS_CONF, 16, 16, 0); FIELD(BIAS_CONF, 14, 14, 0);   /* NODROP, bias + current on */
+    FIELD(BIAS_CONF, 25, 22, 0); FIELD(BIAS_CONF, 17, 17, 0); FIELD(BIAS_CONF, 15, 15, 0);
+    FIELD(REG_DRV, 19, 12, 0xF); REG_CLR(DIG_PWC, BIT(31));                   /* not deep: digital wrap kept */
+    REG_SET(DIG_PWC, BIT(4)); REG_SET(PWC, BIT(8) | BIT(11));
+    FIELD(RTC_REG, 31, 31, 1);
+    REG_SET(CLK_CONF, BIT(26));                                               /* RC8M on */
+    REG_CLR(SDIO_CONF, BIT(22)); FIELD(SDIO_CONF, 21, 21, 0);                 /* flash stays powered */
+    REG_SET(SLP_REJECT, BIT(31) | BIT(30));
+    FIELD(TIMER2, 23, 15, 0xFF);
+    FIELD(OPTIONS0, 13, 13, 1); FIELD(CLK_CONF, 28, 28, 1);                   /* XTAL on, no global gating */
+    uint32_t cs = cache_flash_op_begin();
+    uint32_t woke = light_core();
+    cache_flash_op_end(cs, 0, 0);
+    if (usj_clk) REG_SET(PERIP_CLK_EN1, BIT(2));
+    if (usj_pad) REG_SET(USJ_CONF0, BIT(14));
+    clk_cpu_set_mhz(mhz);
+    REG(OPTIONS0) = (REG(OPTIONS0) & ~(BIT(11) | BIT(9) | BIT(13))) | (opt0 & (BIT(11) | BIT(9) | BIT(13)));
+    if (c1) xc_unstall(1);
+    irq_unlock(ps);
+    return woke ? sleep_wake_cause() : 0;
+}
+
 NORETURN void sleep_deep(void)
 {
     irq_lock();
-    if (triggers & WAKE_TIMER) {
-        uint64_t ticks = timer_us * rtc_slow_hz() / 1000000u;
-        REG(TIME_UPDATE) = BIT(31); for (volatile int k = 0; k < 200; k++) {}
-        uint64_t t = ((uint64_t)REG(TIME_HI) << 32 | REG(TIME_LO)) + ticks;
-        REG(SLP_TIMER0) = (uint32_t)t; REG(SLP_TIMER1) = (uint32_t)(t >> 32) & 0xFFFF;
-        REG(INT_CLR) = BIT(10);
-        REG_SET(SLP_TIMER1, BIT(16));
-    }
+    arm_timer();
     /* rtc_sleep_low_init(deep): default buffer waits */
     FIELD(TIMER1, 31, 24, 20); FIELD(TIMER1, 23, 14, 100); FIELD(TIMER1, 13, 6, 20);
     /* rtc_sleep_init, deep-sleep defaults (RTC_SLEEP_PD_DIG | VDDSDIO | XTAL, 8M off unless it is the slow clock) */

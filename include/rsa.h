@@ -8,5 +8,6 @@
 typedef struct { int words; uint32_t mprime; uint32_t m[RSA_MAX_WORDS], rr[RSA_MAX_WORDS]; } rsa_mod_t;
 
 int rsa_mod_init(rsa_mod_t *mod, const uint32_t *m, int words);              /* words 16..128, m odd */
-int rsa_exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words);   /* z = x^y mod m */
+int rsa_exp_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words);   /* z = x^y mod m, constant time (secret y) */
+int rsa_exp_mod_public(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y, int y_words);   /* fast path: y public (e.g. 65537) */
 int rsa_mul_mod(const rsa_mod_t *mod, uint32_t *z, const uint32_t *x, const uint32_t *y);               /* z = x*y mod m */

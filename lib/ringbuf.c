@@ -11,7 +11,9 @@ static inline uint32_t need_of(uint32_t len) { return HDR + ((len + 3) & ~3u); }
 
 void rb_init(ringbuf_t *rb, void *buf, uint32_t size)
 {
-    rb->buf = buf; rb->size = size & ~3u; rb->head = rb->tail = 0; rb->reserved = 0;
+    uintptr_t a = ((uintptr_t)buf + 3) & ~(uintptr_t)3;            /* records are word headers: align the start */
+    size -= size < a - (uintptr_t)buf ? size : a - (uintptr_t)buf;
+    rb->buf = (uint8_t *)a; rb->size = size & ~3u; rb->head = rb->tail = 0; rb->reserved = 0;
 }
 
 void *rb_reserve(ringbuf_t *rb, uint32_t len)

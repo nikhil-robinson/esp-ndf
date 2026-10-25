@@ -125,7 +125,8 @@ static const int8_t s2[4][5] = { { -1, 1, 1 }, { -1, -1, 1 }, { -1, -1, 1 }, { 1
 static uint32_t cal_digi(int unit, int atten)       /* eFuse reference reading at 850 mV */
 {
     static const uint8_t pos[8] = { 201, 209, 217, 225, 233, 241, 248, 186 }, w[8] = { 8, 8, 8, 8, 8, 7, 7, 6 };
-    uint32_t d[8], v1[4], v2[4];
+    uint32_t d[8] = { 0 }, v1[4], v2[4];
+    if (atten < 0 || atten > 3) return 0;                           /* caller data: no index past the tables */
     for (int i = 0; i < 8; i++) d[i] = efuse_bits(i == 7 ? 1 : 2, pos[i], w[i]);
     v1[3] = d[3] + 900; v1[2] = d[2] + v1[3] + 800; v1[1] = d[1] + v1[2] + 700; v1[0] = d[0] + v1[1] + 800;
     v2[3] = v1[3] - d[7] + 15; v2[2] = v1[2] - d[6] + 20; v2[1] = v1[1] - d[5] + 10; v2[0] = v1[0] - d[4] + 40;
@@ -134,8 +135,10 @@ static uint32_t cal_digi(int unit, int atten)       /* eFuse reference reading a
 
 int adc_raw_to_mv(int unit, adc_atten_t atten, int raw)
 {
-    if (!adc_calibrated() || raw < 0) return -1;
-    int32_t coeff_a = 65536 * 850 / cal_digi(unit, atten);
+    if (!adc_calibrated() || raw < 0 || (unit != 1 && unit != 2) || (unsigned)atten > 3) return -1;
+    uint32_t cd = cal_digi(unit, atten);
+    if (!cd) return -1;
+    int32_t coeff_a = 65536 * 850 / cd;
     uint64_t v = (uint64_t)raw * coeff_a / 65536;
     const frac_t *k = unit == 1 ? k1[atten] : k2[atten];
     const int8_t *s = unit == 1 ? s1[atten] : s2[atten];

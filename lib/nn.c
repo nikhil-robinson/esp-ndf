@@ -1,6 +1,7 @@
 /* int8 NN layers, see nn.h. Arithmetic follows TFLite's reference int8 kernels (as ESP-NN's _ansi code) so results
  * are bit-exact; speed comes from (a) folding the input offset into a per-channel bias, (b) PIE int8 dot products
  * on im2col rows, (c) lookup tables where inputs are int8 (add, softmax exp), (d) vector max/min (pool, relu6). */
+#include <stdint.h>
 #include "nn.h"
 #include <string.h>
 
@@ -14,7 +15,9 @@ static inline int32_t sat_rdhm(int32_t a, int32_t b)                /* saturatin
 }
 static inline int32_t rdiv_pow2(int32_t x, int e)                   /* rounding divide by 2^e, ties away from zero */
 {
-    int32_t mask = (1 << e) - 1, rem = x & mask, th = (mask >> 1) + (x < 0);
+    if (e <= 0) return x;
+    if (e > 31) e = 31;                                              /* model data: no undefined shifts */
+    int32_t mask = (int32_t)((1u << e) - 1), rem = x & mask, th = (mask >> 1) + (x < 0);
     return (x >> e) + (rem > th);
 }
 /* floor((x m + 2^30) / 2^31) equals TFLite's sign-dependent nudge + truncation for every x (m != INT32_MIN):
@@ -22,7 +25,8 @@ static inline int32_t rdiv_pow2(int32_t x, int e)                   /* rounding 
 static inline int32_t rdhm(int32_t x, int32_t m) { return (int32_t)(((int64_t)x * m + (1ll << 30)) >> 31); }
 static inline int32_t rq(int32_t x, int32_t mult, int32_t shift)
 {
-    if (shift > 0) return rdhm(x * (1 << shift), mult);
+    if (shift > 30) shift = 30;                                      /* TFLite range [-31, 30]: model data is not trusted */
+    if (shift > 0) { int64_t v = (int64_t)x << shift; return rdhm(v > INT32_MAX ? INT32_MAX : v < INT32_MIN ? INT32_MIN : (int32_t)v, mult); }
     return rdiv_pow2(rdhm(x, mult), -shift);
 }
 int32_t nn_requant(int32_t x, int32_t mult, int32_t shift) { return rq(x, mult, shift); }
@@ -104,6 +108,8 @@ static int8_t wpad[1] __attribute__((aligned(16)));
 void nn_conv_s8(const nn_dims_t *id, const int8_t *in, int fh, int fw, const int8_t *f, const int32_t *bias,
                 const nn_dims_t *od, int8_t *out, const nn_conv_t *p, const int32_t *mult, const int32_t *shift)
 {
+    if (!id || !od || !p || !in || !out || !f || fh <= 0 || fw <= 0 || id->w <= 0 || id->h <= 0 || id->c <= 0 || od->w <= 0 ||
+        od->h <= 0 || od->c <= 0 || p->stride_w <= 0 || p->stride_h <= 0 || (int64_t)fh * fw * id->c > NN_MAX_COL) return;   /* model data */
     int ic = id->c, oc = od->c, k = fh * fw * ic;
     if (oc > NN_MAX_CH || k > NN_MAX_COL) return;
     (void)wpad;
@@ -168,6 +174,8 @@ void nn_conv_s8(const nn_dims_t *id, const int8_t *in, int fh, int fw, const int
 void nn_dwconv_s8(const nn_dims_t *id, const int8_t *in, int fh, int fw, const int8_t *f, const int32_t *bias,
                   const nn_dims_t *od, int8_t *out, const nn_conv_t *p, const int32_t *mult, const int32_t *shift)
 {
+    if (!id || !od || !p || !in || !out || !f || fh <= 0 || fw <= 0 || id->w <= 0 || id->h <= 0 || id->c <= 0 || od->w <= 0 ||
+        od->h <= 0 || od->c <= 0 || p->stride_w <= 0 || p->stride_h <= 0 || (int64_t)fh * fw > NN_MAX_COL || id->c != od->c) return;   /* model data */
     int ch = id->c;
 #if SOC_CPU_HAS_PIE
     if (!(ch & 15) && !((uintptr_t)in & 15) && !((uintptr_t)f & 15) && fh * fw <= 25 && ch <= NN_MAX_CH) {
@@ -223,6 +231,7 @@ void nn_dwconv_s8(const nn_dims_t *id, const int8_t *in, int fh, int fw, const i
 void nn_fc_s8(const int8_t *in, int32_t in_off, int len, const int8_t *w, int32_t w_off, const int32_t *bias, int8_t *out,
               int out_n, int32_t out_off, int32_t shift, int32_t mult, int32_t act_min, int32_t act_max)
 {
+    if (!in || !w || !out || len <= 0 || out_n <= 0) return;
     int32_t sx = w_off ? sum8(in, len) : 0;
 #if SOC_CPU_HAS_PIE
     /* in_off * sum(row) as a second PIE dot against a vector of in_off (int8; 128 = 2 x 64) */
@@ -251,6 +260,7 @@ void nn_fc_s8(const int8_t *in, int32_t in_off, int len, const int8_t *w, int32_
 void nn_maxpool_s8(const int8_t *in, int iw, int ih, int8_t *out, int ow, int oh, int sw, int sh, int fw, int fh,
                    int pw, int ph, int32_t act_min, int32_t act_max, int ch)
 {
+    if (iw <= 0 || ih <= 0 || ow <= 0 || oh <= 0 || sw <= 0 || sh <= 0 || fw <= 0 || fh <= 0 || ch <= 0 || !in || !out) return;
 #if SOC_CPU_HAS_PIE
     if (pool2x2(in, iw, ih, out, ow, oh, sw, sh, fw, fh, pw, ph, act_min, act_max, ch, false)) return;
     if (!(ch & 15) && !((uintptr_t)in & 15) && !((uintptr_t)out & 15) && fw * fh <= 64) {
@@ -284,6 +294,7 @@ void nn_maxpool_s8(const int8_t *in, int iw, int ih, int8_t *out, int ow, int oh
 void nn_avgpool_s8(const int8_t *in, int iw, int ih, int8_t *out, int ow, int oh, int sw, int sh, int fw, int fh,
                    int pw, int ph, int32_t act_min, int32_t act_max, int ch)
 {
+    if (iw <= 0 || ih <= 0 || ow <= 0 || oh <= 0 || sw <= 0 || sh <= 0 || fw <= 0 || fh <= 0 || ch <= 0 || !in || !out) return;
 #if SOC_CPU_HAS_PIE
     if (pool2x2(in, iw, ih, out, ow, oh, sw, sh, fw, fh, pw, ph, act_min, act_max, ch, true)) return;
     if (!(ch & 15) && !((uintptr_t)in & 15) && fw * fh <= 25) {      /* QACC sums against a ones vector */
@@ -300,7 +311,7 @@ void nn_avgpool_s8(const int8_t *in, int iw, int ih, int8_t *out, int ow, int oh
                     for (int c = 0; c < ch; c++) {
                         int32_t sm = 0;
                         for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) sm += in[((by + y) * iw + bx + x) * ch + c];
-                        sm = sm > 0 ? (sm + cnt / 2) / cnt : (sm - cnt / 2) / (cnt ? cnt : 1);
+                        sm = !cnt ? 0 : sm > 0 ? (sm + cnt / 2) / cnt : (sm - cnt / 2) / cnt;   /* empty window: 0 */
                         *out++ = clamp8(sm, act_min, act_max);
                     }
                     continue;
