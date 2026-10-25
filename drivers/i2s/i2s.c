@@ -1,5 +1,6 @@
 /* I2S std mode (TRM ch. 28), HW v2: TDM engine with 2 slots = Philips stereo. */
 #include "i2s.h"
+#include "spin.h"
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
@@ -192,12 +193,12 @@ void i2s_start(int port, bool tx, bool rx)
     gdma_reset(p->ch);                                      /* as IDF: else the EOF descriptor of the last run is reported */
     if (rx) {
         gdma_in_start(p->ch, &p->rxd[0]);
-        REG_SET(RX_CONF(port), BIT(8)); while (REG(RX_CONF(port)) & BIT(8)) {}
+        REG_SET(RX_CONF(port), BIT(8)); SPIN_US(!(REG(RX_CONF(port)) & BIT(8)), 1000);
         REG_SET(RX_CONF(port), BIT(2));
     }
     if (tx) {
         gdma_out_start(p->ch, &p->txd[0]);
-        REG_SET(TX_CONF(port), BIT(8)); while (REG(TX_CONF(port)) & BIT(8)) {}
+        REG_SET(TX_CONF(port), BIT(8)); SPIN_US(!(REG(TX_CONF(port)) & BIT(8)), 1000);
         REG_SET(TX_CONF(port), BIT(2));
     }
 }

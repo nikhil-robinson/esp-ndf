@@ -1,5 +1,6 @@
 /* GP-SPI (TRM ch. 30). host 2 = SPI2 @0x60024000, host 3 = SPI3 @0x60025000. */
 #include "spi.h"
+#include "spin.h"
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
@@ -41,7 +42,7 @@ static gdma_desc_t tx_d[8][2], rx_d[8][2];      /* per host: up to 8 x 4092 = 32
 static void sync_cfg(int h)                     /* push config into the SPI clock domain */
 {
     REG(CMD(h)) = BIT(23);                      /* CMD holds only update/usr: write, no read-modify-write */
-    while (REG(CMD(h)) & BIT(23)) {}
+    SPIN_US(!(REG(CMD(h)) & BIT(23)), 1000);
 }
 
 uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t hz, int mode)
@@ -74,10 +75,10 @@ uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t h
 static void start_and_wait(int h)
 {
     REG(INT_CLR(h)) = DONE;
-    while (REG(INT_RAW(h)) & DONE) {}           /* the clear is a posted write: a stale DONE would end the wait early */
+    SPIN_US(!(REG(INT_RAW(h)) & DONE), 1000);   /* the clear is a posted write: a stale DONE would end the wait early */
     sync_cfg(h);
     REG(CMD(h)) = BIT(24);
-    while (!(REG(INT_RAW(h)) & DONE)) {}
+    SPIN_US(REG(INT_RAW(h)) & DONE, 10000000u);  /* bounded: 10 s (32 KB at the slowest clock fits) */
 }
 
 RAM_FN static void xfer_pio(int h, const uint8_t *tx, uint8_t *rx, size_t len, uint32_t user)

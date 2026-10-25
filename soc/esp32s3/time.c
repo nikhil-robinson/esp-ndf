@@ -1,5 +1,6 @@
 /* SYSTIMER unit 0: 64-bit time base + the software-timer comparator (target 0). */
 #include "sys.h"
+#include "spin.h"
 #include "swtimer.h"
 #include "soc.h"
 #include "irq.h"
@@ -11,7 +12,7 @@ uint64_t time_ticks(void)
     uint32_t hi, lo;
     do {                                  /* the other core may latch a new value between the reads */
         REG(SYSTIMER_UNIT0_OP) = BIT(30);
-        while (!(REG(SYSTIMER_UNIT0_OP) & BIT(29))) {}
+        SPIN_US(REG(SYSTIMER_UNIT0_OP) & BIT(29), 100);
         hi = REG(SYSTIMER_UNIT0_HI);
         lo = REG(SYSTIMER_UNIT0_LO);
     } while (hi != REG(SYSTIMER_UNIT0_HI));

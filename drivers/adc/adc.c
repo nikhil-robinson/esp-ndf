@@ -3,6 +3,7 @@
  * fitting raw -> mV. The math mirrors ESP-IDF's curve-fitting scheme so both
  * stacks produce identical millivolts from identical raw codes. */
 #include "adc.h"
+#include "spin.h"
 #include "efuse.h"
 #include "regi2c.h"
 #include "clk.h"
@@ -95,11 +96,11 @@ RAM_FN int adc_read_raw(int unit, int ch)
     adc_load_code(unit, atten_of[unit - 1][ch]);
     uint32_t meas = unit == 1 ? SENS_MEAS1 : SENS_MEAS2;
     if (unit == 1) REG_CLR(SENS_MEAS1_MUX, BIT(31));          /* RTC controller (continuous mode may own ADC1) */
-    if (unit == 1) while ((REG(SENS_SLAVE1) >> 22) & 0xFF) {}
+    if (unit == 1 && !SPIN_US(!((REG(SENS_SLAVE1) >> 22) & 0xFF), 10000)) return -1;
     REG_FIELD(meas, 19, 12, 1u << ch);
     REG_CLR(meas, BIT(17));
     REG_SET(meas, BIT(17));
-    while (!(REG(meas) & BIT(16))) {}
+    if (!SPIN_US(REG(meas) & BIT(16), 10000)) return -1;   /* conversion done (bounded) */
     return REG(meas) & 0xFFFF;
 }
 

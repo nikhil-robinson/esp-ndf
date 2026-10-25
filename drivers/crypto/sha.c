@@ -4,6 +4,7 @@
  * context used the engine in between. Long runs of blocks in internal RAM go by DMA (IDF port/sha/dma/sha.c: GDMA OUT
  * to the SHA peripheral, BLOCK_NUM <= 63 per run, DMA_START / DMA_CONTINUE). */
 #include "sha.h"
+#include "spin.h"
 #include "clk.h"
 #include "xtensa.h"
 #include "gdma.h"
@@ -55,18 +56,18 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
             REG(SHA_BLKNUM) = k;
             REG(c->first ? SHA_DSTART : SHA_DCONT) = 1;
             c->first = false;
-            while (REG(SHA_BUSY)) {}
+            SPIN_US(!REG(SHA_BUSY), 100000);          /* bounded */
             p += k * w * 4; n -= k;
         }
     }
     for (; n; n--, p += w * 4) {
-        while (REG(SHA_BUSY)) {}
+        SPIN_US(!REG(SHA_BUSY), 10000);
         if (!((uintptr_t)p & 3)) for (unsigned i = 0; i < w; i++) REG(SHA_TEXT(i)) = ((const uint32_t *)p)[i];
         else for (unsigned i = 0; i < w; i++) { uint32_t v; memcpy(&v, p + 4 * i, 4); REG(SHA_TEXT(i)) = v; }
         REG(c->first ? SHA_START : SHA_CONT) = 1;
         c->first = false;
     }
-    while (REG(SHA_BUSY)) {}
+    SPIN_US(!REG(SHA_BUSY), 10000);
     for (unsigned i = 0; i < hw; i++) c->h[i] = REG(SHA_H(i));
     owner = c;
 }

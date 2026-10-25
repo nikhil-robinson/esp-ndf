@@ -1,5 +1,6 @@
 /* TWAI driver. Register map = SJA1000 PeliCAN, one register per 32-bit word. */
 #include "twai.h"
+#include "spin.h"
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
@@ -32,8 +33,8 @@ static volatile uint32_t alerts, state = TWAI_ST_ACTIVE;
 
 static void reset_mode(bool on)
 {
-    if (on) { REG_SET(MOD, BIT(0)); while (!(REG(MOD) & BIT(0))) {} }
-    else    { REG_CLR(MOD, BIT(0)); while (REG(MOD) & BIT(0)) {} }
+    if (on) { REG_SET(MOD, BIT(0)); SPIN_US(REG(MOD) & BIT(0), 1000); }
+    else    { REG_CLR(MOD, BIT(0)); SPIN_US(!(REG(MOD) & BIT(0)), 1000); }
 }
 
 RAM_FN static void twai_isr(void *arg)

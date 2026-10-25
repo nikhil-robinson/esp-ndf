@@ -2,6 +2,7 @@
  *   XTAL 40 MHz --> BBPLL 480 MHz --> CPU 240/160/80 (APB fixed 80 MHz)
  *               \-> CPU = XTAL 40 MHz (APB 40 MHz) */
 #include "clk.h"
+#include "spin.h"
 #include "soc.h"
 #include "regi2c.h"
 #include "xtensa.h"
@@ -82,7 +83,7 @@ void clk_bbpll_init(void)
     regi2c_write_mask(REGI2C_BBPLL, 5, 6, 4, 0);         /* DR3                    */
     regi2c_write(REGI2C_BBPLL, 6, 1 << 6 | 3 << 4 | 3);  /* DLREF, DHREF, DCUR     */
     regi2c_write_mask(REGI2C_BBPLL, 9, 1, 0, 3);         /* VCO_DBIAS              */
-    while (!(REG(I2C_ANA_CONF0) & BIT(24))) {}           /* cal done               */
+    SPIN_US(REG(I2C_ANA_CONF0) & BIT(24), 1000);         /* cal done (bounded)     */
     spin_us(10);
     REG_CLR(I2C_ANA_CONF0, BIT(3)); REG_SET(I2C_ANA_CONF0, BIT(2));   /* cal stop  */
 }

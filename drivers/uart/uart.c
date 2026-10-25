@@ -1,5 +1,6 @@
 /* UART driver. Registers per TRM ch. 26. */
 #include "uart.h"
+#include "spin.h"
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
@@ -139,7 +140,11 @@ int uart_write(int p, const void *buf, size_t n)
         while (i < n && room--) REG(FIFO(p)) = b[i++];
     }
     for (; i < n; i++) {
-        while (u->th - u->tt >= RING) {}                    /* ring full: wait for the ISR */
+        uint32_t tt0 = u->tt, t0 = ccount();                /* ring full: wait for the ISR, but not for a dead one */
+        while (u->th - u->tt >= RING) {
+            if (u->tt != tt0) { tt0 = u->tt; t0 = ccount(); }
+            else if (ccount() - t0 > 240000000u) return (int)i;   /* 1 s without progress: UART stopped */
+        }
         u->tx[u->th & (RING - 1)] = b[i];
         u->th++;
         REG_SET(INT_ENA(p), I_TXEMPTY);
@@ -161,8 +166,10 @@ uint32_t uart_overflows(int p) { return up[p].ovf; }
 
 void uart_flush(int p)
 {
-    while (up[p].th != up[p].tt) {}
-    while ((REG(STATUS(p)) >> 16) & 0x3FF) {}
+    for (uint32_t tt0 = up[p].tt, t0 = ccount(); up[p].th != up[p].tt; )      /* 1 s without progress: give up */
+        if (up[p].tt != tt0) { tt0 = up[p].tt; t0 = ccount(); } else if (ccount() - t0 > 240000000u) return;
+    for (uint32_t f0 = ~0u, t0 = ccount(), f; (f = (REG(STATUS(p)) >> 16) & 0x3FF); )
+        if (f != f0) { f0 = f; t0 = ccount(); } else if (ccount() - t0 > 240000000u) return;
     /* last byte still shifting out: one frame (<= 12 bits) */
     uint32_t div16 = (REG(CLKDIV(p)) & 0xFFF) << 4 | ((REG(CLKDIV(p)) >> 20) & 15);
     uint32_t sdiv = ((REG(CLK_CONF(p)) >> 12) & 0xFF) + 1;

@@ -1,4 +1,5 @@
 #include "rf_init.h"
+#include "spin.h"
 #include "rf_init_replay_c948.h"
 #include "rf_txcal_c948.h"
 #include "rf_pbus_mem.h"
@@ -6,6 +7,7 @@
 #include "rf_pll.h"
 #include "rf_dump.h"
 
+#undef REG                                      /* same definition as ndf.h (spin.h); kept for the portable RF core */
 #define REG(a) (*(volatile uint32_t *)(a))
 void rf_delay_us(uint32_t us);                  /* platform hook */
 
@@ -41,7 +43,7 @@ void rf_pbus_write(uint8_t row, uint8_t col, uint16_t value)
 {
     uint32_t f = ((uint32_t)value << 6 | (uint32_t)row << 2 | (uint32_t)col << 15) & 0x1FFFC;
     REG(PBUS_CMD) = (REG(PBUS_CMD) & 0xFFFE0001u) | f | 2;
-    while (REG(PBUS_STAT) & 0x80000000u) {}
+    SPIN_US(!(REG(PBUS_STAT) & 0x80000000u), 1000);
     REG(PBUS_CMD) &= ~2u;
 }
 

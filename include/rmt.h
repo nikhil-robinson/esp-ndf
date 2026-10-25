@@ -3,6 +3,7 @@
  * the 48-word channel RAM half by half from the interrupt. */
 #pragma once
 #include "ndf.h"
+#include "spin.h"
 
 /* one item = two pulses: duration in ticks (1..32767), level 0/1 */
 typedef union {
@@ -17,7 +18,7 @@ uint32_t rmt_tx_init(int ch, int pin, uint32_t resolution_hz, bool idle_level);
 /* Start sending n items (no terminator needed). Buffer must stay valid
  * until rmt_tx_wait() returns. */
 int      rmt_tx(int ch, const rmt_item_t *items, size_t n);
-void     rmt_tx_wait(int ch);
+bool     rmt_tx_wait(int ch);                 /* false: still sending after 60 s (loop mode: rmt_tx_stop) */
 /* Carrier modulation of high pulses (IR): hz, duty in %. hz = 0 off. */
 void     rmt_tx_carrier(int ch, uint32_t hz, int duty_pct);
 

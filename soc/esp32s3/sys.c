@@ -1,6 +1,7 @@
 /* ESP32-S3 bring-up: watchdogs, core 1, delays, faults. Clocks: clk.c.
  * No ROM calls: everything is direct register access. */
 #include "cache.h"
+#include "spin.h"
 #include "sys.h"
 #include "system.h"
 #include "soc.h"
@@ -63,7 +64,7 @@ void delay_ms(uint32_t ms)
 uint32_t systimer_lo(void)
 {
     REG(SYSTIMER_UNIT0_OP) = BIT(30);
-    while (!(REG(SYSTIMER_UNIT0_OP) & BIT(29))) {}
+    SPIN_US(REG(SYSTIMER_UNIT0_OP) & BIT(29), 100);
     return REG(SYSTIMER_UNIT0_LO);
 }
 

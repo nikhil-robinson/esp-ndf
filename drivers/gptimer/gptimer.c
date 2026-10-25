@@ -1,5 +1,6 @@
 /* GPTimer on TIMG. Timer t of group g: registers at TIMG_BASE(g) + 0x24 * t. */
 #include "gptimer.h"
+#include "spin.h"
 #include "clk.h"
 #include "soc.h"
 
@@ -57,14 +58,14 @@ void gpt_set(int id, uint64_t c)
 uint64_t gpt_get(int id)
 {
     REG(T_UPDATE(id)) = BIT(31);
-    while (REG(T_UPDATE(id)) & BIT(31)) {}          /* latched when bit self-clears */
+    SPIN_US(!(REG(T_UPDATE(id)) & BIT(31)), 100);   /* latched when bit self-clears */
     return (uint64_t)REG(T_HI(id)) << 32 | REG(T_LO(id));
 }
 
 uint32_t gpt_get32(int id)                          /* low word only: one register read less */
 {
     REG(T_UPDATE(id)) = BIT(31);
-    while (REG(T_UPDATE(id)) & BIT(31)) {}
+    SPIN_US(!(REG(T_UPDATE(id)) & BIT(31)), 100);
     return REG(T_LO(id));
 }
 

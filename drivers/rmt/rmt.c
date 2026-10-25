@@ -1,5 +1,6 @@
 /* RMT driver. Channel RAM is accessed directly (APB_FIFO_MASK = 1). */
 #include "rmt.h"
+#include "spin.h"
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
@@ -139,7 +140,7 @@ int rmt_tx(int c, const rmt_item_t *items, size_t n)
     return 0;
 }
 
-void rmt_tx_wait(int c) { while (READ_ONCE(tx[c].busy)) {} }
+bool rmt_tx_wait(int c) { return SPIN_US(!READ_ONCE(tx[c].busy), 60000000u); }   /* bounded: 60 s */
 
 void rmt_tx_carrier(int c, uint32_t hz, int duty)
 {

@@ -1,6 +1,7 @@
 /* Cross-core notification: SYSTEM_CPU_INTR_FROM_CPU_n (sources 79 + n) is a
  * level interrupt; the receiving core clears it in its handler. */
 #include "xcore.h"
+#include "spin.h"
 #include "irq.h"
 
 #define FROM_CPU_REG(n)  (0x600C0030 + 4 * (n))
@@ -49,7 +50,9 @@ int xc_call(int core, int (*fn)(void *), void *arg, int *ret)
         xc_call_t *k = &call_of[core];
         k->arg = arg; xc_barrier(); k->fn = fn; xc_barrier();
         xc_notify(core);
-        while (k->fn) ;
+        if (!SPIN_US(!READ_ONCE(k->fn), 10000000u)) {     /* the other core never took it (halted, crashed): no hang */
+            k->fn = 0; xc_spin_unlock(&call_lock[core]); return -2;
+        }
         r = k->ret;
         xc_spin_unlock(&call_lock[core]);
     }
