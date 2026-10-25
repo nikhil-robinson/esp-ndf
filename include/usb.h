@@ -9,7 +9,7 @@
 #include "ndf.h"
 
 /* Function of the device, chosen before usb_dev_start: CDC-ACM (default), mass storage (usb_msc_*), HID (usb_hid_*). */
-enum { USB_FN_CDC = 0, USB_FN_MSC, USB_FN_HID };
+enum { USB_FN_CDC = 0, USB_FN_MSC, USB_FN_HID, USB_FN_CDC_MSC };   /* CDC_MSC: composite, both at once (PID 0x0004) */
 void   usb_dev_function(int fn);
 int    usb_dev_get_function(void);
 int    usb_dev_start(void);                   /* PHY to OTG, core init, connect (D+ pull-up); 0 on success */
@@ -19,6 +19,10 @@ bool   usb_cdc_ready(void);                   /* configured by the host */
 size_t usb_cdc_read(void *buf, size_t max);   /* bytes received on the bulk OUT endpoint, never waits */
 size_t usb_cdc_write(const void *buf, size_t n);   /* queue up to n bytes on bulk IN; returns bytes taken (0 = busy) */
 bool   usb_cdc_tx_idle(void);                 /* the last write has gone out */
+/* raw bulk pipes: 0 = CDC / the only function, 1 = MSC in the composite (usb_msc_pipe() says which MSC uses) */
+size_t usb_pipe_read(int pipe, void *buf, size_t max);
+size_t usb_pipe_write(int pipe, const void *buf, size_t n);
+int    usb_msc_pipe(void);
 
 typedef struct { uint32_t resets, setups, stalls, rx_bytes, tx_bytes, tx_xfers; uint64_t poll_cycles; } usb_stats_t;   /* poll_cycles: CPU cycles the driver spent working (polls with an event, read/write copies) */
 void   usb_get_stats(usb_stats_t *s);
@@ -29,7 +33,7 @@ void   usb_get_stats(usb_stats_t *s);
 int    usb_msc_attach(bdev_t *b, bool ro);
 void   usb_msc_poll(void);
 void   usb_msc_reset(void);
-typedef struct { uint32_t cmds, read_blocks, write_blocks, errors; } usb_msc_stats_t;
+typedef struct { uint32_t cmds, read_blocks, write_blocks, errors, unsupported; uint8_t last_bad_op; } usb_msc_stats_t;   /* unsupported: opcodes answered ILLEGAL REQUEST (e.g. udev's ATA PASS-THROUGH probe 0xA1), not errors */
 void   usb_msc_stats(usb_msc_stats_t *s);
 
 /* HID, vendor usage page, 64-byte input / output reports over interrupt endpoints (1 ms). */

@@ -2,6 +2,7 @@
  * `secs` seconds on "msc <secs>"; "hid <secs>" runs a 64-byte vendor HID instead (console on USB Serial/JTAG before and after). Host side: tools/usb_msc_test.py. */
 #include "console.h"
 #include "sys.h"
+#include "system.h"
 #include "usb.h"
 #include "fat.h"
 #include <string.h>
@@ -25,9 +26,30 @@ static void msc_run(uint32_t secs)
     while (rc == 0 && time_ms() - t0 < secs * 1000) { usb_dev_poll(); usb_msc_poll(); }
     usb_dev_stop();
     usb_msc_stats_t s; usb_msc_stats(&s);
-    LAST[0] = 0x4D534331u; LAST[1] = (uint32_t)rc; LAST[2] = s.cmds; LAST[3] = s.read_blocks; LAST[4] = s.write_blocks; LAST[5] = s.errors;
+    LAST[0] = 0x4D534331u; LAST[1] = (uint32_t)rc; LAST[2] = s.cmds; LAST[3] = s.read_blocks; LAST[4] = s.write_blocks; LAST[5] = s.errors; LAST[6] = s.last_bad_op;
     delay_ms(1500);
     printf("msc rc %d cmds %lu read %lu write %lu errors %lu\n", rc, s.cmds, s.read_blocks, s.write_blocks, s.errors);
+}
+
+/* composite: the same disk plus a CDC-ACM echo port, both at once */
+static void comp_run(uint32_t secs)
+{
+    printf("comp: PHY to OTG for %lu s\n", (unsigned long)secs); delay_ms(50);
+    usb_dev_function(USB_FN_CDC_MSC);
+    usb_msc_attach(&disk, false);
+    int rc = usb_dev_start();
+    uint32_t t0 = time_ms(), echoed = 0; uint8_t b[256];
+    while (rc == 0 && time_ms() - t0 < secs * 1000) {
+        usb_dev_poll(); usb_msc_poll();
+        size_t n = usb_cdc_read(b, sizeof b);
+        for (size_t o = 0; o < n; ) { size_t k = usb_cdc_write(b + o, n - o); if (!k) usb_dev_poll(); o += k; }
+        echoed += n;
+    }
+    usb_dev_stop();
+    usb_msc_stats_t s; usb_msc_stats(&s);
+    LAST[0] = 0x434F4D31u; LAST[1] = (uint32_t)rc; LAST[2] = s.cmds; LAST[3] = s.read_blocks; LAST[4] = s.errors; LAST[5] = echoed; { usb_stats_t u; usb_get_stats(&u); LAST[6] = u.setups; LAST[7] = u.stalls; LAST[8] = u.rx_bytes; LAST[9] = u.tx_bytes; }
+    delay_ms(1500);
+    printf("comp rc %d cmds %lu read %lu errors %lu (op %02x) echoed %lu\n", rc, s.cmds, s.read_blocks, s.errors, s.last_bad_op, echoed);
 }
 
 static void hid_run(uint32_t secs)
@@ -49,12 +71,15 @@ static void hid_run(uint32_t secs)
 
 int main(void)
 {
+    { sys_crash_t k; printf("boot: reset cause %s\n", sys_reset_cause_str(sys_reset_cause(0)));
+      if (sys_last_crash(&k)) printf("last crash: %s pc %08lx\n", k.why, k.pc); }
     int f = fat_format(&disk), m = fat_mount(&disk);
     int fd = fat_open("/HELLO.TXT", FAT_WRONLY | FAT_CREAT);
     fat_write(fd, "hello over USB mass storage\n", 28); fat_close(fd); fat_unmount();
+    if (LAST[0] == 0x434F4D31u) { printf("comp rc %ld cmds %lu read %lu errors %lu echoed %lu setups %lu stalls %lu rx %lu tx %lu\n", (long)LAST[1], LAST[2], LAST[3], LAST[4], LAST[5], LAST[6], LAST[7], LAST[8], LAST[9]); LAST[0] = 0; }
     if (LAST[0] == 0x48494431u) { printf("last hid: rc %ld sent %lu got %lu\n", (long)LAST[1], LAST[2], LAST[3]); LAST[0] = 0; }
     if (LAST[0] == 0x4D534331u) {
-        printf("last msc: rc %ld cmds %lu read %lu write %lu errors %lu\n", (long)LAST[1], LAST[2], LAST[3], LAST[4], LAST[5]);
+        printf("last msc: rc %ld cmds %lu read %lu write %lu errors %lu (op %02lx)\n", (long)LAST[1], LAST[2], LAST[3], LAST[4], LAST[5], LAST[6]);
         LAST[0] = 0;
     }
     printf("usb_msc ready: FAT %d/%d, 'msc <secs>'\n", f, m);
@@ -66,6 +91,7 @@ int main(void)
             line[n] = 0; n = 0;
             if (!strncmp(line, "msc ", 4)) msc_run((uint32_t)atoi(line + 4));
             else if (!strncmp(line, "hid ", 4)) hid_run((uint32_t)atoi(line + 4));
+            else if (!strncmp(line, "comp ", 5)) comp_run((uint32_t)atoi(line + 5));
             else if (line[0]) printf("ok\n");
         } else if (n < 31) line[n++] = (char)c;
     }

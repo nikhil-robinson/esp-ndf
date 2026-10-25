@@ -1176,3 +1176,11 @@ Master SPI2 WRDMA in 3 segments (1000 + 2000 + 96 B) + WR_END, then RDDMA 2 segm
 Wire time 2477 / 619 us: ndf is 16 us over the wire, IDF 61 / 54. Found: the slave's GDMA channel must be
 released (spi_dma_release) - the 5 channels ran out for ADC continuous later in the suite.
 
+
+## USB composite CDC-ACM + MSC (`examples/usb_msc` comp, `tools/usb_comp_test.py`, C9:D0, 2026-10-25)
+
+One device, IAD, interfaces 0-1 CDC on EP1/EP2/EP3, interface 2 MSC on EP4/EP5: the host binds cdc_acm + usb-storage,
+disk enumerates (256 x 512 B, FAT serial found by udev) while a 64 KB CDC echo runs (434 KB/s), 104 SCSI commands,
+0 errors. Found: the S3 OTG core has 7 endpoints (TinyUSB dwc2_esp32.h ep_count), not 6 - the DMA endpoint-info
+area at the top of FIFO RAM needs 14 words; with 12, EP5 OUT data was DMA'd to the wrong place. udev's ATA
+PASS-THROUGH probe (0xA1) is now counted as "unsupported", not an error. Regression: MSC, HID, CDC 1152 / 995 KB/s pass.

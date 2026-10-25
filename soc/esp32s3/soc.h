@@ -82,7 +82,7 @@
 /* USB OTG (DWC2 OTG_FS, TRM ch. 32) */
 #define USB_OTG_BASE       0x60080000
 #define USB_WRAP_CONF      0x60039000              /* b31 reg clock, b18 pad enable, b2 PHY sel, b0/b1 session-end override/value */
-#define USB_OTG_EPS        6                       /* endpoints incl. EP0, of which 5 IN; FIFO RAM 256 words */
+#define USB_OTG_EPS        7                       /* endpoints incl. EP0 (TinyUSB dwc2_esp32.h ep_count), of which 5 IN; FIFO RAM 256 words */
 #define USB_OTG_FIFO_WORDS 256
 #define SIG_USB_IDDIG      58                      /* GPIO matrix input signals */
 #define SIG_USB_AVALID     59

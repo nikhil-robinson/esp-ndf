@@ -24,7 +24,7 @@ static void send(const void *p, uint32_t n)               /* bulk IN, waits for 
 {
     const uint8_t *b = p;
     while (n && usb_cdc_ready()) {
-        uint32_t k = usb_cdc_write(b, n);
+        uint32_t k = usb_pipe_write(usb_msc_pipe(), b, n);
         if (!k) { usb_dev_poll(); continue; }
         b += k; n -= k;
     }
@@ -32,7 +32,7 @@ static void send(const void *p, uint32_t n)               /* bulk IN, waits for 
 static void recv(void *p, uint32_t n)
 {
     uint8_t *b = p;
-    while (n && usb_cdc_ready()) { uint32_t k = usb_cdc_read(b, n); if (!k) { usb_dev_poll(); continue; } b += k; n -= k; }
+    while (n && usb_cdc_ready()) { uint32_t k = usb_pipe_read(usb_msc_pipe(), b, n); if (!k) { usb_dev_poll(); continue; } b += k; n -= k; }
 }
 
 /* 512-byte blocks on the device's sectors: whole sectors directly, partial ones read-modify-write */
@@ -117,13 +117,15 @@ static void command(void)
         csw(0, 0); return;
     }
     }
-    fail(0x05, 0x20, len, in);                                  /* illegal request: invalid command */
+    ms.last_bad_op = cb[0]; ms.unsupported++;
+    fail(0x05, 0x20, len, in);                                  /* illegal request: invalid command (the expected answer) */
+    ms.errors--;
 }
 
 void usb_msc_poll(void)
 {
     if (!usb_cdc_ready()) { cbw_n = 0; return; }
-    cbw_n += usb_cdc_read(cbw + cbw_n, sizeof cbw - cbw_n);
+    cbw_n += usb_pipe_read(usb_msc_pipe(), cbw + cbw_n, sizeof cbw - cbw_n);
     if (cbw_n < sizeof cbw) return;
     cbw_n = 0;
     if (cbw[0] != 'U' || cbw[1] != 'S' || cbw[2] != 'B' || cbw[3] != 'C') return;   /* not a CBW: wait for reset recovery */
