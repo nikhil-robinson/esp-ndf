@@ -12,8 +12,8 @@ and the block and its purpose are fixed for the life of the chip. The rest of th
 blocks, flash, boot and JTAG keep working (unless the JTAG soft-disable fuse is also burned - not planned).
 
 Proposed steps (one board, BOX-3 or a spare, never both until the first passes):
-1. Write drivers first (no burn): drivers/crypto/hmac.c (upstream mode: key block select, message by SHA-style
-   padding, 32-byte result; downstream mode for JTAG and DS) and drivers/crypto/ds.c (load the encrypted RSA
+1. Write drivers first (no burn): components/drivers/crypto/hmac.c (upstream mode: key block select, message by SHA-style
+   padding, 32-byte result; downstream mode for JTAG and DS) and components/drivers/crypto/ds.c (load the encrypted RSA
    parameters, start, read the signature), following esp_hw_support/esp_hmac.c and esp_ds.c. Build-checked only.
 2. Burn ONE test key: `espefuse.py burn_key BLOCK_KEY5 test_hmac_key.bin HMAC_UP` (key from a file kept in
    bench/hmac/, known value so results can be checked against Python's hmac.new(key, msg, sha256)).

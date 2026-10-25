@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test test_twai_alerts: TX 10 -> jumper -> RX 11, 500 kbit/s, NORMAL mode. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit test_twai_alerts: TX 10 -> jumper -> RX 11, 500 kbit/s, NORMAL mode. */
 #include <stdio.h>
 #include "driver/twai.h"
 #include "esp_rom_gpio.h"

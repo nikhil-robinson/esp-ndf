@@ -1,0 +1,3 @@
+# rtc_hold: Keep an output (GPIO4, e.g. a motor driver enable) high through a full system reset with an RTC pad hold; the rebooted firmware takes it over and drives it low 300 ms...
+NDF_PATH ?= ../../..
+include $(NDF_PATH)/make/project.mk

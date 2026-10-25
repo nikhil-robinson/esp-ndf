@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_lcd_i80.c: i80 8-bit on 16 17 18 21 38 39 40 41, WR 14, DC 15. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_lcd_i80.c: i80 8-bit on 16 17 18 21 38 39 40 41, WR 14, DC 15. */
 #include <stdio.h>
 #include "esp_lcd_panel_io.h"
 #include "esp_heap_caps.h"

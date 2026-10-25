@@ -1,4 +1,4 @@
-/* IDF sibling of examples/xcore_bench: the same round trips with the tools
+/* IDF sibling of components/drivers/xcore/test_apps/xcore_bench: the same round trips with the tools
  * IDF offers. Two tasks pinned to core 0 / core 1, max priority. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"

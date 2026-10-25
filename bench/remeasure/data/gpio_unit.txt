@@ -1,0 +1,18 @@
+
+=== esp-ndf unit tests ===
+[gpio_system_pads_refused]
+  PASS gpio_system_pads_refused (468 cycles)
+[rtcio]
+    after system reset: pad 10 hold kept, level 1; released -> 0
+  PASS rtcio (43174 cycles)
+[gpio]
+    gpio_set+gpio_clr                  10 cycles
+    pin write -> ISR (rising, L1)      min 191 max 192 cycles
+    dgpio_write x2                     3 cycles
+  PASS gpio (415678 cycles)
+[clkout]
+    CLK_OUT1 GPIO41: RC slow 138340 Hz (calibrated 138391 Hz), RC fast 20131 kHz
+  PASS clkout (24721036 cycles)
+=== unit: 4/4 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

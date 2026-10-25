@@ -1,0 +1,25 @@
+crash_test: step 0, illegal instruction
+
+*** PANIC core0: debug exception, DEBUGCAUSE 0x08
+    PC 0x40380880
+    a0  0x40380498    a1  0x3fc99430    a2  0x0e4e1c00    a3  0x00000000
+    a4  0x00000001    a5  0x00000002    a6  0x000f4240    a7  0x000000f0
+    a8  0x3fc9932c    a9  0x50001f70    a10 0x00000001    a11 0x00127262
+    a12 0x403d7e00    a13 0x3fc915f8    a14 0x00000000    a15 0x40380486
+    SAR 0x00000020 LBEG 0x4037fdc8 LEND 0x4037fdcc LCOUNT 0x00000000
+    Backtrace: 0x40380880 0x40380498 0x4037defd 0x4037e27c 0x4037b446 0x4037892c (scan)
+    core dump written (tools/coredump.py)
+crash_test: last crash "debug exception, DEBUGCAUSE 0x08" pc 0x40380880, count 2
+PASS illegal instruction recorded in crash_here (6 backtrace pcs)
+crash_test: step 1, overflow a 16-byte stack buffer
+
+*** PANIC core0: stack smashing detected (canary)
+    PC 0x40380364
+    Backtrace: 0x40380364 0x40380364 0x4037b794 0x4037b804 0x40380364 0x40380498 0x4037defd 0x4037e27c 0x4037b446 0x4037892c 0x4037b446 0x4037892c (scan)
+    core dump written (tools/coredump.py)
+crash_test: last crash "stack smashing detected (canary)" pc 0x40380364, count 3
+PASS canary recorded ("stack smashing detected (canary)")
+crash_test: step 2, interrupts off for 3 s
+PASS interrupt watchdog ("", reset cause TG1 watchdog (system))
+PASS safe-state hook ran on both software faults (0x6)
+crash_test done

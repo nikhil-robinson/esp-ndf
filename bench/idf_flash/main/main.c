@@ -1,4 +1,4 @@
-/* IDF sibling of examples/flash_test: the same erase / write / read measurements through esp_flash, and flash code on
+/* IDF sibling of components/drivers/flash/test_apps/flash_test: the same erase / write / read measurements through esp_flash, and flash code on
  * core 1 (cache miss forced on every call) during a 64 KB erase + 4 KB write. Built twice: default (IDF disables the
  * cache meanwhile: core 1 waits) and with sdkconfig.suspend (auto-suspend). SPI0/SPI1 registers after init go to RTC
  * memory 0x50001400 (read back with esptool dump_mem) as the reference for esp-ndf. */

@@ -1,0 +1,8 @@
+
+=== esp-ndf unit tests ===
+[rng_quality]
+      rng_hw: ones 262035 of 524288 (0.4998), byte chi2 242.6 (255 dof, 99.9% bound 330)
+  PASS rng_quality (87678560 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

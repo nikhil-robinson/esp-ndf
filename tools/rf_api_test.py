@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive examples/rf_api_test on C9:48 with D0 (rfctl_uart) as the other end; print the test's lines and D0's measurements."""
+"""Drive components/drivers/rf/test_apps/rf_api_test on C9:48 with D0 (rfctl_uart) as the other end; print the test's lines and D0's measurements."""
 import serial, time, rfhost
 d = rfhost.Board(rfhost.D0); d.cmd('init')
 c = serial.Serial(None, 115200, timeout=0.2); c.port = rfhost.C948; c.dtr = False; c.rts = False; c.open()

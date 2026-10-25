@@ -12,6 +12,52 @@ count, bus speed or wire time. "At floor" means no software can go
 meaningfully faster; "room" means work is still left. This document is
 updated with every measured change.
 
+## Re-measurement after the security hardening (2026-10-25)
+
+The security work added stack canaries, an interrupt watchdog, a locked memory-protection split, bounded hardware
+waits, index guards on every public driver call, heap block seals, crypto engine locks with key wiping, hedged and
+verified ECDSA, constant-time RSA and signed-OTA / loader checks. **Every timing in this document was re-measured on
+the final code** (DEVKIT C9:D0, 240 MHz, default configuration: `XIP=lib`, all hardening on); raw console output of
+each run is in `bench/remeasure/data/`, the unit tests that print the peripheral numbers are the `*_unit`
+applications ([TESTING.md](TESTING.md)). IDF / ESP-DSP / esp-hal sibling numbers are unchanged (same code, same
+board). Sections that were measured on the BOX-3 (DSP, NN, fastmath, ULP, PM) were re-run on the DEVKIT: same chip,
+same results within noise.
+
+**What did not move** (within +-3 %): interrupt entry and latency (76 / 66 / 50 cycles, naked level 5: 14 / 11 / 32),
+timer jitter, lock / unlock, memcpy / memset, double and float arithmetic, DSP and NN kernels, SHA and AES on long
+inputs, flash read / erase / write, XIP cold and warm, I2C / I2S / LCD / ADC / touch / TWAI / UART DMA, ULP, PM, GDMA
+copy throughput, PFS and the storage stack. The 60 s DMA + interrupt stress test runs clean (67 005 core-1 rounds, 0 errors); the 24 h soak on the BOX-3 shows 0 failures so far.
+
+**What got slower, and why** (all still ahead of ESP-IDF unless marked):
+
+| Measurement | Before | Now | Cause |
+|---|---|---|---|
+| `malloc` + `free` 64 B | 165-227 cycles | 284 | heap block seals + free() validation (double free, stray pointer, overflow) |
+| AES-128 CBC / CTR, 16 B call | 921 / 858 | 1 413 / 1 337 | engine lock + key-register wipe per call (long inputs: +1 %) |
+| `xc_call` round trip | 243 | 262 | bounded waits (+20), cross-core interrupt status check (+5) |
+| `gpt_get` 64-bit / 32-bit | 110-124 / 100 | 118-133 / 107 | bounded latch wait |
+| `spi_xfer` 4 B, `uart_write` 16 B, `sdm`, RMT start | 549, 280, 35, 1 156 | 592, 301, 37, 1 204 | index guards + bounded waits (+4-8 %) |
+| NVS update u32 | 552 us | 628 us | flash program time (chip), same code |
+| async DMA 64 KB start | 1 404 cycles | 1 889 | GDMA ownership checks, 17-descriptor chains |
+| warm boot, reset -> main (`XIP=lib`) | 0.85-0.88 ms | **1.36 ms** | RAM image 21 -> 34 KB (+0.4 ms copy), init 25 -> 330 us (canary seed, memory protection, watchdog setup) |
+| ECDSA sign P-256 | 64 ms | **248 ms** (66 ms with `NDF_ECC_VERIFY_SIGN 0`) | verify-after-sign (fault-injection guard): **slower than IDF (99.6 ms) while on** |
+| RSA private x^d 2048 / 4096 | 163 / 1 277 ms | **220 / 1 718 ms** (163 / 1 277 with `NDF_RSA_CONST_TIME 0`) | engine constant-time mode (no exponent-dependent timing): **slower than IDF while on** |
+
+Two defaults trade speed for security and currently lose to IDF on the private-key operations: `NDF_ECC_VERIFY_SIGN`
+and `NDF_RSA_CONST_TIME` (both on). Public-key and key-agreement operations are unaffected.
+
+**Found and fixed while measuring** (each also a correctness bug, see security/AUDIT_FINDINGS_firmware.md P7-P12): the
+watchdog ISR ran for any interrupt on its shared line (false "not fed" panics); the interrupt watchdog was fed from the
+software-timer ISR, which masks all interrupts for ~550 cycles (a 600-cycle level-5 outlier every 250 ms; it now has
+its own hardware comparator and costs no latency); the 4 KB GHASH wipe used a byte loop (small GCM 3x slower); the
+our libm `sinf` / `cosf` / `atan2f` paid a stack canary (+10 %; those two files are exempt: pure arithmetic);
+the memory-protection split could cut the last instruction's prefetch; the first-use RNG seeding (~1 ms) ran at every
+boot and now runs on the first random number.
+
+**Not re-run** (hardware not available or untouched by the hardening): everything with two radio boards (BLE, 802.11,
+802.15.4, RF bring-up, packet engine, coexistence: the `rf_*` / `ble_*` applications), the USB host throughput
+comparison (needs the IDF TinyUSB sibling flashed and a host script), power-state timing, the IDF-side numbers.
+
 ## Headline numbers
 
 | | esp-ndf | Competitor | Gain |
@@ -23,20 +69,20 @@ updated with every measured change.
 | Core → core stream, per item | **18 cycles** push | FreeRTOS queue: 384 | **21×** |
 | int16 dot product, 1024 elements | **280 cycles** | ESP-DSP: 1 073 | **3.8×** |
 | `memcpy` 8 KB, aligned | **1 738 MB/s** | IDF ROM `memcpy`: 382 MB/s | **4.5×** |
-| NVS read (encrypted, repeated key) | **435 cycles** | IDF: 82 455 | **190×** |
-| NVS read (plain, repeated key) | **498 cycles** | IDF: 26 269 | **53×** |
-| FAT file open (repeated path) | **814 cycles** | IDF: 70 187 | **86×** |
+| NVS read (encrypted, repeated key) | **435 cycles** (not re-run) | IDF: 82 455 | **190×** |
+| NVS read (plain, repeated key) | **539 cycles** | IDF: 26 269 | **49×** |
+| FAT file open (repeated path) | **840 cycles** | IDF: 70 187 | **84×** |
 | Timer loop jitter at 10 kHz | **12 cycles** | IDF: 828 | **69× less** |
 | Software timer, 1 ms periodic: period spread / drift per 1 s | **0 / 0 µs** | `esp_timer`: 981–1000 µs / −19 µs | exact |
-| `malloc` + `free`, 64 B | **165 cycles** | IDF: 1 346 | **8.2×** |
-| Float divide / `sqrtf` | **56 / 58 cycles** | IDF: 75 / 118 | **1.3× / 2×** |
+| `malloc` + `free`, 64 B | **284 cycles** (was 165, see re-measure) | IDF: 1 346 | **4.7×** |
+| Float divide / `sqrtf` | **59 / 58 cycles** | IDF: 75 / 118 | **1.3× / 2×** |
 | Double add / mul / div (per call) | **48–50 / 77 / 271 cycles** | IDF ROM: 51–52 / 83 / 526 | **1.04–1.08× / 1.08× / 1.9×** |
-| `strtod`, 16 digits / hard case | **1 419 / 1 532 cycles** | IDF newlib: 8 230 / 13 197 | **5.8× / 8.6×** |
-| `printf("%.17g")` 1.23e300 / denormal | **30 348 / 14 238** | IDF: 40 354 / 31 326 | **1.3× / 2.2×** |
-| `snprintf("%.3f")` | **1 577 cycles** | IDF newlib: 11 862 | **7.5×** |
-| Ring buffer, 16 B item, zero-copy | **105 cycles** | IDF `xRingbuffer`: 1 237 | **11.8×** |
-| Async DMA copy 64 KB: start cost | **1 404 cycles** | `esp_async_memcpy`: 56 756 | **40×** |
-| Watchdog feed | **27 cycles** | `esp_task_wdt_reset`: 362 | **13×** |
+| `strtod`, 16 digits / hard case | **1 324 / 1 407 cycles** | IDF newlib: 8 230 / 13 197 | **6.2× / 9.4×** |
+| `printf("%.17g")` 1.23e300 / denormal | **30 538 / 14 417** | IDF: 40 354 / 31 326 | **1.3× / 2.2×** |
+| `snprintf("%.3f")` | **1 191 cycles** | IDF newlib: 11 862 | **10×** |
+| Ring buffer, 16 B item, zero-copy | **109 cycles** | IDF `xRingbuffer`: 1 237 | **11.3×** |
+| Async DMA copy 64 KB: start cost | **1 889 cycles** | `esp_async_memcpy`: 56 756 | **30×** |
+| Watchdog feed | **28 cycles** | `esp_task_wdt_reset`: 362 | **13×** |
 
 ## Interrupts
 
@@ -62,30 +108,30 @@ path reaches its first instruction about 11 cycles after the event.
 | Software timer 1 ms, 1 s: calls / period spread / drift | 1000 / **0 µs** / **0 µs** | 999 / 981–1000 µs / −19 µs (task dispatch) | — | absolute deadlines in hardware |
 | Software timer: deadline → callback | 1.6 µs, fixed (26 ticks of 62.5 ns) | task-dispatched, varies | ISR entry + one time read | near floor |
 | `delay_ms(250)` measured | 250 001 µs | `vTaskDelay`: 249 645 µs (tick-quantised) | — | — |
-| `malloc` + `free`, 64 B | 165 cycles | 1 346 | — | first fit, O(1) merge |
+| `malloc` + `free`, 64 B | 284 cycles (was 165: block-header seals, double-free / overflow detection) | 1 346 | — | first fit, O(1) merge |
 | Heap available (default stacks) | 346 688 B | 262 804 B internal | — | — |
 
 ## Runtime library (libc, float, ring buffer, async DMA, watchdog)
 
 | Measurement | esp-ndf | ESP-IDF | Status |
 |---|---|---|---|
-| event post / dispatch to one handler (`examples/runtime_test` vs `bench/idf_runtime`) | **68 / 267 cycles** | 1646 / 1697 (esp_event) | 24x / 6.4x; ISR + other core + overflow tested |
+| event post / dispatch to one handler (`tests/runtime_test` vs `bench/idf_runtime`) | **68 / 267 cycles** | 1646 / 1697 (esp_event) | 24x / 6.4x; ISR + other core + overflow tested |
 | task switch, cooperative (task -> scheduler -> task, stack guard kept) | **315 cycles** | 8723 (FreeRTOS taskYIELD, measured) | 28x; no preemption by design |
-| time() / gmtime_r / mktime / strftime "%F %T" (`examples/libc_test` vs `bench/idf_time`) | **216 / 843 / 1202 / 950 cycles** | 3272 / 9662 / 15587 / 70809 (newlib) | 15x / 11x / 13x / 75x; exact vs Python gmtime, years 1..9999 |
-| Float divide | 56 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
+| time() / gmtime_r / mktime / strftime "%F %T" (`components/lib/test_apps/libc_test` vs `bench/idf_time`) | **226 / 767 / 1335 / 1108 cycles** | 3272 / 9662 / 15587 / 70809 (newlib) | 14x / 13x / 12x / 64x; exact vs Python gmtime, years 1..9999 |
+| Float divide | 59 cycles, IEEE-exact (1 725 host vectors) | 75 (ROM, windowed call) | FPU helper sequence, CALL0 |
 | `sqrtf` | 58, IEEE-exact | 118 (newlib wrapper + errno) | — |
-| `snprintf` `%.3f` / `%d` | 1 577 / 972 | 11 862 / 2 957 | floats from the double's bits, integer only |
-| `strtof("3.14159")` | 613 | 2 797 | correctly rounded for every input |
+| `snprintf` `%.3f` / `%d` | 1 191 / 1 162 | 11 862 / 2 957 | floats from the double's bits, integer only |
+| `strtof("3.14159")` | 561 | 2 797 | correctly rounded for every input |
 | Double add, same sign / different sign / exponent gap 33 / cancellation | 50 / 48 / 39 / 68 | 51 / 52 / 45 / 74 | assembly fast paths, IEEE-exact |
 | Double mul / div | 77 / 271 | 83 / 526 | mul: 4 × `mull`/`muluh`; div: 11 bits per step on the 32-bit divider |
-| `strtod` 16 digits / `2.2250738585072011e-308` | 1 419 / 1 532 | 8 230 / 13 197 | Clinger fast path; table approximation; big-integer check only near a halfway point |
-| `snprintf("%.17g")` 1.23e300 / 4.9e-324 | 30 348 / 14 238 | 40 354 / 31 326 | exact digits at any precision (`%.1074f` included) |
+| `strtod` 16 digits / `2.2250738585072011e-308` | 1 324 / 1 407 | 8 230 / 13 197 | Clinger fast path; table approximation; big-integer check only near a halfway point |
+| `snprintf("%.17g")` 1.23e300 / 4.9e-324 | 30 538 / 14 417 | 40 354 / 31 326 | exact digits at any precision (`%.1074f` included) |
 | `qsort` 2 000 ints | 632 809 (316 per element) | 830 658 | word-swap fast path |
-| Ring buffer 16 B put + get (copy) | 303 | 1 102 | lock-free SPSC |
-| Ring buffer zero-copy reserve/commit/peek/release | 105 | 1 237 | — |
+| Ring buffer 16 B put + get (copy) | 327 | 1 102 | lock-free SPSC |
+| Ring buffer zero-copy reserve/commit/peek/release | 109 | 1 237 | — |
 | Ring buffer core 1 → core 0, 20 000 items of 1–200 B | 1 107 cycles/item, all intact | — | — |
-| Async DMA memcpy 64 KB: start / throughput | 1 404 cycles / 63 MB/s | 56 756 / 51 MB/s | per-channel descriptors, one-shot callback |
-| Watchdog feed | 27 | 362 (`esp_task_wdt_reset`) | 3 register writes |
+| Async DMA memcpy 64 KB: start / throughput | 1 889 cycles / 63 MB/s | 56 756 / 51 MB/s | per-channel descriptors, one-shot callback |
+| Watchdog feed | 28 | 362 (`esp_task_wdt_reset`) | 3 register writes |
 
 ## Two cores
 
@@ -95,11 +141,11 @@ path reaches its first instruction about 11 cycles after the event.
 | Shared 16 B struct (sequence counter) | 37–78 | no equivalent | — |
 | Spinlock-protected word | 47–68 | 219–2 298 (`portMUX`) | — |
 | Lock + unlock, uncontended | 19–23 | 405–406 | at floor (1 `S32C1I`) |
-| Lock, both cores hammering, per op | 28–53 | 209 | — |
+| Lock, both cores hammering, per op | 28–55 | 209 | — |
 | Critical section via Remote Core Locking | 74–76 (measured, not used) | — | spinlock wins |
 | Stream push / item end to end / batched | 18 / 51 / 30 | queue 384 | — |
 | Cross-core interrupt, naked handler | **62, fixed** | `esp_ipc` 363 178–479 979 | near floor |
-| Cross-core interrupt, C handler, level 5 / 3 / 1 | 111 / 134 / 155 | — | — |
+| Cross-core interrupt, C handler, level 5 / 3 / 1 | 148 / 169 / 177 (min; was listed as 111 / 134 / 155, an older measurement) | — | — |
 | Cost per control-loop iteration, plain variable | **+0** | — | at floor |
 | Same, 16 B struct with sequence counter | +29…48 | — | at floor (SRAM accesses) |
 
@@ -133,7 +179,7 @@ entry, applied to all code, including every loop GCC generates.
 ## Portable builds (no hardware acceleration)
 
 Every accelerated path is selected by a capability flag in
-`soc/<chip>/soc_caps.h` (`SOC_CPU_HAS_PIE`, `SOC_CPU_HAS_S32C1I`,
+`components/soc/<chip>/soc_caps.h` (`SOC_CPU_HAS_PIE`, `SOC_CPU_HAS_S32C1I`,
 `SOC_CPU_HWLOOP_LBEG_QUIRK`, ...). Each one has a portable fallback, so a
 chip without the feature still builds and works. `make NO_ACCEL=1` forces all
 fallbacks on the S3, and that build passes the full test suite too.
@@ -154,7 +200,7 @@ vector unit is off there).
 
 | Peripheral | Operation | esp-ndf | ESP-IDF | Gain | Status |
 |---|---|---|---|---|---|
-| Temp sensor | read (`examples/tsens_test` vs `bench/idf_tsens`, alternated runs) | **568 cycles** | 1830 cycles | 3.2x | done; values within 0.6 C of IDF (eFuse trim, RC_FAST clock) |
+| Temp sensor | read (`components/drivers/tsens/test_apps/tsens_test` vs `bench/idf_tsens`, alternated runs) | **569 cycles** | 1830 cycles | 3.2x | done; values within 0.6 C of IDF (eFuse trim, RC_FAST clock) |
 | TWAI | bus-off recovery -> RECOVERED alert, 500k (`test_twai_alerts` vs `bench/idf_twai_ext`) | **2816 us** (floor 2816) | 2831 us | at floor | done; alerts + error states |
 | ADC monitor | ADC1 ch 9 > 3000 for 100 ms (`test_adc_filter` vs `bench/idf_adc_ext`) | **every sample** | 0 events (IDF channel encoding bug) | works vs broken | done; IIR filter k=16 matches the model |
 | Touch | raw read (`touch_read` vs `touch_pad_read_raw_data`, `bench/idf_touch_ext`) | **99 cycles** | 532 cycles | 5.4x | done; filter/baseline/threshold events/proximity |
@@ -164,33 +210,33 @@ vector unit is off there).
 | RMT WS2812 | 3 LEDs (72 symbols, 10 MHz): call / until done (`test_rmt_ext` vs `bench/idf_rmt_ext`) | **2287 / 23393 cycles** | 3462 / 26956 cycles | 1.51x / 1.15x | done; over the 21600 wire floor 1.8k vs 5.4k |
 | I2C 10-bit | write 8 B @100 kHz (`test_i2c_ext` vs `bench/idf_i2c_ext`) | **221.6k cycles** | 230.5k cycles | 1.04x (bus-bound) | done; over the 220.8k wire floor: ~780 vs ~9700 cycles |
 | UART RS485 | DE release after the stop bit, 1 Mbaud (`test_uart_modes` vs `bench/idf_uart_modes`) | **669 cycles** | 1311 cycles | 1.96x | done; both from the TX_DONE interrupt (floor: IRQ entry ~100) |
-| LCD i80 | 300 B pixel send start, 8-bit (`test_lcd_i80` vs `bench/idf_lcd_i80`) | **1661 cycles** | 4586 cycles | 2.76x | done; both include the 4 us FIFO prefill (960) |
-| SPI half duplex | quad write 32 B, cmd+addr+dummy, 10 MHz (`test_spi_hd` vs `bench/idf_spi_hd`) | **2902 cycles** | 5754 cycles | 1.98x | done; floor 2112 (88 SCLK), 790 left |
+| LCD i80 | 300 B pixel send start, 8-bit (`test_lcd_i80` vs `bench/idf_lcd_i80`) | **1567 cycles** | 4586 cycles | 2.93x | done; both include the 4 us FIFO prefill (960) |
+| SPI half duplex | quad write 32 B, cmd+addr+dummy, 10 MHz (`test_spi_hd` vs `bench/idf_spi_hd`) | **2792 cycles** | 5754 cycles | 2.06x | done; floor 2112 (88 SCLK), 790 left |
 | I2S TDM | init 4 slots x 16 bit TX (`test_i2s_modes` vs `bench/idf_i2s_modes`) | **24.4k cycles** | 181k cycles | 7.4x | done; stream 0 errors both |
 | I2S PDM | init TX+RX duplex (IDF: TX alone) | **27.4k cycles** | 167k cycles | >6.1x | done; loop SNR **99 dB** vs IDF 38 dB (gap was stale ring blocks after restart, fixed) |
 | GPIO | set + clear | **10** | 95 | 9.5× | at floor (bus writes) |
 | Dedicated GPIO | set + clear | **3** | 45 | 15× | at floor |
 | RTC GPIO | set / get | **21 / 98** | 301 / 333 | 14× / 3.4× | — |
-| GPTimer | read counter, 64-bit | **110–124** | 407 | 3.7× | at floor (hardware latch ~50 + 2 reads) |
-| GPTimer | read counter, 32-bit (`gpt_get32`) | **100** | — | — | at floor |
-| GPTimer | alarm → callback | **800 ns fixed** | 2.8–6.8 µs | 3.5–8× | — |
+| GPTimer | read counter, 64-bit | **118–133** | 407 | 3.1–3.4× | bounded latch wait costs ~10 cycles over the floor |
+| GPTimer | read counter, 32-bit (`gpt_get32`) | **107** | — | — | near floor |
+| GPTimer | alarm → callback | **875 ns fixed** | 2.8–6.8 µs | 3.2–7.8× | — |
 | LEDC | duty update | **35** | 763 | 22× | — |
 | MCPWM | compare update | **3** | 75 | 25× | at floor |
 | MCPWM | period interrupt jitter | **0** | 21 | — | at floor |
 | PCNT | read count | **85** | 331 | 3.9× | — |
-| RMT | start 100-item transmit | **1 156** | 7 775 | 6.7× | — |
-| SDM | density update | **35** | 318 | 9.1× | — |
-| UART | write 16 bytes | **280** | 2 464 | 8.8× | small room |
+| RMT | start 100-item transmit | **1 204** | 7 775 | 6.5× | — |
+| SDM | density update | **37** | 318 | 8.6× | — |
+| UART | write 16 bytes | **301** | 2 464 | 8.2× | small room |
 | I2C | 16-byte write @100 kHz | **1 551 µs** | 1 785 µs | 1.15× | bus-bound |
-| SPI master | 4-byte transaction @40 MHz | **549** (was 730) | 4 756 | 8.7× | wire 192 + ~350 register path |
-| SPI master | 64 B @40 MHz | **3 939** (was 5 844) | 8 407 | 2.1× | wire 3 072 |
+| SPI master | 4-byte transaction @40 MHz | **592** (was 730) | 4 756 | 8.0× | wire 192 + ~390 register path (index guards, bounded waits) |
+| SPI master | 64 B @40 MHz | **4 012** (was 5 844) | 8 407 | 2.1× | wire 3 072 |
 | ADC | one-shot read | **1 846** | 6 736 | 3.6× | conversion-bound |
 | ADC continuous | frame interval jitter | **2 cycles** | not measured | — | — |
-| TWAI (CAN) | send 8 B @1 Mbit/s | **30 330** | 33 108 | 1.1× | bus-bound |
+| TWAI (CAN) | send 8 B @1 Mbit/s | **31 038** | 33 108 | 1.07× | bus-bound |
 | Touch | read | **100** | 529 | 5.3× | — |
 | RTC GPIO hold through reset | glitches | **0** | — | — | — |
 
-## Radio (blob-free, drivers/rf; same board C9:48)
+## Radio (blob-free, components/drivers/rf; same board C9:48)
 
 | Operation | esp-ndf | ESP-IDF (vendor PHY) | Gain | Notes |
 |---|---|---|---|---|
@@ -212,21 +258,21 @@ vector unit is off there).
 | Flash erase 4 KB / 64 KB (data present) | 34.3 / 236–246 ms | 35.2–37.7 / 235–243 ms | 1.0× | chip-bound |
 | Flash write 4 KB / 64 KB | **12.6 / 196 ms** | 13.9 / 220 ms | 1.1× / 1.12× | chip-bound |
 | Code from flash, cold call (cache miss) | **2 420 cycles** (was 3 515) | 3 527 | **1.46×** | 120 MHz |
-| NVS read u32 (repeated key, cached) | **498** (was 2 338) | 26 269 | **53×** | — |
-| NVS update u32 | **552 µs** | 757 µs | 1.4× | flash-bound |
+| NVS read u32 (repeated key, cached) | **539** (was 2 338) | 26 269 | **49×** | — |
+| NVS update u32 | **628 µs** | 757 µs | 1.2× | flash-bound (chip program time varies run to run) |
 | NVS read u32, encrypted (cached) | **435** (was 4 863) | 82 455 | **190×** | — |
 | NVS update u32, encrypted | **669 µs** | 1 542 µs | 2.3× | — |
 | SPIFFS read 30 KB | **4 ms** | 28 ms | 7× | — |
-| SPIFFS 40 × 30 KB rewrites | **7.4–8.4 s** | 10.9 s | 1.3–1.5× | flash-chip bound (write time drifts run to run; A/B cache vs SPI1 read path: <1 % apart) |
-| UART DMA (UHCI) 4 KB TX + RX at 5 Mbaud: CPU in driver calls / total | **1 133 cycles / 8.20 ms** | 36 479 / 8.41 ms | **32×** CPU | wire 8.19 ms (floor) |
-| PFS (power-safe FS) vs esp_littlefs 1.14.8: log line 64 B + fsync | **1.25 ms** | 49.3 ms | **39×** | one data program + one 20 B log record; LittleFS rewrites its metadata pair. Floor ~2 page programs (~0.6 ms) |
+| SPIFFS 40 × 30 KB rewrites | **9.7 s** | 10.9 s | 1.13× | flash-chip bound (write time drifts run to run; A/B cache vs SPI1 read path: <1 % apart) |
+| UART DMA (UHCI) 4 KB TX + RX at 5 Mbaud: CPU in driver calls / total | **804 cycles / 8.20 ms** | 36 479 / 8.41 ms | **45×** CPU | wire 8.19 ms (floor) |
+| PFS (power-safe FS) vs esp_littlefs 1.14.8: log line 64 B + fsync | **1.28 ms** | 49.3 ms | **39×** | one data program + one 20 B log record; LittleFS rewrites its metadata pair. Floor ~2 page programs (~0.6 ms) |
 | PFS read 30 KB | **0.68 ms** | 8.05 ms | **12×** | extent list in RAM: no flash walk |
 | PFS remount after workload (~900 log records) | **2.4 ms** | 3.1 ms | 1.3× | CRC + replay; was 17 ms before per-file extent lists, table CRC, O(1) append replay |
 | PFS format / first mount | **82 ms / 60 µs** | 87 ms / 452 µs | 1.06× / 7.5× | log blocks erased lazily (2 erases at format) |
-| PFS 40 × 30 KB rewrites / 30 KB write | **15.8 s / 433 ms** | 17.8 s / 433 ms | 1.13× / 1.0× | erase-bound (one 4 KB erase per 4 KB written, both) |
-| FAT open, repeated path (path cache) | **814** (was 65 882) | 70 187 | **86×** | — |
+| PFS 40 × 30 KB rewrites / 30 KB write | **16.3 s / 452 ms** | 17.8 s / 433 ms | 1.09× / 0.96× | erase-bound (one 4 KB erase per 4 KB written, both) |
+| FAT open, repeated path (path cache) | **840** (was 65 882) | 70 187 | **84×** | — |
 | FAT open, first time (one directory sector read) | ~51 000 | 70 187 | 1.37× | flash-read bound |
-| NVS boot reader, 8 keys | **456 µs** (was 618) | not in IDF 5.3 | — | — |
+| NVS boot reader, 8 keys | **201 µs** (was 456) | not in IDF 5.3 | — | — |
 
 ## Whole system: dual-core control loops (bench/)
 
@@ -246,7 +292,7 @@ vector unit is off there).
 
 Everything in this queue is now at, or within ~10 % of, its hardware floor.
 
-## BLE receive (hardware link layer, no vendor code), `examples/ble_scan`
+## BLE receive (hardware link layer, no vendor code), `examples/bluetooth/ble_scan`
 
 | | esp-ndf `ble_hw` | IDF Bluedroid scanner | esp-ndf software receiver |
 |---|---|---|---|
@@ -256,7 +302,7 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 
 **Headroom:** 91% of the sent PDUs are caught. The rest are lost in the re-arm gap between 10-PDU windows; a bigger RX ring would close most of it.
 
-## BLE advertising (hardware link layer, no vendor code), `examples/ble_adv`
+## BLE advertising (hardware link layer, no vendor code), `examples/bluetooth/ble_adv`
 
 | | esp-ndf `ble_hw_adv` | esp-ndf software TX (`rfctl bleadv`) |
 |---|---|---|
@@ -264,13 +310,13 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | CPU | 0.044% (one short interrupt per advert) | 0% while looping, but the DAC bank is busy and the radio is held in TX |
 | Received by IDF Bluedroid | yes, ~16/s (scanner covers ch 37 a third of the time) | yes, ~800/s |
 
-## BLE connection (slave, hardware link layer, no vendor code), `examples/ble_conn`
+## BLE connection (slave, hardware link layer, no vendor code), `examples/bluetooth/ble_conn`
 
 | | esp-ndf `ble_hw` | IDF (Bluedroid + vendor controller) |
 |---|---|---|
 | Link with an IDF central, 25 ms interval | stable 5+ min, reconnects after a central reset | — |
 | CPU for the link layer | 0.15% (one interrupt per connection event) | not measured |
-| Code | `drivers/ble/ble_hw.c` + generated tables, no blobs | libbtdm_app + ROM + libbtbb + libphy |
+| Code | `components/drivers/ble/ble_hw.c` + generated tables, no blobs | libbtdm_app + ROM + libbtbb + libphy |
 
 ## Gapless TX streaming at 40 MS/s, `rf_tx_stream`
 
@@ -296,7 +342,7 @@ Everything in this queue is now at, or within ~10 % of, its hardware floor.
 | RF open (PHY init + RX DC) | 47 ms | 6 ms | `esp_phy_enable` with stored PHY data: not measured here |
 | First TX (TX DC cal) | 70 ms | 0 ms | — |
 
-## Octal PSRAM (8 MB, in package), `drivers/psram`
+## Octal PSRAM (8 MB, in package), `components/drivers/psram`
 
 All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 bad words.
 
@@ -317,7 +363,7 @@ All runs at 80 MHz octal DTR, 240 MHz CPU; full 8 MB pattern test passes with 0 
 
 12.7x / 12.1x faster (`bench/idf_dsp/fird_result.txt`, same board). ESP-DSP cannot keep up with the 16 MS/s stream (15 cycles per sample available); ours runs gapless for 1 M output samples into PSRAM. Pieces: PIE unpack `dsp_unpack_iq10` 2.14 cycles/sample (C: 9.01), fused I+Q dot `dsp_dot2_s16` (one call, straight-line 64- and 48-element blocks, verified bit-exact against `dsp_dot_s16`). Floor: unpack 2.1 + the MACs (2T/D per sample at 8 per vector instruction: 1.5 at decim 8) = ~3.6 cycles; the rest is 128-bit load latency and per-chunk overhead.
 
-## USB OTG full-speed device, CDC-ACM, `drivers/usb/usb_dev.c` vs ESP-IDF TinyUSB
+## USB OTG full-speed device, CDC-ACM, `components/drivers/usb/usb_dev.c` vs ESP-IDF TinyUSB
 
 Same board (C9:48), same host port (xHCI root port, 12M), same host script (`tools/usb_cdc_test.py`, run by
 `tools/usb_cmp.sh`), 4 MB each way, byte-exact pattern check, 3 runs each (`bench/usb_cdc/data/cmp.txt`).
@@ -344,7 +390,7 @@ status bit 5, endpoint-info area at the top of FIFO RAM via GDFIFOCFG, one-SETUP
 
 ## Boot time and code from flash (XIP)
 
-**Boot, chip reset -> main** (`examples/boot_time` vs `bench/idf_boot`, same board; both sides run the same RTC-timer
+**Boot, chip reset -> main** (`components/soc/test_apps/boot_time` vs `bench/idf_boot`, same board; both sides run the same RTC-timer
 code `bench/boot/rtc_boot.h`: the RTC timer keeps counting through a software system reset, calibrated against the
 system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image validation skipped, logs off).
 
@@ -354,8 +400,9 @@ system timer; `bench/boot/result*.txt`). IDF with its fast-boot settings (image 
 | esp-ndf, ROM loads the whole RAM image (before) | 21 708 - 22 080 us |
 | + ROM log off for warm resets (RTC_CNTL_STORE4 flag, no eFuse) | 15 938 - 15 947 us |
 | esp-ndf fast boot, cold path (ROM -> 2 KB loader: PLL, QIO through the cache, copies the app) | 6 184 - 6 185 us |
-| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **781 - 782 us** with brownout reset on (772 - 780 without: protection costs ~9 us) |
+| **esp-ndf warm boot, no ROM** (RTC boot stage at the reset vector, XIP off) | **781 - 782 us** with brownout reset on (772 - 780 without: protection costs ~9 us); **2026-10-25 with all hardening: see "Re-measurement" at the top** |
 | esp-ndf warm boot, no ROM, XIP=lib | 854 - 860 us |
+| **same, 2026-10-25 with all hardening** (XIP off / lib / all) | **1.39 / 1.36 / 1.33 ms** (RAM image 37 / 35 / 34 KB, was 21.5 KB; init 276-330 us) |
 | ratio (warm, no ROM) | **45x faster** |
 
 Breakdown of the 6.18 ms: ROM fixed work ~4.24 ms (not ours: mask ROM before any of our code), ROM loading our 2016-byte
@@ -379,7 +426,7 @@ latency (~34 MB/s reached); headroom: skip re-copying unchanged IRAM
 code on warm resets (SRAM is kept through a system reset), or a smaller RAM image (XIP=all).
 
 
-**Code from flash** (`examples/xip_test` vs `bench/idf_xip`, the same 64 generated kernels `bench/xip/xip_kern.c`,
+**Code from flash** (`components/soc/test_apps/xip_test` vs `bench/idf_xip`, the same 64 generated kernels `bench/xip/xip_kern.c`,
 23.8 KB of code, compiled into both; IDF at -O2 / 240 MHz / QIO 80 MHz):
 
 | cycles per kernel call | RAM | flash, warm | flash, cold |
@@ -427,7 +474,7 @@ Consolidated from the measured results across this work:
 - RX image rejection, measured with D0's TX image moved out of the bin: 45–62 dB (was quoted 30–41 dB, TX image included); no RX IQ correction needed (a static software correction gains 0–2 dB at best; `bench/rfmeas/data/rx_iq_static.txt`).
 - Coded-rate (S2/S8) receive is now steady: a window timeout with the AGC running left the link-layer core unable to sync; a core reset (SYSCON bit 9) + reload after each such timeout fixes it. S8 16–18 per 300 ms window over 20 windows (was 0–19, dying after 1–10), S2 40–51; silence-first start 68–74 of 150 (was 0); 6 s window S8 336 / S2 939 good, 0 CRC-bad (`bench/rfmeas/data/coded_fix.txt`). Whitening-off found (RWBLECNTL bit 14).
 
-## Flash driver (`examples/flash_test` vs `bench/idf_flash`, same board, BY25Q128 0x684018, 2026-10-24)
+## Flash driver (`components/drivers/flash/test_apps/flash_test` vs `bench/idf_flash`, same board, BY25Q128 0x684018, 2026-10-24)
 
 Chip support as ESP-IDF's list (generic/XMC, GD, ISSI, MXIC, Winbond, Boya, TH, FM): quad-enable bit and write method
 per chip (IDF flash_qio_mode.c, set if clear), boot unlock of protection bits (IDF bootloader_flash_unlock), XMC
@@ -442,7 +489,7 @@ commands, 8READ 0xEC cache read with 32-bit address / 20 dummy); boot keeps the 
 through the ROM on octal boards. Not run on hardware: 4-byte addresses (needs >16 MB flash), octal flash (DTR not
 implemented), suspend on a validated chip.
 
-## Random numbers (`examples/rng_test` vs `bench/idf_rng`, same board, 2026-10-24)
+## Random numbers (`components/drivers/crypto/test_apps/rng_test` vs `bench/idf_rng`, same board, 2026-10-24)
 
 | | esp-ndf | ESP-IDF | Gain |
 |---|---|---|---|
@@ -456,20 +503,20 @@ from the buffer at each refill and handed-out bytes zeroed (fast key erasure), 2
 NDF_RNG_RESEED bytes (64 KB). Statistics on both outputs: ones / runs 0.50, byte chi-square 199-263 (255 dof).
 Floor: ~33 cycles/byte = the ChaCha20 block on this core; headroom: 4 blocks in parallel with the PIE vector unit.
 
-## SHA accelerator (`examples/sha_test` vs `bench/idf_sha`, same board, best of 4, 2026-10-24)
+## SHA accelerator (`components/drivers/crypto/test_apps/sha_test` vs `bench/idf_sha`, same board, best of 4, 2026-10-24)
 
 | cycles | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
 |---|---|---|---|
 | SHA-256 64 B | **2 004** | 9 313 | **4.6x** |
-| SHA-256 1 KB | **4 096** | 10 935 | **2.7x** |
-| SHA-256 4 KB | **10 210** | 18 303 | **1.8x** |
-| SHA-256 64 KB | **130 822** (120 MB/s) | 154 966 (101 MB/s) | **1.18x** |
-| SHA-512 64 B / 1 KB / 4 KB / 64 KB | **1 896 / 4 756 / 10 579 / 153 010** | 7 216 / 13 300 / 20 653 / 157 759 | 3.8x / 2.8x / 1.95x / 1.03x |
+| SHA-256 1 KB | **4 458** | 10 935 | **2.5x** |
+| SHA-256 4 KB | **10 632** | 18 303 | **1.7x** |
+| SHA-256 64 KB | **132 048** (119 MB/s) | 154 966 (101 MB/s) | **1.17x** |
+| SHA-512 64 B / 1 KB / 4 KB / 64 KB | **1 879 / 5 122 / 10 969 / 153 904** | 7 216 / 13 300 / 20 653 / 157 759 | 3.8x / 2.6x / 1.9x / 1.02x |
 
 Short messages CPU-fed (no descriptor/lock overhead); runs of >= 4 blocks in internal RAM by DMA, 63 blocks per run.
 Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~1000 cycles on 64 B (padding block).
 
-## OTA (`examples/ota_test`, 2026-10-24)
+## OTA (`components/drivers/storage/test_apps/ota_test`, 2026-10-24)
 
 | | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -480,7 +527,7 @@ Floor: the engine (64 KB at ~2 cycles/byte); headroom small on large inputs, ~10
 Same on-flash format as IDF (otadata select entries, crc32_le over seq): IDF's otatool switches our slots and reads
 ours. Code from flash runs from either slot: the code window (MMU entries 496-511) is mapped onto the booted slot.
 
-## Watchdogs (`examples/wdt_test`, real resets, 2026-10-24)
+## Watchdogs (`components/drivers/wdt/test_apps/wdt_test`, real resets, 2026-10-24)
 
 | | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -492,7 +539,7 @@ ours. Code from flash runs from either slot: the code window (MMU entries 496-51
 RTC WDT stage 0 scaled by 2 << eFuse WDT_DELAY_SEL (IDF assumes 0) and the RTC slow clock measured (149-150 kHz here,
 nominal 136), so timeouts are within 1 %. Super WDT: ~3.4 s at this slow clock.
 
-## Heap and memory map (`examples/mem_test` vs `bench/idf_mem`, same board, best of 16, 2026-10-24)
+## Heap and memory map (`components/soc/test_apps/mem_test` vs `bench/idf_mem`, same board, best of 16, 2026-10-24)
 
 | malloc + free | esp-ndf | ESP-IDF (TLSF heap, SPIRAM_USE_MALLOC) | gain |
 |---|---|---|---|
@@ -520,75 +567,76 @@ Not on IDF's suspend list (IDF stalls flash code for the whole operation); our S
 Hold after resume (NDF_FLASH_SUS_HOLD_US): IDF's 50 us starves the erase when flash is touched every 20-50 us (never
 finishes, reported as a failure); 100 us passes every case with the shortest pauses (200 us: 548 us, 400 us: 1 ms).
 
-## AES modes (`examples/aes_test` vs `bench/idf_aes`, C9:D0, best of 4, 2026-10-24)
+## AES modes (`components/drivers/crypto/test_apps/aes_test` vs `bench/idf_aes`, C9:D0, best of 4, 2026-10-24)
 
 | cycles, AES-128 | esp-ndf | ESP-IDF mbedtls (hardware, DMA port) | gain |
 |---|---|---|---|
-| CBC 16 B / 256 B / 4 KB / 64 KB | **921 / 2 418 / 16 941 / 250 029** | 5 956 / 6 727 / 24 031 / 279 184 | 6.5x / 2.8x / 1.42x / 1.12x |
-| CTR 16 B / 256 B / 4 KB / 64 KB | **858 / 2 433 / 16 956 / 250 059** | 5 983 / 6 739 / 24 052 / 279 205 | 7.0x / 2.8x / 1.42x / 1.12x |
+| CBC 16 B / 256 B / 4 KB / 64 KB | **1 413 / 3 001 / 17 569 / 251 176** | 5 956 / 6 727 / 24 031 / 279 184 | 4.2x / 2.2x / 1.37x / 1.11x |
+| CTR 16 B / 256 B / 4 KB / 64 KB | **1 337 / 3 016 / 17 584 / 251 206** | 5 983 / 6 739 / 24 052 / 279 205 | 4.5x / 2.2x / 1.36x / 1.11x |
 
 Engine DMA mode for >= 4 blocks in internal RAM (62 MB/s at 64 KB, the engine's rate), CPU-fed blocks below (no
 descriptor/lock setup). Modes ECB, CBC, OFB, CTR, CFB128.
 
-## RSA / big-number (`examples/rsa_test` vs `bench/idf_rsa`, C9:D0, 2026-10-24)
+## RSA / big-number (`components/drivers/crypto/test_apps/rsa_test` vs `bench/idf_rsa`, C9:D0, 2026-10-24)
 
 | us | esp-ndf | ESP-IDF mbedtls (hardware MPI) | gain |
 |---|---|---|---|
 | RSA-1024 first x^65537 (prepare R² + exp) | 2 381 | 3 170 | 1.33x |
 | RSA-2048 first x^65537 | 9 042 | 13 660 | 1.51x |
 | RSA-4096 first x^65537 | 35 681 | 55 553 | 1.56x |
-| x^65537, 1024 / 2048 / 4096 | 281 / 1 042 / 4 029 | 313 / 1 075 / 4 061 | 1.11 / 1.03 / 1.01x |
-| x^d, 1024 / 2048 / 4096 | 21 700 / 163 000 / 1 277 418 | 21 760 / 163 354 / 1 277 450 | equal |
+| x^65537, 1024 / 2048 / 4096 | 287 / 1 054 / 4 053 | 313 / 1 075 / 4 061 | 1.09 / 1.02 / 1.00x |
+| x^d, 1024 / 2048 / 4096 (private key, constant time: the default) | 28 807 / 219 867 / 1 717 890 | 21 760 / 163 354 / 1 277 450 | **0.76x / 0.74x / 0.74x** |
+| x^d with `NDF_RSA_CONST_TIME 0` (IDF's fast path, exponent-dependent timing) | 21 733 / 163 333 / 1 277 442 | 21 760 / 163 354 / 1 277 450 | equal |
 
-Exponentiation is the engine's own time (both drive the same block), so x^d is at the floor; the gain is R² preparation
+Exponentiation is the engine's own time (both drive the same block), so x^d with the fast path is at the floor; the engine's constant-time mode (default, no exponent-dependent timing) turns the acceleration off and costs 34 %; the gain is R² preparation
 (top-bit trick + doublings instead of mbedtls' generic division) and less per-call overhead on short exponents.
 
-## P-256 ECC (`examples/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-24)
+## P-256 ECC (`components/drivers/crypto/test_apps/p256_test` vs `bench/idf_p256`, C9:D0, 2026-10-24)
 
-| us | esp-ndf (lib/ecc.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
+| us | esp-ndf (components/lib/ecc.c, constant-time) | ESP-IDF mbedtls (default ECP config) | gain |
 |---|---|---|---|
-| public key (d G) | 59 599 | 92 847 | 1.56x |
-| ECDH shared secret | 58 729 | 92 939 | 1.58x |
-| ECDSA sign | 64 462 | 99 645 | 1.55x |
-| ECDSA verify | 118 289 | 197 932 | 1.67x |
+| public key (d G) | 61 257 | 92 847 | 1.52x |
+| ECDH shared secret | 60 345 | 92 939 | 1.54x |
+| ECDSA sign | 66 191 (verify-after-sign off) / **248 056** (on, the default) | 99 645 | 1.5x / **0.40x** |
+| ECDSA verify | 121 534 | 197 932 | 1.63x |
 
 Dedicated 8-limb Montgomery mod p/n vs mbedtls' generic bignum. Headroom: mixed (affine-table) adds, a comb table
 for G, Shamir's trick in verify and P-specific reduction would each cut more; not needed to beat IDF.
 
-## AES-GCM (`examples/gcm_test` vs `bench/idf_gcm`, C9:D0, 2026-10-24; key setup included on both sides)
+## AES-GCM (`components/drivers/crypto/test_apps/gcm_test` vs `bench/idf_gcm`, C9:D0, 2026-10-24; key setup included on both sides)
 
 | us | esp-ndf encrypt / decrypt | ESP-IDF mbedtls encrypt / decrypt | gain |
 |---|---|---|---|
-| 15 B, AAD 20 | 46 / 46 | 120 / 70 | 2.6 / 1.5x |
-| 64 B | 53 / 52 | 124 / 75 | 2.3 / 1.4x |
-| 100 B, 16-byte IV | 71 / 72 | 152 / 106 | 2.1 / 1.5x |
-| 1000 B | 200 / 200 | 387 / 339 | 1.9 / 1.7x |
-| 16 KB, AES-128 / 256 | 2 501 / 2 514 | 4 571 / 4 567 (dec 4 530) | 1.8x |
+| 15 B, AAD 20 | 52 / 52 | 120 / 70 | 2.3 / 1.3x |
+| 64 B | 58 / 58 | 124 / 75 | 2.1 / 1.3x |
+| 100 B, 16-byte IV | 78 / 78 | 152 / 106 | 1.9 / 1.4x |
+| 1000 B | 207 / 207 | 387 / 339 | 1.9 / 1.6x |
+| 16 KB, AES-128 / 256 | 2 491 / 2 504 | 4 571 / 4 567 (dec 4 530) | 1.8x |
 
 CTR on the engine (DMA) + GHASH with an 8-bit Shoup table in 32-bit words (mbedtls: 4-bit, 64-bit shifts). GHASH is
 ~2.3 cycles/bit now; headroom: overlap DMA CTR with GHASH of the previous chunk (CTR is ~15% of the 16 KB time).
 
-## X25519 (`examples/x25519_test` vs `bench/idf_x25519`, C9:D0, 2026-10-24)
+## X25519 (`components/drivers/crypto/test_apps/x25519_test` vs `bench/idf_x25519`, C9:D0, 2026-10-24)
 
-| us | esp-ndf (lib/ecc.c ladder) | ESP-IDF mbedtls Curve25519 | gain |
+| us | esp-ndf (components/lib/ecc.c ladder) | ESP-IDF mbedtls Curve25519 | gain |
 |---|---|---|---|
-| public key (k * 9) | 45 228 | 76 085 | 1.68x |
-| shared secret | 44 839 | 77 023 | 1.72x |
+| public key (k * 9) | 46 358 | 76 085 | 1.64x |
+| shared secret | 45 952 | 77 023 | 1.68x |
 
 Same 8-limb Montgomery field code as P-256 (generic for p = 2^255-19). Headroom: a 2^255-19 specific reduction
 (multiply the high half by 38) instead of Montgomery would cut about a third.
 
-## Cross-core call (`examples/xcore_call` vs `bench/idf_xcall`, C9:D0, 2026-10-24)
+## Cross-core call (`components/drivers/xcore/test_apps/xcore_call` vs `bench/idf_xcall`, C9:D0, 2026-10-24)
 
 | cycles, core 0 runs fn on core 1 and waits | esp-ndf `xc_call` | ESP-IDF `esp_ipc_call_blocking` | gain |
 |---|---|---|---|
-| round trip, min / avg of 10 000 | 243 / 244 | 5 622 / 5 823 | 23.9x |
+| round trip, min / avg of 10 000 | 262 / 262 | 5 622 / 5 823 | 21.5x |
 
 Ours runs fn in core 1's cross-core interrupt (level 3); IDF wakes an IPC task (context switch each way). Floor: the
 bare notify round trip is 127 cycles at level 3 (xcore_notify), so the call adds ~117 cycles of handoff. IDF's
 esp_ipc_isr path is assembly-callback only and not compared. Core 1 resumes 261 cycles after xc_unstall.
 
-## Floats in interrupt handlers (`examples/fpu_isr`, C9:D0, 2026-10-24)
+## Floats in interrupt handlers (`components/arch/test_apps/fpu_isr`, C9:D0, 2026-10-24)
 
 | | esp-ndf | ESP-IDF (ESP32-S3) |
 |---|---|---|
@@ -601,7 +649,7 @@ interrupted context in a slot per (core, INTLEVEL); the exit restores them only 
 The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handler's own sqrt. IRQ entry latency
 (irq_latency): L1 76, L3 66, L5 50 cycles (RESULTS table: 76 / 63 / 46; layout shift, entry code unchanged except L1).
 
-## Profiling and debug (`examples/debug_test` vs `bench/idf_perf`, C9:D0, 2026-10-24)
+## Profiling and debug (`components/arch/test_apps/debug_test` vs `bench/idf_perf`, C9:D0, 2026-10-24)
 
 | | esp-ndf | ESP-IDF | gain |
 |---|---|---|---|
@@ -610,7 +658,7 @@ The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handl
 | stack overflow detection | SP leaves [bottom + 256, top] on any instruction: 0 cycles (fib(24) 1 950 649 both) | FreeRTOS watchpoint on the last 32 bytes (writes only) | - |
 | watchpoint hit | callback, access completes, program continues | panic | - |
 
-## GDMA with PSRAM (`examples/gdma_ext` vs `bench/idf_gdma`, C9:D0 octal PSRAM 80 MHz, 2026-10-24)
+## GDMA with PSRAM (`components/drivers/gdma/test_apps/gdma_ext` vs `bench/idf_gdma`, C9:D0 octal PSRAM 80 MHz, 2026-10-24)
 
 | MB/s | esp-ndf gdma_memcpy | ESP-IDF esp_async_memcpy | gain | CPU memcpy (ours) |
 |---|---|---|---|---|
@@ -622,7 +670,7 @@ The ~200 extra cycles are the trap (~70), 2 x 19-word save/restore and the handl
 160 MB/s raw, less command/latency per 64-byte burst); ours saves the per-chunk task/semaphore handoff.
 Priority: two channels copying 32 KB at once, the prio-5 channel finishes in ~520 us, the prio-0 one in ~1030 us.
 
-## Memory protection (`examples/memprot_test`, C9:D0, 2026-10-24)
+## Memory protection (`components/soc/test_apps/memprot_test`, C9:D0, 2026-10-24)
 
 | | esp-ndf (NDF_MEMPROT=1, default) | ESP-IDF (CONFIG_ESP_SYSTEM_MEMPROT_FEATURE, default) |
 |---|---|---|
@@ -635,12 +683,12 @@ Priority: two channels copying 32 KB at once, the prio-5 channel finishes in ~52
 Split granularity 256 B: _text_end is aligned to 256 (up to 255 B of padding). Warm boot on C9:D0 is 881-889 us
 with or without both features (and at the brownout commit ef16ef2); the 781 us figure was the other devkit.
 
-## PIE in handlers + instruction table (`examples/pie_isr`, `examples/pie_bench`, BOX-3, 2026-10-24)
+## PIE in handlers + instruction table (`components/arch/test_apps/pie_isr`, `components/arch/test_apps/pie_bench`, BOX-3, 2026-10-24)
 
 Handler using PIE + FPU, level-3 round trip 198 cycles vs 135 for an integer handler (+63: trap + 208-byte save /
 restore). IDF: PIE in ISRs not supported. Full per-instruction table: docs/PIE.md.
 
-## DSP library vs ESP-DSP 1.8.2 (`examples/dsp_lib` vs `bench/idf_dsplib`, BOX-3, same LCG inputs, best of 3, 2026-10-24)
+## DSP library vs ESP-DSP 1.8.2 (`components/lib/test_apps/dsp_lib` vs `bench/idf_dsplib`, BOX-3, same LCG inputs, best of 3, 2026-10-24)
 
 | cycles | esp-ndf | ESP-DSP 1.8.2 | gain |
 |---|---|---|---|
@@ -649,9 +697,9 @@ restore). IDF: PIE in ISRs not supported. Full per-instruction table: docs/PIE.m
 | fft_f32 4096 | 276695 | 324478 | 1.17x |
 | rfft_f32 1024 | 40636 | 58071 | 1.43x |
 | fft_s16 1024 | 22310 | 33466 | 1.50x |
-| win_hann 1024 | 30721 | 480763 | 15.65x |
-| win_blackman 1024 | 41985 | 957984 | 22.82x |
-| win_flattop 1024 | 58369 | 1932589 | 33.11x |
+| win_hann 1024 | 31414 | 480763 | 15.30x |
+| win_blackman 1024 | 42678 | 957984 | 22.45x |
+| win_flattop 1024 | 59062 | 1932589 | 32.72x |
 | fir_f32 64 taps x 1024 | 118943 | 150103 | 1.26x |
 | fird_s16 32 taps /4 x 1024 | 11088 | 19148 | 1.73x |
 | biquad_f32 x 1024 | 9284 | 17440 | 1.88x |
@@ -677,7 +725,7 @@ At parity, by construction: float and int16 matrix multiply (21 instructions per
 inner loop as ESP-DSP's aes3 code: the issue floor), add_s16 (3 instructions per 8), dot_f32 (load-bound). ESP-DSP's
 add_s16 aes3 ignores its shift argument (output unshifted, unlike its ansi reference); ours honours it.
 
-## int8 NN layers vs ESP-NN 1.4.1 (`examples/nn_lib` vs `bench/idf_nn`, BOX-3, single core, best of 3, 2026-10-24)
+## int8 NN layers vs ESP-NN 1.4.1 (`components/lib/test_apps/nn_lib` vs `bench/idf_nn`, BOX-3, single core, best of 3, 2026-10-24)
 
 | layer | esp-ndf cycles | ESP-NN 1.4.1 cycles | gain | bit-exact |
 |---|---|---|---|---|
@@ -700,7 +748,7 @@ fused MAC + load and register rotation, the TFLite requantisation as floor((x m 
 average pooling, int16 PIE arithmetic for 2x2 pooling, 256-entry tables for add and a cached exp table for softmax.
 Floor: per-output requantisation (~22 instructions, scalar mull/mulsh as in ESP-NN) bounds conv / dwconv near parity.
 
-## Float math vs IDF newlib (`examples/fastmath_test` vs `bench/idf_math`, BOX-3, 1024 arguments, 2026-10-24)
+## Float math vs IDF newlib (`components/lib/test_apps/fastmath_test` vs `bench/idf_math`, BOX-3, 1024 arguments, 2026-10-24)
 
 | cycles/call | IDF newlib | esp-ndf libm (musl) | esp-ndf fast (scalar / vector) | best gain |
 |---|---|---|---|---|
@@ -715,7 +763,7 @@ Measured errors (vs double): sin/cos 7.0e-8 abs (|x| <= 8192), atan2 2.4e-7, exp
 sqrt 1.6e-7 rel. Vector forms interleave four elements to cover the FPU's 4-cycle latency. Floor: each call rebuilds
 its constants (l32r + wfr); a fused vector kernel keeping them in FPU registers would cut ~30% more.
 
-## ULP coprocessors (`examples/ulp_test` vs `bench/idf_ulp`, BOX-3, 2026-10-24)
+## ULP coprocessors (`components/soc/test_apps/ulp_test` vs `bench/idf_ulp`, BOX-3, 2026-10-24)
 
 | | esp-ndf | ESP-IDF | gain |
 |---|---|---|---|
@@ -725,7 +773,7 @@ its constants (l32r + wfr); a fused vector kernel keeping them in FPU registers 
 Word-wise RTC slow-memory writes (~us per access) and no full-reserve memset; both sides calibrate the slow clock
 beforehand (ours: rtc_slow_hz(), ~2 ms, cached). ULP-FSM: 99 runs/s at 10 ms as well.
 
-## CPU frequency locks (`examples/pm_test` vs `bench/idf_pm`, BOX-3, 2026-10-24)
+## CPU frequency locks (`components/soc/test_apps/pm_test` vs `bench/idf_pm`, BOX-3, 2026-10-24)
 
 | | esp-ndf pm_lock / pm_unlock | ESP-IDF esp_pm CPU_FREQ_MAX lock (DFS 240/80) |
 |---|---|---|

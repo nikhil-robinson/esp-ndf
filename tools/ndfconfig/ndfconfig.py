@@ -102,9 +102,9 @@ def all_options(menu):
 
 
 def soc_caps():
-    """read-only capabilities from soc/<chip>/soc_caps.h (accelerated build view)"""
+    """read-only capabilities from components/soc/<chip>/soc_caps.h (accelerated build view)"""
     caps = []
-    p = os.path.join(ROOT, 'soc', 'esp32s3', 'soc_caps.h')
+    p = os.path.join(ROOT, 'components', 'soc', 'esp32s3', 'soc_caps.h')
     try:
         txt = open(p).read().split('#else')[0]
         for m in re.finditer(r'#define\s+(SOC_\w+)\s+(\S+)\s*(?:/\*\s*(.*?)\s*\*/)?', txt):
@@ -193,8 +193,8 @@ def gen_doc(out):
     root = build(SCHEMA)
     w = ['# esp-ndf configuration\n',
          'Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --doc`. Change options with '
-         '`make menuconfig APP=<app>`. That writes only the non-default values to `<app>/ndf_config.h` (C options) and '
-         '`<app>/app.mk` (build options). Chip capabilities (what the silicon has) are in `soc/<chip>/soc_caps.h`.\n']
+         '`make menuconfig` in the application folder. That writes only the non-default values to `<app>/ndf_config.h` (C options) and '
+         '`<app>/app.mk` (build options). Chip capabilities (what the silicon has) are in `components/soc/<chip>/soc_caps.h`.\n']
 
     def walk(m, depth):
         for it in m.items:

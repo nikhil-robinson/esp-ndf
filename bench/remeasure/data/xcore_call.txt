@@ -1,0 +1,2 @@
+PASS xc_call: result 1, round trip min 262 avg 262 cycles | PASS stall: frozen 1, resumed 1 (250 cycles to first count)
+xcore_call PASS done

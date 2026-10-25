@@ -1,0 +1,5 @@
+PASS global constructors ran in priority order: 1 2 3
+PASS virtual area() sum 53, heap back to start after delete (call 19 cycles)
+PASS std::array + std::sort + template sum 27
+PASS function-local static
+=== cpp_test ALL PASS (0 failures) ===

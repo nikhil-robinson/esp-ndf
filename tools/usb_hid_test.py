@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/usb_msc "hid": the HID function enumerates, the kernel's hid core parsed our report
+"""Host side of examples/usb/usb_msc "hid": the HID function enumerates, the kernel's hid core parsed our report
 descriptor (sysfs copy matches byte for byte), and the device sent input reports while configured (counter).
 /dev/hidraw* is root-only here, so reports are not read by the host. Usage: usb_hid_test.py PORT [secs]"""
 import serial, glob, os, sys, time

@@ -1,0 +1,39 @@
+libc_test
+PASS divide: 1725/1725 bit-exact
+PASS sqrtf: 1725/1725 bit-exact
+PASS portable divide + sqrt (no-FPU chips): 0 mismatches
+PASS float -> double: 0 mismatches
+PASS double -> float (rounding, denormals, overflow): 0 mismatches
+PASS int64 -> float: 0 mismatches
+PASS float -> int64 round trip: 0 mismatches
+PASS double + - * /: 844 vectors each, mismatches 0 0 0 0
+PASS fast paths vs general code, 200 000 random pairs: mismatches 0 0 0 0
+PASS double compares (< > == <= >= != unordered): 0 mismatches
+PASS int <-> double conversions: 0 mismatches
+     double add 50, mul 95, div 296 cycles (r=979)
+PASS printf floats: 68/68 formats match C
+PASS printf ints/strings: [   42|42   |-0042|+7| 7|005|ff|0000BEEF|hi|ab|z|-9000000000|18000000000000000000|%]
+PASS %a hex floats: 10 cases
+PASS printf %#x %o %hh %h %j %p %n: [0xff|0XFF|010|10|0|0x000000ff|44|4464|1|1099511627776|0x1234|   10] (n=68)
+PASS snprintf truncates, returns full length (11)
+PASS float argument promoted: 1.500
+PASS strtol decimal + end pointer
+PASS strtol hex + saturation
+PASS strtoul octal/base36, strtoull max
+PASS strtoll min, atoi
+PASS strtod / strtof correctly rounded: 438 strings (hard cases, halfway + 800-digit tails, hex, denormals), mismatches 0 0, end 0
+PASS qsort 2000 ints: 634436 cycles (317 per element)
+PASS qsort sorted input, bsearch hit/miss
+     float divide 59, sqrtf 58, snprintf %.3f 1191, %d 1162, strtof 561 cycles (r=278)
+     add same sign  50 cycles/call
+     add diff sign  48 cycles/call
+     add d = 33     39 cycles/call
+     sub cancel     68 cycles/call
+     mul            77 cycles/call
+     div            271 cycles/call
+     snprintf %.17g 1.23e300 30538, denormal 14417, strtod 16 digits 1324, hard case 1407 cycles
+PASS gmtime_r / timegm: 24 host vectors (year 1..9999, negative times), 0 wrong
+PASS mktime normalises + strftime: 2025-03-05 01:00:00 Wed Mar 064 (1741136400)
+PASS settimeofday / time / gettimeofday: 1761350400, time() 226 cycles
+     gmtime_r 767, mktime 1335, strftime %F %T 1108 cycles
+=== ALL PASS (0 failures) ===

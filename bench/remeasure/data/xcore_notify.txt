@@ -1,0 +1,6 @@
+
+=== cross-core interrupt by level (cycles, 240 = 1 us) ===
+  level 1: round trip min 177 avg 193 max 197 cycles
+  level 3: round trip min 169 avg 172 max 179 cycles
+  level 5: round trip min 148 avg 148 max 148 cycles
+=== done ===

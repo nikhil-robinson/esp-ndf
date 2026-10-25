@@ -1,0 +1,19 @@
+PASS ECB-AES128 (F.1.1) (DMA, per block, decrypt)
+PASS CBC-AES128 (F.2.1) (DMA, per block, decrypt)
+PASS CFB128-AES128 (F.3.13) (DMA, per block, decrypt)
+PASS OFB-AES128 (F.4.1) (DMA, per block, decrypt)
+PASS CTR-AES128 (F.5.1) (DMA, per block, decrypt)
+PASS AES-256-ECB 64 KB: DMA = CPU path 1, decrypts back 1
+PASS AES-256-CBC 64 KB: DMA = CPU path 1, decrypts back 1
+PASS AES-256-OFB 64 KB: DMA = CPU path 1, decrypts back 1
+PASS AES-256-CTR 64 KB: DMA = CPU path 1, decrypts back 1
+PASS AES-256-CFB128 64 KB: DMA = CPU path 1, decrypts back 1
+speed AES-128-CBC    16 B:    1413 cycles (2 MB/s)
+speed AES-128-CBC   256 B:    3001 cycles (20 MB/s)
+speed AES-128-CBC  4096 B:   17569 cycles (55 MB/s)
+speed AES-128-CBC 65536 B:  251176 cycles (62 MB/s)
+speed AES-128-CTR    16 B:    1337 cycles (2 MB/s)
+speed AES-128-CTR   256 B:    3016 cycles (20 MB/s)
+speed AES-128-CTR  4096 B:   17584 cycles (55 MB/s)
+speed AES-128-CTR 65536 B:  251206 cycles (62 MB/s)
+aes_test PASS done

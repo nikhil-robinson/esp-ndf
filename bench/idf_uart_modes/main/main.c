@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_uart_modes.c: UART1 TX 12 -> RX 13, RTS/DE pad 16. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_uart_modes.c: UART1 TX 12 -> RX 13, RTS/DE pad 16. */
 #include <stdio.h>
 #include <string.h>
 #include "driver/uart.h"

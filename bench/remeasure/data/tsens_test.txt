@@ -1,0 +1,3 @@
+tsens_test: BLK_VERSION_MAJOR 1, TEMP_CALIB 0x005
+tsens_test: mean 62.7 C, read 569 cycles
+tsens_test done

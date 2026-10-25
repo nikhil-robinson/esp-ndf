@@ -1,0 +1,9 @@
+           storm: 39545 interrupts during 20000 hardware-loop ch
+=== interrupt cost, empty C handler (cycles, 240 = 1 us) ===
+  level 1: entry  76.. 76  exit  64.. 64  loop lost 159..159
+           storm: 39545 interrupts during 20000 hardware-loop checksums, 0 wrong
+  level 3: entry  66.. 66  exit  60.. 60  loop lost 143..143
+           storm: 38958 interrupts during 20000 hardware-loop checksums, 0 wrong
+  level 5: entry  50.. 50  exit  45.. 49  loop lost 113..116
+           storm: 38235 interrupts during 20000 hardware-loop checksums, 0 wrong
+=== done ===

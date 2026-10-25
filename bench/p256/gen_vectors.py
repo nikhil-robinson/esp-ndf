@@ -1,4 +1,4 @@
-"""P-256 vectors for examples/p256_test and bench/idf_p256 (python cryptography + plain-int ECDSA with a fixed k)."""
+"""P-256 vectors for components/drivers/crypto/test_apps/p256_test and bench/idf_p256 (python cryptography + plain-int ECDSA with a fixed k)."""
 import hashlib
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 from cryptography.hazmat.primitives import hashes

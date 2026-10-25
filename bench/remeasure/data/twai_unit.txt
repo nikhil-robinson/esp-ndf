@@ -1,0 +1,18 @@
+
+=== esp-ndf unit tests ===
+[twai]
+     125 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+    1000 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+     500 kbit/s: 100/100 frames round-trip identical (std+ext, dlc 0-8), tx err 0 rx err 0 dropped 0
+    analyzer: TWAI 500k
+    filter 0x123: first recv id 0x123, second recv none (0x124 rejected)
+    twai_send() 8 bytes @1M (wire incl.) 31011 cycles
+  PASS twai (144749688 cycles)
+[twai_alerts]
+    no ACK: alerts 058, TEC 128, state 1 (1 = passive)
+    RX stuck recessive: alerts 101, state 2 (2 = bus-off)
+    recovery: alerts 200 after 2817 us (128 x 11 bits @500k = 2816 us)
+  PASS twai_alerts (15150846 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

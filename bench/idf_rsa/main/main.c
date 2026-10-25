@@ -1,4 +1,4 @@
-/* IDF sibling of examples/rsa_test: mbedtls_mpi_exp_mod (hardware MPI) on the same vectors, with RR cached (as an RSA
+/* IDF sibling of components/drivers/crypto/test_apps/rsa_test: mbedtls_mpi_exp_mod (hardware MPI) on the same vectors, with RR cached (as an RSA
  * key keeps it) and without, plus the RR preparation. */
 #include <stdio.h>
 #include <string.h>

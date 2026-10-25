@@ -1,4 +1,4 @@
-/* Shared layer shapes + deterministic data for examples/nn_lib and bench/idf_nn (same LCG, same quant params). */
+/* Shared layer shapes + deterministic data for components/lib/test_apps/nn_lib and bench/idf_nn (same LCG, same quant params). */
 #pragma once
 #include <stdint.h>
 static uint32_t nn_seed;

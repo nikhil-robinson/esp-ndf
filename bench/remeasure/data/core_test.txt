@@ -1,0 +1,22 @@
+core_test
+PASS delay_us(10000) = 10000 us by SYSTIMER
+PASS delay_ms(250) = 250001 us
+PASS time_ticks() costs 149 cycles
+PASS time_ticks monotonic over 100k reads
+PASS periodic 1 ms: 1000 calls in 1 s
+PASS no drift: 1000 calls span 15984000 ticks (ideal 15984000)
+PASS callback latency 27..27 ticks (1687..1687 ns)
+PASS stopped timer stays stopped
+PASS one-shot fired once
+PASS periodic stopped from its own callback after 5
+PASS 32 concurrent timers: counts within +-1 (0 off)
+PASS timer started on core 1 fired (core 0)
+PASS 64 mallocs ok, all 16-byte aligned
+PASS odd blocks intact after freeing even ones
+PASS all freed and merged back: 304000 bytes
+PASS whole heap in one block
+PASS oversize malloc returns NULL
+PASS realloc keeps data, calloc zeroes
+     malloc+free 64 B: 284 cycles
+I 1.481 core: log line, heap min free 234880
+=== ALL PASS (0 failures) ===

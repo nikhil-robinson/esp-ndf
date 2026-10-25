@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate bench/xip/xip_kern.c: N distinct integer kernels (~380 B of code each), shared by examples/xip_test and the
+"""Generate bench/xip/xip_kern.c: N distinct integer kernels (~380 B of code each), shared by components/soc/test_apps/xip_test and the
 IDF sibling bench/idf_xip, so both run the same code from flash. Total code ~ N * 380 B (64 -> ~24 KB: more than IDF's
 16 KB instruction cache, less than esp-ndf's 32 KB). Usage: gen_xip_bench.py [N]"""
 import sys, random

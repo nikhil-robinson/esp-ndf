@@ -1,0 +1,23 @@
+[cmd_parse]
+unknown command: nosuch (help lists them)
+  PASS cmd_parse (6675 cycles)
+[coop_tasks]
+      task -> scheduler -> task switch 318 cycles; sleep 20 ms woke after 21 ms
+  PASS coop_tasks (5101467 cycles)
+[event_cost]
+      post 68 cycles, dispatch one event to one handler 267 cycles
+  PASS event_cost (25437 cycles)
+[event_full_counted]
+  PASS event_full_counted (18029 cycles)
+[event_isr_post]
+  PASS event_isr_post (11764432 cycles)
+[event_other_core]
+  PASS event_other_core (240690 cycles)
+[nmi_under_irq_lock]
+      NMI alarms during 20 ms of irq_lock: 19
+  PASS nmi_under_irq_lock (4805879 cycles)
+[usj_host_present]
+      host present 1 1 (80 cycles)
+  PASS usj_host_present (724774 cycles)
+=== unit: 8/8 passed ===
+runtime_test done

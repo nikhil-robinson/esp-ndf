@@ -1,4 +1,4 @@
-/* IDF sibling of examples/gdma_ext: esp_async_memcpy (GDMA M2M) internal <-> PSRAM and PSRAM -> PSRAM, same sizes. */
+/* IDF sibling of components/drivers/gdma/test_apps/gdma_ext: esp_async_memcpy (GDMA M2M) internal <-> PSRAM and PSRAM -> PSRAM, same sizes. */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"

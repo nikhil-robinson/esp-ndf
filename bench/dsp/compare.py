@@ -1,4 +1,4 @@
-"""Merge examples/dsp_lib (ndf_result.txt) and bench/idf_dsplib (idf_result.txt) cycle counts into a markdown table."""
+"""Merge components/lib/test_apps/dsp_lib (ndf_result.txt) and bench/idf_dsplib (idf_result.txt) cycle counts into a markdown table."""
 import re, os
 d = os.path.dirname(os.path.abspath(__file__))
 def load(f, pre):

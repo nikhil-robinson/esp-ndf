@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Calibration store test: D0 runs examples/rf_cal, C9:48 runs examples/rf_pkt (tone measurement).
+"""Calibration store test: D0 runs examples/rf/rf_cal, C9:48 runs examples/rf/rf_pkt (tone measurement).
 1) erase, open (calibrates + stores), tone (TX DC cal + store): carrier/tone and times
 2) reboot, open (loads), tone (no TX cal): times must drop, carrier must match
 3) RX DC residual after a fresh cal and after a load.  PYTHONPATH=. python3 rf_cal_test.py"""

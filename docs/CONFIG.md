@@ -1,6 +1,6 @@
 # esp-ndf configuration
 
-Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --doc`. Change options with `make menuconfig APP=<app>`. That writes only the non-default values to `<app>/ndf_config.h` (C options) and `<app>/app.mk` (build options). Chip capabilities (what the silicon has) are in `soc/<chip>/soc_caps.h`.
+Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --doc`. Change options with `make menuconfig` in the application folder. That writes only the non-default values to `<app>/ndf_config.h` (C options) and `<app>/app.mk` (build options). Chip capabilities (what the silicon has) are in `components/soc/<chip>/soc_caps.h`.
 
 
 ## Clock

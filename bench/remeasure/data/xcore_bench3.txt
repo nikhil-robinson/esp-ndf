@@ -1,0 +1,31 @@
+    writer every    0 cycles:  867468 writes, reader       1 rea
+=== xcore_bench3: memory ordering, cost vs correctness (cycles) ===
+  baseline loop: 310 cycles
+
+  V1 memw
+    16 B struct: writer loop avg 372 max 375 | reader loop avg 384 max 477
+    64 B struct: writer loop avg 400 max 403 | reader loop avg 444 max 586
+    writer every    0 cycles:  867468 writes, reader       1 reads, torn 0
+    writer every  300 cycles:  226772 writes, reader  226772 reads, torn 0
+    writer every 1000 cycles:   70832 writes, reader  283327 reads, torn 0
+    lock torture: n 400000 a 400000 (expect 400000 both) ok, 67 cycles/op contended
+    lock+unlock uncontended: 31 cycles
+
+  V2 acquire/release
+    16 B struct: writer loop avg 371 max 377 | reader loop avg 374 max 444
+    64 B struct: writer loop avg 395 max 400 | reader loop avg 439 max 582
+    writer every    0 cycles:  911090 writes, reader       1 reads, torn 0
+    writer every  300 cycles:  228935 writes, reader  228936 reads, torn 0
+    writer every 1000 cycles:   70762 writes, reader  283048 reads, torn 0
+    lock torture: n 400000 a 400000 (expect 400000 both) ok, 69 cycles/op contended
+    lock+unlock uncontended: 33 cycles
+
+  V3 compiler only
+    16 B struct: writer loop avg 370 max 373 | reader loop avg 372 max 442
+    64 B struct: writer loop avg 395 max 398 | reader loop avg 435 max 568
+    writer every    0 cycles:  929030 writes, reader       2 reads, torn 0
+    writer every  300 cycles:  228209 writes, reader  228211 reads, torn 0
+    writer every 1000 cycles:   71147 writes, reader  284587 reads, torn 0
+    lock torture: n 400000 a 400000 (expect 400000 both) ok, 68 cycles/op contended
+    lock+unlock uncontended: 32 cycles
+=== done ===

@@ -1,0 +1,3 @@
+PASS FPU in ISR, L1 + L3: main bit-equal 1 (440bd1e9), L1 runs 4PASS FPU in ISR, L1 + L3: main bit-equal 1 (440bd1e9), L1 runs 4469 bad 0, L3 runs 8469 bad 0 | L3 round trip int handler 153 cycles, float handler 251 cycles
+PASS FPU in ISR, L1 + L5: main bit-equal 1 (440bd1e9), L1 runs 4403 bad 0, L5 runs 8403 bad 0 | L5 round trip int handler 122 cycles, float handler 320 cycles
+fpu_isr PASS done

@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_mcpwm_ext.c: 1 kHz PWM on GPIO12 -> jumper -> capture on 13. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_mcpwm_ext.c: 1 kHz PWM on GPIO12 -> jumper -> capture on 13. */
 #include <stdio.h>
 #include "driver/mcpwm_prelude.h"
 #include "esp_cpu.h"

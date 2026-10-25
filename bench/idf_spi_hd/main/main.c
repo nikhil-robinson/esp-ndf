@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_spi_hd.c: same pads and cross-routing, SPI2 master HD quad,
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_spi_hd.c: same pads and cross-routing, SPI2 master HD quad,
  * SPI3 spi_slave_hd (shared buffer registers). */
 #include <stdio.h>
 #include <string.h>

@@ -1,0 +1,2 @@
+PASS DFS: idle 80 MHz, locked 239 MHz, nested 240 MHz, unlocked 80 MHz, delay_ms(10) = 10002 us | lock 4884 cycles, unlock 1660 cycles
+pm_test PASS done

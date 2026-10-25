@@ -1,5 +1,5 @@
 #!/bin/sh
-# App trace over JTAG check (examples/trace_test, already flashed): OpenOCD "esp apptrace" captures while the
+# App trace over JTAG check (components/drivers/trace/test_apps/trace_test, already flashed): OpenOCD "esp apptrace" captures while the
 # console reports the device side; then every record (u32 seq + pattern) is verified. Usage: trace_test.sh SERIAL OUT
 SER=${1:-24:58:7C:E2:C9:D0}; OUT=${2:-/tmp/ndf_trace.bin}
 PORT=$(ls /dev/serial/by-id/*$SER*)

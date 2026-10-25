@@ -1,4 +1,4 @@
-/* Same measurement as examples/irq_latency on ESP-IDF: CCOMPARE timer
+/* Same measurement as components/arch/test_apps/irq_latency on ESP-IDF: CCOMPARE timer
  * interrupts allocated with esp_intr_alloc, IRAM C handler. */
 #include <stdio.h>
 #include "esp_intr_alloc.h"

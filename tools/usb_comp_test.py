@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/usb_msc 'comp': CDC-ACM + mass storage composite. Checks the disk (INQUIRY vendor, capacity,
+"""Host side of examples/usb/usb_msc 'comp': CDC-ACM + mass storage composite. Checks the disk (INQUIRY vendor, capacity,
 FAT serial by udev) and a CDC echo of 64 KB at the same time, then reads the device's counters over USB Serial/JTAG.
 Usage: usb_comp_test.py USJ_PORT [secs]"""
 import serial, glob, os, sys, time

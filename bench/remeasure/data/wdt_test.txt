@@ -1,0 +1,14 @@
+wdt_test step 0 (reset cause 21), RTC slow clock 137495 Hz
+feed cost: wdt 28, rtc_wdt 29, swd 312 cycles
+PASS RTC WDT 100 ms fed every 50 ms for 1 s: no reset
+wdt_test step 1 (reset cause 9), RTC slow clock 137409 Hz
+PASS RTC WDT 200 ms, system reset: cause 9 (RTC watchdog (system)), 202 ms after start
+wdt_test step 2 (reset cause 16), RTC slow clock 137481 Hz
+PASS RTC WDT 200 ms, chip reset: cause 16 (RTC watchdog (RTC))
+wdt_test step 3 (reset cause 8), RTC slow clock 137453 Hz
+PASS TG1 WDT 100 ms: cause 8 (TG1 watchdog (system)), 102 ms after start
+wdt_test step 4 (reset cause 3), RTC slow clock 137464 Hz
+arming super WDT (not fed)
+wdt_test step 5 (reset cause 18), RTC slow clock 137560 Hz
+PASS super WDT, not fed: cause 18 (super watchdog)
+wdt_test done

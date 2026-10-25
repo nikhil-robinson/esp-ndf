@@ -1,4 +1,4 @@
-/* IDF sibling of examples/dsp_lib: ESP-DSP 1.8.2 (S3 "aes3" optimised where it has them), same inputs (LCG), cycles
+/* IDF sibling of components/lib/test_apps/dsp_lib: ESP-DSP 1.8.2 (S3 "aes3" optimised where it has them), same inputs (LCG), cycles
  * per call (best of 3), plus probe values of each output for the cross-check with our results (tools: compare). */
 #include <stdio.h>
 #include <string.h>

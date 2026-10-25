@@ -1,0 +1,5 @@
+
+=== cross-core interrupt, naked level-5 handler on core 1 (cycles) ===
+  naked:  round trip min 57 avg 57 max 58, handler ran 10000 times for 10000 notifications
+  (C handler level 5: 96; polling a word: 30-49)
+=== done ===

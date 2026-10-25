@@ -1,4 +1,4 @@
-/* Boot-time measurement shared by examples/boot_time and bench/idf_boot (same code on both sides).
+/* Boot-time measurement shared by components/soc/test_apps/boot_time and bench/idf_boot (same code on both sides).
  * The RTC timer keeps counting through a chip reset. Boot 1: calibrate RTC ticks against the 16 MHz system timer
  * (20 ms), store the RTC time, software system reset (RTC_CNTL_OPTIONS0 bit 31). Boot 2 (at main / app_main): RTC time
  * again; reset -> main in us into RTC slow memory 0x50001000: [0] magic, [3] calibration, [4] boot us. */

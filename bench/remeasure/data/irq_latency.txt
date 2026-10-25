@@ -1,0 +1,5 @@
+level 3 (cpu int 15): min  66  avg  66  max  97 cycles  = 275 /
+esp-ndf interrupt latency (20000 samples per level, cycles @ 240 MHz)
+level 1 (cpu int  6): min  76  avg  76  max  76 cycles  = 316 / 316 ns
+level 3 (cpu int 15): min  66  avg  66  max  66 cycles  = 275 / 275 ns
+level 5 (cpu int 16): min  50  avg  50  max  50 cycles  = 208 / 208 ns

@@ -1,0 +1,8 @@
+psram 8388608 bytes
+PASS SPI TX DMA from PSRAM refused (-1)
+PASS internal -> SPI -> PSRAM: arm 0, 8192 B, 0 wrong (first 04)
+PASS SPI TX DMA from PSRAM refused (-1)
+REFUSED RGB LCD from a PSRAM frame buffer -> camera: start 0, -1 B, 255 of 256 wrong
+REFUSED UART DMA TX from PSRAM: write -1, -1 B, 2040 wrong
+PASS unaligned PSRAM buffer refused (-1)
+dma_psram_test PASS done

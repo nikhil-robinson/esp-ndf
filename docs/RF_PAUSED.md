@@ -12,14 +12,14 @@ API and findings: `docs/RF_API.md`. Lab wording rule: plain engineering wording,
   `.git`: `/home/nikhil/esp-ndf-git-backup-2026-10-23`.
 - **D0 offline.** Its CH340 (`/dev/ttyUSB1`, by-path `pci-0000:05:00.4-usb-0:1:1.0-port0`) disappeared mid-run
   and did not re-enumerate. Needs a replug before any two-board test. C9:48 on `/dev/ttyUSB0` is fine.
-- **Boards' firmware:** C9:48 runs the current `examples/rf_pkt` build. D0 last had the build with the `gfsk` command.
-- **Uncommitted (in the working tree):** the `gfsk` generator in `examples/rf_pkt/main.c`, `STACK0_SIZE = 7168`
-  in `examples/rf_pkt/app.mk`, the `corr` command sharing `sbuf`, `bench/rfmeas/demod_*.py` and
+- **Boards' firmware:** C9:48 runs the current `examples/rf/rf_pkt` build. D0 last had the build with the `gfsk` command.
+- **Uncommitted (in the working tree):** the `gfsk` generator in `examples/rf/rf_pkt/main.c`, `STACK0_SIZE = 7168`
+  in `examples/rf/rf_pkt/app.mk`, the `corr` command sharing `sbuf`, `bench/rfmeas/demod_*.py` and
   `bench/rfmeas/data/demod_*.txt`, this file.
 - **`rf_pkt` is at its RAM limit** (code + data + stacks must end below `0x3FCB0000`, the dump engine's banks).
   New bench probes go into a separate small app, not `rf_pkt`.
-- **Pre-existing build failures** (same RAM check, already failing before this work): `examples/libc_test`,
-  `examples/periph_test`, `examples/sys_test`.
+- **Pre-existing build failures** (same RAM check, already failing before this work): `components/lib/test_apps/libc_test`,
+  `components/drivers/*/test_apps/*_unit`, `components/soc/test_apps/sys_test`.
 
 ## Follow-up list 1 (approved 2026-10-22) — done
 

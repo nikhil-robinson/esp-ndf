@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_pcnt_ext.c: quadrature on 13/11 + watch points; read cost. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_pcnt_ext.c: quadrature on 13/11 + watch points; read cost. */
 #include <stdio.h>
 #include "driver/pulse_cnt.h"
 #include "esp_cpu.h"

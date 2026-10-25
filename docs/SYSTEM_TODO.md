@@ -38,7 +38,7 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 | | D2 Power domains, retention, frequency scaling | **partial**: CPU frequency locks (240/160/80, PLL on) that really switch while running; domains/retention wait for D1 |
 | | D3 ULP coprocessors (FSM, RISC-V) | **partial**: RISC-V + FSM loaders/run/stop, shared memory, 3.5x IDF start; wake-from-sleep waits for D1; RTC I2C needs a device on GPIO0-3 (none wired) |
 | **E. Security and crypto** | E1 RNG | **done**: hardware (IDF rate) + ChaCha20 generator, 20-40x IDF |
-| | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF; GCM (drivers/crypto/gcm.c) |
+| | E2 AES accelerator | **done**: ECB/CBC/OFB/CTR/CFB128 + XTS, DMA mode, 1.12-7x IDF; GCM (components/drivers/crypto/gcm.c) |
 | | E3 SHA accelerator | **done**: all modes, CPU + DMA, 1.03-4.6x IDF |
 | | E4 RSA / big-number accelerator | **done**: exp/mul mod 1024-4096, first op (R² prep) 1.33-1.56x IDF, exp equal (same engine) |
 | | E5 HMAC, Digital Signature (DS) | **plan written** (docs/SECURITY_PLAN.md): needs an eFuse key burn - awaiting approval |
@@ -52,15 +52,15 @@ Legend: **done** · **partial** · **none** · TRM = ESP32-S3 TRM v1.8 chapter
 **A1 CPU cores — done.** Dual Xtensa LX7, own vectors and start code, fault handler with registers and exact DWARF
 backtrace, interrupt levels 1-5, naked level 4/5 handlers.
 
-**A2 FPU — done.** Single precision on, own soft-double (`lib/double.*`, faster than IDF ROM); floats in interrupt
-handlers of every level, nested, by lazy save (arch/xtensa/vectors.S, examples/fpu_isr). Was: partial.
+**A2 FPU — done.** Single precision on, own soft-double (`components/lib/double.*`, faster than IDF ROM); floats in interrupt
+handlers of every level, nested, by lazy save (components/arch/xtensa/vectors.S, components/arch/test_apps/fpu_isr). Was: partial.
 
-**A3 PIE vector unit — done (TRM 1).** PIE state lazily saved for handlers (examples/pie_isr), measured instruction table + rules in docs/PIE.md (examples/pie_bench); QACC kernels come with the A5 layers. Was: partial. The S3 has no separate NPU: AI and DSP acceleration is the PIE 128-bit
+**A3 PIE vector unit — done (TRM 1).** PIE state lazily saved for handlers (components/arch/test_apps/pie_isr), measured instruction table + rules in docs/PIE.md (components/arch/test_apps/pie_bench); QACC kernels come with the A5 layers. Was: partial. The S3 has no separate NPU: AI and DSP acceleration is the PIE 128-bit
 vector unit (q0-q7, QACC/ACCX accumulators, `EE.*` instructions, int8/int16 SIMD). Have: enabled at boot, used by our
 kernels. Missing: PIE state save so handlers or a second context may use it; QACC (per-lane accumulator) kernels; a
 documented instruction cookbook (measured cycle counts, alignment rules, the S3 loop-buffer quirk).
 
-**A4 DSP library — done.** lib/dsp_fft.c, lib/dsp_filt.c, lib/dsp_kalman.c, lib/dsp_f32.S (FPU fed by PIE 128-bit loads); examples/dsp_lib vs bench/idf_dsplib, table bench/dsp/table.md. Was: partial. Have (`dsp.h`, all PIE): `dsp_dot_s16`, `dsp_dot2_s16`, `dsp_add_s16_sat`,
+**A4 DSP library — done.** components/lib/dsp_fft.c, components/lib/dsp_filt.c, components/lib/dsp_kalman.c, components/lib/dsp_f32.S (FPU fed by PIE 128-bit loads); components/lib/test_apps/dsp_lib vs bench/idf_dsplib, table bench/dsp/table.md. Was: partial. Have (`dsp.h`, all PIE): `dsp_dot_s16`, `dsp_dot2_s16`, `dsp_add_s16_sat`,
 `dsp_dot_f32`, `dsp_copy128(u)`, `dsp_set128`, `dsp_unpack_iq10`; decimating FIR inside `rf_rx_capture_dec`
 (12-13x faster than ESP-DSP `dsps_fird_s16`). Missing, each benchmarked against ESP-DSP:
 - FFT: radix-2/4, complex and real, int16 and float, bit reversal, windows (Hann, Blackman, flat-top)
@@ -70,7 +70,7 @@ documented instruction cookbook (measured cycle counts, alignment rules, the S3 
 - convolution / correlation, DCT, Kalman filter (ESP-DSP has an EKF for IMU fusion), moving average, peak detection
 - Reference: `espressif__esp-dsp/modules/` (fft, fir, iir, dotprod, math, matrix, conv, dct, kalman, windows).
 
-**A5 AI / NN library — done.** lib/nn.c + lib/nn_s8.S, include/nn.h, examples/nn_lib vs bench/idf_nn (bench/nn/layers.h shared shapes/data); every layer's checksum equals ESP-NN's. Tiny model (conv3x3, relu6, dw3x3, conv1x1, avgpool, fc 8192->10, softmax) on two 32 KB ping-pong activation buffers in internal RAM: 1.17x, bit-exact. Was: none. An ESP-NN equivalent on PIE, benchmarked layer by layer against ESP-NN on the same
+**A5 AI / NN library — done.** components/lib/nn.c + components/lib/nn_s8.S, components/include/nn.h, components/lib/test_apps/nn_lib vs bench/idf_nn (bench/nn/layers.h shared shapes/data); every layer's checksum equals ESP-NN's. Tiny model (conv3x3, relu6, dw3x3, conv1x1, avgpool, fc 8192->10, softmax) on two 32 KB ping-pong activation buffers in internal RAM: 1.17x, bit-exact. Was: none. An ESP-NN equivalent on PIE, benchmarked layer by layer against ESP-NN on the same
 shapes:
 - int8 conv2d, depthwise conv2d, fully connected, pooling (max/avg), activation (ReLU, ReLU6, sigmoid, softmax),
   element-wise add/mul, quantise/requantise (per-tensor and per-channel scales, TFLite-compatible rounding)
@@ -78,53 +78,53 @@ shapes:
   or person-detection net) vs the same model on ESP-NN/TFLite Micro
 - Reference: ESP-NN `src/` (convolution, fully_connected, pooling, activation, basic_math).
 
-**A6 Math library — done.** include/fastmath.h, lib/fastmath.c, examples/fastmath_test vs bench/idf_math. Was: partial. Have: musl libm (sin, exp, atan2, ...), IEEE-exact float runtime, correctly rounded
+**A6 Math library — done.** components/include/fastmath.h, components/lib/fastmath.c, components/lib/test_apps/fastmath_test vs bench/idf_math. Was: partial. Have: musl libm (sin, exp, atan2, ...), IEEE-exact float runtime, correctly rounded
 strtod/printf. Missing: fast approximate math for control loops (sinf/cosf/atan2f/sqrtf/expf with stated error,
 table + polynomial, vector versions on PIE), fixed-point helpers (Q15/Q31).
 
-**A7 Multi-core — done.** xc_call / xc_call_init (cross-core call, examples/xcore_call), xc_stall / xc_unstall (IDF 0x86 sequence); core 1 reset = cpu1_start; per-core interrupt from the other core = xc_call(irq_attach). Was: Have: core 1 start, `xc_seq` / `xc_fifo` / `xc_spin` / `xc_notify`, heap safe from both
+**A7 Multi-core — done.** xc_call / xc_call_init (cross-core call, components/drivers/xcore/test_apps/xcore_call), xc_stall / xc_unstall (IDF 0x86 sequence); core 1 reset = cpu1_start; per-core interrupt from the other core = xc_call(irq_attach). Was: Have: core 1 start, `xc_seq` / `xc_fifo` / `xc_spin` / `xc_notify`, heap safe from both
 cores. Missing: cross-core function call (run fn on the other core, wait for result), core stall/unstall and
 single-core reset API, per-core interrupt allocation from the other core. Reference: `esp_system/esp_ipc.c`,
 `esp_hw_support/cpu.c`.
 
-**A8 Profiling and debug — done.** include/debug.h: perf_setup/read (inline RER, 4 cycles), watch_set (DBREAK, one-shot callback from the level-6 debug vector), stack_guard (ASSIST_DEBUG SP monitor, armed at boot by NDF_STACK_GUARD); examples/debug_test, examples/stack_overflow. TRAX trace / gdbstub not done (JTAG + OpenOCD covers it). Was: Xtensa performance counters (cycles, instruction count, cache misses, stalls) as a
+**A8 Profiling and debug — done.** components/include/debug.h: perf_setup/read (inline RER, 4 cycles), watch_set (DBREAK, one-shot callback from the level-6 debug vector), stack_guard (ASSIST_DEBUG SP monitor, armed at boot by NDF_STACK_GUARD); components/arch/test_apps/debug_test, components/arch/test_apps/stack_overflow. TRAX trace / gdbstub not done (JTAG + OpenOCD covers it). Was: Xtensa performance counters (cycles, instruction count, cache misses, stalls) as a
 profiling API; ASSIST_DEBUG stack-pointer bounds monitor per core (cheap stack-overflow detection) and memory-region
 watch; hardware breakpoints/watchpoints; TRAX trace notes; gdbstub/JTAG guide. Reference: `esp_hw_support/` (debug
 assist), `xtensa/` and `esp_cpu` (perfmon, watchpoints).
 
 ## B. Memory and data movement
 
-**B1 Cache + MMU, XIP, flash — done (TRM 4, 30).** Instruction + data cache, code and rodata from flash (XIP=lib/all),
+**B1 Cache + MMU, XIP, flash — done (TRM 4, 30).** Instruction + data cache, code and rodata from flash (XIP=components/lib/all),
 fast boot and ROM-free warm boot, flash driver with IDF's chip list, SFDP, QE handling, 4-byte addresses, auto-suspend
 (IDF-validated chips), 120 MHz timing tuning. Octal MXIC OPI STR implemented from IDF/ROM (not run: no octal board). Open: octal DTR, cache mapping above 16 MB
 (reads there go through SPI1). Reference: `bootloader_support/src/esp32s3/bootloader_esp32s3.c`,
 `esp_mm/`, `hal/mmu_hal.c`, `hal/esp32s3/include/hal/cache_ll.h`, `esp_system/ld/esp32s3/sections.ld.in`.
 
-**B2 Memory map — done.** RTC_DATA/BSS/NOINIT sections, PSRAM heap with capabilities (lib/heap.c), examples/mem_test. Was: partial. Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,
+**B2 Memory map — done.** RTC_DATA/BSS/NOINIT sections, PSRAM heap with capabilities (components/lib/heap.c), components/soc/test_apps/mem_test. Was: partial. Have: internal DRAM heap. Missing: RTC fast and RTC slow memory sections (`.rtc.data`,
 `.rtc.noinit`; a bench app writes 0x50001000 by hand today), PSRAM heap and capability-based allocation (DMA-capable,
 executable, external), reclaiming unused IRAM. Reference: `heap/port/esp32s3/memory_layout.c`,
 `esp_system/ld/esp32s3/memory.ld.in`.
 
 **B3 PSRAM — done.** Octal 8 MB, MMU window at 0x3D000000, write-back/invalidate, gapless RF capture into it.
 
-**B4 GDMA — done (TRM 3).** Added: PSRAM buffers (64-byte blocks + cache coherence in gdma_memcpy*), gdma_set_priority, gdma_check_owner, gdma_error / gdma_reset; examples/gdma_ext. The S3 has no weighted arbitration (IN/OUT_WEIGHT absent from its register map). Was: Have: 5 channels, linked-list descriptors, peripheral connect, memory-to-memory
+**B4 GDMA — done (TRM 3).** Added: PSRAM buffers (64-byte blocks + cache coherence in gdma_memcpy*), gdma_set_priority, gdma_check_owner, gdma_error / gdma_reset; components/drivers/gdma/test_apps/gdma_ext. The S3 has no weighted arbitration (IN/OUT_WEIGHT absent from its register map). Was: Have: 5 channels, linked-list descriptors, peripheral connect, memory-to-memory
 (sync/async), EOF interrupts. Missing: priority and weight arbitration, burst settings, PSRAM as source/target
 (block-size rules, cache handling), descriptor owner checks, error recovery. Reference: `hal/esp32s3/include/hal/gdma_ll.h`,
 `esp_hw_support/dma/gdma.c`.
 
-**B5 Memory protection — done (TRM 15).** soc/esp32s3/memprot.c: IDF's split-line scheme (code RX, data RW, no X), per-core violation monitor -> panic or callback, optional lock (NDF_MEMPROT=2), irq_naked opens code briefly; examples/memprot_test, memprot_exec. World Controller (secure/non-secure worlds) not used: one world. Was: none. IRAM write-protect, DRAM no-execute, peripheral access
+**B5 Memory protection — done (TRM 15).** components/soc/esp32s3/memprot.c: IDF's split-line scheme (code RX, data RW, no X), per-core violation monitor -> panic or callback, optional lock (NDF_MEMPROT=2), irq_naked opens code briefly; components/soc/test_apps/memprot_test, memprot_exec. World Controller (secure/non-secure worlds) not used: one world. Was: none. IRAM write-protect, DRAM no-execute, peripheral access
 permissions, stack guard regions; secure/non-secure worlds. Reference: `esp_hw_support/port/esp32s3/esp_memprot.c`,
 `hal/esp32s3/include/hal/memprot_ll.h`.
 
 ## C. System control
 
-**C1 Clocks — done (TRM 7, 17).** soc/esp32s3/rtcclk.c, examples/rtcclk_test; clock output pins not done (no use yet). Was: partial. Have: CPU 240/160/80/40 MHz, APB, peripheral gates/resets. Missing: RTC slow clock
+**C1 Clocks — done (TRM 7, 17).** components/soc/esp32s3/rtcclk.c, components/soc/test_apps/rtcclk_test; clock output pins not done (no use yet). Was: partial. Have: CPU 240/160/80/40 MHz, APB, peripheral gates/resets. Missing: RTC slow clock
 source (RC 136 kHz / 32 kHz crystal / 8MD256) and calibration, RTC fast clock, clock output pins (CLK_OUT1..3),
 32 kHz crystal bring-up. Reference: `esp_hw_support/port/esp32s3/rtc_clk.c`, `rtc_time.c`, `hal/esp32s3/include/hal/clk_tree_ll.h`.
 
 **C2 Reset — done.** Reset cause per core with names, `sys_restart`.
 
-**C3 Boot and OTA — done (TRM 8).** soc/esp32s3/loader, drivers/storage/ota.c, examples/ota_test. Was: The ROM loads our image (at 0x0) straight into RAM. Missing: own 2nd-stage loader
+**C3 Boot and OTA — done (TRM 8).** components/soc/esp32s3/loader, components/drivers/storage/ota.c, components/drivers/storage/test_apps/ota_test. Was: The ROM loads our image (at 0x0) straight into RAM. Missing: own 2nd-stage loader
 (needed for XIP and app selection), app partitions, OTA A/B with rollback, image header + SHA-256 check (needs E3),
 fast boot. Reference: `bootloader/subproject/main/`, `bootloader_support/src/bootloader_utility.c`, `app_update/esp_ota_ops.c`.
 
@@ -133,11 +133,11 @@ other core without running code there.
 
 **C5 Timers — done (TRM 11, 12).** 64-bit time base, delays, software timers, GPTimer.
 
-**C6 Watchdogs — done (TRM 13, 14).** drivers/wdt/wdt.c, examples/wdt_test; XTAL32K watchdog goes with the 32 kHz crystal (C1). Was: Have: TG0 MWDT with a report stage. The ROM's other watchdogs are switched off
+**C6 Watchdogs — done (TRM 13, 14).** components/drivers/wdt/wdt.c, components/drivers/wdt/test_apps/wdt_test; XTAL32K watchdog goes with the 32 kHz crystal (C1). Was: Have: TG0 MWDT with a report stage. The ROM's other watchdogs are switched off
 at boot. Missing: RTC watchdog (boot-hang protection, chip-reset stage), super watchdog, TG1 MWDT, XTAL32K watchdog.
 Reference: `hal/esp32s3/include/hal/rwdt_ll.h`, `mwdt_ll.h`, `esp_system/int_wdt.c`, `esp_system/task_wdt/`.
 
-**C7 Brownout, clock glitch — done (TRM 10, 24).** soc/esp32s3/brownout.c. Was: Reset causes are decoded; the detectors are not configured. Brownout
+**C7 Brownout, clock glitch — done (TRM 10, 24).** components/soc/esp32s3/brownout.c. Was: Reset causes are decoded; the detectors are not configured. Brownout
 level + interrupt (cut motors, flush logs before the reset), clock-glitch detector. Reference: `esp_system/port/brownout.c`,
 `hal/esp32s3/include/hal/brownout_ll.h`.
 
@@ -147,32 +147,32 @@ level + interrupt (cut motors, flush logs before the reset), clock-glitch detect
 sources (timer, ext0/ext1, GPIO, touch, UART, ULP, USB), RTC time across sleep, measured sleep currents vs IDF.
 Reference: `esp_hw_support/sleep_modes.c`, `esp_hw_support/port/esp32s3/rtc_sleep.c`, `hal/esp32s3/include/hal/rtc_cntl_ll.h`.
 
-**D2 Power domains, frequency scaling — partial.** include/pm.h, soc/esp32s3/pm.c, examples/pm_test vs bench/idf_pm. Open: power domains, retention, sleep pads (with D1). Was: none. Domain control, peripheral retention, sleep pad configuration,
+**D2 Power domains, frequency scaling — partial.** components/include/pm.h, components/soc/esp32s3/pm.c, components/soc/test_apps/pm_test vs bench/idf_pm. Open: power domains, retention, sleep pads (with D1). Was: none. Domain control, peripheral retention, sleep pad configuration,
 dynamic frequency scaling with locks.
 
-**D3 ULP coprocessors — partial (TRM 2).** include/ulp.h, soc/esp32s3/ulp.c, examples/ulp_test, bench/ulp (programs + build.sh), bench/idf_ulp. Open: waking the main CPU (needs D1 sleep); RTC I2C - its pins are fixed to GPIO0-3 (SDA 1/3, SCL 0/2, IDF ulp_riscv_i2c.c) and neither board has an I2C device there (BOX-3 sensors on 8/18): needs a sensor wired to GPIO1/2. Was: none. ULP-FSM and ULP-RISC-V loaders, shared RTC memory, waking the main CPU, RTC I2C
+**D3 ULP coprocessors — partial (TRM 2).** components/include/ulp.h, components/soc/esp32s3/ulp.c, components/soc/test_apps/ulp_test, bench/ulp (programs + build.sh), bench/idf_ulp. Open: waking the main CPU (needs D1 sleep); RTC I2C - its pins are fixed to GPIO0-3 (SDA 1/3, SCL 0/2, IDF ulp_riscv_i2c.c) and neither board has an I2C device there (BOX-3 sensors on 8/18): needs a sensor wired to GPIO1/2. Was: none. ULP-FSM and ULP-RISC-V loaders, shared RTC memory, waking the main CPU, RTC I2C
 for sensors while asleep. Reference: `ulp/`.
 
 ## E. Security and crypto
 
-**E1 RNG — done (TRM 25).** rng_hw / rng_fill / rng_u32 (drivers/crypto/rng.c). Was: True-random API; entropy is full only while RF or the SAR ADC runs (document and handle
+**E1 RNG — done (TRM 25).** rng_hw / rng_fill / rng_u32 (components/drivers/crypto/rng.c). Was: True-random API; entropy is full only while RF or the SAR ADC runs (document and handle
 both). Reference: `esp_hw_support/hw_random.c`.
 
 **E2 AES — partial (TRM 19).** Have: block mode 128/256 (`aes_block`), XTS-AES-256 in software on top (`aes_xts`),
 used by NVS encryption. Missing: DMA mode for large buffers; CBC, CTR, GCM (GHASH in software), CMAC; benchmarks vs
 mbedTLS on IDF. Reference: `mbedtls/port/aes/`.
 
-**E3 SHA — done (TRM 18).** drivers/crypto/sha.c. Was: SHA-1/224/256/384/512 (and 512/t), block and DMA mode, HMAC-SHA in software. Needed by C3
+**E3 SHA — done (TRM 18).** components/drivers/crypto/sha.c. Was: SHA-1/224/256/384/512 (and 512/t), block and DMA mode, HMAC-SHA in software. Needed by C3
 (image check). Reference: `mbedtls/port/sha/`, `hal/esp32s3/include/hal/sha_ll.h`.
 
-**E4 RSA / big-number — done (TRM 20).** drivers/crypto/rsa.c (`rsa_mod_init`, `rsa_exp_mod`, `rsa_mul_mod`); vectors from Python pow(). Was: Modular exponentiation and multiplication up to 4096 bits: RSA signatures,
+**E4 RSA / big-number — done (TRM 20).** components/drivers/crypto/rsa.c (`rsa_mod_init`, `rsa_exp_mod`, `rsa_mul_mod`); vectors from Python pow(). Was: Modular exponentiation and multiplication up to 4096 bits: RSA signatures,
 secure boot v2 verification. Reference: `mbedtls/port/bignum/`.
 
 **E5 HMAC, DS — none (TRM 21, 22).** HMAC from eFuse keys (key never readable: NVS key derivation, JTAG re-enable), and
 the Digital Signature peripheral (RSA signing with an eFuse-protected key). Reference: `esp_hw_support/esp_hmac.c`,
 `esp_ds.c`.
 
-**E6 Software crypto — done.** Have: lib/ecc.c (X25519, RFC 7748) and (P-256 keys, ECDH, ECDSA sign/verify; RFC 6979 vector), drivers/crypto/gcm.c (AES-GCM, 8-bit GHASH). Was: What the S3 has no block for: ECC (P-256 / Curve25519 sign, verify, ECDH), AES-GCM
+**E6 Software crypto — done.** Have: components/lib/ecc.c (X25519, RFC 7748) and (P-256 keys, ECDH, ECDSA sign/verify; RFC 6979 vector), components/drivers/crypto/gcm.c (AES-GCM, 8-bit GHASH). Was: What the S3 has no block for: ECC (P-256 / Curve25519 sign, verify, ECDH), AES-GCM
 tag, SHA-3 if needed; constant-time, benchmarked against mbedTLS on IDF.
 
 **E7 eFuse — partial (TRM 5).** Have: raw bits of blocks 1/2, MAC. Missing: full field table (chip revision, flash/PSRAM

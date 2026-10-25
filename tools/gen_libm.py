@@ -1,4 +1,4 @@
-"""Generate lib/libm_coef.h: minimax coefficients (tools/remez.py) for the
+"""Generate components/lib/libm_coef.h: minimax coefficients (tools/remez.py) for the
 esp-ndf math library kernels. Prints the achieved relative error of each."""
 import sys
 import mpmath as mp

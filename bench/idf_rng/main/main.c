@@ -1,4 +1,4 @@
-/* IDF sibling of examples/rng_test: esp_random() per word, esp_fill_random() 4 KB / 64 KB (RNG entropy source on, as
+/* IDF sibling of components/drivers/crypto/test_apps/rng_test: esp_random() per word, esp_fill_random() 4 KB / 64 KB (RNG entropy source on, as
  * bootloader_random_enable), same board and clock. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"

@@ -1,0 +1,3 @@
+PASS ULP-RISC-V: load+start 275 us, first run after 123 us, 98 runs in 1 s (10 ms period), mailbox 1, stopped 1
+PASS ULP-FSM: 99 runs in 1 s (10 ms period), stopped 1
+ulp_test PASS done

@@ -1,0 +1,24 @@
+
+=== esp-ndf unit tests ===
+[i2c]
+    bus rise time: SDA 433 ns, SCL 429 ns (spec: 1000 ns @100k, 300 ns @400k)
+    -- 100000 Hz (actual 100000) --
+    write 16: err 0, slave got 16, 1552 us
+    write 100: err 0, slave got 100, 0 wrong
+    read 8: err 0, 0 wrong (got a0 a1 .. a7)
+    write to 0x50 (absent): err -1 (expect -1)
+    analyzer: SCL 100k burst
+    400 kHz skipped: bus rise time out of Fast-mode spec (add 2.2-4.7k pull-ups)
+  PASS i2c (31502834 cycles)
+[i2c_ext]
+    10-bit 0x2A5: write err 0, slave got 8 ok; read err 0 c0 c1 c2 c3; 0x1A5 -> -1 (NACK)
+    i2c 10-bit write 8 B @100k         221469 cycles
+    after the foreign-address NACK: write to 0x2A5 err 0, slave got 8
+    stuck SDA: low yes, recovered after 3 clocks, SDA now high
+    SCL stretched 20 ms: err -2 (timeout -2) after 6585 us, timeout set 3276 us
+    2 masters x10: I2C0 (0x50) lost 0, I2C1 (0x51) lost 10, exactly one loser 10, no overlap 0
+    loser retries alone: err -1 (NACK -1)
+  PASS i2c_ext (6558357 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

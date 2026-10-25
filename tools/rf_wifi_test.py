@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""4.2 firmware-only path: C9:48 (ttyUSB0) rx, D0 (ttyUSB1) tx; both run examples/rf_wifi."""
+"""4.2 firmware-only path: C9:48 (ttyUSB0) rx, D0 (ttyUSB1) tx; both run examples/rf/rf_wifi."""
 import time, serial
 def mk(p): s=serial.Serial(None,115200,timeout=0.1); s.port=p; s.dtr=False; s.rts=False; s.open(); time.sleep(1.5); s.reset_input_buffer(); return s
 rx=mk('/dev/ttyUSB0'); tx=mk('/dev/ttyUSB1')

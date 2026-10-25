@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Accuracy report for examples/libm_test: reads the board's hex results
+"""Accuracy report for components/lib/test_apps/libm_test: reads the board's hex results
 (stdin or file), regenerates the same inputs (same xorshift + generators),
 computes exact values with mpmath and prints, per function, the largest
 error in ulps and the share of correctly rounded results.

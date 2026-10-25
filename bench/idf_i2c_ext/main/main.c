@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_i2c_ext.c: I2C0 master 10/12, I2C1 slave 11/13, 10-bit 0x2A5. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_i2c_ext.c: I2C0 master 10/12, I2C1 slave 11/13, 10-bit 0x2A5. */
 #include <stdio.h>
 #include "driver/i2c_master.h"
 #include "driver/i2c_slave.h"

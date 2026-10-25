@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test/test_i2s_modes.c, same jumpers (12->13 clock, 10->11 data, WS 4). */
+/* IDF sibling of components/drivers/*/test_apps/*_unit/test_i2s_modes.c, same jumpers (12->13 clock, 10->11 data, WS 4). */
 #include <stdio.h>
 #include <math.h>
 #include "driver/i2s_tdm.h"

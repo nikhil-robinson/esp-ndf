@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable bit-flip scan of the BLE core registers (examples/rf_modem 'bitscan'): resets and skips words whose bit flip hangs the chip."""
+"""Resumable bit-flip scan of the BLE core registers (examples/rf_lab/rf_modem 'bitscan'): resets and skips words whose bit flip hangs the chip."""
 import rfhost, time
 tx = rfhost.Board(rfhost.D0); tx.cmd('init'); tx.cmd('adv 37 2000')
 start, end, hangs = 0x60031000, 0x60031000 + 4 * 192, []

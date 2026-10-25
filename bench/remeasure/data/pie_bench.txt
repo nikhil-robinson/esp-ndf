@@ -1,0 +1,34 @@
+| instruction (x8 per loop iteration, 256 iterations) | cycles each |
+|---|---|
+| `nop (loop overhead reference)` | 1.00 |
+| `ee.vld.128.ip q0 (aligned, +16)` | 1.01 |
+| `ee.vld.128.ip q0 streaming 4 KB` | 1.01 |
+| `ee.vst.128.ip q0` | 1.01 |
+| `ee.ld.128.usar.ip (unaligned load, +1)` | 1.01 |
+| `ee.src.q q2,q0,q1 (unaligned combine)` | 1.00 |
+| `ee.vmulas.s16.accx q0,q1 (independent)` | 1.00 |
+| `ee.vmulas.s8.accx q0,q1` | 1.00 |
+| `ee.vmulas.s16.qacc q0,q1 (per lane)` | 1.00 |
+| `ee.vmulas.s8.qacc q0,q1 (per lane)` | 1.00 |
+| `ee.vmulas.s16.accx.ld.ip (MAC + load)` | 1.01 |
+| `ee.vmulas.s8.qacc.ld.ip (MAC + load)` | 1.01 |
+| `ee.vadds.s16 q2,q0,q1 (independent)` | 1.00 |
+| `ee.vadds.s16 q0,q0,q1 (dependent chain)` | 1.00 |
+| `ee.vmul.s16 q2,q0,q1` | 1.00 |
+| `ee.vmul.s16 q0,q0,q1 (dependent)` | 2.00 |
+| `ee.vldbc.16.ip (broadcast load)` | 1.01 |
+| `ee.zero.qacc` | 1.00 |
+| `ee.srs.accx (read ACCX, shift)` | 1.00 |
+| `ee.vld.128.ip then dependent vadds (load-use)` | 3.00 |
+| `ee.movi.32.a (lane to AR)` | 1.00 |
+| `FPU madd.s f0 (dependent chain)` | 4.00 |
+| `FPU madd.s 4 independent accumulators` | 4.00 |
+| `FPU madd.s 8 independent accumulators` | 8.00 |
+| `FPU add.s dependent chain` | 4.00 |
+| `FPU add.s independent` | 4.00 |
+| `FPU mul.s dependent` | 4.00 |
+| `FPU lsi then use (load-use)` | 2.00 |
+| `FPU add.s then ssi (result-store)` | 5.00 |
+| `FPU lsi independent` | 1.00 |
+| `FPU lsip (load + increment)` | 1.01 |
+pie_bench done

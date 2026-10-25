@@ -1,0 +1,10 @@
+
+=== esp-ndf unit tests ===
+[flash]
+    JEDEC id b4200c, size 16 MB
+    read mode: 4 data lines
+    4 KB: erase 660 us, write 16264 us, read 91 us, 0 bytes wrong (erased 4096/4096 = 0xFF)
+  PASS flash (13627093 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

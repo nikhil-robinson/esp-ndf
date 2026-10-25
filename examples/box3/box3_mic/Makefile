@@ -1,0 +1,3 @@
+# box3_mic: BOX-3 microphones end to end: ES8311 plays 1 kHz through the speaker while the ES7210 (I2C 0x40) records MIC1/MIC2 on I2S0 RX (full duplex with the speaker TX: MCLK...
+NDF_PATH ?= ../../..
+include $(NDF_PATH)/make/project.mk

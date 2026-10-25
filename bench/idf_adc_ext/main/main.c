@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test test_adc_filter: ADC1 ch9 (GPIO10) <- jumper <- GPIO11 driven high.
+/* IDF sibling of components/drivers/*/test_apps/*_unit test_adc_filter: ADC1 ch9 (GPIO10) <- jumper <- GPIO11 driven high.
  * Monitor high threshold 3000 on ch9: count events in 100 ms. */
 #include <stdio.h>
 #include "esp_adc/adc_continuous.h"

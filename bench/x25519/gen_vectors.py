@@ -1,4 +1,4 @@
-"""X25519 vectors for examples/x25519_test and bench/idf_x25519: two key pairs and their shared secret (python
+"""X25519 vectors for components/drivers/crypto/test_apps/x25519_test and bench/idf_x25519: two key pairs and their shared secret (python
 cryptography), plus RFC 7748 5.2 vector 1."""
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey
 from cryptography.hazmat.primitives import serialization as s

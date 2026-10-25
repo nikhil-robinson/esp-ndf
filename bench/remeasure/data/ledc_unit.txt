@@ -1,0 +1,15 @@
+
+=== esp-ndf unit tests ===
+[ledc]
+    asked 20 kHz/10 bit, got           20000.000 Hz
+    period / high (cycles)             12013 / 3004
+    after ledc_duty(768): period/high  11992 / 8989
+    ledc_duty()                        36 cycles
+    asked 33333 Hz/8 bit, got          33333.333 Hz
+  PASS ledc (425787 cycles)
+[ledc_gamma]
+    gamma 2.2, 0 -> 1024 in 160 ms, per mille every 10 ms: 1 10 26 46 74 113 161 211 274 339 429 525 623 720 817 | end 1000 after 162 ms
+  PASS ledc_gamma (39428102 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

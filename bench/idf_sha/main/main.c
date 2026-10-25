@@ -1,4 +1,4 @@
-/* IDF sibling of examples/sha_test: mbedtls SHA-256 / SHA-512 with the hardware accelerator (IDF default port; on the
+/* IDF sibling of components/drivers/crypto/test_apps/sha_test: mbedtls SHA-256 / SHA-512 with the hardware accelerator (IDF default port; on the
  * S3 the DMA port), best of 4, same sizes. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"

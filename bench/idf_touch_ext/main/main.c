@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test test_touch_ext: pad 10, filter on, read costs. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit test_touch_ext: pad 10, filter on, read costs. */
 #include <stdio.h>
 #include "driver/touch_pad.h"
 #include "esp_cpu.h"

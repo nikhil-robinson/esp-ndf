@@ -1,4 +1,4 @@
-/* IDF sibling of examples/aes_test: mbedtls AES-128 CBC / CTR (hardware AES, IDF's DMA port), best of 4. */
+/* IDF sibling of components/drivers/crypto/test_apps/aes_test: mbedtls AES-128 CBC / CTR (hardware AES, IDF's DMA port), best of 4. */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"

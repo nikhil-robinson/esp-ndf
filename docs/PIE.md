@@ -4,7 +4,7 @@ The S3's AI/DSP acceleration is the PIE extension of the LX7 core ("cop_ai", cop
 registers q0-q7, the 40-bit ACCX accumulator, the per-lane QACC accumulator (16 x 20-bit for s8, 8 x 40-bit for s16),
 SAR_BYTE / UA_STATE for unaligned access and FFT_BIT_WIDTH. Enabled at boot (CPENABLE bit 3, SOC_CPENABLE_BOOT).
 
-## Measured throughput (`examples/pie_bench`, BOX-3, 240 MHz, internal RAM, 2026-10-24)
+## Measured throughput (`components/arch/test_apps/pie_bench`, BOX-3, 240 MHz, internal RAM, 2026-10-24)
 
 | instruction (x8 per loop iteration, 256 iterations) | cycles each |
 |---|---|
@@ -46,12 +46,12 @@ Rules that follow from the table:
 GCC for the S3 emits `wsr.lbeg` with a dummy value (plus a `nop`) right before every zero-overhead `loop`:
 the core's loop buffer can keep a stale LBEG otherwise. Hand-written assembly loops should do the same.
 Zero-overhead loops only loop back with PS.EXCM = 0: the interrupt entry clears EXCM for that reason
-(arch/xtensa/vectors.S).
+(components/arch/xtensa/vectors.S).
 
 ## PIE in interrupt handlers
 
 Allowed at every level, nested (lazy save, like the FPU): handlers start with CP3 off, the first PIE instruction
 traps once (EXCCAUSE 35), the interrupted context's 208-byte state (IDF xchal_cp3 layout) goes to a slot per
 (core, INTLEVEL) and comes back at handler exit. Cost: 0 for handlers that do not use PIE; a handler that does
-(dsp_dot_s16 of 64 + a float op) adds 63 cycles to the round trip at level 3 (135 -> 198, `examples/pie_isr`).
+(dsp_dot_s16 of 64 + a float op) adds 63 cycles to the round trip at level 3 (135 -> 198, `components/arch/test_apps/pie_isr`).
 IDF does not allow PIE in ISRs.

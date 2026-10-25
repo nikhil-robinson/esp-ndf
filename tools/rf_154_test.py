@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""4.3 verify: D0 (ttyUSB1, examples/rf_154) loops a 15.4 O-QPSK frame on ch 11 (2405 MHz); C9:48
+"""4.3 verify: D0 (ttyUSB1, examples/rf/rf_154) loops a 15.4 O-QPSK frame on ch 11 (2405 MHz); C9:48
 (ttyUSB0, rf_pkt) captures IQ at 16 MS/s. Recover the chips (matched filter + O-QPSK sampling) and
 correlate against the 802.15.4 PN table: a run of 8 identical symbols at full 32/32 chip correlation
 is the preamble (4 zero octets) -- proof the synthesised DAC waveform is a valid O-QPSK/DSSS signal."""

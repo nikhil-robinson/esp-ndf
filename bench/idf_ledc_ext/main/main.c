@@ -1,4 +1,4 @@
-/* IDF sibling for examples/periph_test test_ledc / test_ledc_gamma: duty update cost (S3 IDF has no gamma fade). */
+/* IDF sibling for components/drivers/*/test_apps/*_unit test_ledc / test_ledc_gamma: duty update cost (S3 IDF has no gamma fade). */
 #include <stdio.h>
 #include "driver/ledc.h"
 #include "esp_cpu.h"

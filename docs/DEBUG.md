@@ -12,7 +12,7 @@
 ## gdb over the built-in USB-JTAG
 
 ```
-tools/gdb.sh build/runtime_test/app.elf 24:58:7C:E2:C9:D0 -ex "thbreak unit_run" -ex c
+tools/gdb.sh tests/runtime_test/build/app.elf 24:58:7C:E2:C9:D0 -ex "thbreak unit_run" -ex c
 ```
 
 `tools/gdb.sh` starts IDF's OpenOCD with two settings esp-ndf needs:

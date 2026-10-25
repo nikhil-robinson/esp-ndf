@@ -1,0 +1,11 @@
+panic_halt_test: fault
+
+*** PANIC core0: debug exception, DEBUGCAUSE 0x08
+    PC 0x403803ec
+    a0  0x4038023a    a1  0x3fc98bc0    a2  0x0e4e1c00    a3  0x00000000
+    a4  0x00000001    a5  0x00000002    a6  0x000f4240    a7  0x000000f0
+    a8  0x3fc98abc    a9  0x00493e02    a10 0x00493e00    a11 0x02ed109a
+    a12 0x403d7e00    a13 0x3fc90d24    a14 0x3fc90d24    a15 0x40380234
+    SAR 0x00000020 LBEG 0x4037fcd8 LEND 0x4037fcdc LCOUNT 0x00000000
+    Backtrace: 0x403803ec 0x4038023a 0x4037b446 0x4037892c (scan)
+    core dump written (tools/coredump.py)

@@ -1,0 +1,13 @@
+
+=== xcore_bench: core 0 <-> core 1, round trips ===
+  seq-counter write of 4 words (one core)     28 cycles (plain 4 stores: 19)
+  spinlock lock+unlock, uncontended           20 cycles
+  memw barrier                                2 cycles
+  plain 32-bit word, round trip            min   30  avg   39  max   41 cycles
+  seq-counter 16-byte struct, round trip   min   36  avg   79  max   81 cycles
+  spinlock-protected word, round trip      min   53  avg   74  max   84 cycles
+  cross-core interrupt, round trip         min  179  avg  183  max  187 cycles
+  spinlock, both cores hammering: counter 200000 (expect 200000), 50 cycles per lock+inc+unlock on core 0
+  100 ms, writer back to back (~30 cycles): seq-counter reads 198348, torn 0 | unprotected torn 99173 of 198348
+  100 ms, writer every 240 cycles (1 MHz): seq-counter reads 234835, torn 0 | unprotected torn 46966 of 234835
+=== done ===

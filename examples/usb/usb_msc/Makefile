@@ -1,0 +1,3 @@
+# usb_msc: USB mass storage: a 128 KB RAM disk formatted FAT (serial 1234-ABCD) with HELLO.TXT, served for an OTG window of `secs` seconds on "msc <secs>"; "hid <secs>" runs a...
+NDF_PATH ?= ../../..
+include $(NDF_PATH)/make/project.mk

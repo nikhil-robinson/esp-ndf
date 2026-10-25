@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""bench/idf_bleprobe/data/state_<chip>.txt (vendor BLE controller idle after a scan) -> drivers/ble/ble_state.h:
+"""bench/idf_bleprobe/data/state_<chip>.txt (vendor BLE controller idle after a scan) -> components/drivers/ble/ble_state.h:
 the BT modem block 0x60011000, the link-layer core registers 0x60031000 (status, clock, scheduler and EM-map
 registers left out), the exchange-memory image and its segment map (EM offset -> position in our buffer)."""
 import re, sys
@@ -77,5 +77,5 @@ o += ['/* slave connection CS (45 half-words at EM 0x45A) and its exchange-table
 o += ['/* advertiser CS (45 half-words at EM 0x400) and TX descriptor (EM 0x1400) from ' + adv + ' */',
       'static const uint16_t ble_adv_cs[45] = {' + ', '.join('0x%04X' % ard16(0x400 + 2 * i) for i in range(45)) + '};',
       'static const uint16_t ble_adv_txdesc[9] = {' + ', '.join('0x%04X' % ard16(0x1400 + 2 * i) for i in range(9)) + '};']
-open('drivers/ble/ble_state.h', 'w').write('\n'.join(o) + '\n')
+open('components/drivers/ble/ble_state.h', 'w').write('\n'.join(o) + '\n')
 print(len(core), 'core regs,', len(img) * 4, 'EM bytes,', len(segs), 'segments')

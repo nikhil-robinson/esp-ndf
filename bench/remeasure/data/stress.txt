@@ -1,0 +1,3 @@
+stress: 60 s
+stress: UART 9056, SPI 9056, GDMA 9056 transfers ok, 0 bad | timer 1200055 / ~1201055 ticks | core 1: 67005 rounds, 0 errors
+stress PASS done (60 s)

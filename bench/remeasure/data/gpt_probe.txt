@@ -1,0 +1,2 @@
+
+gpt_probe: gpt_get32 107 cycles; gpt_probe: extra polls max 1; write 6, poll 50, read lo+hi 47, gpt_get 133 cycles

@@ -1,4 +1,4 @@
-/* IDF sibling of examples/xcore_call: esp_ipc_call_blocking round trip. */
+/* IDF sibling of components/drivers/xcore/test_apps/xcore_call: esp_ipc_call_blocking round trip. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

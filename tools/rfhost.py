@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/rfctl: drive one or two boards by line commands.
+"""Host side of examples/rf/rfctl: drive one or two boards by line commands.
    b = Board(port); b.cmd('init'); b.cmd('meas 8192 2e6')  -> list of result lines"""
 import serial, time
 

@@ -1,0 +1,5 @@
+PASS perf: 1000 x 10 nops: cycles 10007 (CCOUNT 10009), instructions 10005; 1000 loads: 1001; read 4 cycles (incl. ccount)
+PASS watchpoint: hit n 1 at pc 0x40380315 (poke at 0x4038030c), store completed, one-shot 1
+PASS stack guard: crossed SP 3fc99590 at pc 0x4038031f (deep at 0x4038031c)
+PASS stack guard cost: fib(24) 1950649 cycles guarded, 1950649 unguarded
+debug_test PASS done

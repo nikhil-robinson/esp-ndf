@@ -1,4 +1,4 @@
-/* IDF sibling of examples/runtime_test: esp_event post + dispatch, FreeRTOS task switch (taskYIELD ping-pong). */
+/* IDF sibling of tests/runtime_test: esp_event post + dispatch, FreeRTOS task switch (taskYIELD ping-pong). */
 #include <stdio.h>
 #include "esp_event.h"
 #include "esp_cpu.h"

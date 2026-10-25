@@ -1,4 +1,4 @@
-"""Generate lib/pow10_table.h: 10^k as a normalised 64-bit mantissa M (top bit
+"""Generate components/lib/pow10_table.h: 10^k as a normalised 64-bit mantissa M (top bit
 set) and binary exponent E with 10^k ~= M * 2^E, rounded to nearest.
 Small: k = 0..27. Large: k = 28*j for j = -14..12 (covers 1e-392..1e336)."""
 from fractions import Fraction

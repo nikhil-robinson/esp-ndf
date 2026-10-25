@@ -1,4 +1,4 @@
-/* IDF sibling of examples/p256_test: mbedtls ECP (default config) on the same vectors. */
+/* IDF sibling of components/drivers/crypto/test_apps/p256_test: mbedtls ECP (default config) on the same vectors. */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"

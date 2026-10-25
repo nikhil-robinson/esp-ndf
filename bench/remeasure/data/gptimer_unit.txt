@@ -1,0 +1,12 @@
+
+=== esp-ndf unit tests ===
+[gptimer]
+    1 MHz over 10 ms (expect 10000)    10000 ticks
+    gpt_get()                          118 cycles
+    alarm -> callback (L1)             min 875 max 875 ns
+    10 kHz period jitter (L1)          max 18 cycles
+    10 kHz period jitter (L5 fast)     max 12 cycles
+  PASS gptimer (242887909 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

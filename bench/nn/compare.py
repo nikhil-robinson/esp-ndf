@@ -1,4 +1,4 @@
-"""Compare examples/nn_lib (ndf_result.txt) with bench/idf_nn (../idf_nn/result.txt): cycles + checksum equality."""
+"""Compare components/lib/test_apps/nn_lib (ndf_result.txt) with bench/idf_nn (../idf_nn/result.txt): cycles + checksum equality."""
 import re, os
 d = os.path.dirname(os.path.abspath(__file__))
 def load(f, pre):

@@ -1,4 +1,4 @@
-/* IDF sibling of the WS2812 part of examples/periph_test/test_rmt_ext.c: TX GPIO10, 10 MHz, 3 LEDs. */
+/* IDF sibling of the WS2812 part of components/drivers/*/test_apps/*_unit/test_rmt_ext.c: TX GPIO10, 10 MHz, 3 LEDs. */
 #include <stdio.h>
 #include "driver/rmt_tx.h"
 #include "esp_cpu.h"

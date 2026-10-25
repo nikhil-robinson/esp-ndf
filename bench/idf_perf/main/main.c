@@ -1,4 +1,4 @@
-/* IDF sibling of examples/debug_test: perfmon counter read cost and counts for the same 1000 x 10 nop loop. */
+/* IDF sibling of components/arch/test_apps/debug_test: perfmon counter read cost and counts for the same 1000 x 10 nop loop. */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

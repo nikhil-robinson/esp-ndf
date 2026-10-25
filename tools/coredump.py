@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read and decode the esp-ndf core dump (soc/esp32s3/coredump.c) from the "coredump" partition.
+"""Read and decode the esp-ndf core dump (components/soc/esp32s3/coredump.c) from the "coredump" partition.
 Usage: coredump.py PORT build/<app>/app.elf [--offset 0xA0000]"""
 import struct, subprocess, sys, tempfile, glob, os
 port, elf = sys.argv[1], sys.argv[2]

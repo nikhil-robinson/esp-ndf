@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/usb_safety_proof: arm, wait through the RTC-watchdog reset, check the RTC_CNTL bit came back
+"""Host side of components/drivers/usb/test_apps/usb_safety_proof: arm, wait through the RTC-watchdog reset, check the RTC_CNTL bit came back
 cleared and the console returned. Usage: usb_safety_proof.py PORT"""
 import serial, sys, time
 port = sys.argv[1]

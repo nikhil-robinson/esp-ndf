@@ -1,0 +1,7 @@
+PASS RSA-2048: x^65537 1, x^d 1, x*y 1 | prepare modulus 8029 usPASS RSA-1024: x^65537 1, x^d 1, x*y 1 | prepare modulus 2078 us, x^65537 287 us, x^d 28807 us, x*y 45 us
+PASS RSA-1024 constant time: exponent 3 28809 us vs full 28807 us
+PASS RSA-2048: x^65537 1, x^d 1, x*y 1 | prepare modulus 8029 us, x^65537 1054 us, x^d 219867 us, x*y 141 us
+PASS RSA-2048 constant time: exponent 3 219870 us vs full 219867 us
+PASS RSA-4096: x^65537 1, x^d 1, x*y 1 | prepare modulus 31644 us, x^65537 4053 us, x^d 1717890 us, x*y 487 us
+PASS RSA-4096 constant time: exponent 3 1717895 us vs full 1717890 us
+rsa_test PASS done

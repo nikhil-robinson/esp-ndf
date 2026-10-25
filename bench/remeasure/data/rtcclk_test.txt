@@ -1,0 +1,5 @@
+PASS 8 MHz/256: calibrated 78543 Hz, selected (0), RTC timer 784PASS RC slow clock: calibrated 138428 Hz (1864 us), RTC timer 138403 Hz
+PASS 8 MHz/256: calibrated 78537 Hz, selected (0), RTC timer 78479 Hz, rtc_slow_hz 78532
+PASS back to RC (0): RTC timer 138263 Hz
+PASS 32 kHz crystal (none fitted): start -1 after 400 ms, select -1, still on 0
+rtcclk_test PASS done

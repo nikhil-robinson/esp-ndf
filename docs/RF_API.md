@@ -1,6 +1,6 @@
-# RF API (`include/rf.h`)
+# RF API (`components/include/rf.h`)
 
-The public interface to the ESP32-S3 radio in esp-ndf. No vendor blobs. Every call checks the state and its arguments and returns an `rf_err_t`. The bench-level drivers in `drivers/rf/` remain available, but they bypass these checks.
+The public interface to the ESP32-S3 radio in esp-ndf. No vendor blobs. Every call checks the state and its arguments and returns an `rf_err_t`. The bench-level drivers in `components/drivers/rf/` remain available, but they bypass these checks.
 
 ## States
 `rf_open()` → IDLE → `rf_rx_start()` → RX, or `rf_tx_start()` → TX; `rf_tx_stop()` → IDLE; `rf_close()` → OFF.
@@ -17,7 +17,7 @@ The public interface to the ESP32-S3 radio in esp-ndf. No vendor blobs. Every ca
 | Samples | `rf_sample_i`, `rf_sample_q`, `rf_sample_word` | 10-bit signed I/Q; `rf_sample_q` corrects the inverted raw Q |
 
 ## Test
-`examples/rf_api_test` on C9:48, with D0 running `rfctl`, driven by `tools/rf_api_test.py`.
+`components/drivers/rf/test_apps/rf_api_test` on C9:48, with D0 running `rfctl`, driven by `tools/rf_api_test.py`.
 
 All checks pass:
 - RX sees D0's tone 42 dB above the floor.
@@ -59,7 +59,7 @@ Data: `bench/rfmeas/lock_range_fine.txt`, `freq_resolution.txt`, `hop_fast.txt`,
 **1.6 Frequency correction:**
 - `rf_set_xtal_ppb` retunes the fraction with the cap kept (no recalibration).
 - The open-loop temperature model (lagged die temperature, quadratic) is limited to about ±0.4 ppm: the die sensor leads the crystal, and transmit-on transients pull the crystal in ways no temperature model sees. Two heating runs fit with residuals of 80 and 440 ppb.
-- **Closed loop (AFC) works:** `examples/rf_afc` locks C9:48 to D0's tone within 2 s, then holds a mean residual of +8 Hz (sd 195 Hz = ±1 LO step, 0.19 ppm) for 3+ minutes while D0 warms up and drifts by about 0.9 ppm.
+- **Closed loop (AFC) works:** `examples/rf_lab/rf_afc` locks C9:48 to D0's tone within 2 s, then holds a mean residual of +8 Hz (sd 195 Hz = ±1 LO step, 0.19 ppm) for 3+ minutes while D0 warms up and drifts by about 0.9 ppm.
 
 **1.7 Lock:**
 - `rf_pll_locked` reads the VCO control-voltage comparator; `rf_check_lock` re-tunes once.
@@ -285,7 +285,7 @@ Measured (bench/rfmeas/rf_safety.txt):
 | Tone, no limit | still on after 1 s (35.5 dB) |
 | 50 cycles of `rf_open`, hop across the band, TX tone, lock check, `rf_close` | 0 failures |
 
-## 6.1 PSRAM (`drivers/psram`, `include/psram.h`)
+## 6.1 PSRAM (`components/drivers/psram`, `components/include/psram.h`)
 
 - **Device:** 8 MB AP Memory octal PSRAM in the ESP32-S3R8 package, on MSPI CS1, driven by our own code.
 - **Bring-up:**
@@ -314,11 +314,11 @@ Measured with C9:48 capturing D0's tone (bench/rfmeas/psram_capture.txt):
 
 - **Trigger granularity:** the level is checked on every 16th sample (1 µs at 16 MS/s), so the scan fits the stream's time budget. Spikes shorter than that pass unseen. In this room, ambient 2.4 GHz bursts and short near-full-scale spikes crossed level 90 before the test tone started.
 - **IQ32 at 16 MS/s and anything at 40/80 MS/s** fit internal RAM only (`rf_rx_stream` / `rf_rx_capture`).
-- **DSP helpers:** `include/dsp.h` (FFT, filters); `rf_rx_tone_hz` estimates a tone's frequency.
+- **DSP helpers:** `components/include/dsp.h` (FFT, filters); `rf_rx_tone_hz` estimates a tone's frequency.
 
 ## 4.2 Raw 802.11 over the Wi-Fi MAC (`rf_wifi_tx`, `rf_wifi_rx`)
 
-`drivers/rf/rf_wifi.c`, example `examples/rf_wifi`, host driver `tools/rf_wifi_test.py`.
+`components/drivers/rf/rf_wifi.c`, example `examples/rf/rf_wifi`, host driver `tools/rf_wifi_test.py`.
 Builds and sends / receives 802.11 frames directly through the Wi-Fi MAC descriptor
 path on channel 6 (2437 MHz) — our own code, no vendor Wi-Fi stack.
 
@@ -329,7 +329,7 @@ path on channel 6 (2437 MHz) — our own code, no vendor Wi-Fi stack.
 | `rf_wifi_rx_init()` | carrier on ch 6 + RX front end, replay the RX state, arm our own 4-descriptor ring |
 | `rf_wifi_rx(out, max, timeout_ms)` | next received frame into `out` (control header stripped); returns length, 0 on timeout |
 
-The absolute register state (`drivers/rf/rf_wifi_regs.h`) was captured from a reference
+The absolute register state (`components/drivers/rf/rf_wifi_regs.h`) was captured from a reference
 transmit/receive (`bench/idf_phyble`, `bench/idf_wifirx`); both the digital config **and**
 the calibrated carrier/front end are required — digital config alone transmits nothing.
 
@@ -341,7 +341,7 @@ the MAC clears the owner and writes the length when a frame lands. RX control he
 
 ## 4.3 802.15.4 O-QPSK by DAC waveform (`rf_154_build`)
 
-`drivers/rf/rf_154.c`, example `examples/rf_154`, host `tools/rf_154_test.py`.
+`components/drivers/rf/rf_154.c`, example `examples/rf/rf_154`, host `tools/rf_154_test.py`.
 The S3 has no 802.15.4 radio, so `rf_154_build(psdu, len, out, max)` synthesises the
 O-QPSK/DSSS baseband at 40 MS/s (2 Mchip/s, 32-chip PN per 4-bit symbol, half-sine pulse,
 Q offset half a chip) for preamble+SFD+PHR+PSDU; play it with `rf_tx_play` (looped) on
@@ -353,7 +353,7 @@ full 32/32 chip correlation = the preamble (4 zero octets), i.e. a valid O-QPSK/
 
 ## 4.4 Correlator trigger (`rf_corr_trigger`)
 
-`drivers/rf/rf_corr.c`. `rf_corr_trigger(iq, n, refI, refQ, rlen, &off, &mag)` slides a
+`components/drivers/rf/rf_corr.c`. `rf_corr_trigger(iq, n, refI, refQ, rlen, &off, &mag)` slides a
 reference complex waveform over a captured IQ window and returns the sync alignment (trigger
 sample `off`) and the peak-to-mean power ratio (×256). Triggers on a known sync *pattern*,
 unlike the energy-level trigger `rf_rx_capture_trigger`. The `rf_pkt` `corr` command

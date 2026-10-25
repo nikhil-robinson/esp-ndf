@@ -1,4 +1,4 @@
-/* IDF sibling of examples/pm_test: esp_pm DFS 240/80, CPU_FREQ_MAX lock acquire/release cost (cycles, best of 100). */
+/* IDF sibling of components/soc/test_apps/pm_test: esp_pm DFS 240/80, CPU_FREQ_MAX lock acquire/release cost (cycles, best of 100). */
 #include <stdio.h>
 #include "esp_pm.h"
 #include "esp_cpu.h"

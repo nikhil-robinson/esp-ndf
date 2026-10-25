@@ -3,9 +3,9 @@ if(NOT DEFINED ENV{OURS})
 else()
     set(OURS $ENV{OURS})
 endif()
-idf_component_register(SRCS "main.c" "../../../drivers/rf/rf_regi2c.c" "../../../drivers/rf/rf_pll.c"
-                            "../../../drivers/rf/rf_init.c" "../../../drivers/rf/rf_dump.c"
-                       INCLUDE_DIRS "../../../drivers/rf"
+idf_component_register(SRCS "main.c" "../../../components/drivers/rf/rf_regi2c.c" "../../../components/drivers/rf/rf_pll.c"
+                            "../../../components/drivers/rf/rf_init.c" "../../../components/drivers/rf/rf_dump.c"
+                       INCLUDE_DIRS "../../../components/drivers/rf"
                        PRIV_REQUIRES esp_wifi esp_phy nvs_flash heap esp_timer)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE OURS=${OURS} BISECT=$ENV{BISECT}0 WIFI=$ENV{WIFI}0 TXLOOP=$ENV{TXLOOP}0 IQPROBE=$ENV{IQPROBE}0 TXOURS=$ENV{TXOURS}0 DUMPWIDE=$ENV{DUMPWIDE}0)
 if(DEFINED ENV{PART})

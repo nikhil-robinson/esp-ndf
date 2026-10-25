@@ -12,13 +12,13 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 ## 1. CPU, SIMD and AI acceleration (TRM ch. 1 PIE, Xtensa LX7)  - details: docs/SYSTEM_TODO.md A1-A8
 
 - [x] PIE / SIMD in the toolchain flow, enabled at boot; instruction cookbook docs/PIE.md
-- [x] PIE and FPU in interrupt handlers: lazy save, any level, nested (examples/pie_isr, fpu_isr)
+- [x] PIE and FPU in interrupt handlers: lazy save, any level, nested (components/arch/test_apps/pie_isr, fpu_isr)
 - [x] DSP library (ESP-DSP equivalent): FFT f32/rfft/s16, windows, FIR/FIRD, biquad, vector, matrix, conv/corr,
-      DCT, Kalman - 1.17-33x ESP-DSP (examples/dsp_lib)
+      DCT, Kalman - 1.17-33x ESP-DSP (components/lib/test_apps/dsp_lib)
 - [x] NN library (ESP-NN equivalent): conv/dwconv/fc/pool/add/mul/relu6/softmax bit-exact, tiny model 1.17x
 - [x] Fast math (sin/cos/atan2/exp/log/rsqrt) + Q15/Q31, soft-double runtime; [x] float in printf (%f/%e/%g exact, libc_test)
 - [x] Zero-overhead loops in hot paths (all PIE/FPU kernels)
-- [x] Performance counters, watchpoints, hardware stack guard (examples/debug_test); [x] gdb guide (docs/DEBUG.md)
+- [x] Performance counters, watchpoints, hardware stack guard (components/arch/test_apps/debug_test); [x] gdb guide (docs/DEBUG.md)
 
 ## 2. Memory, cache, external RAM (TRM ch. 4, ch. 23 XTS_AES)  - details: SYSTEM_TODO B1-B5
 
@@ -38,12 +38,12 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] Watchdogs: TG0/TG1 (report + reset), RTC WDT, super watchdog
 - [x] Reset reason per core (kept across the warm stage); [ ] wake cause (with sleep, D1)
 - [x] Brownout detector (interrupt or hardware reset mode), clock-glitch reset
-- [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, examples/crash_test); [x] core dump to flash ("coredump" partition 0xA0000, tools/coredump.py: regs + addr2line backtrace)
+- [x] Fault handling with DWARF backtrace; [x] crash record in RTC memory (`sys_last_crash`, components/soc/test_apps/crash_test); [x] core dump to flash ("coredump" partition 0xA0000, tools/coredump.py: regs + addr2line backtrace)
 - [x] Software restart, core 1 stall/restart (xc_stall, cpu1_start)
 - [x] Interrupt matrix: per-core routing, priorities, line sharing (pool NDF_IRQ_SHARES); [x] NMI (level 7): `irq_attach_nmi`, gpt_alarm level 7; fires inside irq_lock (runtime_test)
 - [x] Dual core: spinlocks, seq/fifo, cross-core notify and calls (24x esp_ipc)
 - [x] System timer, software timers
-- [x] gettimeofday / settimeofday / clock_gettime (lib/time.c); [ ] wall time kept across sleep / reset (with D1)
+- [x] gettimeofday / settimeofday / clock_gettime (components/lib/time.c); [ ] wall time kept across sleep / reset (with D1)
 - [x] Own 2nd-stage loader, warm boot 0.9 ms, OTA A/B + rollback, SHA-256 image check
 - [x] Chip info incl. PSRAM size
 - [x] ROM-free (no ROM calls in our code)
@@ -99,7 +99,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **TWAI**: alerts (tx, arb lost, bus error, warn, passive/active, bus-off, recovered), state, bus-off recovery + restart
 
 - [ ] Peripheral TX DMA from PSRAM (SPI, UHCI, LCD, RMT) reads wrong data while GDMA memory-to-memory from PSRAM and
-      peripheral RX into PSRAM work (examples/dma_psram_test); the drivers refuse PSRAM TX sources until it is understood
+      peripheral RX into PSRAM work (components/drivers/gdma/test_apps/dma_psram_test); the drivers refuse PSRAM TX sources until it is understood
       (EDMA permissions are open by default, block size 64 B, cache written back before start)
 
 ## 7. Peripherals not started
@@ -110,7 +110,7 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
       descriptor parsed by the kernel); [x] MSC data from the host (READ(10) checked by udev's FAT probe, also in the composite); [-] HID report data: needs root for hidraw,
       [x] composite device CDC-ACM + MSC (USB_FN_CDC_MSC, IAD; tools/usb_comp_test.py: disk + 64 KB echo at once), [-] host mode, role switch: needs new hardware (an OTG adapter with 5 V VBUS + a device on the S3 port; the DEVKIT port is the laptop link)
       [x] OTG guard: usb_dev_start arms the RTC watchdog (RTC reset), usb_dev_poll feeds it, usb_dev_stop disarms;
-      proof that the RTC reset clears RTC_CNTL and the console returns: examples/usb_safety_proof + tools/usb_safety_proof.py;
+      proof that the RTC reset clears RTC_CNTL and the console returns: components/drivers/usb/test_apps/usb_safety_proof + tools/usb_safety_proof.py;
       CDC test re-run on C9:D0 with the guard (1152 / 1005 KB/s, 0 errors)
 - [x] USB Serial/JTAG: console out + input (`console_getc`); host presence `console_host_present()` (USB start-of-frame number moves every 1 ms, check 49 cycles; unplugged writes drop at once, IDF waits its TX timeout). JTAG-only mode: n/a (the console is ours; JTAG works with or without it)
 - [ ] **SD/MMC host** + **SD SPI host** + SD/MMC protocol driver (waiting for a card)
@@ -121,14 +121,14 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] libc: `snprintf` family with %f/%e/%g, `strtol/ul/ll/ull`, `strtof/strtod` (float precision), `qsort`, `bsearch`, `atoi`;
       float runtime (`__divsf3`, `sqrtf`, conversions) IEEE-exact; double arithmetic (asm fast paths, faster than IDF ROM);
-      correctly rounded `strtod`/`strtof`; exact `printf` (any precision, %a); libm (lib/math.c, mathf.c);
+      correctly rounded `strtod`/`strtof`; exact `printf` (any precision, %a); libm (components/lib/math.c, mathf.c);
       [x] `time`/`gettimeofday`/`settimeofday`/`clock_gettime`, `gmtime_r`/`mktime`/`timegm`/`strftime` (UTC, 11-75x newlib)
 - [x] Logging with levels/tags, timestamps, compile-out (`log.h`), `NDF_ASSERT`
 - [x] Lock-free SPSC FIFO (`XC_FIFO`, ISR ↔ main and core ↔ core); [x] byte ring buffer with variable-length items (`ringbuf.h`, zero-copy)
 - [x] Event dispatch (`event.h`): post from ISR / either core, handlers by id or any, drops counted (24x esp_event post)
 - [x] Command line (`cmd.h`): compile-time CMD() registry, line editing, quotes, help; host test tools/repl_test.py
 - [x] Unit test runner (`unit.h`): TEST() registry, UASSERT/UASSERT_EQ, per-test cycles, "=== unit: P/N passed ==="; [x] periph_test runs on it (41 tests, ordered by registry name prefix, PT_FILTER for one test)
-- [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (examples/cpp_test)
+- [x] C++ support: `.cpp` in apps, global constructors (init_priority) + `__attribute__((constructor))`, new/delete on the heap, header-only std (array, algorithm), no exceptions/RTTI (components/lib/test_apps/cpp_test)
 - [x] Cooperative tasks (`coop.h`): spawn / yield / sleep, CALL0 context (6 registers), hardware stack guard follows the task
 - [x] JTAG debugging guide + `tools/gdb.sh` (docs/DEBUG.md, verified: breakpoint, backtrace, variables); [x] app trace over JTAG (trace.h, IDF apptrace protocol: OpenOCD "esp apptrace" reads it; NDF_APPTRACE, 4 KB DRAM; tools/trace_test.sh)
 - [x] Configuration system: `ndf_config.h` (run-time options, app override) + `app.mk` (build options) + `make menuconfig` (tools/ndfconfig: nested, searchable, themed, CLI mode) + docs/CONFIG.md generated from one schema
@@ -156,6 +156,6 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 
 - [x] IDF siblings for ADC continuous (jitter 2 vs 76 cycles), LCD (i80 2.76x), RTC hold (both hold cleanly) through reset
 - [x] Box-3 microphones end to end (ES7210 normal I2S, full duplex with the speaker: 38 / 27 dB 1 kHz SNR); [ ] ES7210 4-slot TDM mode
-- [~] Soak: examples/soak + tools/soak.py (SHA, AES-GCM, PSRAM 4 MB, FAT, events, coop, temp; WDT, crash records); 24 h run on BOX-3 started 2026-10-25 (bench/soak/data); [ ] power-cut fault testing (needs a switched supply)
+- [~] Soak: tests/soak + tools/soak.py (SHA, AES-GCM, PSRAM 4 MB, FAT, events, coop, temp; WDT, crash records); 24 h run on BOX-3 started 2026-10-25 (bench/soak/data); [ ] power-cut fault testing (needs a switched supply)
 - [x] Fixed: 16 MB PSRAM mapping overwrote the XIP code MMU entries (shared 512-entry table): psram_init maps free entries only (BOX-3 + XIP: 15 MB)
 - [x] API index (docs/API.md, from the headers) + porting guide (docs/PORTING.md); [ ] bring-up of a second chip

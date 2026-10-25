@@ -1,4 +1,4 @@
-/* IDF sibling of the time part of examples/libc_test (newlib time/gmtime_r/mktime/strftime). */
+/* IDF sibling of the time part of components/lib/test_apps/libc_test (newlib time/gmtime_r/mktime/strftime). */
 #include <stdio.h>
 #include <time.h>
 #include <sys/time.h>

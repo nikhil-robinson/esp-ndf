@@ -1,0 +1,24 @@
+
+=== esp-ndf unit tests ===
+[i2s]
+    48 kHz requested, achieved 48000.000 Hz
+    analyzer: I2S streaming
+    received 65536 bytes, 32256 samples checked, 0 discontinuities, tx underruns 0, rx overruns 0
+    i2s_write() 1 KB (space free)      528 cycles
+  PASS i2s (84559977 cycles)
+[i2s_modes]
+    i2s_init() TDM TX                  24418 cycles
+    TDM 4x16: fs 48001.567 Hz (BCK 3.072 MHz)
+    TDM: 24448 samples, 8149 masked zeros, 0 errors, und 0 ovr 0
+    i2s_init() PDM TX+RX               24274 cycles
+    PDM duplex: fs 52083.333 Hz (integer divider as IDF: PDM clock = 128 fs)
+    PDM loop: 24128 samples, 1000 Hz (1000 sent), peak -5363..5363, SNR 99 dB, und 0 ovr 0
+    Philips  : TX->RX 0 errors, WS high 16 bit(s)
+    MSB      : TX->RX 0 errors, WS high 16 bit(s)
+    PCM short: TX->RX 0 errors, WS high 1 bit(s)
+    PCM long : TX->RX 0 errors, WS high 16 bit(s)
+    TX Philips -> RX MSB: 12286 samples out of order (the 1-bit shift is real)
+  PASS i2s_modes (676714962 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

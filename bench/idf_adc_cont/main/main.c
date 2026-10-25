@@ -1,4 +1,4 @@
-/* IDF sibling of examples/periph_test test_adc_cont: ADC1 ch9, 20 kHz, 1000-sample frames; frame interval jitter. */
+/* IDF sibling of components/drivers/*/test_apps/*_unit test_adc_cont: ADC1 ch9, 20 kHz, 1000-sample frames; frame interval jitter. */
 #include <stdio.h>
 #include "esp_adc/adc_continuous.h"
 #include "esp_cpu.h"

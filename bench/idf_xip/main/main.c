@@ -1,4 +1,4 @@
-/* IDF sibling of examples/xip_test: the same generated kernels (bench/xip/xip_kern.c) in IRAM and in flash (IDF's
+/* IDF sibling of components/soc/test_apps/xip_test: the same generated kernels (bench/xip/xip_kern.c) in IRAM and in flash (IDF's
  * default placement), cycles per call from IRAM, flash warm, flash cold (ROM Cache_Invalidate_ICache_All first);
  * flash erase + write time. Results into RTC slow memory 0x50001000 (read back with esptool dump_mem). */
 #include <stdint.h>

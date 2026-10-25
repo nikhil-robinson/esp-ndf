@@ -1,5 +1,5 @@
 #!/bin/bash
-# Boot time reset -> main: esp-ndf (examples/boot_time, XIP off/lib) vs IDF (bench/idf_boot), same RTC-timer code,
+# Boot time reset -> main: esp-ndf (components/soc/test_apps/boot_time, XIP off/lib) vs IDF (bench/idf_boot), same RTC-timer code,
 # 3 runs each, same board. Results -> bench/boot/result.txt
 cd "$(dirname "$0")/.." || exit 1
 port() { ls /dev/serial/by-id/usb-Espressif_USB_JTAG* 2>/dev/null | head -1; }
@@ -12,5 +12,5 @@ run() {   # $1 label; image already flashed
   done
 }
 (cd bench/idf_boot/build && esptool.py --chip esp32s3 -p "$(port)" -b 460800 --after no_reset write_flash @flash_args >/dev/null 2>&1); run "IDF"
-for x in off lib; do make APP=examples/boot_time XIP=$x >/dev/null 2>&1
-  esptool.py --chip esp32s3 -p "$(port)" -b 460800 --after no_reset write_flash 0x0 build/boot_time/app.bin $( [ $x != off ] && echo 0x300000 build/boot_time/xip.bin ) >/dev/null 2>&1; run "ndf XIP=$x"; done
+for x in off lib; do make -C components/soc/test_apps/boot_time XIP=$x >/dev/null 2>&1
+  esptool.py --chip esp32s3 -p "$(port)" -b 460800 --after no_reset write_flash 0x0 components/soc/test_apps/boot_time/build/app.bin $( [ $x != off ] && echo 0x300000 components/soc/test_apps/boot_time/build/xip.bin ) >/dev/null 2>&1; run "ndf XIP=$x"; done

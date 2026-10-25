@@ -4,7 +4,7 @@ usage: run_app.py PORT [marker] [timeout_s]. The chip is reset with esptool's wa
 DTR/RTS lines can land in download mode when the host leaves DTR asserted, e.g. ModemManager), then read without
 touching DTR/RTS, so output starts at boot.
 A reset that drops the USB device (chip/RTC reset) is followed: the port is reopened without touching DTR/RTS."""
-import sys, time, glob, serial, subprocess
+import sys, os, time, glob, serial, subprocess
 port, mark, tmo = sys.argv[1], (sys.argv[2] if len(sys.argv) > 2 else 'done'), float(sys.argv[3]) if len(sys.argv) > 3 else 20
 subprocess.run(['esptool.py', '--chip', 'esp32s3', '-p', port, '--after', 'watchdog_reset', 'chip_id'],
                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
@@ -21,7 +21,8 @@ while time.time() - t < tmo:
         s.close()
         while time.time() - t < tmo:                       # wait for the device to come back
             time.sleep(0.2)
-            ports = sorted(glob.glob('/dev/ttyACM*'))
+            ports = [port] if port.startswith('/dev/serial/by-id/') else sorted(glob.glob('/dev/ttyACM*'))   # same board: its by-id link returns
+            ports = [p for p in ports if os.path.exists(p)]
             if not ports: continue
             try:
                 s = serial.Serial(); s.port = ports[0]; s.baudrate = 115200; s.timeout = 0.2; s.dtr = False; s.rts = False; s.open(); break

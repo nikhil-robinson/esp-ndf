@@ -1,0 +1,25 @@
+
+=== esp-ndf unit tests ===
+[adc]
+    eFuse MAC 24:58:7c:e2:c9:d0, ADC calibration v1 present
+    GPIO11 low (0 V)       raw mean    0 (min    0 max   19)  =    0 mV
+    pull-up/pull-down      raw mean 1869 (min 1786 max 1949)  = 1499 mV
+    GPIO11 high (3.3 V)    raw mean 4095 (min 4095 max 4095)  = 3063 mV
+    raw 1859 -> 1490 mV (IDF 1490), raw 4095 -> 3063 mV (IDF 3063)
+    adc_read_raw()                     1845 cycles
+  PASS adc (6098367 cycles)
+[adc_cont]
+    GPIO11 low/high: mean raw 0 / 4095
+    1 kHz square: 50 rising edges per frame, 20.000 samples/period (ideal 20)
+    frame interval 12000000..12000002 cycles = 50.0000 ms (ideal 50 ms), jitter 2 cycles
+    2 channels: 999/999 neighbours alternate 9/0, ch9 mean 4095 (GPIO11 high), ch0 mean 3654 (GPIO1 open)
+    mid level: continuous mean 1867, one-shot mean 1862 (1497 mV vs 1492 mV)
+    overruns 0, sync errors 0
+  PASS adc_cont (240865736 cycles)
+[adc_filter]
+    1 kHz square p-p: raw 4095, IIR k=16 1275 (expect ~1269)
+    monitor low 1000 / high 3000: input low -> 1000 low, 0 high events; input high -> 0 low, 1000 high (per 50 ms)
+  PASS adc_filter (96152675 cycles)
+=== unit: 3/3 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

@@ -1,0 +1,7 @@
+
+=== esp-ndf unit tests ===
+[memprot_locked_refuses_vector_patch]
+  PASS memprot_locked_refuses_vector_patch (182 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

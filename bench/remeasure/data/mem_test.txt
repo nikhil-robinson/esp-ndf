@@ -1,0 +1,6 @@
+PASS after a software reset: RTC_DATA re-initialised (5), RTC_BSPASS RTC_DATA initialised (5), RTC_BSS zero (0); at 0x50000010 / 0x50000014 / 0x50000090
+PASS after a software reset: RTC_DATA re-initialised (5), RTC_BSS zeroed (0), RTC_NOINIT kept (c0ffee)
+PASS PSRAM 8192 KB in the heap (8388576 free); malloc(100000) 0x3d000010 (PSRAM), malloc(100) 0x3fc9dec0, DMA 0x3fc9df40, SPIRAM 0x3d0186c0
+PASS data in PSRAM blocks intact (0 bad), all freed: internal 307504/307504, PSRAM 8388576/8388576
+speed: malloc+free 64 B 282 cycles, 4 KB 282, 100 KB (PSRAM) 301
+mem_test PASS done

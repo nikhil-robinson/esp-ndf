@@ -14,7 +14,7 @@
 #include "rf_regi2c.h"
 #include "rf_init.h"
 #ifdef HWSTEP
-#include "../../../drivers/ble/ble_state.h"
+#include "../../../components/drivers/ble/ble_state.h"
 #endif
 #ifndef ONTO
 #define ONTO 1

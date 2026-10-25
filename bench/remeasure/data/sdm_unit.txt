@@ -1,0 +1,11 @@
+
+=== esp-ndf unit tests ===
+[sdm]
+    density  -64: duty 25.0 % (expect 25 %)
+    density    0: duty 49.9 % (expect 50 %)
+    density   64: duty 75.0 % (expect 75 %)
+    sdm_density()                      36 cycles
+  PASS sdm (12628910 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

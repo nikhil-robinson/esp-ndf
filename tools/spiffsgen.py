@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SPIFFS image builder, same on-flash format as esp-ndf drivers/storage/spiffs.c and ESP-IDF's spiffs at its default
+"""SPIFFS image builder, same on-flash format as esp-ndf components/drivers/storage/spiffs.c and ESP-IDF's spiffs at its default
 config (256 B pages, 4 KB blocks, 32 B names, 4 B meta, magic + length). Flat names = paths relative to DIR.
   spiffsgen.py DIR out.bin SIZE"""
 import os, struct, sys

@@ -1,0 +1,5 @@
+PASS DRAM-alias store into code: blocked 1, reported 1 (bus 1, addr 0x3fc90730, write 1)
+PASS IRAM store into code: blocked 1, reported 1 (bus 0, addr 0x40380730)
+PASS data store and code call unaffected
+PASS memprot_code_write: open store ok, closed again blocks (1)
+memprot_test PASS done

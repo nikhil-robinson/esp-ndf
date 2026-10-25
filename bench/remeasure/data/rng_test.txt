@@ -1,0 +1,6 @@
+PASS ChaCha20 RFC 8439 known answer
+PASS rng_hw: 4096 bytes, ones 0.5000, runs 0.5013, chi2 258.0 (255 dof)
+PASS rng_fill: 65536 bytes, ones 0.5007, runs 0.5010, chi2 230.5 (255 dof)
+PASS two 32-byte draws differ
+speed: rng_hw 5349 cycles/word (22 us), rng_u32 286 cycles, rng_fill 4 KB 839 us, 64 KB 9924 us (6 MB/s)
+rng_test PASS done

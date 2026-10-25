@@ -1,4 +1,4 @@
-/* IDF sibling of examples/usb_cdc: TinyUSB (esp_tinyusb) CDC-ACM with the same protocol, measured by the same host
+/* IDF sibling of examples/usb/usb_cdc: TinyUSB (esp_tinyusb) CDC-ACM with the same protocol, measured by the same host
  * script (tools/usb_cdc_test.py --idf). 'S' + u32 count -> send count bytes (byte k = k & 0xFF); 'U' + u32 count ->
  * receive, check, reply u32 received + u32 errors; other bytes echoed. Takes the PHY 3 s after boot (no USB-JTAG
  * console); after 25 s it uninstalls TinyUSB, hands the PHY back to USB Serial/JTAG and parks (esp_restart would not:

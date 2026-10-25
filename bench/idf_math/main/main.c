@@ -1,4 +1,4 @@
-/* IDF sibling of examples/fastmath_test: newlib float math on the same arguments, cycles per call. */
+/* IDF sibling of components/lib/test_apps/fastmath_test: newlib float math on the same arguments, cycles per call. */
 #include <stdio.h>
 #include <math.h>
 #include "esp_cpu.h"

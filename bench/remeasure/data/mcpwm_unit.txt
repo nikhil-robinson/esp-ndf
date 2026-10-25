@@ -1,0 +1,21 @@
+
+=== esp-ndf unit tests ===
+[mcpwm]
+    20 kHz edge-aligned: period        8000 ticks @ 160 MHz
+    captured high / period             1000 / 4000 (12.5 ns ticks)
+    center-aligned high / period       1000 / 4000
+    complementary edges A / B          8 / 8
+    dead band A->B / B->A              81 / 81 ticks (80 = 1 us)
+    mcpwm_cmp()                        3 cycles
+    synced timer phase lag             1001 ticks (1000 = 90 deg)
+    period IRQ jitter (20 kHz, L1)     max 0 cycles
+  PASS mcpwm (60350356 cycles)
+[mcpwm_ext]
+    one-shot fault: running 8482, tripped 0 (event 1), fault gone 0 (latched), released 8890
+    cycle-by-cycle fault: tripped 0, fault gone 8888 (back by itself)
+    carrier 1250000 Hz on 1 kHz PWM: 6250 pulses in 10 ms (ideal 6250), without carrier 10
+    capture /4: 8 captures in 30 ms, delta 320000 ticks (4 ms = 320000)
+  PASS mcpwm_ext (15290683 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

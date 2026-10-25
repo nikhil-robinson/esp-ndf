@@ -1,4 +1,4 @@
-"""AES-GCM vectors for examples/gcm_test and bench/idf_gcm: tags (+ first ciphertext block) from python cryptography.
+"""AES-GCM vectors for components/drivers/crypto/test_apps/gcm_test and bench/idf_gcm: tags (+ first ciphertext block) from python cryptography.
 Plaintext byte i = (i * 7 + 3) & 255, AAD byte i = i ^ 0x5a, key byte i = i + 1, IV byte i = 0xa0 + i."""
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 cases = [(16, 12, 20, 0), (16, 12, 20, 15), (16, 12, 0, 64), (16, 12, 20, 1000), (32, 12, 13, 1000), (16, 16, 20, 100),

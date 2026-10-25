@@ -1,4 +1,4 @@
-/* IDF sibling of examples/ulp_test: the same ULP binary through ulp_riscv_load_binary + ulp_riscv_run. */
+/* IDF sibling of components/soc/test_apps/ulp_test: the same ULP binary through ulp_riscv_load_binary + ulp_riscv_run. */
 #include <stdio.h>
 #include "esp_cpu.h"
 #include "ulp_riscv.h"

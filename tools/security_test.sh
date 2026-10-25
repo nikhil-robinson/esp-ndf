@@ -4,13 +4,13 @@
 set -e
 cd "$(dirname "$0")/.."
 K=${1:-1}; O=build/security; mkdir -p $O
-F="-g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -Itools/fuzz/host -Iinclude -Isoc/esp32s3"
-gcc $F tools/fuzz/fuzz_fat.c drivers/storage/fat.c -o $O/fat
-gcc $F tools/fuzz/fuzz_flashfs.c drivers/storage/spiffs.c drivers/storage/nvs.c lib/crc32.c -o $O/flashfs
-gcc $F tools/fuzz/fuzz_wl.c drivers/storage/wl.c lib/crc32.c -o $O/wl
-gcc $F tools/fuzz/fuzz_msc.c drivers/usb/usb_msc.c -o $O/msc
-gcc $F tools/test_pfs.c drivers/storage/pfs.c lib/crc32.c -o $O/pfs
-gcc $F tools/fuzz/test_ota_sig.c lib/ecc.c -o $O/sig
+F="-g -O1 -fsanitize=address,undefined -fno-sanitize-recover=all -Itools/fuzz/host -Icomponents/include -Icomponents/soc/esp32s3"
+gcc $F tools/fuzz/fuzz_fat.c components/drivers/storage/fat.c -o $O/fat
+gcc $F tools/fuzz/fuzz_flashfs.c components/drivers/storage/spiffs.c components/drivers/storage/nvs.c components/lib/crc32.c -o $O/flashfs
+gcc $F tools/fuzz/fuzz_wl.c components/drivers/storage/wl.c components/lib/crc32.c -o $O/wl
+gcc $F tools/fuzz/fuzz_msc.c components/drivers/usb/usb_msc.c -o $O/msc
+gcc $F tools/test_pfs.c components/drivers/storage/pfs.c components/lib/crc32.c -o $O/pfs
+gcc $F tools/fuzz/test_ota_sig.c components/lib/ecc.c -o $O/sig
 $O/fat $((20000 * K)) 7
 $O/flashfs spiffs $((10000 * K)) 7
 $O/flashfs nvs $((10000 * K)) 7

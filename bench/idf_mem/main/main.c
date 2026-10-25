@@ -1,4 +1,4 @@
-/* IDF sibling of examples/mem_test: malloc+free cycles (best of 16) for 64 B, 4 KB (internal) and 100 KB (PSRAM via
+/* IDF sibling of components/soc/test_apps/mem_test: malloc+free cycles (best of 16) for 64 B, 4 KB (internal) and 100 KB (PSRAM via
  * SPIRAM_USE_MALLOC), heap_caps_malloc SPIRAM. */
 #include <stdio.h>
 #include <stdlib.h>

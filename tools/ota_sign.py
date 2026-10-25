@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OTA image signing (drivers/storage/ota.c trailer): ECDSA P-256 over SHA-256(image || "NDFS" || version || length).
+"""OTA image signing (components/drivers/storage/ota.c trailer): ECDSA P-256 over SHA-256(image || "NDFS" || version || length).
   ota_sign.py keygen KEY.pem            new private key; prints the public key as a C array for ota_set_key()
   ota_sign.py pub KEY.pem               print the public key again
   ota_sign.py sign KEY.pem VERSION IN OUT   append the 76-byte trailer {"NDFS", version, len, r||s}

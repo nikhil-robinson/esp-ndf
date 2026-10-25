@@ -1,0 +1,10 @@
+
+=== esp-ndf unit tests ===
+[rmt]
+    TX 100 items / RX received         100 items (+1 end marker)
+    worst duration error               0 ticks (100 ns)
+    TX time / signal length            1791 / 1785 us
+    rmt_tx() start (100 items)         1204 cycles
+  PASS rmt (665561 cycles)
+[rmt_ext]
+    loop 3 items x 100: TX done, RX 300 items, 300 pulses (300)

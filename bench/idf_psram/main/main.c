@@ -1,4 +1,4 @@
-/* IDF sibling of examples/psram_test: octal PSRAM at 80 MHz, memcpy 1 MiB SRAM <-> PSRAM, CPU cycle counter, 240 MHz */
+/* IDF sibling of components/drivers/psram/test_apps/psram_test: octal PSRAM at 80 MHz, memcpy 1 MiB SRAM <-> PSRAM, CPU cycle counter, 240 MHz */
 #include <stdio.h>
 #include <string.h>
 #include "esp_psram.h"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/usb_msc (no root needed): ask for an OTG window, then check what the kernel and udev made of
+"""Host side of examples/usb/usb_msc (no root needed): ask for an OTG window, then check what the kernel and udev made of
 the disk - vendor/model in sysfs, capacity (READ CAPACITY), and the FAT volume serial found by udev's blkid probe
 (/dev/disk/by-uuid/1234-ABCD: the kernel READ(10)s returned the right bytes). Usage: usb_msc_test.py PORT [secs]"""
 import serial, glob, os, sys, time

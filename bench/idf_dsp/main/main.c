@@ -1,4 +1,4 @@
-/* IDF sibling of examples/dsp_bench: Espressif's ESP-DSP (S3 vector
+/* IDF sibling of components/lib/test_apps/dsp_bench: Espressif's ESP-DSP (S3 vector
  * versions) on the same data sizes. Cycles per call. */
 #include <stdio.h>
 #include <string.h>

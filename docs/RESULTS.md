@@ -1,10 +1,10 @@
 # esp-ndf vs ESP-IDF 5.3.5 — measured on hardware
 
 Board: ESP32-S3 devkit (MAC 24:58:7C:E2:C9:D0), CPU 240 MHz on both stacks.
-esp-ndf: `make APP=examples/periph_test flash`. ESP-IDF: `bench/idf_periph` (official
+esp-ndf: `make test` (docs/TESTING.md), the `components/drivers/*/test_apps/*_unit` applications. ESP-IDF: `bench/idf_periph` (official
 driver APIs, IRAM callbacks, `-O2`). Cycles are CPU cycles (4.17 ns). Lower is better.
 
-## Interrupts (`examples/irq_latency` vs `bench/idf_irq`)
+## Interrupts (`components/arch/test_apps/irq_latency` vs `bench/idf_irq`)
 
 | Path, timer match → first C line | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -254,7 +254,7 @@ Found: the fade step (duty_scale) is in whole duty units; our ledc_fade had used
 | raw read | **99 cycles** | 532 cycles |
 
 A driven neighbour pad (jumper) does not move the count: the stimulus is the charge slope instead. The RTC
-interrupt is now shared (soc/esp32s3/rtc_irq.c: brownout + touch); bod_test still trips and restarts.
+interrupt is now shared (components/soc/esp32s3/rtc_irq.c: brownout + touch); bod_test still trips and restarts.
 Denoise was tried and dropped: with only the enable bit the data freezes (needs the reference channel setup).
 
 ## ADC IIR filter and threshold monitors (`periph_test` adc_filter vs `bench/idf_adc_ext`, C9:D0, GPIO11 -> GPIO10)
@@ -299,7 +299,7 @@ an external component), so there is no IDF sibling for this one.
 
 ## Crash record and clock output (C9:D0)
 
-- `examples/crash_test`: a trap in `crash_here()` restarts the chip (NDF_PANIC_RESTART); the next boot reads reason,
+- `components/soc/test_apps/crash_test`: a trap in `crash_here()` restarts the chip (NDF_PANIC_RESTART); the next boot reads reason,
   core, PC (inside crash_here), 4 backtrace PCs and the crash count from RTC memory.
 - `clk_out` on GPIO41 counted by PCNT: XTAL 40.03 MHz, RC fast 20.1 MHz, RC slow 138.7 kHz = its calibration.
   Found: the PCNT glitch filter is on at reset (drops pulses < 10 APB cycles); our units now start with it off, as IDF.
@@ -314,7 +314,7 @@ an external component), so there is no IDF sibling for this one.
 Analyzer note: flashing and run_app.py each reset the board, so a short capture can hold two runs of the hold test;
 a 1 s / 1 s timeline separates them (no glitch in either).
 
-## BOX-3 microphones end to end (`examples/box3_mic`, BOX-3)
+## BOX-3 microphones end to end (`examples/box3/box3_mic`, BOX-3)
 
 ES8311 plays 1 kHz through the speaker while the ES7210 (I2C 0x40, Linux es7210.c sequence, normal I2S 16 bit,
 MCLK 256 fs) records on I2S0 RX in full duplex with the speaker TX:
@@ -324,11 +324,11 @@ MCLK 256 fs) records on I2S0 RX in full duplex with the speaker TX:
 | speaker off: rms, 1 kHz share | 20, -46 dB | 25, -47 dB |
 | 1 kHz on: rms, 1 kHz share | 1627, **38 dB** | 322, **27 dB** |
 
-## BOX-3 GT911 touch controller (`examples/box3_touch`, BOX-3)
+## BOX-3 GT911 touch controller (`examples/box3/box3_touch`, BOX-3)
 
 I2C 0x5D: product id "911", 320 x 240, report poll 29.7k cycles at 400 kHz (bus-bound), no false reports.
 
-## Temperature sensor (`examples/tsens_test` vs `bench/idf_tsens`, C9:D0, runs alternated)
+## Temperature sensor (`components/drivers/tsens/test_apps/tsens_test` vs `bench/idf_tsens`, C9:D0, runs alternated)
 
 | run | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -490,7 +490,7 @@ append); ours reads IDF's `idf.txt` and `idf_big.bin` (30000 B, pattern ok).
 
 ## NVS encryption (XTS-AES-256, IDF scheme; keys in `nvs_keys`, data in `nvs_enc`)
 
-AES accelerator driver (`drivers/crypto/aes.c`, block mode) + XTS; NVS routes
+AES accelerator driver (`components/drivers/crypto/aes.c`, block mode) + XTS; NVS routes
 every entry read/write through it (tweak = partition-relative entry address),
 so GC re-encrypts moved entries for their new address.
 
@@ -547,7 +547,7 @@ Loopback 100/100, pull-up/down, open drain, hold (level frozen while the
 register changes) all verified on the jumpers (10<->11, 12<->13).
 
 Hold through a full system reset (`RTC_SW_SYS_RST`), logic analyzer on GPIO4
-(examples/rtc_hold, 2 MHz sampling): exactly one rising and one falling edge,
+(examples/system/rtc_hold, 2 MHz sampling): exactly one rising and one falling edge,
 high for 513.1 ms across reset + reboot, zero glitches. Boot code now leaves
 held pads alone. Found on the analyzer: the RTC output latch keeps its last
 value across resets, so enabling the output before writing the level gave a
@@ -596,10 +596,10 @@ so one is always whole). Test: erase FAT1, then FAT2, remount -> repaired,
 free space unchanged, 20 KB file identical.
 Data/directory sectors keep the same erase+program window as IDF's WL.
 
-examples/storage: NVS boot counter + one log appended through the VFS to
+examples/storage/storage: NVS boot counter + one log appended through the VFS to
 FAT-on-WL and to SPIFFS each boot (verified over several resets).
 
-## Sharing data between the cores (examples/xcore_bench vs bench/idf_xcore)
+## Sharing data between the cores (components/drivers/xcore/test_apps/xcore_bench vs bench/idf_xcore)
 
 Round trip = core 0 sends, core 1 answers, core 0 sees the answer (one way is about half). 10 000 runs each, in CPU cycles (240 = 1 µs).
 
@@ -623,7 +623,7 @@ Correctness, measured on the board:
 Internal SRAM is uncached on the S3, so no cache maintenance is needed; a
 `memw` barrier costs 2–3 cycles.
 
-## Cross-core design decision (examples/xcore_bench2, xcore_bench3, bench/idf_xcore)
+## Cross-core design decision (components/drivers/xcore/test_apps/xcore_bench2, xcore_bench3, bench/idf_xcore)
 
 Loop = 320-cycle fixed body on each core, both cores running; numbers are
 cycles added per iteration.
@@ -662,7 +662,7 @@ FIFO for streams, spinlock for rare multi-writer state, cross-core
 interrupt (143 cycles) to wake the other core. Remote Core Locking is 2x
 slower than the spinlock on this chip and is not used.
 
-## Cross-core interrupt by priority level (examples/xcore_notify)
+## Cross-core interrupt by priority level (components/drivers/xcore/test_apps/xcore_notify)
 
 Core 0 writes SYSTEM_CPU_INTR_FROM_CPU_1; core 1's handler answers. Round trip, 10 000 runs:
 
@@ -714,7 +714,7 @@ notifications -> 10 000 handler runs. Same read-back added to the C path.
 ## SIMD (PIE vector unit) kernels vs C and vs Espressif ESP-DSP (bench/idf_dsp)
 
 PIE = coprocessor 3, enabled at boot on both cores (off inside interrupt
-handlers, like the FPU). Kernels in lib/dsp.S, our own code. 1024 elements,
+handlers, like the FPU). Kernels in components/lib/dsp.S, our own code. 1024 elements,
 16-byte aligned, cycles per call:
 
 | Kernel | C -O2 | esp-ndf | ESP-DSP (S3 build) | vs ESP-DSP |
@@ -726,7 +726,7 @@ handlers, like the FPU). Kernels in lib/dsp.S, our own code. 1024 elements,
 
 All results equal to the C reference (float: within rounding).
 
-## memcpy / memset (lib/string.c): vector path when safe
+## memcpy / memset (components/lib/string.c): vector path when safe
 
 128-bit path only for internal DRAM and only when the vector unit is on
 (it is off in interrupt handlers - checked with CPENABLE, 1 cycle).
@@ -747,13 +747,13 @@ Re-entering the same hardware loop while LBEG still points at it runs at
 reduced speed: vector copy 2 055 vs 1 049 cycles (2x), a compiled C loop
 10 515 vs 10 016 (+5 %). Changing LBEG before the LOOP instruction removes it
 completely (1 053 / 10 017 on every call). Applied everywhere:
-- lib/dsp.S: `wsr <count>, lbeg` before each loop
+- components/lib/dsp.S: `wsr <count>, lbeg` before each loop
 - every C file: the build compiles to assembly and inserts the same
   instruction before each GCC-generated loop (Makefile LOOPFIX), one
   instruction per loop entry, nothing per iteration
 Full peripheral suite: all pass after the change.
 
-## Flash read: QIO + overlapped buffer halves (examples/flash_speed)
+## Flash read: QIO + overlapped buffer halves (components/drivers/flash/test_apps/flash_speed)
 
 SPI1 data registers cost 18–24 CPU cycles per read, so draining 64 bytes
 left the bus idle ~1.2 µs per transaction. Now: QIO fast read (0xEB, address
@@ -771,10 +771,10 @@ Knock-on (full suite, all pass): nvs_get_u32 2 338 -> 1 747 cycles, encrypted
 
 ## SoC capability flags + portable fallbacks
 
-`soc/esp32s3/soc_caps.h` (C and assembly) and `soc/esp32s3/soc.mk` (make)
+`components/soc/esp32s3/soc_caps.h` (C and assembly) and `components/soc/esp32s3/soc.mk` (make)
 describe the chip: cores, cross-core interrupt, FPU, PIE vector unit,
 S32C1I, hardware-loop LBEG quirk, and the CPENABLE value at boot. Gated:
-lib/dsp.S (PIE) with lib/dsp.c as the portable twin, the vector memcpy/memset
+components/lib/dsp.S (PIE) with components/lib/dsp.c as the portable twin, the vector memcpy/memset
 paths, xc_spin (S32C1I, else Peterson), xc_notify (cross-core interrupt), the
 LOOPFIX build step and the coprocessor enable at boot.
 
@@ -785,7 +785,7 @@ The portable memcpy was also rewritten (align + 16-byte word unroll, and
 shift-merge for different alignments): 8 KB same misalignment 65 564 -> 5 250
 cycles, different alignment 65 564 -> 20 606.
 
-## SPI master: register-path overhead (examples/spi_probe, analyzer on CS/SCLK)
+## SPI master: register-path overhead (components/drivers/spi/test_apps/spi_probe, analyzer on CS/SCLK)
 
 Analyzer: 10 MHz -> CS low 3.3 µs with 32 clocks; 40 MHz -> CS low 0.83 µs;
 the clocks are right. Software overhead per transfer was ~530 cycles of
@@ -813,7 +813,7 @@ through GC, remounts, encrypted, wrong key, IDF data):
 nvs_get_u32 1 747 -> **498** cycles (IDF 26 269), encrypted 4 711 -> **435**
 (IDF 82 455).
 
-GPTimer read profiled (examples/gpt_probe): latch write 6, latch wait ~50
+GPTimer read profiled (components/drivers/gptimer/test_apps/gpt_probe): latch write 6, latch wait ~50
 (one extra poll), LO+HI reads 47 -> gpt_get 110-124 is the hardware floor.
 Added gpt_get32 (low word only): 100 cycles.
 
@@ -847,7 +847,7 @@ EE.SRC.Q.LD.IP (shift + load next block) with three rotating registers: 2
 instructions per 16 bytes. 8 KB different alignment: 2 440 -> **1 443** cycles
 (1 362 MB/s). Exhaustive sizes 0-300 x offsets 0 wrong; ISR path ok.
 
-## Flash reads through the data cache (examples/flash_mmap)
+## Flash reads through the data cache (components/drivers/flash/test_apps/flash_mmap)
 
 Steps measured, 4 KB cold read, data checked against the SPI1 read each time:
 
@@ -871,7 +871,7 @@ SPIFFS 40 x 30 KB rewrites 8 413 / 8 397 ms (cache) vs 8 327 / 8 358 ms (SPI1)
 
 ## Core services: time base, software timers, heap, log (2026-10-18)
 
-examples/core_test (DEVKIT) vs bench/idf_periph [core]:
+components/lib/test_apps/core_test (DEVKIT) vs bench/idf_periph [core]:
 - time_ticks()/time_us(): 149 cycles (IDF esp_timer_get_time 193). Hi/lo re-read guards the other core latching between the two reads; monotonic over 100k reads.
 - swtimer 1 ms periodic for 1 s: 1000 calls, span exactly 999 x 16000 ticks, deadline->callback 26 ticks fixed (1.6 us). IDF esp_timer: 999 calls, period 981..1000 us, drift -19 us.
 - 32 concurrent timers (100..3200 us) counts within +-1; stop-from-own-callback; start from core 1 (fires on core 0, the ISR owner).
@@ -880,7 +880,7 @@ examples/core_test (DEVKIT) vs bench/idf_periph [core]:
 
 ## Runtime library round: float, libc, ring buffer, async DMA, watchdog, panic (2026-10-18)
 
-- Float helpers (libgcc is windowed, unusable): `__divsf3`/`sqrtf` on the FPU helper instructions (same sequence as the ROM, CALL0): 56 / 58 cycles vs IDF 75 / 118. Portable versions (integer long division; Newton + residual choice) kept and tested. Conversions float<->double, int64<->float, 64-bit shifts. examples/libc_test: 1 725 numpy IEEE vectors bit-exact for divide and sqrt (both implementations), 1 500 each for double->float and int64->float.
+- Float helpers (libgcc is windowed, unusable): `__divsf3`/`sqrtf` on the FPU helper instructions (same sequence as the ROM, CALL0): 56 / 58 cycles vs IDF 75 / 118. Portable versions (integer long division; Newton + residual choice) kept and tested. Conversions float<->double, int64<->float, 64-bit shifts. components/lib/test_apps/libc_test: 1 725 numpy IEEE vectors bit-exact for divide and sqrt (both implementations), 1 500 each for double->float and int64->float.
   - First divide (Newton in float) missed 6/1725 by 1 ulp at the normal/denormal edge -> replaced.
 - printf family: snprintf/vsnprintf/sprintf/puts/putchar, %f %e %g (+ precision, + and space flags, %.Ns), round-half-even on exact ties like glibc; 39 reference formats match C. %.3f 4 575 -> 1 577 cycles by generating only prec+1 digits (IDF 11 862).
   - Zero hung the tiny-value scaling loop (mantissa 0) -> early return.
@@ -888,22 +888,22 @@ examples/core_test (DEVKIT) vs bench/idf_periph [core]:
 - ringbuf.h: SPSC byte ring, contiguous items, zero-copy both sides. 16 B put+get 303 cycles, zero-copy 105 (IDF xRingbuffer 1 102 / 1 237). Core1->core0 20 000 variable items through 1 KB: intact, 1 107 cycles/item.
 - gdma_memcpy_async: start 1 404 cycles, 65 472 B done in 247 975 cycles (63 MB/s), CPU free meanwhile (IDF esp_async_memcpy: start 56 756, 51 MB/s). Per-channel descriptor sets (the blocking copy shared one set across channels).
 - Watchdog (TIMG0 MWDT): feed 27 cycles (IDF esp_task_wdt_reset 362). Report stage: level-3 interrupt prints the stalled PC + backtrace, stage 1 resets; next boot reads "TG0 watchdog (system)".
-- Panic: registers a0-a15 (a12-a15 saved into the free frame words), SAR/loop regs, stack-scan backtrace (return addresses that follow call0/callx0), `make backtrace`, NDF_PANIC_RESTART. examples/sys_test runs 3 boots: watchdog report -> TG0WDT reset -> fault report -> software restart; traces decode to the exact source lines.
+- Panic: registers a0-a15 (a12-a15 saved into the free frame words), SAR/loop regs, stack-scan backtrace (return addresses that follow call0/callx0), `make backtrace`, NDF_PANIC_RESTART. components/soc/test_apps/sys_test runs 3 boots: watchdog report -> TG0WDT reset -> fault report -> software restart; traces decode to the exact source lines.
 - BUG FIXED: level 2-5 interrupts (and exceptions) run with PS.EXCM = 1, which disables zero-overhead loop-back: every C loop in a level 2-5 handler executed its body once (printf in a level-3 ISR printed 1 char, stack buffers not zeroed). Entry now writes PS = UM | level early in the register save (no rsync needed); fault paths clear EXCM before C. Level 3 entry 66 (was 63-67), level 5 C 53 / lost 115 (was 46-49 / 109).
 - periph_test: RAM 5 KB over after this round -> its core-1 stack set to 8 KB via app.mk (menuconfig).
 
 ## Closing the runtime gaps: doubles, exact conversions, exact backtrace (2026-10-18)
 
-- Double arithmetic (FPU is single precision; libgcc unusable): lib/double.c (general, IEEE-exact: add/sub/mul/div, compares, int conversions) + lib/double.S fast paths for add/sub/mul on normal operands.
+- Double arithmetic (FPU is single precision; libgcc unusable): components/lib/double.c (general, IEEE-exact: add/sub/mul/div, compares, int conversions) + components/lib/double.S fast paths for add/sub/mul on normal operands.
   - Per call vs IDF ROM (function pointer, minus a dummy call): add same sign 50 (51), different sign 48 (52), gap 33 39 (45), cancellation 68 (74), mul 77 (83), div 271 (526).
   - Path to there: C 284/277/1270 -> inline funnel shifts 271 -> C fast paths 148 -> asm 106 -> guard word, no slow path after entry 74 -> packed-accumulate (y's mantissa added into packed x; carry fixed by (S >> 1) + (top12 + 1) << 19) 60 -> mirrored macros, no swap 57 -> branch relaxation found (8-bit compare branches to far targets became branch + jump: +6 taken branches) and removed 39-57 -> inline exits 48-50.
   - Exactness: 844 numpy vectors per operation + 200 000 random pairs per operation (gaps 0..64, cancellations, range edges) against the general C code: 0 mismatches.
-- strtod/strtof (lib/strtod.c): correctly rounded for every input. Clinger exact fast path; otherwise 64-bit approximation from a table of normalised powers of ten (tools/gen_pow10.py) and, only when within 32 units of a halfway point, an exact big-integer comparison (lib/bigint.c, up to 800 digits + sticky tail). Hex floats, inf/nan(...). 438 reference strings (hard cases, exact halfway points written in full with 800-digit tails, denormals, overflow) for both double and float: 0 mismatches. strtof rounds the decimal directly (no double rounding).
+- strtod/strtof (components/lib/strtod.c): correctly rounded for every input. Clinger exact fast path; otherwise 64-bit approximation from a table of normalised powers of ten (tools/gen_pow10.py) and, only when within 32 units of a halfway point, an exact big-integer comparison (components/lib/bigint.c, up to 800 digits + sticky tail). Hex floats, inf/nan(...). 438 reference strings (hard cases, exact halfway points written in full with 800-digit tails, denormals, overflow) for both double and float: 0 mismatches. strtof rounds the decimal directly (no double rounding).
 - printf: exact decimal digits for every double at any precision (64-bit path when exact, big integers otherwise, ~2 KB stack only for those values); round half to even on exact ties; %a/%A (hex floats, rounded), %o, %n, # flag, hh/h/j/L modifiers, %p as 0x...; 68 + 10 + 1 reference cases match C.
-- Exact panic backtrace: tools/mkunwind.py turns the ELF's .debug_frame (DWARF CFI) into a compact table appended to app.bin after the ROM image (flash only, 0 RAM); arch/xtensa/unwind.c walks frames with it, crossing interrupt frames through EPCn and the saved frame. sys_test: watchdog trace = report -> wdt_isr -> _l3_entry -> stalled loop (main.c:107) -> main -> start; fault trace = main.c:118 -> start. No stale entries. Stack scan kept as fallback for images without the table.
+- Exact panic backtrace: tools/mkunwind.py turns the ELF's .debug_frame (DWARF CFI) into a compact table appended to app.bin after the ROM image (flash only, 0 RAM); components/arch/xtensa/unwind.c walks frames with it, crossing interrupt frames through EPCn and the saved frame. sys_test: watchdog trace = report -> wdt_isr -> _l3_entry -> stalled loop (main.c:107) -> main -> start; fault trace = main.c:118 -> start. No stale entries. Stack scan kept as fallback for images without the table.
 - periph_test: core-0 stack 12 KB (app.mk) to fit the larger runtime.
 
-## USB OTG full-speed device, CDC-ACM (`examples/usb_cdc` vs `bench/idf_usbcdc`, 2026-10-24)
+## USB OTG full-speed device, CDC-ACM (`examples/usb/usb_cdc` vs `bench/idf_usbcdc`, 2026-10-24)
 
 The IDF sibling is its own project (not `bench/idf_periph/t_usb.c`): TinyUSB takes the shared USB PHY away from the
 USB-JTAG console and needs the `esp_tinyusb` component, like the RF siblings. Same board, port and host script
@@ -918,7 +918,7 @@ USB-JTAG console and needs the `esp_tinyusb` component, like the RF siblings. Sa
 
 Functional results agree (enumeration, echo, exact data both ways, device counts). Buffer-DMA driver.
 
-## Code from flash (XIP) and boot (`examples/xip_test`, `examples/boot_time` vs `bench/idf_xip`, `bench/idf_boot`, 2026-10-24)
+## Code from flash (XIP) and boot (`components/soc/test_apps/xip_test`, `components/soc/test_apps/boot_time` vs `bench/idf_xip`, `bench/idf_boot`, 2026-10-24)
 
 | | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -930,7 +930,7 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | esptool still connects with the RTC stage installed (its reset goes to the ROM) | yes | yes |
 
 
-## Flash driver (`examples/flash_test`, `bench/idf_flash`, 2026-10-24)
+## Flash driver (`components/drivers/flash/test_apps/flash_test`, `bench/idf_flash`, 2026-10-24)
 
 | | esp-ndf | ESP-IDF |
 |---|---|---|
@@ -943,7 +943,7 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | warm boot after the changes | 782-787 us | 35.5 ms |
 | periph_test (XIP=all now: fits) | flash, partition, nvs, gpio, gptimer, mcpwm, pcnt, sdm, gdma PASS; loopback tests (uart, i2c, rmt, spi, i2s, ...) receive nothing: devkit jumpers GPIO10-11 / 12-13 not fitted at test time | - |
 
-## RNG (`examples/rng_test`, 2026-10-24)
+## RNG (`components/drivers/crypto/test_apps/rng_test`, 2026-10-24)
 
 | | result |
 |---|---|
@@ -952,13 +952,13 @@ Functional results agree (enumeration, echo, exact data both ways, device counts
 | rng_fill 64 KB: ones / runs / chi2 | 0.4999-0.5003 / 0.4999-0.5002 / 199.3-214.0 PASS |
 | two 32-byte draws differ | PASS |
 
-## SHA (`examples/sha_test`, 2026-10-24)
+## SHA (`components/drivers/crypto/test_apps/sha_test`, 2026-10-24)
 
 NIST vectors PASS: SHA-1 / 224 / 256 / 384 / 512 / 512-224 / 512-256 "abc", SHA-256 empty and 448-bit, SHA-1 448-bit,
 SHA-256 and SHA-512 one million 'a' (1000 updates). Split + interleaved (two contexts) + unaligned updates equal the
 one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 
-## OTA (`examples/ota_test`, real resets, XIP=lib, 2026-10-24)
+## OTA (`components/drivers/storage/test_apps/ota_test`, real resets, XIP=lib, 2026-10-24)
 
 | step | result |
 |---|---|
@@ -970,7 +970,7 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | IDF otatool switch_ota_partition --slot 1 | our loader boots ota_1 |
 | our ota_set_boot(ota_0) | IDF otatool reads seq 1, crc 0x4743989a (valid) |
 
-## Watchdogs (`examples/wdt_test`, 2026-10-24)
+## Watchdogs (`components/drivers/wdt/test_apps/wdt_test`, 2026-10-24)
 
 | test | result |
 |---|---|
@@ -981,7 +981,7 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | super WDT armed, not fed | cause 18 super watchdog: PASS |
 | reset cause after the warm stage hands a reset to the ROM | the real cause (e.g. 21 USB-UART), not the internal software reset |
 
-## Brownout (`examples/bod_test`, 2026-10-24)
+## Brownout (`components/soc/test_apps/bod_test`, 2026-10-24)
 
 | test | result |
 |---|---|
@@ -990,7 +990,7 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 | hardware reset mode (BROWN_OUT_RST_ENA), level 7 | stable 120 s + port close/reopen (C9:D0): now the boot default. The earlier "~4.5 s loop" was not the detector: in those boots its register read the reset defaults (reset off); the resets were cause 21 USB-UART resets, i.e. the host (ModemManager probing re-enumerated ports) |
 | analog threshold kept through resets (power-on value 0), brownout register not | register set every boot, threshold only when it changed (RTC note) |
 
-## RTC clocks (`examples/rtcclk_test`, 2026-10-24)
+## RTC clocks (`components/soc/test_apps/rtcclk_test`, 2026-10-24)
 
 | test | result |
 |---|---|
@@ -1002,7 +1002,7 @@ one-shot digest. Same results with the DMA threshold at 2, 4, 8, 16 blocks.
 
 Not run: 32 kHz crystal / external oscillator and its watchdog (no crystal on this board).
 
-## Memory map, heap, PSRAM (`examples/mem_test`, 2026-10-24)
+## Memory map, heap, PSRAM (`components/soc/test_apps/mem_test`, 2026-10-24)
 
 | test | result |
 |---|---|
@@ -1019,46 +1019,46 @@ flash_test PASS x3: chip detected (QE method 16-bit status, SFDP 16 dwords, susp
 write / read exact, flash code on core 1 correct during erase + write with hardware auto-suspend for misses every
 0, 20, 50, 100, 200, 500, 1000 us (hold 100 us).
 
-## eFuse fields (`examples/efuse_dump`, C9:D0, 2026-10-24)
+## eFuse fields (`components/soc/test_apps/efuse_dump`, C9:D0, 2026-10-24)
 
 All 232 rows of ESP-IDF's esp_efuse_table.csv (tools/gen_efuse.py; multi-row fields such as MAC joined in IDF order),
 read by name. Against `espefuse.py dump` + `summary --format json` on the same chip: **100 of 100 positioned fields
 equal the raw bits** (12 espefuse entries have no bit position to compare). Read-only: no burning code.
 
-## AES modes (`examples/aes_test`, 2026-10-24)
+## AES modes (`components/drivers/crypto/test_apps/aes_test`, 2026-10-24)
 
 NIST SP 800-38A F.1-F.5 (ECB, CBC, CFB128, OFB, CTR; AES-128) PASS by DMA, block by block and decrypting. AES-256,
 64 KB random data, every mode: DMA output and final IV equal the CPU path, decryption restores the plaintext.
 
-## RSA / big-number accelerator (`examples/rsa_test`, 2026-10-24)
+## RSA / big-number accelerator (`components/drivers/crypto/test_apps/rsa_test`, 2026-10-24)
 
 RSA-1024/2048/4096: x^65537, x^d and x*y mod M all equal Python pow() vectors (bench/rsa/gen_vectors.py) on C9:D0;
 IDF sibling bench/idf_rsa gives the same results. Timings in PERFORMANCE.md.
 
-## P-256 ECC (`examples/p256_test`, 2026-10-24)
+## P-256 ECC (`components/drivers/crypto/test_apps/p256_test`, 2026-10-24)
 
 Public key, ECDH shared secret, ECDSA sign with the RFC 6979 A.2.5 k (r,s match the RFC) and verify of a python
 cryptography signature all PASS on C9:D0 (vectors bench/p256/gen_vectors.py); random keygen/sign/verify round trip
 passes, tampered signature and off-curve key are rejected. Same results from bench/idf_p256.
 
-## AES-GCM (`examples/gcm_test`, 2026-10-24)
+## AES-GCM (`components/drivers/crypto/test_apps/gcm_test`, 2026-10-24)
 
 8 cases (AES-128/256, IV 12 and 16 bytes, AAD 0-20, 0 B..16 KB): tag and first ciphertext block equal python
 cryptography (bench/gcm/gen_vectors.py), decrypt in place restores the plaintext, a flipped tag bit is rejected.
 Found on the way: aes_block ran before aes_init on a first call and cached the key by pointer (a reused key buffer
 kept the old key); both fixed in aes_block, aes_test still PASS.
 
-## X25519 (`examples/x25519_test`, 2026-10-24)
+## X25519 (`components/drivers/crypto/test_apps/x25519_test`, 2026-10-24)
 
 Public key and shared secret equal python cryptography (bench/x25519/gen_vectors.py), RFC 7748 5.2 vector 1 PASS on
-C9:D0; P-256 test re-run after the move to lib/ecc.c still PASS. Same results from bench/idf_x25519.
+C9:D0; P-256 test re-run after the move to components/lib/ecc.c still PASS. Same results from bench/idf_x25519.
 
-## Cross-core call and stall (`examples/xcore_call`, 2026-10-24)
+## Cross-core call and stall (`components/drivers/xcore/test_apps/xcore_call`, 2026-10-24)
 
 10 000 xc_call round trips from core 0: each result came from core 1 with the right argument. xc_stall(1): core 1's
 counter did not move for 2 ms; after xc_unstall it counted again. PASS on C9:D0.
 
-## Floats in interrupt handlers (`examples/fpu_isr`, 2026-10-24)
+## Floats in interrupt handlers (`components/arch/test_apps/fpu_isr`, 2026-10-24)
 
 Core 0 runs a float chain kept in FP registers while core 1 storms a level-1 handler (float loop) and a level-3 or
 level-5 handler (sqrtf) that preempts it: main result bit-equal to the run without interrupts, 0 wrong handler results
@@ -1066,7 +1066,7 @@ in ~4400 L1 + ~8400 L3/L5 runs. Bug found on the way: the trap overwrote EPC1, s
 handler; EPC1 is now kept in the level-1 frame. BR (FP compare results) is part of the saved state. periph_test (21),
 core_test, irq_latency, xcore_notify re-run: PASS.
 
-## Profiling and debug (`examples/debug_test`, `examples/stack_overflow`, 2026-10-24)
+## Profiling and debug (`components/arch/test_apps/debug_test`, `components/arch/test_apps/stack_overflow`, 2026-10-24)
 
 Perf counters: cycles equal CCOUNT (+-2), 10 005 instructions for 10 000 nops + loop setup, 1001 loads for 1000.
 Write watchpoint: callback with the store's PC inside poke(), store completed, second store not caught (one-shot).
@@ -1075,14 +1075,14 @@ runaway recursion ends in "*** PANIC core0: stack overflow (SP left its stack)" 
 RLS as well as ENA to raise the interrupt (RAW was set, no interrupt); perfmon KRNLCNT=1 means "only above
 TRACELEVEL" (counted nothing).
 
-## GDMA: PSRAM, priority, errors (`examples/gdma_ext`, 2026-10-24)
+## GDMA: PSRAM, priority, errors (`components/drivers/gdma/test_apps/gdma_ext`, 2026-10-24)
 
 1 MB internal->PSRAM, 64 KB PSRAM->internal, 1 MB PSRAM->PSRAM by DMA: data checked byte for byte. Priority 5 vs 0:
 the higher channel finished first both ways. Unaligned PSRAM request refused; owner=0 descriptor with owner check
 -> GDMA_ERR_OUT, peripheral-space buffer -> descriptor error; gdma_reset recovers, next copy correct. PASS on C9:D0.
 Board note corrected: C9:D0's PSRAM is octal (IDF quad mode fails with ID 0xffffff).
 
-## Memory protection (`examples/memprot_test`, `examples/memprot_exec`, 2026-10-24)
+## Memory protection (`components/soc/test_apps/memprot_test`, `components/soc/test_apps/memprot_exec`, 2026-10-24)
 
 Store into code through the DRAM alias and through the IRAM address: blocked (code bytes unchanged), reported with
 bus, address and write flag; data stores and calls unaffected; memprot_code_write opens and recloses code. Jump into
@@ -1090,14 +1090,14 @@ a data buffer: "illegal instruction ... PC in data: fetch blocked by memprot". W
 periph_test 21/21, debug_test, gdma_ext, flash_test, ota_test, fpu_isr, xcore_call, irq_naked (vector patch), core_test
 PASS. irq_naked's exit figure had wrapped (time read before the flag check); fixed: 14 / 12 / 33 cycles.
 
-## PIE in interrupt handlers (`examples/pie_isr`, BOX-3, 2026-10-24)
+## PIE in interrupt handlers (`components/arch/test_apps/pie_isr`, BOX-3, 2026-10-24)
 
 Main loop dsp_dot_s16 over 4096 elements x 20 000 while level-1 and level-3 / level-5 handlers run dsp_dot_s16 and
 a float op: 0 wrong results in main and in ~4700 + ~8700 handler runs per level; fpu_isr still PASS. Found: a second
 cpu1_start tripped core 1's stack guard (the ROM start stub runs on its own stack) -> panic; cpu1_start now disarms
 core 1's guard, sys_start1 re-arms it.
 
-## DSP library (`examples/dsp_lib`, BOX-3, 2026-10-24)
+## DSP library (`components/lib/test_apps/dsp_lib`, BOX-3, 2026-10-24)
 
 26 checks PASS: complex float FFT 256/1024/4096 (rel. error < 1e-5 vs DFT), rfft, int16 FFT (<= 16 LSB of DFT/n:
 PIE truncation bias, bit-identical to ESP-DSP), windows (Hann exact, flat-top = ESP's normalised coefficients),
@@ -1105,7 +1105,7 @@ FIR 64 taps, decimating FIR, biquad, vector ops, int16 add/mul, matmul f32/s16, 
 Kalman (2-state constant velocity from noisy positions: v 0.5025 for 0.5). Bugs on the way: twiddle table only
 4-byte aligned broke EE.LDF.64 (NaN); EE.LDF.64.XP stepped before the load; fmax() hid NaNs in the check.
 
-## int8 NN layers (`examples/nn_lib`, BOX-3, 2026-10-24)
+## int8 NN layers (`components/lib/test_apps/nn_lib`, BOX-3, 2026-10-24)
 
 10 layer types bit-exact with ESP-NN (checksums equal): conv 1x1 and 3x3 pad 1, depthwise 3x3 stride 1/2, FC with
 input offset, max/avg pool 2x2, add with input rescales, relu6, softmax. The end-to-end model comparison was cut
@@ -1118,13 +1118,13 @@ Rerun after the USB recovery (2026-10-24): layers reproduce; the tiny model end 
 after its last channel (counter underflow -> load fault; our halt-on-panic kept the board reachable), and FC rows
 longer than the 4608-byte splat buffer took the scalar path although the kernel reads only 16 splat bytes.
 
-## Fast math + Q15/Q31 (`examples/fastmath_test`, BOX-3, 2026-10-24)
+## Fast math + Q15/Q31 (`components/lib/test_apps/fastmath_test`, BOX-3, 2026-10-24)
 
 Error sweeps against double precision PASS the bounds in fastmath.h; Q15/Q31 edge cases (saturating -1 * -1, add
 overflow, conversions at +-1) PASS. The first IDF numbers were 0 cycles: GCC folded the unused calls; outputs are
 volatile now on both sides.
 
-## ULP-RISC-V + ULP-FSM (`examples/ulp_test`, BOX-3, 2026-10-24)
+## ULP-RISC-V + ULP-FSM (`components/soc/test_apps/ulp_test`, BOX-3, 2026-10-24)
 
 ULP-RISC-V program (bench/ulp/ulp_count.S) restarted by the ULP timer every 10 ms: 98 runs/s, magic word written,
 mailbox answered (41 -> 42), frozen after ulp_stop. ULP-FSM program (ulp_fsm_count.S): 99 runs/s, frozen after stop.
@@ -1133,13 +1133,13 @@ does; (2) a program must clear COCPU DONE / SHUT_RESET_EN at its start (IDF star
 restarts it (and later programs fail too - IDF's own ulp_riscv_run included). ulp_load switches the CPU reset vector
 to the ROM (the warm-boot jump shares 0x50000000) and the loader halts any running ULP before touching RTC memory.
 
-## CPU frequency locks (`examples/pm_test`, BOX-3, 2026-10-24)
+## CPU frequency locks (`components/soc/test_apps/pm_test`, BOX-3, 2026-10-24)
 
 pm_config(240, 80): 80 MHz without a lock, 240 MHz with one, still 240 with a nested lock released, 80 after the last
 unlock (ccount vs systimer); delays exact at 80 MHz; lock count back to 0. IDF's DFS measured on the same board keeps
 the CPU at 240 MHz while a task runs (scaling happens in its idle task only).
 
-## Flash suite on the BOX-3's GD25LQ128 (`examples/flash_test` XIP=lib, 2026-10-24)
+## Flash suite on the BOX-3's GD25LQ128 (`components/drivers/flash/test_apps/flash_test` XIP=lib, 2026-10-24)
 
 JEDEC c86018, 16 MB, SFDP, quad (QE method 1), suspend 75/7a, 120 MHz: erase / write / read all PASS with data
 checked; with core 1 running flash code during a 64 KB erase + 4 KB write the longest core-1 pause is 215-284 us
@@ -1177,7 +1177,7 @@ Wire time 2477 / 619 us: ndf is 16 us over the wire, IDF 61 / 54. Found: the sla
 released (spi_dma_release) - the 5 channels ran out for ADC continuous later in the suite.
 
 
-## USB composite CDC-ACM + MSC (`examples/usb_msc` comp, `tools/usb_comp_test.py`, C9:D0, 2026-10-25)
+## USB composite CDC-ACM + MSC (`examples/usb/usb_msc` comp, `tools/usb_comp_test.py`, C9:D0, 2026-10-25)
 
 One device, IAD, interfaces 0-1 CDC on EP1/EP2/EP3, interface 2 MSC on EP4/EP5: the host binds cdc_acm + usb-storage,
 disk enumerates (256 x 512 B, FAT serial found by udev) while a 64 KB CDC echo runs (434 KB/s), 104 SCSI commands,

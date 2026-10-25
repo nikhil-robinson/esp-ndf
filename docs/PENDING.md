@@ -36,7 +36,7 @@ pattern is used only so one board can count the frames from the other.
 The companion receive board decodes our frames (len 100, rssi ~−46 dBm, ~195/s limited by
 the host serial loop, not the radio). How it works:
 
-- `examples/rf_pkt` gained three commands: `rd addr [n]` (read words),
+- `examples/rf/rf_pkt` gained three commands: `rd addr [n]` (read words),
   `wtx` (build descriptor + 100 B frame, fire via the PLCP0 start bit, poll
   `0x60033c3c` bit 1), and `wup` (tune to 2437 MHz + enable the TX front end via
   the calibrated RF driver, then free the DAC path with `rf_tone_off`).
@@ -56,10 +56,10 @@ the host serial loop, not the radio). How it works:
 
 ### 4.2 DONE (end to end)
 
-Receive and the firmware API are complete. `drivers/rf/rf_wifi.c` +
-`drivers/rf/rf_wifi_regs.h` (generated register tables), exposed in `include/rf.h`
+Receive and the firmware API are complete. `components/drivers/rf/rf_wifi.c` +
+`components/drivers/rf/rf_wifi_regs.h` (generated register tables), exposed in `components/include/rf.h`
 as `rf_wifi_tx_init` / `rf_wifi_tx` / `rf_wifi_rx_init` / `rf_wifi_rx`, example
-`examples/rf_wifi`, host driver `tools/rf_wifi_test.py`, documented in
+`examples/rf/rf_wifi`, host driver `tools/rf_wifi_test.py`, documented in
 `docs/RF_API.md`. Firmware-only path (no host replay): 5906/5906 received frames
 were ours, len 100, ~984/s (`bench/rfmeas/wifi_rx_42.txt`). RX ring: descriptors
 word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes length;
@@ -67,7 +67,7 @@ word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes lengt
 
 ## 4.3 — 802.15.4  (DONE, transmit only)
 
-`drivers/rf/rf_154.c` (`rf_154_build` in `rf.h`), `examples/rf_154`,
+`components/drivers/rf/rf_154.c` (`rf_154_build` in `rf.h`), `examples/rf/rf_154`,
 `tools/rf_154_test.py`. Synthesises the O-QPSK/DSSS baseband (2 Mchip/s, 32-chip
 PN per 4-bit symbol, half-sine pulse, Q offset half a chip) and plays it at
 40 MS/s via `rf_tx_play` on channel 11. Verified on the sibling board: capture
@@ -77,7 +77,7 @@ No 15.4 receiver on these boards, so transmit only.
 
 ## 4.4 — Correlator triggers  (DONE)
 
-`rf_corr_trigger` (`drivers/rf/rf_corr.c`, in `rf.h`): slide-correlate a captured
+`rf_corr_trigger` (`components/drivers/rf/rf_corr.c`, in `rf.h`): slide-correlate a captured
 IQ window against a reference waveform; returns the sync alignment (trigger
 sample offset) and peak-to-mean ratio. Complements `rf_rx_capture_trigger`
 (energy level) with pattern selectivity. `rf_pkt` `corr` command demonstrates it

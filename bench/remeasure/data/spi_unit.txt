@@ -1,0 +1,30 @@
+
+=== esp-ndf unit tests ===
+[spi]
+    10 MHz: 64 B PIO 0 wrong (13276 cycles), 4 KB DMA 0 wrong, 3282 us (wire 3276 us)
+    20 MHz: 64 B PIO 0 wrong (7084 cycles), 4 KB DMA 0 wrong, 1642 us (wire 1638 us)
+    40 MHz: 64 B PIO 0 wrong (4012 cycles), 4 KB DMA 0 wrong, 822 us (wire 819 us)
+    spi_xfer() 4 bytes                 591 cycles
+    spi_xfer() 4 bytes @40 MHz (wire 192) 592 cycles
+    spi_xfer() 32 bytes @40 MHz (wire 1536) 2187 cycles
+    analyzer: SPI 10 MHz burst
+    mode 0 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 1 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 2 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+    mode 3 master<->slave: slave got 32 B (0 wrong), master got 0 wrong
+  PASS spi (28437098 cycles)
+[spi_hd]
+    1-line data, 1-line addr, 32 B @ 0: write ok, read ok
+    2-line data, 1-line addr, 32 B @ 4: write ok, read ok
+    4-line data, 1-line addr, 48 B @ 8: write ok, read ok
+    2-line data, 2-line addr, 64 B @ 0: write ok, read ok
+    4-line data, 4-line addr, 16 B @ 16: write ok, read ok
+    DMA 1-line: WRDMA 3 seg + WR_END -> 3096 B ok (2494 us), RDDMA 2 seg + INT0 ok
+    DMA 4-line: WRDMA 3 seg + WR_END -> 3096 B ok (636 us), RDDMA 2 seg + INT0 ok
+    spi_hd_xfer() quad write 32 B @10 MHz 2793 cycles
+    DTR write 8 B on 1 line: 64 edges captured (64 = both edges), 0 bytes wrong
+    octal write 16 B: 16 clocks captured, 0 bytes wrong
+  PASS spi_hd (26110353 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

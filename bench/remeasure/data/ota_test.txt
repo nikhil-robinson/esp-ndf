@@ -1,0 +1,22 @@
+ota_test step 0: running factory, state -1
+PASS no key set: signed image refused (-5)
+PASS unsigned image refused (-5)
+PASS bad signature refused (-5)
+PASS older version (rollback) refused (-5)
+PASS set_boot of a refused slot refused
+PASS install into ota_0 (0)
+ota_test step 1: running ota_0, state 1
+PASS first boot of ota_0 is pending verify
+PASS confirmed (state 2)
+PASS install into ota_1 (0)
+ota_test step 2: running ota_1, state 1
+PASS ota_1 boots, pending verify; not confirming, reset
+ota_test step 3: running ota_0, state 2
+PASS rollback: unconfirmed ota_1 dropped, back on ota_0 (valid)
+PASS corrupted image rejected by ota_end (-5)
+PASS set_boot of the refused slot refused
+ota_test step 4: running ota_0, state 2
+PASS still ota_0 after the refused install
+ota_test step 5: running factory, state -1
+PASS otadata erased: factory boots
+ota_test done

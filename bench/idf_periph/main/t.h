@@ -1,4 +1,4 @@
-/* Same metrics as examples/periph_test, measured through ESP-IDF APIs. */
+/* Same metrics as components/drivers/*/test_apps/*_unit, measured through ESP-IDF APIs. */
 #pragma once
 #include <stdio.h>
 #include <stdint.h>

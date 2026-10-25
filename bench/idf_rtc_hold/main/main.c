@@ -1,4 +1,4 @@
-/* IDF sibling of examples/rtc_hold: GPIO4 high + RTC hold through esp_restart, released 300 ms after reboot. */
+/* IDF sibling of examples/system/rtc_hold: GPIO4 high + RTC hold through esp_restart, released 300 ms after reboot. */
 #include <stdio.h>
 #include "driver/rtc_io.h"
 #include "esp_system.h"

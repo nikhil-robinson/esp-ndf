@@ -1,0 +1,16 @@
+
+=== esp-ndf unit tests ===
+[touch]
+    raw: pad1 16112, pad14 20931, pad10 47328 (jumper)
+    touch_read()                       97 cycles
+  PASS touch (35159460 cycles)
+[touch_ext]
+    filter: raw 47183, smooth 47179, baseline 47186; threshold 2359: touch -> 1 event(s) pad 10 (active 0400), release -> 1
+    proximity pad 10, 50 scans: count 13
+  PASS touch_ext (175732784 cycles)
+[touch_denoise]
+    pad 10 avg raw 47191 spread 75 -> denoise on: raw 47162 spread 87, reference 17025
+  PASS touch_denoise (255512741 cycles)
+=== unit: 3/3 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

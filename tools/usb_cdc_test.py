@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Host side of examples/usb_cdc: hand the PHY to our OTG CDC-ACM device, check enumeration, echo, then measure
+"""Host side of examples/usb/usb_cdc: hand the PHY to our OTG CDC-ACM device, check enumeration, echo, then measure
 download (device -> host) and upload (host -> device) throughput with byte-exact pattern checks; then wait for the
 USB Serial/JTAG console to come back and read the device counters. Usage: usb_cdc_test.py [seconds] [MB]"""
 import serial, glob, time, struct, sys

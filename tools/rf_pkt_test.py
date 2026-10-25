@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Two-board test of the hardware packet engine (examples/rf_pkt on both): D0 sends, C9:48 receives.
+"""Two-board test of the hardware packet engine (examples/rf/rf_pkt on both): D0 sends, C9:48 receives.
 Every case checks: packets arrive, no wrong byte, length/header right; plus negative cases (whitening / CRC mismatch,
 out-of-band send denied, counted send exact). Prints PASS/FAIL lines and a summary.  PYTHONPATH=. python3 rf_pkt_test.py"""
 import rfhost, threading, time

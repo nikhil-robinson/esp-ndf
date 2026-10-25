@@ -1,0 +1,19 @@
+
+=== esp-ndf unit tests ===
+[pcnt]
+    20 kHz fwd, 10 ms (expect 800)     800
+    20 kHz rev, 10 ms (expect -800)    -800
+    1 MHz fwd, 100 ms (expect 400000)  400002
+    backward steps while wrapping      0
+    pcnt_get()                         90 cycles
+    100 kHz, 1 s, IRQ-only (expect 400000) 400000
+  PASS pcnt (269845104 cycles)
+[pcnt_ext]
+    quadrature: +100 -> 100, -40 -> 60
+    watch: thres0=25 -> 1 event (ev 1 at 25); back to 0 -> 3 total; thres1=-10 -> ev 2 at -10
+    step 10: 7 calls: 10 20 30 20 10 0 -10
+    index: latched 77 at Z, count after Z +5 = 5
+  PASS pcnt_ext (330100 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

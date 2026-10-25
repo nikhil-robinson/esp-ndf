@@ -1,0 +1,21 @@
+
+=== esp-ndf unit tests ===
+[uart]
+     115200 baud (actual 115201): 4096/4096 bytes, 0 wrong, 355627 us (wire 355555 us), ovf 0
+    2000000 baud (actual 2000000): 4096/4096 bytes, 0 wrong, 20502 us (wire 20480 us), ovf 0
+    5000000 baud (actual 5000000): 4096/4096 bytes, 0 wrong, 8211 us (wire 8192 us), ovf 0
+    DMA 5 Mbaud: 4096/4096 bytes, 0 wrong, 8200 us (wire 8192 us), CPU in calls 391 + 413 cycles
+    uart_write() 16 bytes              301 cycles
+    analyzer: UART2 0x55 @115200 on GPIO4
+  PASS uart (115465643 cycles)
+[uart_modes]
+    flow: RX FIFO held at 64 (RTS at 64), FIFO overflow no, then 300/300 B, ok
+    RS485: DE idle low, high while sending yes, low after 906 cycles from the last edge (stop bit 240), echo 0 B
+    RS485 DE release after stop bit    666 cycles
+    RS485 collision detect: own echo 64/64 B ok, clashes 0; with a 2nd driver: clashes 64
+    IrDA UART2 -> UART1: 64/64 B ok
+    pattern '+++': 13 B, at offset 5 (5), next -1
+  PASS uart_modes (24860876 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

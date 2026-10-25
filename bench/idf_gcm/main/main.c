@@ -1,4 +1,4 @@
-/* IDF sibling of examples/gcm_test: mbedtls_gcm (hardware AES port) on the same vectors. */
+/* IDF sibling of components/drivers/crypto/test_apps/gcm_test: mbedtls_gcm (hardware AES port) on the same vectors. */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"

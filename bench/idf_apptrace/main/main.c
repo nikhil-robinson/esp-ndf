@@ -1,4 +1,4 @@
-/* IDF sibling of examples/trace_test: esp_apptrace over JTAG, 64 records of 1020 B (u32 seq + pattern). */
+/* IDF sibling of components/drivers/trace/test_apps/trace_test: esp_apptrace over JTAG, 64 records of 1020 B (u32 seq + pattern). */
 #include <stdio.h>
 #include "esp_app_trace.h"
 #include "esp_cpu.h"

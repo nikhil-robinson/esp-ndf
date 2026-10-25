@@ -1,0 +1,9 @@
+
+=== esp-ndf unit tests ===
+[gdma]
+    DMA copy 32 KB                     124606 cycles (63 MB/s), 0 words wrong
+    CPU word copy 32 KB                49159 cycles (159 MB/s)
+  PASS gdma (308155 cycles)
+=== unit: 1/1 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

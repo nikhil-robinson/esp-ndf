@@ -1,0 +1,5 @@
+
+=== naked level-5 interrupt (cycles, 240 = 1 us) ===
+  naked level 5: entry 14..14  exit 11..11  loop lost 32..32
+  (C handler at level 5 measured: entry 47, exit 45, loop lost 109)
+=== done ===

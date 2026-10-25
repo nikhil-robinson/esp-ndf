@@ -1,0 +1,9 @@
+
+=== esp-ndf unit tests ===
+[heap_integrity]
+  PASS heap_integrity (2334 cycles)
+[printf_n_disabled]
+  PASS printf_n_disabled (512 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

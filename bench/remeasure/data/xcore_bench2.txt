@@ -1,0 +1,12 @@
+  one item at a time: push avg 18 max 20 cycles, 50 cycles/item
+=== xcore_bench2: cross-core design options (cycles, 240 = 1 us) ===
+
+[1] loose coupling: loop iteration = fixed work + sharing; both cores running
+  baseline (no sharing)      core0 (writer) avg  329 max  330 (+  0) | core1 (reader) avg  330 max  338 (+  0)
+  plain 32-bit word          core0 (writer) avg  328 max  331 (+ -1) | core1 (reader) avg  330 max  353 (+  0)
+  seq counter, 16 B struct   core0 (writer) avg  355 max  356 (+ 26) | core1 (reader) avg  354 max  355 (+ 24)
+  seq counter, 64 B struct   core0 (writer) avg  389 max  401 (+ 60) | core1 (reader) avg  425 max  556 (+ 95)
+  spinlock, 16 B struct      core0 (writer) avg  360 max  361 (+ 31) | core1 (reader) avg  359 max  382 (+ 29)
+
+[2] critical section (5-field update), 20000 ops on core 0
+  spinlock, uncontended      per op avg   35 min   35 max    36 | ops done 20000 (expect 20000) ok

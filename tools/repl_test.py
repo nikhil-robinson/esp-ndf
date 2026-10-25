@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Drive the command line of examples/runtime_test over the USB-JTAG console: help, add, quoted echo,
+"""Drive the command line of tests/runtime_test over the USB-JTAG console: help, add, quoted echo,
 backspace editing, unknown command. Usage: repl_test.py PORT (app already running, prompt '> ')."""
 import serial, sys, time
 c = serial.Serial(); c.port = sys.argv[1]; c.baudrate = 115200; c.timeout = 0.3; c.dtr = False; c.rts = False; c.open()

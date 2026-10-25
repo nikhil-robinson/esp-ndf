@@ -1,0 +1,10 @@
+
+=== memcpy / memset (cycles, MB/s at 240 MHz) ===
+     16 B: memcpy aligned    87 (  44 MB/s)  same-offset   139  mixed   186  memset    90 (  42 MB/s)
+     64 B: memcpy aligned   124 ( 123 MB/s)  same-offset   185  mixed   306  memset   111 ( 138 MB/s)
+    256 B: memcpy aligned   148 ( 415 MB/s)  same-offset   305  mixed   297  memset   123 ( 499 MB/s)
+   1024 B: memcpy aligned   244 (1007 MB/s)  same-offset   417  mixed   393  memset   171 (1437 MB/s)
+   8192 B: memcpy aligned  1140 (1724 MB/s)  same-offset  1313  mixed  1422  memset   619 (3176 MB/s)
+  exhaustive sizes 0-300 x offsets: 0 wrong
+  memcpy/memset inside an interrupt handler: ok
+=== done ===

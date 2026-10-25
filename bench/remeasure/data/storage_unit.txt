@@ -1,0 +1,78 @@
+
+=== esp-ndf unit tests ===
+[partition]
+    11 partitions (MD5 verified):
+      nvs              type 01 sub 02  0x090000    24576 bytes
+      phy              type 01 sub 01  0x096000     4096 bytes
+      nvs_keys         type 01 sub 04  0x097000     4096 bytes
+      nvs_enc          type 01 sub 02  0x098000    24576 bytes
+      otadata          type 01 sub 00  0x09e000     8192 bytes
+      coredump         type 01 sub 03  0x0a0000    65536 bytes
+      fat              type 01 sub 81  0x100000  1048576 bytes
+      spiffs           type 01 sub 82  0x200000  1048576 bytes
+      xip              type 01 sub 40  0x300000  1048576 bytes
+      ota_0            type 00 sub 10  0x400000  1572864 bytes
+      ota_1            type 00 sub 11  0x580000  1572864 bytes
+  PASS partition (293044 cycles)
+[nvs]
+    crc32_le(0xffffffff, "123456789") = d202d277
+    (no ESP-IDF data on flash yet)
+    nvs_boot_read() 8 keys, 6 pages, no mount: 201 us
+    600 updates: 0 failures, 628 us each; entries used 421 free 236
+    nvs_get_u32()                      539 cycles
+  PASS nvs (156345757 cycles)
+[nvs_enc]
+    (no nvs_keys partition content: skipped)
+  PASS nvs_enc (7351 cycles)
+[fat]
+    wl: 250 sectors, dummy at 181, moves 68, id 34af309f
+    existing volume tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+      wl.bin  4
+    formatted FAT12 in 583 ms: 972 KB, 972 KB free
+    20 KB file: write 732 ms, read 0 ms
+    tree:
+      HELLO.TXT  19
+      data/  0
+        sub dir/  0
+          note.txt  6
+        long file name.bin  20000
+    936 KB free after files; long file name.bin crc32 018a2379
+    wl: dummy 184 -> 27 after 300 rewrites, remount ok
+    FAT1 copy erased: repaired from mirror, 932 KB free, 20 KB file intact
+    FAT2 copy erased: repaired from mirror, 932 KB free, 20 KB file intact
+    vfs_open() incl. FAT lookup 840 cycles; vfs_write(1, ...) -> console
+  PASS fat (3983410128 cycles)
+[fat_ext]
+    rename + move (file, dir with files, between dirs), '..' updated, EEXIST / into-itself refused
+    file written at 2025-10-25 12:34:56: mtime 2025-10-25 12:34:56
+  PASS fat_ext (325738756 cycles)
+[spiffs]
+    format 1 MB + mount 9129 ms
+    30 KB file (2 index pages): write 120 ms, read 0 ms
+    40 x 30 KB rewrites (GC): 9664 ms
+      data/big.bin  30003
+      hello.txt  24
+    31 KB used of 960 KB
+  PASS spiffs (253727902 cycles)
+[spiffs_rename]
+    rename: content kept, old name gone after remount, EEXIST / open file refused
+  PASS spiffs_rename (13028421 cycles)
+[pfs]
+    format 82 ms, mount 56 us
+    30 KB file: write 452 ms, read 680 us
+    log 500 x 64 B, sync after each: 637 ms (1275 us per line)
+    40 x 30 KB rewrites: 16254 ms
+    remount after all that: 2226 us
+    40 power cuts on flash: log intact, 1147 lines, every synced line kept
+      data/big.bin  30003
+      old/log.txt  73408
+    100 KB used of 960 KB
+  PASS pfs (430680861 cycles)
+=== unit: 8/8 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

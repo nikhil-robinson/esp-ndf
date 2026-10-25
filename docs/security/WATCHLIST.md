@@ -8,7 +8,7 @@ Every item of the watchlist, with what the SDK does and the evidence. **Fixed** 
 | Item | Status | How / evidence |
 |---|---|---|
 | Stack overflow / corruption | Fixed | -fstack-protector-strong + canary seeded from RNG (sys.c), stack guard window per core and coop task (stackguard.c, coop.c); crash_test step 1 |
-| Heap corruption, double free | Fixed | sealed block headers, free/realloc validation, heap_check(), heap_on_corrupt (lib/heap.c); runtime_test heap_integrity |
+| Heap corruption, double free | Fixed | sealed block headers, free/realloc validation, heap_check(), heap_on_corrupt (components/lib/heap.c); runtime_test heap_integrity |
 | Buffer overflow / underflow | Fixed | bounded readdir names, FAT LFN index, BLE descriptor spans, ~100 driver index guards, Kalman/NN dimension checks; fuzzers |
 | Integer overflow, address wrap | Fixed | overflow-safe range checks (bdev_range_ok, flash in_flash, MSC LBA, OTA/partition parsing, loader seg_ok) |
 | Invalid pointer / alignment | Fixed | ringbuf alignment, word copies only on aligned pointers (sha, loader), GDMA alignment checks |
@@ -148,7 +148,7 @@ Every item of the watchlist, with what the SDK does and the evidence. **Fixed** 
 | Unit / integration tests | Done | periph_test 41/41, runtime_test 13/13, per-driver examples |
 | Fuzzing | Done | make security-test |
 | Boundary values | Done | fuzzers + boundary cases in runtime_test / ota signature bit flips |
-| DMA / interrupt stress | Done | examples/stress (60 s, 0 errors) |
+| DMA / interrupt stress | Done | tests/stress (60 s, 0 errors) |
 | Fault injection testing | Done | crash_test (illegal instr, canary, watchdog), PFS power cuts, signature bit flips |
 | Hardware-in-the-loop | Done | every test runs on DEVKIT / BOX-3 |
 | Silicon errata | Done | ERRATA.md |

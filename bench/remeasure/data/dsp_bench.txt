@@ -1,0 +1,8 @@
+
+=== SIMD / FPU kernels vs C -O2 (cycles per call, 240 = 1 us) ===
+  dot product int16 x1024:   C   5144  SIMD    281  x18.30  equal
+  saturating add int16 x1024: C   9242  SIMD    406  x22.76  equal
+  dot product float x1024:   C   5141  FPU    1573  x3.26  equal (within float rounding)
+  copy 16 KB: memcpy 2165 (1816 MB/s)  SIMD 2068 (1901 MB/s)  GDMA 62605 (62 MB/s)  equal
+  lengths 16..512: 0 mismatches
+=== done ===

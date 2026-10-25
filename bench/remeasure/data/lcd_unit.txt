@@ -1,0 +1,14 @@
+
+=== esp-ndf unit tests ===
+[lcd_i80]
+    i80 8-bit WR clock 25000 Hz (asked 25 kHz)
+    cmd 2A + 4 params, cmd 2C + 300 bytes: 306 WR strobes captured, 0 wrong
+    lcd_i80_send_async() 300 B start   1550 cycles
+    RGB 32x8 @1006289 Hz: 164 frames in 100 ms, 100629 pclk, 2287 hsync -> 44 pclk/line, 14 lines/frame (44, 14)
+  PASS lcd_i80 (35072012 cycles)
+[cam]
+    DVP loop 32x8: frames of 256 / 256 bytes, 0 of 256 wrong
+  PASS cam (480903 cycles)
+=== unit: 2/2 passed ===
+=== ALL PASS (0 failures) ===
+unit tests done

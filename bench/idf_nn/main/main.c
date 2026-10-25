@@ -1,4 +1,4 @@
-/* IDF sibling of examples/nn_lib: ESP-NN 1.4.1 (S3 optimised, single core) on the shapes of bench/nn/layers.h:
+/* IDF sibling of components/lib/test_apps/nn_lib: ESP-NN 1.4.1 (S3 optimised, single core) on the shapes of bench/nn/layers.h:
  * cycles per layer (best of 3) and a weighted output checksum for the bit-exactness check against ours. */
 #include <stdio.h>
 #include <string.h>

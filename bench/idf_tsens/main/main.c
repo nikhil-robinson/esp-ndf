@@ -1,4 +1,4 @@
-/* IDF sibling of examples/tsens_test. */
+/* IDF sibling of components/drivers/tsens/test_apps/tsens_test. */
 #include <stdio.h>
 #include "driver/temperature_sensor.h"
 #include "esp_cpu.h"

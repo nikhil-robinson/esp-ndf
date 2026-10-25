@@ -1,0 +1,2 @@
+PASS X25519: pubkey 1, shared 1, rfc7748 1 | pubkey 46358 us, shPASS X25519: pubkey 1, shared 1, rfc7748 1 | pubkey 46358 us, shared 45952 us
+x25519_test PASS done

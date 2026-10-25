@@ -1,0 +1,26 @@
+ndf fft_f32 256                     12055 cycles  probe -4.9333 -2.2976 -2.6181  ok
+ndf fft_f32 1024                    58508 cycles  probe -23.317 -21.361 -9.482  ok
+ndf fft_f32 4096                   276695 cycles  probe -21.67 -33.959 50.911  ok
+ndf rfft_f32 1024                   40636 cycles  probe -11.244 15.273 16.111  ok
+ndf fft_s16 1024                    22310 cycles  probe -102 -128 -196  ok
+ndf win_hann 1024                   31414 cycles  probe 9.4175e-06 0.63422 1  ok
+ndf win_blackman 1024               42678 cycles  probe 3.3754e-06 0.48575 1  ok
+ndf win_flattop 1024                59062 cycles  probe -0.00042201 0.032509 0.99999  ok
+ndf fir_f32 64 taps x 1024         118943 cycles  probe 0.92515 1.2142 -2.3206  ok
+ndf fird_s16 32 taps /4 x 1024      11088 cycles  probe -6206 -2040 -3499  ok
+ndf biquad_f32 x 1024                9285 cycles  probe 0.59505 0.4362 -0.28505  ok
+ndf add_f32 1024                     2102 cycles  probe 0.41501 0.54639 1.0359  ok
+ndf mul_f32 1024                     2102 cycles  probe -0.030026 -0.24871 0.26814  ok
+ndf mulc_f32 1024                    1848 cycles  probe -0.047127 0.63137 0.39688  ok
+ndf add_s16 1024                      569 cycles  probe -11377 -21 7568  ok
+ndf add_s16 1024 >>1                  834 cycles  probe -5689 -11 3784  ok
+ndf mul_s16 1024 >>15                 569 cycles  probe 844 -632 436  ok
+ndf dot_f32 1024                     1570 cycles  probe -3.0811 -3.0811 -3.0811  ok
+ndf mat_mul_f32 16x16x16             6648 cycles  probe 1.6228 0.78383 1.7623  ok
+ndf mat_mul_f32 64x64x64           361992 cycles  probe 0.23086 -1.4652 6.0307  ok
+ndf mat_mul_s16 64x64x64 >>15       76177 cycles  probe -4312 -3160 -3832  ok
+ndf conv_f32 1024 * 64             140291 cycles  probe 0.12037 -2.4197 -0.15703  ok
+ndf corr_f32 1024 . 64             110194 cycles  probe 4.4159 0.64587 1.8053  ok
+ndf dct_f32 256                     19216 cycles  probe -0.42162 1.2611 3.7578  ok
+ndf kalman 2-state x 1000            2171 cycles  probe v 0.5025 x 499.58  ok
+dsp_lib PASS done

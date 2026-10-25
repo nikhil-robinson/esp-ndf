@@ -1,4 +1,4 @@
-/* IDF sibling of examples/x25519_test: mbedtls Curve25519 (ecp_mul on the Montgomery curve) on the same vectors. */
+/* IDF sibling of components/drivers/crypto/test_apps/x25519_test: mbedtls Curve25519 (ecp_mul on the Montgomery curve) on the same vectors. */
 #include <stdio.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
