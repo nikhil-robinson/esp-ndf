@@ -421,6 +421,13 @@ _l1_fault:                           /* frame holds a0..a11; add a12..a15 for th
     rsr     a5, excvaddr
     mov     a6, a1                   /* saved registers */
     addi    a7, a1, FRAME            /* stack pointer of the faulting code */
+    rsr     a8, prid                 /* the report runs on this core's own panic stack: a smashed or */
+    extui   a8, a8, 13, 1            /* overflowed task stack cannot take the handler down with it */
+    movi    a9, ndf_panic_stack
+    slli    a8, a8, 11               /* core * 2048 */
+    add     a9, a9, a8
+    movi    a10, 2048 - 16
+    add     a1, a9, a10
     movi    a8, PS_UM | 5            /* EXCM = 0 so C loops work in the report; levels <= 5 masked */
     wsr     a8, ps
     rsync

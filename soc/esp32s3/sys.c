@@ -318,3 +318,6 @@ NORETURN void ndf_assert_fail(const char *file, int line, const char *cond)
     snprintf(why, sizeof why, "assert %s:%d: %s", file, line, cond);
     ndf_panic(why, (uint32_t)__builtin_return_address(0) - 3, 0, sp);
 }
+
+/* one panic stack per core: the exception path (vectors.S _l1_fault) switches to it before the C report */
+uint8_t ndf_panic_stack[2][2048] __attribute__((aligned(16)));
