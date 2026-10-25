@@ -1,4 +1,4 @@
-# Crypto & secrets findings (esp-ndf, 2026-10-25) - code level, not fixed yet
+# Crypto & secrets findings (esp-ndf, 2026-10-25) - ALL FIXED (commit 7c51a3f, pass 2 in 2805ec0)
 
 | ID | Sev | Location | Issue | Fix |
 |---|---|---|---|---|
