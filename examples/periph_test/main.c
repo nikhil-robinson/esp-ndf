@@ -47,6 +47,7 @@ int main(void)
     run("twai_alerts", test_twai_alerts);
     run("touch", test_touch);
     run("touch_ext", test_touch_ext);
+    run("touch_denoise", test_touch_denoise);
     run("flash", test_flash);
     run("partition", test_partition);
     run("nvs", test_nvs);

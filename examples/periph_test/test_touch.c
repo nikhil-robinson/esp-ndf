@@ -51,3 +51,27 @@ void test_touch_ext(void)
     touch_proximity((const int8_t[3]){ 0, 0, 0 }, 0);
     touch_filter(false);
 }
+
+/* denoise: spread (max - min) of 200 raw reads on pad 10 without and with denoise (grade 4-bit, 5 pF) */
+static uint32_t spread(void)
+{
+    uint32_t lo = ~0u, hi = 0;
+    for (int i = 0; i < 200; i++) { uint32_t v = touch_read(10); if (v < lo) lo = v; if (v > hi) hi = v; delay_us(2000); }
+    return hi - lo;
+}
+
+void test_touch_denoise(void)
+{
+    touch_init(BIT(10));
+    delay_us(100000);
+    uint32_t r0 = avg(10), s0 = spread();
+    touch_denoise(3, 0);
+    touch_init(BIT(10));
+    delay_us(100000);
+    uint32_t r1 = avg(10), s1 = spread(), dn = touch_denoise_data();
+    touch_denoise(-1, 0);
+    touch_init(BIT(10));
+    printf("    pad 10 avg raw %lu spread %lu -> denoise on: raw %lu spread %lu, reference %lu\n", r0, s0, r1, s1, dn);
+    CHECK(dn > 0 && r1 < r0 && r0 - r1 <= 20);                   /* 4-bit grade: subtracts <= 15 counts (averages) */
+}
+

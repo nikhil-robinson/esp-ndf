@@ -18,3 +18,8 @@ uint16_t touch_active(void);                  /* bit n = pad n touched now */
 /* Proximity: up to 3 pads (0 = unused) accumulate meas_times scans; count = scans done. */
 void     touch_proximity(const int8_t pads[3], uint32_t meas_times);
 uint32_t touch_proximity_count(int i);
+/* Denoise: pad 0 against an internal reference cap, subtracted from all pads (cancels supply noise).
+ * grade 0..3 = 12/10/8/4-bit range, cap 0..7 = 5.0 + 1.4 * cap pF; grade < 0 = off. Set it before touch_init
+ * (the scanner stalls if denoise changes while it runs, as in IDF). */
+void     touch_denoise(int grade, int cap);
+uint32_t touch_denoise_data(void);                /* the reference count being subtracted */

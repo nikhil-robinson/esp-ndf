@@ -89,8 +89,8 @@ Legend: `[x]` done and verified · `[~]` partly done · `[ ]` not started ·
 - [x] **PCNT**: 32-bit gap-free count, watch points (thres0/1, zero, limit) callbacks, step notify (gap-free), quadrature index (GPIO IRQ)
 - [x] **LEDC**: fade (fixed: 1 duty per step), gamma fade (segmented, perceptually linear), phase (hpoint) per channel; [ ] sleep retention (with sleep)
 - [x] **GPTimer**: done; capture-on-event / ETM: n/a on S3
-- [~] **Touch**: raw, hardware filter + baseline, threshold active/inactive events, proximity; [ ] denoise (reference
-      channel setup), [ ] waterproof (needs a shield electrode), [ ] touch wake (with sleep)
+- [~] **Touch**: raw, hardware filter + baseline, threshold active/inactive events, proximity; [x] denoise (pad 0 reference channel, set before touch_init:
+      changing it while scanning stalls the scanner, in IDF too), [ ] waterproof (needs a shield electrode), [ ] touch wake (with sleep)
 - [x] **ADC**: one-shot + continuous, hardware IIR filters and threshold monitors (correct channel encoding);
       ADC2 continuous: n/a on S3; [ ] ADC2 one-shot arbitration notes (with Wi-Fi)
 - [x] **GDMA**: priorities, PSRAM (burst/ext-mem rules), owner check, error recovery; ETM n/a; weight arbitration n/a (S3 has priority only)

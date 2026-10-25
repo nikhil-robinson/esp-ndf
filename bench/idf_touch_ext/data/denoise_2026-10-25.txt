@@ -1,0 +1,3 @@
+# C9:D0 2026-10-25, pad 10, denoise grade 4-bit, 5 pF
+IDF (enabled after fsm_start): raw 42784 spread 35 -> on: spread 0, reference 0 (scanner stalled)
+ndf (set before touch_init):   avg raw 55100 spread 41 -> on: raw 55085 spread 49, reference 17033; 3/3 runs

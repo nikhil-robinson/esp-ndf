@@ -58,3 +58,4 @@ void test_nvs_enc(void);
 void test_spiffs(void);
 void test_spiffs_rename(void);
 void test_pfs(void);
+void test_touch_denoise(void);

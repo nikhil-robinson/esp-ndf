@@ -1,5 +1,7 @@
 /* Touch sensor v2 (TRM ch. 39): FSM-timer scanning, same defaults as ESP-IDF. */
 #include "touch.h"
+static int dn_grade = -1, dn_cap;                          /* touch_denoise(), applied by touch_init */
+#include "sys.h"
 #include "rtc_irq.h"
 #include "xtensa.h"
 
@@ -32,7 +34,13 @@ int touch_init(uint16_t mask)
     REG_FIELD(CTRL2, 4, 2, 0);                             /* drefl 0.5 V */
     REG_FIELD(CTRL2, 2, 2, 2);                             /* drange 0.5 V */
     REG_FIELD(SCAN_CTRL, 8, 1, 1);                         /* idle pads to GND */
-    REG_CLR(SCAN_CTRL, BIT(2) | BIT(9));                   /* no denoise, no shield */
+    REG_CLR(SCAN_CTRL, BIT(2) | BIT(9));                   /* no shield; denoise as set by touch_denoise() */
+    if (dn_grade >= 0) {                                   /* before the FSM starts (IDF: it stalls if changed while scanning) */
+        REG_FIELD(DAC, 29, 3, 7);                          /* pad 0 = denoise channel, IDF default slope */
+        REG_FIELD(CTRL2, 9, 3, dn_cap & 7);
+        REG_FIELD(SCAN_CTRL, 0, 2, dn_grade & 3);
+        REG_SET(SCAN_CTRL, BIT(2));
+    }
     REG_SET(CTRL2, BIT(31));                               /* clock */
     for (int n = 1; n <= 14; n++) {
         if (!(mask & BIT(n))) continue;
@@ -41,7 +49,7 @@ int touch_init(uint16_t mask)
         else        REG_FIELD(DAC1, 29 - 3 * (n - 10), 3, 7);
     }
     for (int n = 1; n <= 14; n++) REG(THRES(n)) = 0x3FFFFF;     /* no events until touch_threshold() */
-    REG_FIELD(SCAN_CTRL, 10, 15, mask);                    /* scan exactly these pads */
+    REG_FIELD(SCAN_CTRL, 10, 15, dn_grade >= 0 ? mask & ~1u : mask);   /* scan exactly these pads (not 0 with denoise) */
     REG_FIELD(TOUCH_CONF, 0, 15, mask);
     REG_FIELD(TOUCH_CONF, 16, 2, 0);                       /* read raw data */
     REG_FIELD(CTRL2, 16, 1, 0);                            /* FSM driven by timer */
@@ -107,3 +115,10 @@ void touch_proximity(const int8_t pads[3], uint32_t meas_times)
 }
 
 uint32_t touch_proximity_count(int i) { return (REG(APPR_ST) >> (16 - 8 * i)) & 0xFF; }   /* pad0 b23:16 pad1 b15:8 pad2 b7:0 */
+
+/* Denoise (IDF touch_pad_denoise_*): pad 0 is measured against an internal reference capacitor and its count is
+ * subtracted from every pad's reading (cancels supply / common-mode noise). Takes effect at the next touch_init. */
+void touch_denoise(int grade, int cap) { dn_grade = grade; dn_cap = cap; }
+
+uint32_t touch_denoise_data(void) { return REG(0x60008860) & 0x3FFFFF; }
+
