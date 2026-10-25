@@ -120,30 +120,47 @@ static void spi1_cmd(uint8_t cmd, int abits, uint32_t addr, const uint32_t *w, i
     REG(0x60002024u) = nw ? nw * 32 - 1 : 0;
     for (int i = 0; i < nw; i++) REG(0x60002058u + 4 * i) = w[i];
     REG(0x60002000u) = 1u << 18;
-    while (REG(0x60002000u) & (1u << 18)) {}
+    for (uint32_t k = 0; (REG(0x60002000u) & (1u << 18)) && k < 1000000u; k++) {}   /* bounded */
 }
-static void spi1_idle(void) { while (spi1_rd(0x05) & 1) {} }
+static void spi1_idle(void) { for (uint32_t k = 0; (spi1_rd(0x05) & 1) && k < 2000000u; k++) {} }   /* bounded */
 static void sel_write(uint32_t at, ota_sel_t *e)                     /* rewrite one select entry (its own sector) */
 {
     spi1_idle(); spi1_cmd(0x06, 0, 0, 0, 0); spi1_cmd(0x20, 24, at, 0, 0); spi1_idle();
     spi1_cmd(0x06, 0, 0, 0, 0); spi1_cmd(0x02, 24, at, (const uint32_t *)e, 8); spi1_idle();
     for (uint32_t a = (FLASH_DBUS + at) & ~63u; a < FLASH_DBUS + at + 32; a += 64) {   /* drop the cached copy */
-        REG(DCACHE_SYNC_ADDR) = a; REG(DCACHE_SYNC_SIZE) = 64; REG(DCACHE_SYNC) = 1; while (!(REG(DCACHE_SYNC) & 8u)) {}
+        REG(DCACHE_SYNC_ADDR) = a; REG(DCACHE_SYNC_SIZE) = 64; REG(DCACHE_SYNC) = 1; for (uint32_t k = 0; !(REG(DCACHE_SYNC) & 8u) && k < 100000u; k++) {}
     }
+}
+#endif
+
+/* a segment may only land in app RAM below this loader (its IRAM code aliases DRAM 0x3FCE8000+) or in RTC slow memory;
+ * lengths are word multiples and never wrap: a corrupt or crafted header cannot overwrite the loader or anything else */
+#define IMG_MAX 0x200000u
+static bool seg_ok(uint32_t dst, uint32_t len)
+{
+    if (len & 3 || len > IMG_MAX) return false;
+    if (dst >= 0x40378000u && dst < 0x403E0000u) dst -= 0x6F0000u;
+    return (dst >= 0x3FC88000u && dst <= 0x3FCE7E00u && len <= 0x3FCE7E00u - dst) ||
+           (dst >= 0x50000000u && dst <= 0x50002000u && len <= 0x50002000u - dst);
 }
 static bool image_ok(uint32_t off)                                    /* appended SHA-256 (hardware engine) */
 {
     const uint8_t *im = (const uint8_t *)(FLASH_DBUS + off), *p = im + 24;
-    if (im[0] != 0xE9) return false;
-    for (uint32_t s = 0, n = im[1]; s < n; s++) p += 8 + rd32(p + 4);
+    if (im[0] != 0xE9 || im[1] > 16 || !im[23]) return false;           /* SHA-256 appended: required */
+    uint32_t e = rd32(im + 4);
+    if (e < 0x40378000u || e >= 0x403D7E00u) return false;              /* entry in app IRAM */
+    for (uint32_t s = 0, n = im[1]; s < n; s++) {
+        uint32_t len = rd32(p + 4);
+        if (!seg_ok(rd32(p), len) || (uint32_t)(p - im) + 8 + len > IMG_MAX) return false;
+        p += 8 + len;
+    }
     uint32_t len = ((uint32_t)(p - im) + 16) & ~15u;                  /* padding + checksum byte */
-    if (!im[23]) return true;                                         /* no hash appended: header check only */
     REG(0x600C001Cu) |= 1u << 2; REG(0x600C0024u) &= ~((1u << 2) | (1u << 4) | (1u << 5));   /* SHA clock, out of reset */
     const uint8_t *q = im; uint32_t left = len, w[16]; bool first = true, padded = false;
     for (;;) {
         uint32_t n = left < 64 ? left : 64;
-        for (int i = 0; i < 16; i++) w[i] = 0;
-        for (uint32_t i = 0; i < n; i++) ((uint8_t *)w)[i] = q[i];
+        if (n == 64) for (int i = 0; i < 16; i++) w[i] = ((const uint32_t *)q)[i];   /* q word aligned: image on a page */
+        else { for (int i = 0; i < 16; i++) w[i] = 0; for (uint32_t i = 0; i < n; i++) ((uint8_t *)w)[i] = q[i]; }
         q += n; left -= n;
         bool last = false;
         if (n < 64) {
@@ -155,12 +172,13 @@ static bool image_ok(uint32_t off)                                    /* appende
         REG(0x6003B000u) = 2;                                         /* SHA-256 */
         for (int i = 0; i < 16; i++) REG(0x6003B080u + 4 * i) = w[i];
         REG(first ? 0x6003B010u : 0x6003B014u) = 1; first = false;
-        while (REG(0x6003B018u)) {}
+        for (uint32_t k = 0; REG(0x6003B018u) && k < 100000u; k++) {}   /* bounded */
         if (last) break;
     }
     for (int i = 0; i < 8; i++) if (REG(0x6003B040u + 4 * i) != rd32(im + len + 4 * i)) return false;
     return true;
 }
+#if NDF_OTA && !NDF_LOADER_RTC
 static bool ota_pending;              /* booting an unconfirmed image: next reset must come back here (rollback) */
 static uint32_t choose_image(uint32_t *xip)                          /* flash offset of the image to boot */
 {
@@ -367,6 +385,23 @@ bus_ready:
 #endif
     __asm__ volatile("memw" ::: "memory");
     const uint8_t *im = (const uint8_t *)img;
+#ifndef NDF_BOOT_VERIFY
+#define NDF_BOOT_VERIFY 1
+#endif
+    /* image header, segment ranges and SHA-256 checked before anything is copied: on every cold boot (1), also on warm
+     * resets (2; the warm stage re-copies the image the cold boot verified: +~29 ms), or never (0) */
+#if defined(NDF_LOADER_RTC) && NDF_LOADER_RTC
+#define VERIFY_NOW (NDF_BOOT_VERIFY == 2)
+#else
+#define VERIFY_NOW (NDF_BOOT_VERIFY >= 1)
+#endif
+    if (VERIFY_NOW && !image_ok((uint32_t)img - FLASH_DBUS)) {
+#if NDF_LOADER_RTC
+        to_rom();
+#else
+        for (;;) {}                                                     /* stay: download mode still works */
+#endif
+    }
     uint32_t nseg = im[1], entry = rd32(im + 4);
     const uint8_t *p = im + 24;                                          /* header + extended header */
     for (uint32_t s = 0; s < nseg; s++) {

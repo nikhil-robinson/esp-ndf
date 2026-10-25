@@ -102,7 +102,7 @@ SECTIONS
 
 ASSERT(_vector_table == 0x40378000, "vector table must be first in IRAM")
 ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (MMU entries 496-511)")
-ASSERT(!NDF_BOOT_FAST || _data_end <= 0x3FCE8000, "fast boot: the loaded image must end below the loader (0x3FCE8000)")
+ASSERT(!NDF_BOOT_FAST || _data_end <= 0x3FCE7E00, "fast boot: the loaded image must end below the loader (0x3FCE7E00)")
 ASSERT(_stack1_top <= RAM_END, "RAM full: code + data + stacks exceed SRAM below the ROM loader area (or the trace blocks)")
 /* the baseband dump engine writes SRAM banks 0x3FCB0000..0x3FCDFFFF (drivers/rf/rf_dump.c) */
 ASSERT(SIZEOF(.rfmark) == 0 || _stack1_top <= 0x3FCB0000, "RF dump engine in use: code + data + stacks must end below 0x3FCB0000")

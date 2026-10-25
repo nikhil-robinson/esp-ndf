@@ -1,6 +1,6 @@
-/* Fast-boot loader: 4 KB just below the ROM loader's data (0x3FCE9000); IRAM 0x403D8000 == DRAM 0x3FCE8000. */
+/* Fast-boot loader: 4.5 KB just below the ROM loader's data (0x3FCE9000); IRAM 0x403D7E00 == DRAM 0x3FCE7E00. */
 ENTRY(_loader_entry)
-MEMORY { liram (RX) : ORIGIN = 0x403D8000, LENGTH = 0xD00
+MEMORY { liram (RX) : ORIGIN = 0x403D7E00, LENGTH = 0xF00
          ldram (RW) : ORIGIN = 0x3FCE8D00, LENGTH = 0x300 }
 SECTIONS
 {
