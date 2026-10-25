@@ -614,15 +614,16 @@ int pfs_opendir(const char *path)
     return FAT_EMFILE;
 }
 
-int pfs_readdir(int dd, char *name, uint32_t *size, bool *is_dir)
+int pfs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir)
 {
+    if (!name || !name_max) return FAT_EINVAL;
     if (dd < 0 || dd >= MAX_DIR || !dirs[dd].used) return FAT_EINVAL;
     while (dirs[dd].next < MAX_NAMES) {
         int i = dirs[dd].next++;
         const char *n = fl[i].name;
         size_t pl = dirs[dd].len;
         if (!fl[i].used || strncmp(n, dirs[dd].prefix, pl) || n[pl] != '/') continue;
-        strcpy(name, n + pl + 1);
+        { const char *src = n + pl + 1; size_t k = strnlen(src, name_max - 1); memcpy(name, src, k); name[k] = 0; }
         if (size) *size = fl[i].size;
         if (is_dir) *is_dir = false;
         return 1;

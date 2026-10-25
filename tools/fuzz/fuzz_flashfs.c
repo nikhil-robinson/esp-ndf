@@ -39,7 +39,7 @@ static void spiffs_round(void)
 {
     if (spiffs_mount(&P)) return;
     int dd = spiffs_opendir("/"); char name[64]; uint32_t sz; bool d; static uint8_t b[8192];
-    for (int n = 0; dd >= 0 && n < 100 && spiffs_readdir(dd, name, &sz, &d) == 1; n++) {
+    for (int n = 0; dd >= 0 && n < 100 && spiffs_readdir(dd, name, sizeof name, &sz, &d) == 1; n++) {
         char path[80]; snprintf(path, sizeof path, "/%s", name);
         int fd = spiffs_open(path, FAT_RDONLY);
         for (int k = 0; fd >= 0 && k < 16 && spiffs_read(fd, b, sizeof b) > 0; k++) ;

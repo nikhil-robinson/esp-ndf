@@ -26,7 +26,7 @@ int  pfs_unlink(const char *path);
 int  pfs_rename(const char *from, const char *to);   /* atomic; FAT_EEXIST if to exists */
 int  pfs_stat(const char *path, uint32_t *size, bool *is_dir);
 int  pfs_opendir(const char *path);
-int  pfs_readdir(int dd, char *name, uint32_t *size, bool *is_dir);
+int  pfs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir);
 int  pfs_closedir(int dd);
 void pfs_info(uint32_t *total_bytes, uint32_t *used_bytes);
 

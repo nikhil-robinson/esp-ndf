@@ -32,7 +32,8 @@ int  fat_mtime(const char *path, time_t *t);
 
 int  fat_opendir(const char *path);
 /* next entry: name (<= 255 + NUL), returns 1, 0 at end, < 0 error */
-int  fat_readdir(int dd, char *name, uint32_t *size, bool *is_dir);
+/* name_max: size of name; longer names are cut (always NUL-terminated) */
+int  fat_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir);
 int  fat_closedir(int dd);
 
 void fat_info(uint32_t *total_bytes, uint32_t *free_bytes, int *fat_bits);

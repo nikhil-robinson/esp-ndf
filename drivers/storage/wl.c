@@ -113,6 +113,7 @@ static uint32_t phys(wl_t *w, uint32_t sector)
 static int rd(bdev_t *b, uint32_t s, void *buf, uint32_t n)
 {
     wl_t *w = b->ctx;
+    if (!bdev_range_ok(b, s, n)) return -1;
     for (uint8_t *p = buf; n--; s++, p += SEC)
         if (partition_read(w->part, phys(w, s), p, SEC)) return -1;
     return 0;
@@ -121,6 +122,7 @@ static int rd(bdev_t *b, uint32_t s, void *buf, uint32_t n)
 static int wr(bdev_t *b, uint32_t s, const void *buf, uint32_t n)
 {
     wl_t *w = b->ctx;
+    if (!bdev_range_ok(b, s, n)) return -1;
     for (const uint8_t *p = buf; n--; s++, p += SEC) {
         if (update_wl(w)) return -1;
         uint32_t a = phys(w, s);

@@ -21,7 +21,7 @@ int  spiffs_unlink(const char *path);
 int  spiffs_rename(const char *from, const char *to);   /* FAT_EEXIST if to exists */
 int  spiffs_stat(const char *path, uint32_t *size, bool *is_dir);
 int  spiffs_opendir(const char *path);         /* names under path, '/' kept inside names */
-int  spiffs_readdir(int dd, char *name, uint32_t *size, bool *is_dir);
+int  spiffs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir);
 int  spiffs_closedir(int dd);
 
 void spiffs_info(uint32_t *total_bytes, uint32_t *used_bytes);

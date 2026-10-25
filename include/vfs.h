@@ -14,7 +14,7 @@ typedef struct {
     int (*mkdir)(const char *path);
     int (*stat)(const char *path, uint32_t *size, bool *is_dir);
     int (*opendir)(const char *path);
-    int (*readdir)(int dd, char *name, uint32_t *size, bool *is_dir);
+    int (*readdir)(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir);
     int (*closedir)(int dd);
 } vfs_ops_t;          /* any op may be NULL -> -22 (EINVAL) */
 
@@ -35,5 +35,5 @@ int vfs_unlink(const char *path);
 int vfs_mkdir(const char *path);
 int vfs_stat(const char *path, uint32_t *size, bool *is_dir);
 int vfs_opendir(const char *path);
-int vfs_readdir(int dd, char *name, uint32_t *size, bool *is_dir);
+int vfs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir);
 int vfs_closedir(int dd);

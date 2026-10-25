@@ -124,11 +124,11 @@ int vfs_seek(int fd, int32_t off, int whence)
     return fds[i].ops->seek ? fds[i].ops->seek(fds[i].fd, off, whence) : FAT_EINVAL;
 }
 
-int vfs_readdir(int dd, char *name, uint32_t *size, bool *is_dir)
+int vfs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir)
 {
     int i = fd_get(dd, true);
     if (i < 0) return FAT_EINVAL;
-    return fds[i].ops->readdir(fds[i].fd, name, size, is_dir);
+    return fds[i].ops->readdir(fds[i].fd, name, name_max, size, is_dir);
 }
 
 static int close_(int fd, bool dir)

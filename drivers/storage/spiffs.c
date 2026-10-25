@@ -484,8 +484,9 @@ int spiffs_opendir(const char *path)
     return FAT_EMFILE;
 }
 
-int spiffs_readdir(int dd, char *name, uint32_t *size, bool *is_dir)
+int spiffs_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *is_dir)
 {
+    if (!name || !name_max) return FAT_EINVAL;
     if (dd < 0 || dd >= MAX_DIR || !dirs[dd].used) return FAT_EINVAL;
     uint8_t h[HDR_IX];
     while (dirs[dd].next < nblk * ENT) {
@@ -496,7 +497,7 @@ int spiffs_readdir(int dd, char *name, uint32_t *size, bool *is_dir)
         const char *n = (char *)h + 13;
         size_t pl = dirs[dd].len;
         if (strncmp(n, dirs[dd].prefix, pl) || n[pl] != '/') continue;
-        strncpy(name, n + pl + 1, NAME); name[NAME - 1] = 0;
+        { const char *src = n + pl + 1; size_t k = strnlen(src, (name_max < NAME ? name_max : NAME) - 1); memcpy(name, src, k); name[k] = 0; }
         if (size) *size = h[8] | h[9] << 8 | h[10] << 16 | (uint32_t)h[11] << 24;
         if (is_dir) *is_dir = false;
         return 1;

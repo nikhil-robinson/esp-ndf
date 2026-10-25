@@ -20,3 +20,10 @@ size_t heap_min_free(void);      /* lowest heap_free() seen since boot */
 void  *heap_caps_malloc(size_t n, uint32_t caps);   /* free() releases it */
 size_t heap_caps_free_size(uint32_t caps);
 int    heap_add_psram(void *start, size_t size);    /* after psram_init: PSRAM_VADDR, psram_size() */
+
+/* Integrity: every block header carries a seal; free() / realloc() / allocation walks check it (double free, stray
+ * pointer, overflow into the next header). On a violation the system panics, or, if heap_on_corrupt is set, the hook
+ * is called and the operation refused. heap_check() walks the whole heap. */
+extern void (*heap_on_corrupt)(const char *why);
+bool heap_check(void);
+

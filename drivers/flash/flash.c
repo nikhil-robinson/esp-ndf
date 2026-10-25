@@ -283,6 +283,7 @@ const flash_info_t *flash_info(void)
 }
 
 uint32_t flash_size(void) { return flash_info()->size; }
+static bool in_flash(uint32_t addr, size_t len) { uint32_t n = flash_size(); return addr <= n && len <= n - addr; }   /* no wrap */
 static void detect_lines(void) { if (!read_lines) flash_info(); }
 
 int flash_unique_id(uint8_t id[8])
@@ -423,7 +424,7 @@ static int spi1_read(uint32_t addr, void *buf, size_t len);
 int flash_read(uint32_t addr, void *buf, size_t len)
 {
     if (!mm) mm_init();
-    if (addr + len > flash_size()) return -1;
+    if (!in_flash(addr, len)) return -1;
     if (mm > 0 && addr + len <= MAP_MAX) {
         memcpy(buf, (const void *)(FLASH_VADDR + addr), len);   /* cache-line bursts, hits on repeats */
         return 0;
@@ -577,7 +578,7 @@ int flash_erase_sector(uint32_t addr)
 int flash_erase(uint32_t addr, size_t len)
 {
     flash_info();
-    if ((addr | len) & (FLASH_SECTOR - 1) || addr + len > info.size) return -1;
+    if ((addr | len) & (FLASH_SECTOR - 1) || !in_flash(addr, len)) return -1;
     while (len) {
         int k = 3;                                                     /* largest erase type that fits here */
         while (k > 0 && (!info.erase_size[k] || (addr & (info.erase_size[k] - 1)) || len < info.erase_size[k])) k--;
@@ -603,7 +604,7 @@ int flash_erase_chip(void)
 int flash_write(uint32_t addr, const void *buf, size_t len)
 {
     flash_info();
-    if (addr + len > info.size) return -1;
+    if (!in_flash(addr, len)) return -1;
     uint32_t a0 = addr; size_t l0 = len;
     const uint8_t *b = buf;
     uint32_t g = op_begin();

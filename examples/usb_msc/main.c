@@ -10,8 +10,8 @@
 
 #define NBLK 256
 static uint8_t ram[NBLK * 512] __attribute__((aligned(4)));
-static int rd(bdev_t *b, uint32_t s, void *p, uint32_t n) { (void)b; memcpy(p, ram + s * 512, n * 512); return 0; }
-static int wr(bdev_t *b, uint32_t s, const void *p, uint32_t n) { (void)b; memcpy(ram + s * 512, p, n * 512); return 0; }
+static int rd(bdev_t *b, uint32_t s, void *p, uint32_t n) { if (!bdev_range_ok(b, s, n)) return -1; memcpy(p, ram + s * 512, n * 512); return 0; }
+static int wr(bdev_t *b, uint32_t s, const void *p, uint32_t n) { if (!bdev_range_ok(b, s, n)) return -1; memcpy(ram + s * 512, p, n * 512); return 0; }
 static bdev_t disk = { .sector_size = 512, .sector_count = NBLK, .read = rd, .write = wr };
 
 #define LAST ((volatile uint32_t *)0x50001000u)   /* RTC slow memory: counters of the last window */

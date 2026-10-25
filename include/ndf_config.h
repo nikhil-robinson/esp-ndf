@@ -158,6 +158,15 @@
 #ifndef NDF_IRQ_SHARES
 #define NDF_IRQ_SHARES          48      /* interrupt sources sharing CPU lines (16 B each) */
 #endif
+#ifndef NDF_PART_REQUIRE_MD5
+#define NDF_PART_REQUIRE_MD5    1       /* partition table must end with its MD5 entry (tools/mkpart.py writes it) */
+#endif
+#ifndef NDF_OTA_REQUIRE_SIG
+#define NDF_OTA_REQUIRE_SIG     1       /* OTA images must carry a valid signature (ota_set_key) */
+#endif
+#ifndef NDF_APPTRACE
+#define NDF_APPTRACE            0       /* app trace over JTAG (trace.h): TRAX blocks 28/29, DRAM ends at 0x3FCE8000 */
+#endif
 #ifndef NDF_PFS_MAX_FILES
 #define NDF_PFS_MAX_FILES       4       /* PFS open files (264 B each) */
 #endif

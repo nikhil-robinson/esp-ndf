@@ -13,7 +13,11 @@ const partition_t *ota_running(void);           /* the slot (or factory) this im
 const partition_t *ota_next(void);              /* the slot an update should go to */
 int  ota_begin(ota_t *o, const partition_t *slot);   /* erases the slot (whole: ota_end checks every byte) */
 int  ota_write(ota_t *o, const void *data, size_t len);   /* sequential */
-int  ota_end(ota_t *o);                         /* image header + appended SHA-256 checked: 0 = good */
+int  ota_end(ota_t *o);                         /* signature + image header + SHA-256 checked: 0 = good */
+/* Authenticity: images carry a signed trailer (tools/ota_sign.py: ECDSA P-256 over the whole image + version).
+ * With NDF_OTA_REQUIRE_SIG (default) ota_end refuses everything until a key is set; versions below min_version
+ * (rollback) are refused. ota_set_boot only takes a slot ota_end accepted. */
+int  ota_set_key(const uint8_t pub[64], uint32_t min_version);
 int  ota_set_boot(const partition_t *slot);     /* next reset boots it (state NEW) */
 int  ota_mark_valid(void);                      /* confirm the running image (rollback off for it) */
 int  ota_state(void);                           /* state of the running image's select entry, OTA_UNDEFINED if none */

@@ -24,7 +24,10 @@ int partition_load(void)
             for (int i = 0; i < 16; i++) if (d[i] != e[16 + i]) { count = -1; return -1; }
             break;
         }
-        if (magic != 0x50AA) break;
+        if (magic != 0x50AA) {
+            if (NDF_PART_REQUIRE_MD5) { count = -1; return -1; }    /* no checksum entry: not trusted */
+            break;
+        }
         partition_t *p = &parts[n];
         p->type = e[2]; p->subtype = e[3];
         p->offset = e[4] | e[5] << 8 | e[6] << 16 | (uint32_t)e[7] << 24;
@@ -32,6 +35,11 @@ int partition_load(void)
         for (int i = 0; i < 16; i++) p->label[i] = e[12 + i];
         p->label[16] = 0;
         p->flags  = e[28] | e[29] << 8 | e[30] << 16 | (uint32_t)e[31] << 24;
+        /* a corrupt entry must not point a driver at flash it does not own: 4 KB aligned, inside the chip, and data
+         * partitions never over the image + table area (an erase there would brick the board) */
+        uint32_t fs = flash_size();
+        if ((p->offset | p->size) & 0xFFF || !p->size || p->offset > fs || p->size > fs - p->offset ||
+            (p->type == PART_DATA && p->offset < TABLE_ADDR + 0x1000)) { count = -1; return -1; }
     }
     return count = n;
 }

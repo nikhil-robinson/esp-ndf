@@ -79,7 +79,7 @@ void test_spiffs(void)
 
     CHECK(vfs_register("/spiffs", &vfs_spiffs_ops) == 0);
     int dd = vfs_opendir("/spiffs"); char name[40]; int cnt = 0;
-    while (vfs_readdir(dd, name, &sz, &d) == 1) { printf("      %s  %lu\n", name, sz); cnt++; }
+    while (vfs_readdir(dd, name, sizeof name, &sz, &d) == 1) { printf("      %s  %lu\n", name, sz); cnt++; }
     vfs_closedir(dd);
     CHECK(cnt == 2 && vfs_unregister("/spiffs") == 0);
     uint32_t tot, used; spiffs_info(&tot, &used);

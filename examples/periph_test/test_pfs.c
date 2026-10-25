@@ -106,7 +106,7 @@ void test_pfs(void)
     CHECK(pfs_unlink("/churn.bin") == 0 && pfs_rename("/log.txt", "/old/log.txt") == 0);
     CHECK(vfs_register("/pfs", &vfs_pfs_ops) == 0);
     int dd = vfs_opendir("/pfs"); char name[64]; int cnt = 0;
-    while (vfs_readdir(dd, name, &sz, &d) == 1) { printf("      %s  %lu\n", name, sz); cnt++; }
+    while (vfs_readdir(dd, name, sizeof name, &sz, &d) == 1) { printf("      %s  %lu\n", name, sz); cnt++; }
     vfs_closedir(dd);
     CHECK(cnt == 2 && vfs_unregister("/pfs") == 0);
     uint32_t tot, used; pfs_info(&tot, &used);

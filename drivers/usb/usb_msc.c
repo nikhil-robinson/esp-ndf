@@ -105,7 +105,7 @@ static void command(void)
     case 0x28: case 0x2A: {                                     /* read (10) / write (10) */
         uint32_t lba = be32(cb + 2), cnt = cb[7] << 8 | cb[8];
         bool wr = cb[0] == 0x2A;
-        if (lba + cnt > blocks() || cnt * BLK != len) { fail(0x05, 0x21, len, in); return; }   /* LBA out of range */
+        if (lba > blocks() || cnt > blocks() - lba || cnt * BLK != len) { fail(0x05, 0x21, len, in); return; }   /* LBA out of range (no wrap) */
         if (wr && rdonly) { fail(0x07, 0x27, len, false); return; }                             /* write protected */
         while (cnt) {
             uint32_t k = cnt < sizeof io / BLK ? cnt : sizeof io / BLK;

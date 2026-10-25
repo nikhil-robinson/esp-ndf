@@ -23,7 +23,7 @@ static void walk(const char *dir)
 {
     if (++depth > 8) { depth--; return; }
     int dd = fat_opendir(dir); char name[300]; uint32_t sz; bool isdir; int n = 0;
-    while (dd >= 0 && n++ < 200 && fat_readdir(dd, name, &sz, &isdir) == 1) {
+    while (dd >= 0 && n++ < 200 && fat_readdir(dd, name, sizeof name, &sz, &isdir) == 1) {
         char path[512]; snprintf(path, sizeof path, "%s/%s", strcmp(dir, "/") ? dir : "", name);
         if (!strcmp(name, ".") || !strcmp(name, "..")) continue;
         if (isdir) { walk(path); continue; }
@@ -47,6 +47,9 @@ int main(int argc, char **argv)
     static uint8_t data[20000]; for (int i = 0; i < 20000; i++) data[i] = i;
     for (int f = 0; f < 12; f++) { char p[64]; snprintf(p, sizeof p, f < 6 ? "/a/file%d.bin" : "/a/b/a_long_file_name_%d.txt", f);
         int fd = fat_open(p, FAT_WRONLY | FAT_CREAT); fat_write(fd, data, 1000 * (f + 1)); fat_close(fd); }
+    /* regressions: a missing directory on the way must fail cleanly (H1) */
+    if (fat_rename("/a/file0.bin", "/missing/y") >= 0 || fat_open("/missing/y", FAT_WRONLY | FAT_CREAT) >= 0 ||
+        fat_mkdir("/missing/d") >= 0) { puts("FAIL: missing-directory paths accepted"); return 1; }
     fat_unmount();
     memcpy(img, disk, sizeof img);
     for (round_no = 0; round_no < rounds; round_no++) {
@@ -59,6 +62,10 @@ int main(int argc, char **argv)
             case 1: disk[s * 512 + o] ^= 1 << (rand() % 8); break;
             default: { uint32_t v = rand() % 3 ? (uint32_t)rand() : 0x0FFFFFF0 + rand() % 16; memcpy(disk + s * 512 + (o & ~3u), &v, 4); }
             }
+        }
+        if (round_no % 50 == 0) {                         /* C2 regression: an LFN entry with sequence 0 in a dir */
+            for (uint32_t o = 0; o < sizeof disk - 32; o += 32)
+                if (disk[o + 11] == 0x0F) { disk[o] = 0x40; break; }
         }
         alarm(5);
         if (fat_mount(&bd) == 0) {

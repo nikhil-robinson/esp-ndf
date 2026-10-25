@@ -12,7 +12,7 @@ static void list(const char *path, int depth)
 {
     int dd = fat_opendir(path);
     char name[256]; uint32_t size; bool dir;
-    while (dd >= 0 && fat_readdir(dd, name, &size, &dir) == 1) {
+    while (dd >= 0 && fat_readdir(dd, name, sizeof name, &size, &dir) == 1) {
         printf("      %*s%s%s  %lu\n", depth * 2, "", name, dir ? "/" : "", size);
         if (dir) {
             char sub[300]; strcpy(sub, path); if (strcmp(path, "/")) strcat(sub, "/"); strcat(sub, name);
@@ -123,7 +123,7 @@ void test_fat(void)
     uint32_t sz; bool isd;
     CHECK(vfs_stat("/fat/data", &sz, &isd) == 0 && isd && vfs_stat("/fat", &sz, &isd) == 0 && isd);
     int dd = vfs_opendir("/fat/data"), cnt = 0; char nm[256];
-    while (vfs_readdir(dd, nm, &sz, &isd) == 1) cnt++;
+    while (vfs_readdir(dd, nm, sizeof nm, &sz, &isd) == 1) cnt++;
     CHECK(dd >= 3 && cnt == 2 && vfs_closedir(dd) == 0);
     t = ccount(); fd = vfs_open("/fat/hello.txt", FAT_RDONLY); uint32_t oc = ccount() - t; vfs_close(fd);
     printf("    vfs_open() incl. FAT lookup %lu cycles; vfs_write(1, ...) -> console\n", oc);

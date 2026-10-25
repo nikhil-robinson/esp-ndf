@@ -14,3 +14,6 @@ typedef struct bdev {
 
 /* Raw flash partition as 4 KB sectors (erase + program per write; no wear levelling). */
 int bdev_partition(bdev_t *b, const partition_t *p);
+
+/* sectors [s, s + n) inside the device, without overflow: every bdev read/write checks this */
+static inline bool bdev_range_ok(const bdev_t *b, uint32_t s, uint32_t n) { return s <= b->sector_count && n <= b->sector_count - s; }

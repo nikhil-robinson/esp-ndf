@@ -210,6 +210,7 @@ static int walk(uint32_t dc, uint32_t from, walk_fn fn, void *ctx, uint32_t *nex
         if (e[0] == DELETED) { lok = 0; continue; }
         if (e[11] == A_LFN) {
             int ord = e[0] & 0x3F;
+            if (ord < 1 || ord > 20) { lok = 0; continue; }   /* 20 x 13 >= 255: anything else is corrupt */
             if (e[0] & 0x40) { lok = ord; lsum = e[13]; lstart = i; memset(lname, 0, sizeof lname); }
             else if (ord != lok - 1 || e[13] != lsum) { lok = 0; continue; }
             else lok = ord;
@@ -283,6 +284,7 @@ static int resolve(const char *path, uint32_t *parent, const char **last, find_t
 static int resolve_walk(const char *path, uint32_t *parent, const char **last, find_t *f)
 {
     uint32_t dc = root_dc();
+    *parent = 0; *last = NULL;                            /* defined on every error: a missing directory leaves them */
     while (*path == '/') path++;
     for (;;) {
         const char *slash = strchr(path, '/');
@@ -291,7 +293,7 @@ static int resolve_walk(const char *path, uint32_t *parent, const char **last, f
         if (!n || n > 255) return FAT_EINVAL;
         memcpy(comp, path, n); comp[n] = 0;
         find_t ff = { .want = comp };
-        if (walk(dc, 0, find_cb, &ff, 0) != 1) return FAT_ENOENT;
+        if (walk(dc, 0, find_cb, &ff, 0) != 1) return FAT_ENOTDIR;   /* a directory on the way is missing */
         if (!(ff.ent[11] & A_DIR)) return FAT_ENOTDIR;
         dc = first_clus(ff.ent);
         if (!dc) dc = root_dc();
@@ -436,7 +438,7 @@ int fat_open(const char *path, int flags)
     if (fd < 0) return FAT_EMFILE;
     uint32_t dc; const char *last; find_t f;
     int r = resolve(path, &dc, &last, &f);
-    if (r == FAT_ENOENT && (flags & FAT_CREAT) && *last) {
+    if (r == FAT_ENOENT && (flags & FAT_CREAT) && last && *last) {
         uint32_t idx;
         if ((r = create_entry(dc, last, A_ARCH, 0, &idx))) return r;
         if ((r = resolve(path, &dc, &last, &f))) return r;
@@ -577,6 +579,7 @@ int fat_mkdir(const char *path)
     int r = resolve(path, &dc, &last, &f);
     if (!r) return FAT_EEXIST;
     if (r != FAT_ENOENT) return r;
+    if (!last || !*last) return FAT_EINVAL;
     uint32_t c = alloc(0, true);
     if (!c) return FAT_ENOSPC;
     if ((r = create_entry(dc, last, A_DIR, c, 0))) return r;
@@ -617,22 +620,23 @@ int fat_opendir(const char *path)
     return FAT_EMFILE;
 }
 
-typedef struct { char *name; uint32_t *size; bool *dir; } rd_t;
+typedef struct { char *name; size_t max; uint32_t *size; bool *dir; } rd_t;
 static int rd_cb(const char *name, uint8_t *e, uint32_t i, uint32_t l, void *ctx)
 {
     (void)i; (void)l;
     if (!strcmp(name, ".") || !strcmp(name, "..")) return 0;
     rd_t *r = ctx;
-    strcpy(r->name, name);
+    if (r->max) { size_t n = strnlen(name, r->max - 1); memcpy(r->name, name, n); r->name[n] = 0; }
     if (r->size) *r->size = rd32(e + 28);
     if (r->dir) *r->dir = e[11] & A_DIR;
     return 1;
 }
 
-int fat_readdir(int dd, char *name, uint32_t *size, bool *dir)
+int fat_readdir(int dd, char *name, size_t name_max, uint32_t *size, bool *dir)
 {
     if (dd < 0 || dd >= MAXDIRS || !dirs[dd].used) return FAT_EINVAL;
-    rd_t r = { name, size, dir };
+    if (!name || !name_max) return FAT_EINVAL;
+    rd_t r = { name, name_max, size, dir };
     return walk(dirs[dd].dc, dirs[dd].next, rd_cb, &r, &dirs[dd].next);
 }
 
@@ -760,6 +764,7 @@ int fat_rename(const char *from, const char *to)
     r = resolve(to, &dc_new, &l_new, &g);
     if (!r) return FAT_EEXIST;
     if (r != FAT_ENOENT) return r;
+    if (!l_new || !*l_new) return FAT_EINVAL;
     uint8_t keep[32]; memcpy(keep, f.ent, 32);
     uint32_t idx;
     if ((r = create_entry(dc_new, l_new, keep[11], first_clus(keep), &idx))) return r;
