@@ -17,4 +17,5 @@ void   sha_start(sha_ctx_t *c, sha_type_t type);
 void   sha_update(sha_ctx_t *c, const void *data, size_t len);
 void   sha_finish(sha_ctx_t *c, uint8_t *digest);              /* sha_size(type) bytes */
 size_t sha_size(sha_type_t type);
+void   sha_invalidate(void);                                   /* after copying over a context in place (struct assignment): the engine must reload its state from it */
 void   sha(sha_type_t type, const void *data, size_t len, uint8_t *digest);   /* one shot */

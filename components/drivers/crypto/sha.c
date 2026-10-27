@@ -73,6 +73,8 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
     owner = c;
 }
 
+void sha_invalidate(void) { uint32_t st = lock(); owner = 0; unlock(st); }       /* a context struct was overwritten in place: reload the engine state from it */
+
 void sha_start(sha_ctx_t *c, sha_type_t type)
 {
     c->type = type; c->first = true; c->fill = 0; c->total = 0;
