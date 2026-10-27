@@ -1,0 +1,150 @@
+/* Network commands of the peer (lwIP sockets): ping, UDP / TCP echo servers, TCP sender, iperf-like rate tests, HTTP. */
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/semphr.h"
+#include "esp_timer.h"
+#include "lwip/sockets.h"
+#include "lwip/inet.h"
+#include "ping/ping_sock.h"
+#include "esp_http_client.h"
+#include "esp_http_server.h"
+#include "../peer.h"
+
+static SemaphoreHandle_t psem;
+static volatile uint32_t p_ok, p_n, p_time_sum;
+static void p_ok_cb(esp_ping_handle_t h, void *a) { uint32_t t; esp_ping_get_profile(h, ESP_PING_PROF_TIMEGAP, &t, sizeof t); p_ok++; p_time_sum += t; }
+static void p_end_cb(esp_ping_handle_t h, void *a) { xSemaphoreGive(psem); }
+static int cmd_ping(int argc, char **argv)                       /* ping <ip> <count> */
+{
+    if (argc < 3) return -1;
+    if (!psem) psem = xSemaphoreCreateBinary();
+    esp_ping_config_t c = ESP_PING_DEFAULT_CONFIG();
+    ip_addr_t ip; if (!ipaddr_aton(argv[1], &ip)) return -2;
+    c.target_addr = ip; c.count = atoi(argv[2]); c.interval_ms = 50; c.timeout_ms = 1000;
+    esp_ping_callbacks_t cb = { .on_ping_success = p_ok_cb, .on_ping_end = p_end_cb };
+    p_ok = p_time_sum = 0; p_n = c.count;
+    esp_ping_handle_t h;
+    if (esp_ping_new_session(&c, &cb, &h)) return -3;
+    esp_ping_start(h);
+    int ok = xSemaphoreTake(psem, pdMS_TO_TICKS(c.count * 1100 + 2000));
+    esp_ping_stop(h); esp_ping_delete_session(h);
+    printf("ping ok=%u of %u avg_ms=%u\n", (unsigned)p_ok, (unsigned)p_n, p_ok ? (unsigned)(p_time_sum / p_ok) : 0);
+    return ok ? 0 : -4;
+}
+
+static void udp_task(void *a)
+{
+    int port = (int)a, s = socket(AF_INET, SOCK_DGRAM, 0);
+    struct sockaddr_in sa = { .sin_family = AF_INET, .sin_port = htons(port), .sin_addr.s_addr = htonl(INADDR_ANY) };
+    bind(s, (void *)&sa, sizeof sa);
+    static uint8_t buf[1600];
+    for (;;) {
+        struct sockaddr_in from; socklen_t fl = sizeof from;
+        int n = recvfrom(s, buf, sizeof buf, 0, (void *)&from, &fl);
+        if (n > 0) sendto(s, buf, n, 0, (void *)&from, fl);
+    }
+}
+static void tcp_conn_task(void *a)
+{
+    int c = (int)a; static uint8_t buf[2048];
+    for (int n; (n = recv(c, buf, sizeof buf, 0)) > 0;) send(c, buf, n, 0);
+    close(c); vTaskDelete(0);
+}
+static void tcp_task(void *a)
+{
+    int port = (int)a, s = socket(AF_INET, SOCK_STREAM, 0), one = 1;
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    struct sockaddr_in sa = { .sin_family = AF_INET, .sin_port = htons(port), .sin_addr.s_addr = htonl(INADDR_ANY) };
+    bind(s, (void *)&sa, sizeof sa); listen(s, 2);
+    for (;;) { int c = accept(s, 0, 0); if (c >= 0) xTaskCreate(tcp_conn_task, "tcpc", 4096, (void *)c, 5, 0); }
+}
+static int cmd_udp_echo(int argc, char **argv) { return argc < 2 ? -1 : (xTaskCreate(udp_task, "udp", 4096, (void *)atoi(argv[1]), 5, 0) == pdPASS ? 0 : -2); }
+static int cmd_tcp_echo(int argc, char **argv) { return argc < 2 ? -1 : (xTaskCreate(tcp_task, "tcp", 4096, (void *)atoi(argv[1]), 5, 0) == pdPASS ? 0 : -2); }
+
+static int dial(const char *ip, int port)
+{
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in sa = { .sin_family = AF_INET, .sin_port = htons(port) };
+    inet_aton(ip, &sa.sin_addr);
+    if (connect(s, (void *)&sa, sizeof sa)) { close(s); return -1; }
+    return s;
+}
+static int cmd_tcp_send(int argc, char **argv)                   /* tcp_send <ip> <port> <bytes>: pattern i&0xff, then read the echo back and compare */
+{
+    if (argc < 4) return -1;
+    int s = dial(argv[1], atoi(argv[2])); if (s < 0) return -2;
+    unsigned total = atoi(argv[3]), sent = 0, got = 0, bad = 0; uint8_t buf[1024];
+    struct timeval tv = { 5, 0 }; setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    while (got < total) {
+        if (sent < total) { unsigned n = total - sent > sizeof buf ? sizeof buf : total - sent; for (unsigned i = 0; i < n; i++) buf[i] = (sent + i) & 0xFF; int w = send(s, buf, n, 0); if (w > 0) sent += w; }
+        int r = recv(s, buf, sizeof buf, sent < total ? MSG_DONTWAIT : 0);
+        if (r > 0) { for (int i = 0; i < r; i++) if (buf[i] != ((got + i) & 0xFF)) bad++; got += r; }
+        else if (r == 0 || (r < 0 && sent >= total)) break;
+    }
+    close(s);
+    printf("tcp_send sent=%u echoed=%u bad=%u\n", sent, got, bad);
+    return got == total && !bad ? 0 : -3;
+}
+static int cmd_iperf_tx(int argc, char **argv)                   /* iperf_tx <ip> <port> <seconds>: sink side must read */
+{
+    if (argc < 4) return -1;
+    int s = dial(argv[1], atoi(argv[2])); if (s < 0) return -2;
+    static uint8_t buf[1400]; memset(buf, 0x5A, sizeof buf);
+    uint64_t t0 = esp_timer_get_time(), bytes = 0;
+    while (esp_timer_get_time() - t0 < (uint64_t)atoi(argv[3]) * 1000000) { int w = send(s, buf, sizeof buf, 0); if (w < 0) break; bytes += w; }
+    uint64_t us = esp_timer_get_time() - t0; close(s);
+    printf("iperf_tx bytes=%llu kbit_s=%llu\n", bytes, bytes * 8000 / us);
+    return 0;
+}
+static int cmd_iperf_rx(int argc, char **argv)                   /* iperf_rx <port> <seconds>: accept one connection, count bytes */
+{
+    if (argc < 3) return -1;
+    int s = socket(AF_INET, SOCK_STREAM, 0), one = 1; setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    struct sockaddr_in sa = { .sin_family = AF_INET, .sin_port = htons(atoi(argv[1])), .sin_addr.s_addr = htonl(INADDR_ANY) };
+    bind(s, (void *)&sa, sizeof sa); listen(s, 1);
+    struct timeval tv = { atoi(argv[2]) + 10, 0 }; setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    int c = accept(s, 0, 0); close(s);
+    if (c < 0) return -2;
+    static uint8_t buf[2048]; uint64_t t0 = esp_timer_get_time(), bytes = 0;
+    for (int n; (n = recv(c, buf, sizeof buf, 0)) > 0;) bytes += n;
+    uint64_t us = esp_timer_get_time() - t0; close(c);
+    printf("iperf_rx bytes=%llu kbit_s=%llu\n", bytes, us ? bytes * 8000 / us : 0);
+    return 0;
+}
+
+static int cmd_http_get(int argc, char **argv)
+{
+    if (argc < 2) return -1;
+    esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 8000 };
+    esp_http_client_handle_t h = esp_http_client_init(&c);
+    int rc = esp_http_client_open(h, 0);
+    if (rc) { esp_http_client_cleanup(h); return -2; }
+    esp_http_client_fetch_headers(h);
+    int status = esp_http_client_get_status_code(h); unsigned total = 0; char buf[512];
+    for (int n; (n = esp_http_client_read(h, buf, sizeof buf)) > 0;) total += n;
+    esp_http_client_cleanup(h);
+    printf("http status=%d bytes=%u\n", status, total);
+    return status == 200 ? 0 : -3;
+}
+static esp_err_t hello_h(httpd_req_t *r) { return httpd_resp_sendstr(r, "hello"); }
+static esp_err_t big_h(httpd_req_t *r)
+{
+    static char chunk[1024]; memset(chunk, 'x', sizeof chunk);
+    for (int i = 0; i < 64; i++) httpd_resp_send_chunk(r, chunk, sizeof chunk);
+    return httpd_resp_send_chunk(r, 0, 0);
+}
+static int cmd_http_serve(int argc, char **argv)
+{
+    httpd_config_t c = HTTPD_DEFAULT_CONFIG(); httpd_handle_t h;
+    if (argc > 1) c.server_port = atoi(argv[1]);
+    if (httpd_start(&h, &c)) return -1;
+    httpd_uri_t u1 = { .uri = "/hello", .method = HTTP_GET, .handler = hello_h }, u2 = { .uri = "/big", .method = HTTP_GET, .handler = big_h };
+    httpd_register_uri_handler(h, &u1); httpd_register_uri_handler(h, &u2);
+    return 0;
+}
+
+const peer_cmd_t cmds_net[] = { { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
+                                { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_serve", cmd_http_serve }, { 0 } };

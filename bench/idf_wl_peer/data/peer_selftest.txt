@@ -1,0 +1,28 @@
+> ver
+  idf v5.3.5
+  ok
+> mac
+  wifi_sta 30:30:f9:5a:c1:10
+  bt 30:30:f9:5a:c1:12
+  ok
+> wifi_sniff 6 4
+  sniff mgmt=354 ctrl=0 data=47 beacons=318
+  ok
+> wifi_ap NDFTEST - 6
+  ap NDFTEST ch 6 bssid 30:30:f9:5a:c1:11 ip 192.168.4.1
+  ok
+> wifi_stop
+  ok
+> ble_gatts_start
+  ok
+> ble_adv PEERX
+  ok
+> ble_stats
+  notifications 0 last_len 0 connected 0
+  ok
+> ble_adv_stop
+  ok
+> tcp_echo 7
+  ok
+> udp_echo 7
+  ok
