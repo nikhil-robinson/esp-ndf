@@ -45,10 +45,12 @@ endif
 # $(OUT)/app/). UNIT_MAIN = 1 links the generic test runner (make/unit_main.c) instead of an app main().
 SDK_SRCS = $(patsubst $(NDF)/%,%,$(wildcard $(C)/arch/$(ARCH)/*.c $(C)/arch/$(ARCH)/*.S $(C)/soc/$(SOC)/*.c $(C)/drivers/*/*.c $(C)/drivers/*/*.S $(C)/lib/*.c $(C)/lib/*.S $(C)/lib/musl/*.c))
 # C++ runtime (new/delete, ABI hooks) only when the app has C++ sources
+# optional components an app lists in COMPONENTS (components/<c>/*.c and one level of subfolders, not test_apps/include)
+SDK_SRCS += $(patsubst $(NDF)/%,%,$(foreach c,$(COMPONENTS),$(wildcard $(C)/$(c)/*.c) $(filter-out %/test_apps/% %/include/%,$(wildcard $(C)/$(c)/*/*.c))))
 SDK_SRCS += $(if $(wildcard $(APP)/*.cpp),components/lib/cxx/cxx.cpp) $(if $(filter 1,$(UNIT_MAIN)),make/unit_main.c)
 APP_SRCS = $(notdir $(wildcard $(APP)/*.c $(APP)/*.S $(APP)/*.cpp))
 OBJS  = $(patsubst %,$(OUT)/ndf/%.o,$(SDK_SRCS)) $(patsubst %,$(OUT)/app/%.o,$(APP_SRCS))
-INCS  = -I$(C)/include -I$(C)/arch/$(ARCH) -I$(C)/soc/$(SOC) -I$(NDF)/bench -I$(C)/lib/musl $(addprefix -I,$(EXTRA_INCLUDES))
+INCS  = -I$(C)/include -I$(C)/arch/$(ARCH) -I$(C)/soc/$(SOC) -I$(NDF)/bench -I$(C)/lib/musl $(addprefix -I,$(EXTRA_INCLUDES)) $(foreach c,$(COMPONENTS),-I$(C)/$(c)/include)
 # file names in __FILE__ / debug info are relative to the esp-ndf root (or the app): identical binaries from any checkout
 PREFIX_MAPS = -ffile-prefix-map=$(NDF)/=  -ffile-prefix-map=$(APP)/=
 

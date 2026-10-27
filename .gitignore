@@ -15,3 +15,4 @@ bench/idf_rftrace/buildbt/
 build_*/
 managed_components/
 bench/idf_littlefs/components/
+.superpowers/

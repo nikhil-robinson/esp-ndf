@@ -65,6 +65,15 @@ def run_one(app, kv, port, build=True):
         r = subprocess.run(['make', '-C', app, '-j8', 'flash', f'PORT={port}'], capture_output=True, text=True, timeout=300)
         if r.returncode:
             return 'BUILD', (r.stdout + r.stderr)[-600:]
+    if kv.get('TEST_HOST'):                                 # two-board / host-driven test: the script judges by its exit code
+        env = dict(os.environ, NDF_PORT=port, PEER_PORT=boards()['box3'])
+        r = subprocess.run([sys.executable, os.path.join(ROOT, kv['TEST_HOST'])], env=env, capture_output=True, text=True,
+                           timeout=kv['TEST_TIMEOUT'])
+        out = (r.stdout + r.stderr).strip().splitlines()
+        if r.returncode:
+            os.makedirs(os.path.join(ROOT, 'build', 'testlogs'), exist_ok=True)
+            open(os.path.join(ROOT, 'build', 'testlogs', name.replace('/', '__') + '.log'), 'w').write('\n'.join(out) + '\n')
+        return ('PASS' if not r.returncode else 'FAIL'), (out[-1] if out else '')
     pat = re.compile(kv['TEST_PASS'])
     p = subprocess.Popen([sys.executable, os.path.join(ROOT, 'tools', 'run_app.py'), port, '@@never@@', str(kv['TEST_TIMEOUT'])],
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
