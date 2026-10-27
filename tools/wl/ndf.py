@@ -12,6 +12,8 @@ class Ndf:
         self.s.open(); self.buf = b''
         self.read_until(ready, timeout)
 
+    def flush(self): self.s.reset_input_buffer(); self.buf = b''
+
     def read_until(self, marker, timeout):
         out, t0 = [], time.time()
         while time.time() - t0 < timeout:

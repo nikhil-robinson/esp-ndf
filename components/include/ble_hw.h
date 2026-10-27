@@ -34,6 +34,7 @@ void ble_hw_get_stats(ble_hw_stats_t *s);
 int  ble_hw_connected(void);
 void ble_hw_csa2(int on);              /* default on: ChSel set, the central may pick CSA#2; 0 forces CSA#1 */
 int  ble_hw_conn_info(uint8_t *csa2, uint16_t *interval);   /* channel selection in use, interval */
+int  ble_hw_tx_free(void);              /* free slots in the TX queue (8 deep) */
 int  ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len);   /* llid 2 L2CAP, 3 LL control; <= 27 bytes */
 int  ble_hw_ll_control(const ble_hw_pkt_t *p);                       /* answers LL control PDUs; 1 if consumed */
 void ble_hw_debug(uint32_t out[6]);         /* intmask, raw status, ET0 word, clkn, RX desc ptr, ET0 start */

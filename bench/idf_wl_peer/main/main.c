@@ -9,6 +9,8 @@
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "driver/usb_serial_jtag.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "../peer.h"
 
 int hex2bin(const char *h, unsigned char *out, int max)
@@ -26,8 +28,9 @@ static int cmd_mac(int argc, char **argv)
     printf("bt %02x:%02x:%02x:%02x:%02x:%02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
     return 0;
 }
+static int cmd_reboot(int argc, char **argv) { printf("rebooting\nok\n"); fflush(stdout); vTaskDelay(100 / portTICK_PERIOD_MS); esp_restart(); return 0; }
 static int cmd_ver(int argc, char **argv) { printf("idf %s\n", esp_get_idf_version()); return 0; }
-static const peer_cmd_t cmds_main[] = { { "mac", cmd_mac }, { "ver", cmd_ver }, { 0 } };
+static const peer_cmd_t cmds_main[] = { { "mac", cmd_mac }, { "ver", cmd_ver }, { "reboot", cmd_reboot }, { 0 } };
 
 static int run(char *line)
 {

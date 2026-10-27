@@ -58,6 +58,7 @@ static ble_hw_stats_t st;
 #define TXC     0x1440u                          /* our data TX descriptor */
 #define TXCBUF  (TXBUF + 0x40u)
 static volatile uint8_t conn_on;
+static volatile uint8_t term_req;            /* LL_TERMINATE_IND seen: the event-end interrupt ends the link (the core is idle there) */
 static uint8_t own_addr[6];
 static struct {
     uint32_t aa, crcinit;
@@ -373,7 +374,8 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
-        if (conn_on) {
+        if (conn_on && term_req) { term_req = 0; drain(); conn_end(); }
+        else if (conn_on) {
             uint32_t before = st.packets;
             uint64_t sync = 0;                     /* first PDU of the event: CLKN + fine count at sync (RXCLKNSYNC, RXFCNTSYNC[9:0]) */
             uint32_t best = 0xFFFFFFFF;
@@ -480,6 +482,8 @@ int ble_hw_connected(void) { return conn_on; }
 int ble_hw_conn_info(uint8_t *csa2, uint16_t *interval) { *csa2 = cn.csa2; *interval = cn.interval; return conn_on; }
 
 /* queue one LL data PDU (llid 2: L2CAP start, 3: LL control); -1 while the previous one is not acknowledged */
+int ble_hw_tx_free(void) { return (int)((txq_tail + TXQ_N - txq_head - 1) % TXQ_N); }   /* free slots in the TX queue */
+
 int ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len)
 {
     if (!conn_on || len > 27) return -1;
@@ -505,7 +509,7 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
         return 1;
     case 0x01:                                   /* LL_CHANNEL_MAP_IND */
         memcpy(cn.new_chm, d + 1, 5); cn.instant_map = d[6] | d[7] << 8; cn.map_pending = 1; return 1;
-    case 0x02: { uint32_t ps = irq_lock(); if (conn_on) conn_end(); irq_unlock(ps); return 1; }   /* LL_TERMINATE_IND */
+    case 0x02: if (conn_on) term_req = 1; return 1;                  /* LL_TERMINATE_IND: ended at the next event end (not from here: the core may have an event armed) */
     case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP, no features */
         r[0] = 0x09; memset(r + 1, 0, 8); ble_hw_send(3, r, 9); return 1;
     case 0x0C:                                   /* LL_VERSION_IND: 5.0, Espressif (0x02E5) */
