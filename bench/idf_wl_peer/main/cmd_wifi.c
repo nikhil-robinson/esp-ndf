@@ -100,6 +100,9 @@ static int cmd_sniff(int argc, char **argv)                      /* wifi_sniff <
     printf("sniff mgmt=%u ctrl=%u data=%u beacons=%u\n", (unsigned)sn_mgmt, (unsigned)sn_ctrl, (unsigned)sn_data, (unsigned)sn_beacon);
     return 0;
 }
+/* IDF refuses to transmit deauthentication and similar frames raw unless this hook says yes (used to forge one from a foreign BSSID) */
+int ieee80211_raw_frame_sanity_check(int32_t a, int32_t b, int32_t c) { return 0; }
+
 static int cmd_raw(int argc, char **argv)                        /* wifi_raw <ap|sta> <hex frame> */
 {
     uint8_t f[512];
