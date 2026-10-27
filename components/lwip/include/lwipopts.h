@@ -7,7 +7,7 @@
 #define NDF_NET_MEM_SIZE   (24 * 1024)       /* lwIP heap: PCBs, TCP segments, outgoing pbufs */
 #endif
 #ifndef NDF_NET_PBUFS
-#define NDF_NET_PBUFS      10                /* receive buffers of 1536 B */
+#define NDF_NET_PBUFS      8                 /* receive buffers of 1536 B */
 #endif
 #ifndef NDF_NET_TCP_SEGS
 #define NDF_NET_TCP_SEGS   6                 /* TCP window and send buffer in segments */

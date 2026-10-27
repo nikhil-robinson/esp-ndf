@@ -28,12 +28,13 @@ unsigned wifi_build_auth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6]
     return n + 6;
 }
 
-unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, uint16_t seq)
+unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, int rsn, uint16_t seq)
 {
     unsigned n = hdr(o, 0x00, 0, bssid, me, bssid, seq);
     o[n++] = 0x01; o[n++] = 0x00;                                 /* capability: ESS */
     o[n++] = 10; o[n++] = 0;                                      /* listen interval */
     n += ssid_ie(o + n, ssid); n += rates_ie(o + n);
+    if (rsn) { static const uint8_t r[] = { 48, 20, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 2, 0, 0 }; memcpy(o + n, r, sizeof r); n += sizeof r; }   /* RSN: CCMP group, CCMP pairwise, PSK */
     return n;
 }
 

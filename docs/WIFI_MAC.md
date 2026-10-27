@@ -23,6 +23,7 @@ Register layout follows the ESP32 MAC (esp32-open-mac, plain ESP32 only) with th
 | RX modulation | only 1 Mbit/s DSSS is received: beacons of an AP fixed to 6/9/12/24M never arrive (the captured RX state is the DSSS one) | confirmed; OFDM receive is open |
 | Hardware ACK | not working: with the filter slot 0 = our MAC and enable (0x60033064 bit 16) or the BSSID slot set, the AP still retransmits about half of its frames (retry bit). The radio is in RX mode, so no TX chain is up for an ACK | open |
 | Collisions without ACK | the peer repeats a frame for ~4 ms; transmitting inside that window collides with it. `wifi_mac_tx` waits until 4 ms after the last frame addressed to us (`WIFI_QUIET_US`): peer pings 4/20 -> 19-20/20 | confirmed |
+| WPA2 station | 4-way handshake (messages 1-4, group rekey) works against the IDF AP: join 0.5-1.1 s, wrong passphrase -> `-3` in 2.4 s, key install only after a valid message 3. **Open**: after it, no encrypted unicast frame from the AP reaches us (ARP / ICMP / DHCP replies), while group frames decrypt fine and the AP decrypts and forwards ours. An IDF station on the same AP (fixed 1M, WPA2) gets DHCP and pings 5/5. Not a rate problem (all of 1/2/5.5/11M are received); AP-side TX could not be observed | open |
 
 ## Open (blocks Wi-Fi STA/AP)
 

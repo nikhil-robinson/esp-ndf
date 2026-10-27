@@ -8,6 +8,7 @@
 #include "net.h"
 #include "wifi_mac.h"
 #include "lwip/raw.h"
+#include "lwip/dhcp.h"
 #include "lwip/udp.h"
 #include "lwip/tcp.h"
 #include "lwip/stats.h"
@@ -131,7 +132,7 @@ int main(void)
         for (char *p = line; *p && n < 4; ) { while (*p == ' ') *p++ = 0; if (!*p) break; v[n++] = p; while (*p && *p != ' ') p++; }
         if (!n) { printf("ok\n"); continue; }
         if (!strcmp(v[0], "up") && n > 1) {
-            uint32_t t0 = time_ms(); int rc = wifi_init(my); if (!rc) rc = wifi_sta_join(v[1], 0, 5000);
+            uint32_t t0 = time_ms(); int rc = wifi_init(my); if (!rc) rc = wifi_sta_join(v[1], n > 2 ? v[2] : 0, 5000);
             uint32_t tj = time_ms() - t0; uint32_t ip = 0, gw = 0;
             if (!rc) rc = net_start(my);
             while (!rc && net_ip(&ip, &gw) && time_ms() - t0 < 8000) net_poll();
@@ -142,7 +143,10 @@ int main(void)
         else if (!strcmp(v[0], "tcp") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]));
         else if (!strcmp(v[0], "rate") && n > 1) { wifi_set_data_rate(strtoul(v[1], 0, 0)); printf("rate %s\n", v[1]); }
         else if (!strcmp(v[0], "wr") && n > 2) { *(volatile uint32_t *)strtoul(v[1], 0, 0) = strtoul(v[2], 0, 0); printf("wr\n"); }
-        else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
+        else if (!strcmp(v[0], "static") && n > 1) {                  /* static <ip>: after "up": drop DHCP, use this address (netmask /24, gateway .1) */
+            ip4_addr_t a, m, g; parse_ip(v[1], &a); IP4_ADDR(&m, 255, 255, 255, 0); IP4_ADDR(&g, 192, 168, 4, 1);
+            dhcp_stop(net_netif()); netif_set_addr(net_netif(), &a, &m, &g); printf("static %s\n", v[1]);
+        } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
         else if (!strcmp(v[0], "stats"))
             printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
                    (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max, (unsigned)lwip_stats.memp[MEMP_PBUF_POOL]->err);

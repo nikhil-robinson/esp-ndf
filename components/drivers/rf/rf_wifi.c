@@ -53,10 +53,12 @@ int rf_wifi_tx_init(void)
 static uint8_t tx_rate;
 void rf_wifi_set_rate(unsigned r) { tx_rate = (uint8_t)r; }
 
+uint8_t *rf_wifi_tx_buffer(void) { return tx_frame; }       /* build the frame here and pass the same pointer to rf_wifi_tx: no copy */
+
 int rf_wifi_tx(const uint8_t *frame, unsigned len)
 {
     if (len < 10 || len > sizeof tx_frame) return RF_ERR_RANGE;
-    memcpy(tx_frame, frame, len);
+    if (frame != tx_frame) memcpy(tx_frame, frame, len);
     tx_desc[0] = 0xC0000000u | ((uint32_t)len << 12) | len;  /* owner | EOF | size<<12 | len */
     tx_desc[1] = (uint32_t)tx_frame;
     tx_desc[2] = (uint32_t)tx_desc;                          /* next: self */

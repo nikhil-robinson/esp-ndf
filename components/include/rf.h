@@ -159,6 +159,7 @@ void rf_pkt_stop(void);
 void rf_wifi_set_rate(unsigned rate);            /* IDF rate code for the next rf_wifi_tx (0 = 1 Mbit/s DSSS) */
 int  rf_wifi_set_channel(unsigned ch);           /* 1..13, applied at the next tx_init / rx_init */
 int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
+uint8_t *rf_wifi_tx_buffer(void);                /* the frame buffer rf_wifi_tx sends from (1600 B): build in place, pass this pointer */
 int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11 frame (10..1600 B) */
 int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */
 int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next received frame -> out; returns length, 0 on timeout */

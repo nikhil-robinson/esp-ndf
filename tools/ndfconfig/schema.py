@@ -61,7 +61,7 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
     ('menu', 'Network (lwIP)', [
         dict(key='NDF_NET_MEM_SIZE', type='int', default=24576, target='h', label='lwIP heap (bytes)', range=(4096, 262144),
              help='PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks.'),
-        dict(key='NDF_NET_PBUFS', type='int', default=10, target='h', label='Receive buffers (1536 B each)', range=(4, 64),
+        dict(key='NDF_NET_PBUFS', type='int', default=8, target='h', label='Receive buffers (1536 B each)', range=(4, 64),
              help='Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop).'),
         dict(key='NDF_NET_TCP_SEGS', type='int', default=6, target='h', label='TCP window / send buffer (segments)', range=(2, 32),
              help='Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS.'),

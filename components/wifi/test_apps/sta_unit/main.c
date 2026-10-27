@@ -36,7 +36,7 @@ int main(void)
             for (unsigned i = 0; i < c; i++)
                 printf("ap %02x:%02x:%02x:%02x:%02x:%02x ch %d rssi %d sec %d ssid %s\n", a[i].bssid[0], a[i].bssid[1], a[i].bssid[2], a[i].bssid[3], a[i].bssid[4], a[i].bssid[5], a[i].chan, a[i].rssi, a[i].sec, a[i].ssid);
             printf("scan %u aps in %lu ms\n", c, (unsigned long)(time_ms() - t0));
-        } else if (!strcmp(v[0], "join") && n > 1) { uint32_t t0 = time_ms(); int rc = wifi_sta_join(v[1], 0, 5000); printf("join %d in %lu ms\n", rc, (unsigned long)(time_ms() - t0)); }
+        } else if (!strcmp(v[0], "join") && n > 1) { uint32_t t0 = time_ms(); int rc = wifi_sta_join(v[1], n > 2 ? v[2] : 0, 5000); printf("join %d in %lu ms\n", rc, (unsigned long)(time_ms() - t0)); }
         else if (!strcmp(v[0], "status")) printf("status up %d eth %u\n", wifi_sta_up(), eth_n);
         else if (!strcmp(v[0], "poll") && n > 1) { uint32_t t0 = time_ms(), ms = atoi(v[1]); while (time_ms() - t0 < ms) wifi_poll(); printf("status up %d eth %u\n", wifi_sta_up(), eth_n); }
         else if (!strcmp(v[0], "arp") && n > 1) {

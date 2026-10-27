@@ -13,8 +13,9 @@ def check(c, msg):
     print(('ok   ' if c else 'FAIL ') + msg)
     if not c: fail.append(msg)
 
-p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6 0'); time.sleep(1)
-u = n.cmd('up T', 30)[-1]
+p.cmd('wifi_stop'); PASS = os.environ.get('WL_PASS')                         # set: the network is WPA2-PSK and every packet goes through CCMP
+p.cmd('wifi_ap T %s 6 0' % (PASS or '-')); time.sleep(1)
+u = n.cmd('up T' + (' ' + PASS if PASS else ''), 30)[-1]
 m = re.search(r'up rc (-?\d+) join_ms (\d+) total_ms (\d+) ip (\S+) gw (\S+)', u)
 check(m and m.group(1) == '0' and m.group(4).startswith('192.168.4.') and m.group(5) == '192.168.4.1' and int(m.group(3)) < 6000, 'join + DHCP in < 6 s (a lost first DISCOVER costs a retry): %s' % u)
 ip = m.group(4) if m else '192.168.4.2'

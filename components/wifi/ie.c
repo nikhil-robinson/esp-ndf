@@ -26,6 +26,7 @@ int wifi_parse_beacon(const uint8_t *f, unsigned len, wifi_ap_t *ap)
     if (l < 0 || l > 32) return -1;                             /* a beacon without a valid SSID element is malformed */
     memcpy(ap->ssid, v, (unsigned)l);
     ap->chan = (l = wifi_ie_find(ie, n, 3, &v)) == 1 ? v[0] : 0;
-    ap->sec = (f[34] & 0x10) != 0;                              /* capability: privacy */
+    ap->sec = (f[34] & 0x10) != 0;                              /* capability: privacy: 1 = WEP / WPA / WPA2 */
+    if ((l = wifi_ie_find(ie, n, 48, &v)) >= 8 && v[0] == 1) ap->sec = 2;   /* RSN element present: WPA2 */
     return 0;
 }

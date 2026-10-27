@@ -156,12 +156,12 @@ static int cmd_unicast(int argc, char **argv)
 }
 
 /* wifi_watch <mac>: promiscuous counter of frames whose transmitter address is <mac> (works next to a running AP); wifi_watch_stats prints it */
-static uint8_t watch_mac[6]; static volatile uint32_t w_n; static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate; } w_log[6];
+static uint8_t watch_mac[6]; static volatile uint32_t w_n; static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate; } w_log[16];
 static void watch_cb(void *buf, wifi_promiscuous_pkt_type_t t)
 {
     wifi_promiscuous_pkt_t *p = buf;
     if (p->rx_ctrl.sig_len < 16 || memcmp(p->payload + 10, watch_mac, 6)) return;
-    if (w_n < 6) w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], p->rx_ctrl.sig_len, p->rx_ctrl.rssi, p->rx_ctrl.rate };
+    if (w_n < 16) w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], p->rx_ctrl.sig_len, p->rx_ctrl.rssi, p->rx_ctrl.rate };
     w_n++;
 }
 static int cmd_watch(int argc, char **argv)
@@ -176,10 +176,17 @@ static int cmd_watch(int argc, char **argv)
 static int cmd_watch_stats(int argc, char **argv)
 {
     printf("watch frames=%u\n", (unsigned)w_n);
-    for (unsigned i = 0; i < w_n && i < 6; i++) printf("  fc %02x%02x len %u rssi %d rate %u\n", w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rssi, w_log[i].rate);
+    for (unsigned i = 0; i < w_n && i < 16; i++) printf("  fc %02x%02x len %u rssi %d rate %u\n", w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rssi, w_log[i].rate);
+    return 0;
+}
+static int cmd_stas(int argc, char **argv)                          /* wifi_stas: stations of the AP and the addresses its DHCP server gave out */
+{
+    wifi_sta_list_t l; if (esp_wifi_ap_get_sta_list(&l)) return -1;
+    printf("stas %d\n", l.num);
+    for (int i = 0; i < l.num; i++) printf("  %02x:%02x:%02x:%02x:%02x:%02x rssi %d\n", l.sta[i].mac[0], l.sta[i].mac[1], l.sta[i].mac[2], l.sta[i].mac[3], l.sta[i].mac[4], l.sta[i].mac[5], l.sta[i].rssi);
     return 0;
 }
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_unicast", cmd_unicast }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_unicast", cmd_unicast }, { 0 } };

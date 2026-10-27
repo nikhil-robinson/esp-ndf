@@ -46,12 +46,15 @@ int wifi_mac_tx(const uint8_t *frame, unsigned len) { return wifi_mac_tx_rate(fr
 int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate)
 {
     if (len < 10 || len > MAXF - 4) return RF_ERR_RANGE;
-    static uint8_t f[MAXF];
-    memcpy(f, frame, len);
+    uint8_t *f = rf_wifi_tx_buffer();
+    if (frame != f) memcpy(f, frame, len);
     uint32_t c = crc32_le(0, f, len);                        /* the hardware does not append the FCS (docs/WIFI_MAC.md) */
     for (int i = 0; i < 4; i++) f[len + i] = (uint8_t)(c >> 8 * i);
     /* No hardware ACK: the sender repeats a frame to us for a few ms. Sending in the middle of that only collides with it (measured: 4 of 20 peer pings answered). */
-    while (time_us() - last_mine < WIFI_QUIET_US) {}
+    while (time_us() - last_mine < WIFI_QUIET_US) {                  /* watch the air meanwhile: each repeat of a frame to us restarts the wait (the repeats are not delivered again) */
+        uint8_t drop[16];                                  /* only the addresses are needed */
+        if (rf_wifi_rx(drop, sizeof drop, 0) >= 10 && !memcmp(drop + 4, my, 6)) last_mine = time_us();
+    }
     rf_wifi_set_rate(rate);
     int rc = rf_wifi_tx_init();
     if (!rc) { delay_us(1000); rc = rf_wifi_tx(f, len + 4); }   /* the TX front end needs ~1 ms to settle (measured) */
