@@ -36,3 +36,15 @@ int  gatts_advertise(const uint8_t addr[6], uint32_t interval_us);              
 void gatt_poll(uint32_t wait_us);                                               /* main loop: sleep up to wait_us for a PDU, then drain the link layer: ATT, LL control, L2CAP signalling */
 int  gatts_notify(const gatt_chr_t *c, const uint8_t *v, unsigned n);          /* 0 sent; < 0 not connected / not subscribed / n > 20 / link busy */
 int  gatts_indicate(const gatt_chr_t *c, const uint8_t *v, unsigned n);        /* as notify, one in flight until the central confirms */
+
+/* ---- GATT client (gattc.c): the same connection, the other role. Calls block (running gatt_poll) until the answer or a 5 s timeout.
+ * Return: >= 0 success (length / count), -1 not connected or timeout, -(0x100 + code) an ATT error from the server. */
+typedef struct { uint16_t svc_start, svc_end, uuid16; } gattc_svc_t;                    /* uuid16 = 0 for a 128-bit service */
+typedef struct { uint16_t decl, value, cccd; uint8_t props; uint16_t uuid16; } gattc_chr_t;   /* cccd = 0 when the characteristic has none */
+int gattc_discover(gattc_svc_t *s, unsigned max, unsigned *n);                         /* all primary services */
+int gattc_chars(const gattc_svc_t *s, gattc_chr_t *c, unsigned max, unsigned *n);      /* the service's characteristics, with CCCD handles */
+int gattc_read(uint16_t handle, uint8_t *out, unsigned max);                            /* reads past one PDU with Read Blob */
+int gattc_write(uint16_t handle, const uint8_t *v, unsigned n, int with_response);      /* n <= 20 */
+int gattc_subscribe(const gattc_chr_t *c, int indicate, void (*cb)(uint16_t handle, const uint8_t *v, unsigned n));   /* writes the CCCD; cb runs inside gatt_poll */
+void gattc_rx(const uint8_t *pdu, unsigned n);                                          /* gap.c: a client-bound ATT PDU arrived */
+int  gatt_send_att(const uint8_t *att, unsigned n);                                     /* gap.c: one ATT PDU on the link */

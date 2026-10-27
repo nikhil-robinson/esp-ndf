@@ -11,6 +11,7 @@ gcc $F tools/fuzz/fuzz_wl.c components/drivers/storage/wl.c components/lib/crc32
 gcc $F tools/fuzz/fuzz_msc.c components/drivers/usb/usb_msc.c -o $O/msc
 gcc $F tools/test_pfs.c components/drivers/storage/pfs.c components/lib/crc32.c -o $O/pfs
 gcc $F -Icomponents/ble_host/include tools/fuzz/test_att.c components/ble_host/att.c -o $O/att
+gcc $F -Icomponents/ble_host/include -DHOST_FUZZ tools/fuzz/fuzz_gattc.c components/ble_host/gattc.c -o $O/gattc
 gcc $F tools/fuzz/test_ota_sig.c components/lib/ecc.c components/lib/p256_comb.c -o $O/sig
 $O/fat $((20000 * K)) 7
 $O/flashfs spiffs $((10000 * K)) 7
@@ -19,6 +20,7 @@ $O/wl $((20000 * K)) 7
 $O/msc $((300000 * K)) 7
 $O/pfs $((20000 * K)) 7
 $O/att $((300000 * K)) 7
+$O/gattc $((20000 * K)) 7
 python3 - $O <<'PY'
 import sys, hashlib, struct, subprocess, os
 from cryptography.hazmat.primitives.asymmetric import ec

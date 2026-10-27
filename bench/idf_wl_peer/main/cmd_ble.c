@@ -88,9 +88,9 @@ static void notify_task(void *a)
         int burst = esp_timer_get_time() < burst_until_us;
         vTaskDelay(burst ? 1 : pdMS_TO_TICKS(100));
         if (conn == BLE_HS_CONN_HANDLE_NONE || !sub_state) continue;
-        srv_counter++;
-        struct os_mbuf *om = ble_hs_mbuf_from_flat(&srv_counter, 4);
-        if (om) ble_gatts_notify_custom(conn, notify_handle, om);
+        uint32_t next = srv_counter + 1;                       /* the value advances only when the stack took the notification */
+        struct os_mbuf *om = ble_hs_mbuf_from_flat(&next, 4);
+        if (om && ble_gatts_notify_custom(conn, notify_handle, om) == 0) srv_counter = next;
     }
 }
 

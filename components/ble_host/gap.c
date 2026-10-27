@@ -34,6 +34,8 @@ int gatts_advertise(const uint8_t addr[6], uint32_t interval_us)
 }
 
 static uint8_t pend[GATT_MTU]; static unsigned pend_n;         /* one response that did not fit the TX queue yet */
+static int l2cap_att(const uint8_t *att, unsigned n);
+int gatt_send_att(const uint8_t *att, unsigned n) { return l2cap_att(att, n); }
 static int l2cap_att(const uint8_t *att, unsigned n)          /* one ATT PDU in an L2CAP frame (CID 4) */
 {
     uint8_t f[27];
@@ -48,7 +50,8 @@ static void l2cap(const uint8_t *d, unsigned len)
     if (len < 4) return;
     unsigned l = d[0] | d[1] << 8, cid = d[2] | d[3] << 8;
     if (l + 4 > len) return;                                   /* a fragmented SDU: not used at MTU 23 */
-    if (cid == 4) {
+    if (cid == 4 && l && (d[4] & 1)) gattc_rx(d + 4, l);        /* odd ATT opcodes (responses, errors, notifications) belong to the client */
+    else if (cid == 4) {
         uint8_t r[GATT_MTU];
         int rl = att_handle(d + 4, l, r, sizeof r);
         if (rl > 0 && l2cap_att(r, (unsigned)rl) < 0 && !pend_n) { memcpy(pend, r, (unsigned)rl); pend_n = (unsigned)rl; }
