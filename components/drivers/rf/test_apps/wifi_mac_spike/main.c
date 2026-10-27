@@ -31,7 +31,59 @@ int main(void)
         for (char *p = line; *p && n < 6; ) { while (*p == ' ') *p++ = 0; if (!*p) break; v[n++] = p; while (*p && *p != ' ') p++; }
         if (!n) { printf("ok\n"); continue; }
         if (!strcmp(v[0], "rxinit")) printf("rxinit %d\n", rf_wifi_rx_init());
-        else if (!strcmp(v[0], "ring")) { const uint32_t (*r)[4] = rf_wifi_rx_ring(); for (int i = 0; i < 4; i++) printf("d%d %08x %08x %08x %08x\n", i, (unsigned)r[i][0], (unsigned)r[i][1], (unsigned)r[i][2], (unsigned)r[i][3]); }
+        else if (!strcmp(v[0], "time")) {
+            for (int i = 0; i < 3; i++) {
+                uint32_t a = ccount(); rf_wifi_tx_init(); uint32_t b = ccount(); rf_wifi_rx_init(); uint32_t c = ccount();
+                printf("tx_init %lu us, rx_init %lu us\n", (unsigned long)((b - a) / 240), (unsigned long)((c - b) / 240));
+            }
+        } else if (!strcmp(v[0], "auth") && n > 2) {          /* auth <bssid> <mymac>: open-system authentication request, then listen */
+            unsigned bs[6], me[6]; if (parse_mac(v[1], bs) || parse_mac(v[2], me)) { printf("bad mac\n"); continue; }
+            uint8_t f[36] = { 0xB0, 0x00, 0x3A, 0x01 };
+            for (int i = 0; i < 6; i++) { f[4 + i] = (uint8_t)bs[i]; f[10 + i] = (uint8_t)me[i]; f[16 + i] = (uint8_t)bs[i]; my[i] = (uint8_t)me[i]; }
+            f[22] = 0x10; f[23] = 0x00; f[24] = 0; f[25] = 0; f[26] = 1; f[27] = 0; f[28] = 0; f[29] = 0;
+            unsigned flen = 30; uint8_t bb[6]; for (int i = 0; i < 6; i++) bb[i] = (uint8_t)bs[i];
+            if (n > 3 && !strcmp(v[3], "probe")) {                  /* broadcast probe request: the AP answers it with a unicast probe response and needs no state */
+                static const uint8_t ie[8] = { 0, 0, 1, 4, 0x82, 0x84, 0x8b, 0x96 };
+                f[0] = 0x40; f[1] = 0; for (int i = 0; i < 6; i++) { f[4 + i] = 0xFF; f[16 + i] = 0xFF; }
+                memcpy(f + 24, ie, 8); flen = 32;
+            }
+            if (n > 4 && !strcmp(v[4], "fcs")) {                    /* append the frame check sequence ourselves: IEEE CRC-32, little endian */
+                uint32_t c = 0xFFFFFFFFu;
+                for (unsigned i = 0; i < flen; i++) { c ^= f[i]; for (int k = 0; k < 8; k++) c = c & 1 ? c >> 1 ^ 0xEDB88320u : c >> 1; }
+                c = ~c; for (int i = 0; i < 4; i++) f[flen + i] = (uint8_t)(c >> 8 * i); flen += 4;
+            }
+            R32(0x60033040) = me[0] | me[1] << 8 | me[2] << 16 | me[3] << 24; R32(0x60033044) = me[4] | me[5] << 8;
+            for (int attempt = 0; attempt < 3; attempt++) {
+                rf_wifi_tx_init(); delay_us(1000); int rc = rf_wifi_tx(f, flen);          /* settle time after the TX front end comes up (measured below) */
+                delay_us(192 + 8 * (flen + 4) + 100);                  /* the done flag comes before the frame has left the air: 1 Mbit/s, long preamble */
+                uint32_t t0 = ccount(); rf_wifi_rx_init(); uint32_t sw = (ccount() - t0) / 240;
+                R32(0x60033040) = me[0] | me[1] << 8 | me[2] << 16 | me[3] << 24; R32(0x60033044) = me[4] | me[5] << 8;
+                static uint8_t b[1700]; uint32_t got = 0, tot = 0, t1 = ccount();
+                while ((ccount() - t1) / 240000u < 150) {
+                    int l = rf_wifi_rx(b, sizeof b, 5); if (l < 24) continue;
+                    const uint32_t *hh = (const uint32_t *)rf_wifi_rx_header(), dl = (rf_wifi_rx_desc()[0] >> 12) & 0xFFF;
+                    tot++; if (!memcmp(b + 4, f + 10, 6)) printf("    (to me: fc %02x%02x len %d a2 %02x%02x%02x%02x%02x%02x rssi %d)\n", b[0], b[1], l, b[10], b[11], b[12], b[13], b[14], b[15], (int8_t)(hh[0] & 0xFF)); if (b[0] != 0x80 && tot < 40) printf("    (any frame: fc %02x%02x len %d a1 %02x%02x%02x%02x%02x%02x a2 %02x%02x%02x%02x%02x%02x)\n", b[0], b[1], l, b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]);
+                    if (memcmp(b + 10, bb, 6) || b[0] == 0x80) continue;                          /* from the AP only */
+                    printf("  attempt %d: tx %d, switch %lu us, AP frame fc %02x%02x len %d rssi %d: %02x %02x %02x %02x %02x %02x\n", attempt, rc, (unsigned long)sw, b[0], b[1], l, (int8_t)(hh[0] & 0xFF), b[24], b[25], b[26], b[27], b[28], b[29]);
+                    got++;
+                }
+                if (!got) printf("  attempt %d: tx %d, switch %lu us, nothing from the AP (%lu valid frames)\n", attempt, rc, (unsigned long)sw, (unsigned long)tot);
+                else break;
+            }
+        } else if (!strcmp(v[0], "ring")) { const uint32_t (*r)[4] = rf_wifi_rx_ring(); for (int i = 0; i < 4; i++) printf("d%d %08x %08x %08x %08x\n", i, (unsigned)r[i][0], (unsigned)r[i][1], (unsigned)r[i][2], (unsigned)r[i][3]); }
+        else if (!strcmp(v[0], "find") && n > 1) {              /* find <text> [ms]: report every receive buffer (headerless too) that contains text */
+            uint32_t ms = n > 2 ? strtoul(v[2], 0, 0) : 2000, t0 = ccount(), hit = 0, seen = 0; const uint32_t (*r)[4] = rf_wifi_rx_ring(); unsigned tl = strlen(v[1]);
+            while ((ccount() - t0) / 240000u < ms) for (int i = 0; i < 8; i++) {
+                if (!(r[i][0] & 0x40000000u)) continue;
+                const uint8_t *bf = (const uint8_t *)r[i][1]; seen++;
+                for (unsigned j = 0; j + tl <= 400; j++) if (!memcmp(bf + j, v[1], tl)) {
+                    hit++; if (hit <= 4) printf("  hit buf %d at %u: desc %08x hdr0 %08x hdr11 %08x a2 %02x%02x%02x%02x%02x%02x fc %02x%02x\n", i, j, (unsigned)r[i][0], (unsigned)((const uint32_t *)bf)[0], (unsigned)((const uint32_t *)bf)[11], bf[58], bf[59], bf[60], bf[61], bf[62], bf[63], bf[48], bf[49]);
+                    break; }
+                ((uint32_t *)r[i])[0] = ((uint32_t *)r[i])[3] = 0x80000000u | 1664;   /* re-arm */
+            }
+            printf("find %s: %lu hits in %lu buffers\n", v[1], (unsigned long)hit, (unsigned long)seen);
+        } else if (!strcmp(v[0], "rftx")) printf("rftx %d\n", rf_tx_start());
+        else if (!strcmp(v[0], "rfrx")) printf("rfrx %d\n", rf_rx_start());
         else if (!strcmp(v[0], "txinit")) printf("txinit %d\n", rf_wifi_tx_init());
         else if (!strcmp(v[0], "mac") && n > 1) {
             unsigned m[6]; if (parse_mac(v[1], m)) { printf("bad mac\n"); continue; }
@@ -45,7 +97,6 @@ int main(void)
             while ((ccount() - t0) / 240000u < ms) {
                 int l = rf_wifi_rx(b, sizeof b, 20); if (l <= 0) continue;
                 const uint32_t *hh = (const uint32_t *)rf_wifi_rx_header(), dl = (rf_wifi_rx_desc()[0] >> 12) & 0xFFF;
-                if ((hh[11] & 0xFFF) + 45 != dl) { bad++; continue; }                  /* no MAC header: a continuation / stale buffer */
                 got++; byt[(b[0] >> 2) & 3]++;
                 for (int j = 24; j + 9 <= l; j++) if (!memcmp(b + j, "RAWBEACON", 9)) { tagged++; break; }
                 static const uint8_t peer[6] = { 0x30, 0x30, 0xf9, 0x5a, 0xc1, 0x11 }, peer2[6] = { 0x30, 0x30, 0xf9, 0x5a, 0xc1, 0x10 };

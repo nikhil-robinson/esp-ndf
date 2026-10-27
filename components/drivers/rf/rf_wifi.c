@@ -28,6 +28,10 @@ const uint32_t (*rf_wifi_rx_ring(void))[4] { return rx_desc; }   /* the 4 RX des
 const uint32_t *rf_wifi_rx_desc(void) { return last_desc; }   /* descriptor words of the frame rf_wifi_rx returned last */
 const uint8_t *rf_wifi_rx_header(void) { return last_hdr; }   /* the 48-byte MAC receive header of the frame rf_wifi_rx returned last */
 
+/* The TX and RX register sets each leave state the other does not rewrite; after a TX replay the receiver stays dead even when the RX set is
+ * replayed again (measured). Pulsing the MAC reset (SYSTEM_WIFI_RST bit 2: MAC only, the RF/baseband setup stays) before each replay fixes it. */
+static void mac_reset(void) { *(volatile uint32_t *)0x60026018 |= 4; *(volatile uint32_t *)0x60026018 &= ~4u; }
+
 static void replay(const rf_reg_t *r, unsigned n)
 {
     for (unsigned i = 0; i < n; i++) *(volatile uint32_t *)r[i].addr = r[i].value;
@@ -38,6 +42,7 @@ int rf_wifi_tx_init(void)
     int rc = rf_set_freq_khz(WIFI_CH_KHZ); if (rc) return rc;
     rc = rf_tx_start(); if (rc) return rc;
     rf_tone_off();                                           /* free the DAC path for the baseband modem */
+    mac_reset();
     replay(rf_wifi_tx_regs, sizeof rf_wifi_tx_regs / sizeof rf_wifi_tx_regs[0]);
     return RF_OK;
 }
@@ -65,6 +70,7 @@ int rf_wifi_rx_init(void)
 {
     int rc = rf_set_freq_khz(WIFI_CH_KHZ); if (rc) return rc;
     rc = rf_rx_start(); if (rc) return rc;
+    mac_reset();
     replay(rf_wifi_rx_regs, sizeof rf_wifi_rx_regs / sizeof rf_wifi_rx_regs[0]);
     for (int i = 0; i < WRX_N; i++) {
         rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED;
@@ -85,8 +91,9 @@ int rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms)
     while ((ccount() - t0) / 240000u < timeout_ms) {
         for (int i = 0; i < WRX_N; i++) {
             if (!(rx_desc[i][0] & 0x40000000u)) continue;                             /* bit 30 (has data) is set by the MAC when the frame is complete */
+            unsigned len = *(volatile uint32_t *)(rx_buf[i] + 44) & 0xFFF, dl = (rx_desc[i][0] >> 12) & 0xFFF;   /* frame length from the header; buffer length from the descriptor */
+            if (dl < len + 44 || dl > len + 46) { rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED; continue; }          /* no MAC header: a continuation buffer (descriptor length = frame + 45, +-1 measured) */
             memcpy(last_desc, rx_desc[i], sizeof last_desc);
-            unsigned len = *(volatile uint32_t *)(rx_buf[i] + 44) & 0xFFF;            /* frame length from the header */
             if (len > WRX_BUF - WRX_HDR) len = WRX_BUF - WRX_HDR;
             if (len > max) len = max;
             memcpy(last_hdr, rx_buf[i], WRX_HDR);
