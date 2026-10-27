@@ -160,6 +160,9 @@ int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, r
 int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11 frame (10..1600 B) */
 int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */
 int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next received frame -> out; returns length, 0 on timeout */
+const uint32_t *rf_wifi_rx_desc(void);
+const uint32_t (*rf_wifi_rx_ring(void))[4];
+const uint8_t *rf_wifi_rx_header(void);         /* 48-byte receive header of the frame rf_wifi_rx returned last (rate, rssi, flags: docs/WIFI_MAC.md) */
 
 /* ---- 802.15.4 O-QPSK by DAC waveform (4.3) ---------------------------------------------------------
  * The S3 has no 802.15.4 radio; this synthesises the O-QPSK/DSSS baseband at 40 MS/s to play through

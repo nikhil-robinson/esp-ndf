@@ -1,0 +1,26 @@
+# Wi-Fi MAC on the ESP32-S3 without the vendor stack - findings
+
+Measured with `components/drivers/rf/test_apps/wifi_mac_spike` (DEVKIT) against the IDF peer (`bench/idf_wl_peer`, BOX-3), 2026-10-27.
+Register layout follows the ESP32 MAC (esp32-open-mac, plain ESP32 only) with the S3 base `0x60033000`; offsets confirmed on the S3 are marked.
+
+| What | Where / value | Status |
+|---|---|---|
+| MAC address filter slot 0 / 1 | `0x60033040/44`, `0x60033048/4C` (addr[0..3], addr[4..5]) | present in the captured vendor state (holds the board MAC) |
+| filter mask / ACK-enable | `0x60033060/68` = 0xFFFFFFFF; `0x60033064/6C`, bit 16 = enable (value 0x0001FFFF) | present; **effect on ACKs not yet demonstrated** |
+| BSSID filter slot 0 | `0x60033000/04` value, `0x60033020/24` mask + enable (bit 16) | present (value 0, disabled in the vendor RX state) |
+| RX ring head | `0x60033088` (copies at `..8C/90/94/98`), low 20 bits of the first descriptor | works (rf_wifi.c) |
+| RX descriptor word0 | bit 31 owner (stays set), **bit 30 = MAC set it: frame complete**, bits 23:12 = length (= frame length + 45, includes the 48-byte header), bits 11:0 = buffer size | confirmed |
+| RX header (48 B) | word0 bits 7:0 RSSI (int8), 12:8 rate (0 = 1 Mbit/s long preamble), word 11 bits 11:0 = frame length | confirmed on beacons (rate 0, -8 dBm, length 155) |
+| RX buffers | must hold a whole frame: with 256-byte buffers long (encrypted) frames spill into following descriptors that carry no header (looked like garbage). 8 x 1664 B now | confirmed |
+| TX | PLCP0 `0x60033D08` (descriptor low 20 bits, bit 31/30 = start), PLCP1 `0x600342F8` (len, rate), HTSIG `0x60034300`, CONF `0x60033D04`, done flag `0x60033C3C` bit 1 | works (4.2) |
+| DSSS 1M reception | beacons from the IDF AP at 100 ms | works |
+
+## Open (blocks Wi-Fi STA/AP)
+
+1. **TX/RX turnaround and ACK.** `rf_wifi_tx_init` and `rf_wifi_rx_init` each retune and replay a whole register set (ms); after one TX the receiver is dead until `rf_wifi_rx_init` runs again. A Wi-Fi ACK is due 10 us after a frame, so ACK transmission and the wait for the peer's ACK must be done by the MAC/PHY sequencer, which means one analog + digital state that holds both paths (what the vendor PHY leaves while connected). Needs: capture that state with `bench/idf_phydump` (connected STA, idle) and diff against our RX and TX sets.
+2. ACK-enable demonstration: requires a sender that transmits directed frames. The peer's `esp_wifi_80211_tx` (STA or AP interface, data, probe request, even a tagged beacon) never reached the air in this setup (accepted, `ESP_OK`, nothing received while its real AP beacons were); do not use it as a frame source. Use a real association (peer AP) instead: its directed replies repeat with the retry bit until acknowledged.
+3. TX status / retry bits, rate field values for 6/54 Mbit/s, hardware CCMP, beacon timer: not probed yet.
+
+## Gate result (plan Task 3 step 5)
+
+(a)/(b)/(f)/(g) unanswered until open item 1 is solved; Wi-Fi tasks (6-12) are re-estimated as a reverse-engineering track. BLE (Phase C) does not depend on any of this and proceeds first.

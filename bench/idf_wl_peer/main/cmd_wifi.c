@@ -103,7 +103,48 @@ static int cmd_raw(int argc, char **argv)                        /* wifi_raw <ap
     int n = hex2bin(argv[2], f, sizeof f);
     return esp_wifi_80211_tx(!strcmp(argv[1], "ap") ? WIFI_IF_AP : WIFI_IF_STA, f, n, true);
 }
+
+/* wifi_unicast <chan> <dst mac> <n> [rate 1m|6m|54m] [len]: send n directed data frames (peer STA mac as source) 30 ms apart and
+ * count the ACK control frames addressed to us that the sniffer hears: tells whether the destination acknowledged. */
+static volatile uint32_t uc_acks; static uint8_t uc_ta[6];
+static void uc_cb(void *buf, wifi_promiscuous_pkt_type_t t)
+{
+    wifi_promiscuous_pkt_t *p = buf;
+    if (t == WIFI_PKT_CTRL && p->payload[0] == 0xD4 && !memcmp(p->payload + 4, uc_ta, 6)) uc_acks++;
+}
+static int cmd_unicast(int argc, char **argv)
+{
+    if (wifi_boot() || argc < 4) return -1;
+    halt();
+    unsigned v[6]; if (sscanf(argv[2], "%x:%x:%x:%x:%x:%x", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) != 6) return -2;
+    int n = atoi(argv[3]); unsigned len = argc > 5 ? atoi(argv[5]) : 60; if (len < 32) len = 32; if (len > 400) len = 400;
+    wifi_phy_rate_t rate = WIFI_PHY_RATE_6M;
+    if (argc > 4 && !strcmp(argv[4], "1m")) rate = WIFI_PHY_RATE_1M_L; else if (argc > 4 && !strcmp(argv[4], "54m")) rate = WIFI_PHY_RATE_54M;
+    int ap = argc > 6 && !strcmp(argv[6], "ap");               /* send from the AP interface (an unassociated STA drops raw frames) */
+    wifi_interface_t ifx = ap ? WIFI_IF_AP : WIFI_IF_STA;
+    if (ap) {
+        wifi_config_t c = { 0 }; strcpy((char *)c.ap.ssid, "SPIKE"); c.ap.ssid_len = 5; c.ap.channel = atoi(argv[1]); c.ap.max_connection = 2; c.ap.beacon_interval = 1000;
+        esp_wifi_set_mode(WIFI_MODE_AP); esp_wifi_set_config(WIFI_IF_AP, &c); esp_wifi_start();
+    } else { esp_wifi_set_mode(WIFI_MODE_STA); esp_wifi_start(); esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
+    mode_on = 1;
+    esp_wifi_config_80211_tx_rate(ifx, rate);
+    esp_wifi_get_mac(ifx, uc_ta);
+    wifi_promiscuous_filter_t f = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL }; esp_wifi_set_promiscuous_filter(&f);
+    uc_acks = 0; esp_wifi_set_promiscuous_rx_cb(uc_cb); esp_wifi_set_promiscuous(true);
+    /* directed probe request (management frames are always sent; raw data frames to a non-associated station are dropped) */
+    uint8_t fr[400] = { 0x40, 0x00, 0, 0 };
+    for (int i = 0; i < 6; i++) { fr[4 + i] = v[i]; fr[10 + i] = uc_ta[i]; fr[16 + i] = v[i]; }
+    static const uint8_t ies[] = { 0x00, 0x00, 0x01, 0x04, 0x82, 0x84, 0x8b, 0x96 };
+    memcpy(fr + 24, ies, sizeof ies);
+    for (unsigned i = 24 + sizeof ies; i < len; i++) fr[i] = (uint8_t)i;     /* padding (vendor-less filler) to the requested length */
+    int txerr = 0, lastrc = 0;
+    for (int i = 0; i < n; i++) { lastrc = esp_wifi_80211_tx(ifx, fr, len, true); txerr += lastrc != 0; vTaskDelay(pdMS_TO_TICKS(30)); }
+    vTaskDelay(pdMS_TO_TICKS(100));
+    esp_wifi_set_promiscuous(false);
+    printf("unicast sent=%d txerr=%d lastrc=0x%x acks=%u\n", n, txerr, lastrc, (unsigned)uc_acks);
+    return 0;
+}
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_unicast", cmd_unicast }, { 0 } };
