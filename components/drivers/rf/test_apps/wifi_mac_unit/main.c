@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+static unsigned rate;
 static const uint8_t my[6] = { 0x02, 0x4e, 0x44, 0x46, 0x00, 0x02 };
 static int parse_mac(const char *s, uint8_t m[6]) { for (int i = 0; i < 6; i++) { char *e; m[i] = (uint8_t)strtoul(s, &e, 16); if (e == s) return -1; s = e + (*e == ':'); } return 0; }
 
@@ -40,6 +41,12 @@ int main(void)
             while ((ccount() - t0) / 240000u < ms)
                 if (wifi_mac_rx(&r, 5) && r.data[0] == 0x50 && !memcmp(r.data + 4, my, 6) && !memcmp(r.data + 10, bs, 6)) got++;
             printf("probe tx %d responses %d\n", rc, got);
+        } else if (!strcmp(v[0], "rate") && n > 1) { rate = strtoul(v[1], 0, 0); printf("rate %s\n", v[1]);
+        } else if (!strcmp(v[0], "blast") && n > 2) {                /* blast <len> <n>: n broadcast data frames of len bytes, 20 ms apart */
+            static uint8_t f[1600]; unsigned len = atoi(v[1]), cnt = atoi(v[2]), bad = 0;
+            memset(f, 0xA5, sizeof f); f[0] = 0x08; f[1] = 0; memset(f + 4, 0xff, 6); memcpy(f + 10, my, 6); memcpy(f + 16, my, 6);
+            for (unsigned i = 0; i < cnt; i++) { if (wifi_mac_tx_rate(f, len, rate)) bad++; delay_ms(20); }
+            printf("blast len %u sent %u failed %u\n", len, cnt, bad);
         } else printf("?\n");
         printf("ok\n");
     }

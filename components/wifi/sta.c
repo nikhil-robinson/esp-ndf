@@ -15,6 +15,8 @@ static struct {
     wifi_ap_t *out; unsigned max, n; const char *want;       /* scan collection; want = only this SSID (join) */
 } s;
 static uint8_t fb[1600];
+static unsigned data_rate = WIFI_RATE_12M;
+void wifi_set_data_rate(unsigned rate) { data_rate = rate; }
 
 static int tx(unsigned len) { s.last_tx = time_ms(); return wifi_mac_tx(fb, len); }
 static uint16_t next_seq(void) { return s.seq++ & 0xFFF; }
@@ -128,5 +130,7 @@ void wifi_poll(void)
 int wifi_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n)
 {
     if (s.state != UP || n > 1500) return -1;
-    return tx(wifi_build_data(fb, s.me, s.bssid, dst, ethertype, p, n, next_seq()));
+    unsigned l = wifi_build_data(fb, s.me, s.bssid, dst, ethertype, p, n, next_seq());
+    s.last_tx = time_ms();
+    return wifi_mac_tx_rate(fb, l, data_rate);          /* data at 12 Mbit/s: DSSS frames over ~1200 B are not heard (docs/WIFI_MAC.md) */
 }

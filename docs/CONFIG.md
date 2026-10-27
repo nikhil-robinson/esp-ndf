@@ -28,6 +28,15 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 | `NDF_BROWNOUT`<br>Brownout level (0 = off) | ndf_config.h | `7` | 0 – 7 | 1 3.30 V, 2 3.19 V, 3 2.98 V, 4 2.84 V, 5 2.67 V, 6 2.56 V, 7 2.44 V (IDF default 7). On detection flash and RF are powered down and the hardware resets the chip (reset cause brownout), as IDF without the interrupt option; bod_start() for interrupt mode with a callback. Costs ~9 us of warm boot. |
 | `NDF_GLITCH_RESET`<br>Clock-glitch and super-WDT resets | ndf_config.h | `y` | y / n | As IDF bootloader: a clock glitch or a starved super watchdog resets the chip. |
 
+## Network (lwIP)
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_NET_MEM_SIZE`<br>lwIP heap (bytes) | ndf_config.h | `24576` | 4096 – 262144 | PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks. |
+| `NDF_NET_PBUFS`<br>Receive buffers (1536 B each) | ndf_config.h | `10` | 4 – 64 | Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop). |
+| `NDF_NET_TCP_SEGS`<br>TCP window / send buffer (segments) | ndf_config.h | `6` | 2 – 32 | Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS. |
+| `NDF_NET_TCP_MSS`<br>TCP segment size | ndf_config.h | `536` | 256 – 1460 | Small on purpose while the Wi-Fi downlink is 1 Mbit/s and has no hardware ACK (docs/WIFI_MAC.md). |
+
 ## OTA update
 
 | Option | File | Default | Values | Description |

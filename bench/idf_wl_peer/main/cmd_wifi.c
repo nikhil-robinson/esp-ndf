@@ -49,6 +49,7 @@ static int wifi_boot(void)
 }
 static void halt(void) { if (mode_on) { esp_wifi_stop(); mode_on = 0; } }
 
+#include "esp_private/wifi.h"
 static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssid> <pass|-> <chan> */
 {
     if (wifi_boot() || argc < 4) return -1;
@@ -59,7 +60,9 @@ static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssi
     if (strcmp(argv[2], "-")) { strlcpy((char *)c.ap.password, argv[2], sizeof c.ap.password); c.ap.authmode = WIFI_AUTH_WPA2_PSK; }
     else c.ap.authmode = WIFI_AUTH_OPEN;
     esp_wifi_set_mode(WIFI_MODE_AP); esp_wifi_set_config(WIFI_IF_AP, &c);
+    if (argc > 4) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed rate needs the 802.11n aggregation off */
     int rc = esp_wifi_start(); mode_on = !rc;
+    if (!rc && argc > 4) esp_wifi_internal_set_fix_rate(WIFI_IF_AP, true, (wifi_phy_rate_t)strtol(argv[4], 0, 0));   /* optional: fixed PHY rate code (IDF wifi_phy_rate_t), same on every device compared */
     uint8_t m[6]; esp_wifi_get_mac(WIFI_IF_AP, m);
     printf("ap %s ch %d bssid %02x:%02x:%02x:%02x:%02x:%02x ip 192.168.4.1\n", argv[1], c.ap.channel, m[0], m[1], m[2], m[3], m[4], m[5]);
     return rc;

@@ -58,6 +58,16 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
         dict(key='NDF_GLITCH_RESET', type='bool', default=True, target='h', label='Clock-glitch and super-WDT resets',
              help='As IDF bootloader: a clock glitch or a starved super watchdog resets the chip.'),
     ]),
+    ('menu', 'Network (lwIP)', [
+        dict(key='NDF_NET_MEM_SIZE', type='int', default=24576, target='h', label='lwIP heap (bytes)', range=(4096, 262144),
+             help='PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks.'),
+        dict(key='NDF_NET_PBUFS', type='int', default=10, target='h', label='Receive buffers (1536 B each)', range=(4, 64),
+             help='Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop).'),
+        dict(key='NDF_NET_TCP_SEGS', type='int', default=6, target='h', label='TCP window / send buffer (segments)', range=(2, 32),
+             help='Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS.'),
+        dict(key='NDF_NET_TCP_MSS', type='int', default=536, target='h', label='TCP segment size', range=(256, 1460),
+             help='Small on purpose while the Wi-Fi downlink is 1 Mbit/s and has no hardware ACK (docs/WIFI_MAC.md).'),
+    ]),
     ('menu', 'OTA update', [
         dict(key='NDF_OTA', type='bool', default=True, target='h', label='Loader picks the image from otadata',
              help='ESP-IDF otadata format: factory image, or ota_0/ota_1 by sequence number. Adds ~0.75 ms to a cold '

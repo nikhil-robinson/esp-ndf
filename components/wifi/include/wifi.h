@@ -20,6 +20,7 @@ int      wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6]
 int  wifi_init(const uint8_t mac[6]);                                      /* radio on, listening */
 int  wifi_scan(wifi_ap_t *out, unsigned max, unsigned *n);                 /* active, channels 1..13, 120 ms dwell */
 int  wifi_sta_join(const char *ssid, const char *pass /* NULL = open */, uint32_t timeout_ms);   /* 0 joined, -1 timeout / refused, -2 WPA not available */
+void wifi_set_data_rate(unsigned rate);                                    /* PHY rate code for data frames (WIFI_RATE_*; default 12 Mbit/s) */
 int  wifi_sta_up(void);                                                    /* 1 while associated */
 void wifi_poll(void);                                                      /* rx dispatch, beacon timeout, deauth */
 int  wifi_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n);   /* 0 sent */

@@ -18,6 +18,11 @@ Register layout follows the ESP32 MAC (esp32-open-mac, plain ESP32 only) with th
 | TX to RX switch | `rf_wifi_rx_init` after a transmit left the receiver dead until the MAC is reset: pulse `SYSTEM_WIFI_RST` (0x60026018) bit 2 before each replay (now in `rf_wifi_tx_init` / `rf_wifi_rx_init`); ~670 us | confirmed (register-by-register restore did not help) |
 | RX length | descriptor length = frame length + 45 **or +44/+46** (a 156-byte beacon had 200): a strict check hid every IDF AP beacon. `rf_wifi_rx` accepts +-1 and skips continuation buffers | confirmed |
 | Open-system auth | request (1 Mbit/s, FCS added) -> IDF AP answers auth seq 2 status 0, retransmits it (retry bit) ~every 5 ms because no hardware ACK is sent | confirmed (spike `auth <bssid> <mac> auth fcs`) |
+| TX rate | PLCP1 `0x600342F8` bits 12+ = IDF `wifi_phy_rate_t` code. Heard by the IDF AP: 1M 0x0, 6M 0xB, 9M 0xF, 12M 0xA, 18M 0xE, 24M 0x9, 36M 0xD; 48M 0x8 and 54M 0xC not heard | confirmed |
+| TX length | DSSS frames over about 1200 B are not heard (1200 ok, 1250 not); OFDM 1500 B frames are | confirmed; cause unknown |
+| RX modulation | only 1 Mbit/s DSSS is received: beacons of an AP fixed to 6/9/12/24M never arrive (the captured RX state is the DSSS one) | confirmed; OFDM receive is open |
+| Hardware ACK | not working: with the filter slot 0 = our MAC and enable (0x60033064 bit 16) or the BSSID slot set, the AP still retransmits about half of its frames (retry bit). The radio is in RX mode, so no TX chain is up for an ACK | open |
+| Collisions without ACK | the peer repeats a frame for ~4 ms; transmitting inside that window collides with it. `wifi_mac_tx` waits until 4 ms after the last frame addressed to us (`WIFI_QUIET_US`): peer pings 4/20 -> 19-20/20 | confirmed |
 
 ## Open (blocks Wi-Fi STA/AP)
 

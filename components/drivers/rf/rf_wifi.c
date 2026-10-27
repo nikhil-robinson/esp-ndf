@@ -18,7 +18,7 @@ static uint32_t ch_khz = 2437000u;                           /* channel 6 until 
 
 extern void rf_tone_off(void);
 
-static __attribute__((aligned(16))) uint8_t  tx_frame[256];
+static __attribute__((aligned(16))) uint8_t  tx_frame[1600];
 static __attribute__((aligned(16))) uint32_t tx_desc[4];
 static __attribute__((aligned(16))) uint32_t rx_desc[WRX_N][4];
 static __attribute__((aligned(16))) uint8_t  rx_buf[WRX_N][WRX_BUF];
@@ -50,6 +50,9 @@ int rf_wifi_tx_init(void)
     return RF_OK;
 }
 
+static uint8_t tx_rate;
+void rf_wifi_set_rate(unsigned r) { tx_rate = (uint8_t)r; }
+
 int rf_wifi_tx(const uint8_t *frame, unsigned len)
 {
     if (len < 10 || len > sizeof tx_frame) return RF_ERR_RANGE;
@@ -58,7 +61,7 @@ int rf_wifi_tx(const uint8_t *frame, unsigned len)
     tx_desc[1] = (uint32_t)tx_frame;
     tx_desc[2] = (uint32_t)tx_desc;                          /* next: self */
     tx_desc[3] = 0;
-    *(volatile uint32_t *)0x600342f8 = len;                  /* PLCP1 length */
+    *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12;   /* PLCP1: length, rate (0 = 1 Mbit/s) */
     *(volatile uint32_t *)0x60034300 = 0x6400;               /* HTSIG */
     *(volatile uint32_t *)0x60033d04 = 0x1000;               /* CONF: TX enable */
     *(volatile uint32_t *)0x60033c34 |= 2;

@@ -103,7 +103,7 @@ $(OUT)/link.ld: $(C)/soc/$(SOC)/link.ld.in $(OUT)/config.stamp
 
 $(OUT)/app.elf: $(OBJS) $(OUT)/link.ld
 	@$(PFX)gcc $(FLAGS) -nostdlib -T $(OUT)/link.ld -Wl,--gc-sections \
-	    -Wl,--defsym=NDF_STACK0_SIZE=$(strip $(STACK0_SIZE)) -Wl,--defsym=NDF_STACK1_SIZE=$(strip $(STACK1_SIZE)) -o $@ $(OBJS)
+	    -Wl,--defsym=NDF_STACK0_SIZE=$(strip $(STACK0_SIZE)) -Wl,--defsym=NDF_STACK1_SIZE=$(strip $(STACK1_SIZE)) -Wl,-Map=$(OUT)/app.map -o $@ $(OBJS)
 	$(PFX)size $@
 
 # ESP32-S3 core quirk (measured): re-entering the same zero-overhead loop
