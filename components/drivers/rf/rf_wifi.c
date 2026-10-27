@@ -9,7 +9,8 @@
 #include "rf_init.h"
 #include "rf_wifi_regs.h"
 
-#define WIFI_CH_KHZ   2437000u
+static uint32_t ch_khz = 2437000u;                           /* channel 6 until rf_wifi_set_channel */
+#define WIFI_CH_KHZ   ch_khz
 #define WRX_N         8
 #define WRX_BUF       1664
 #define WRX_OWNED     (0x80640000u | WRX_BUF)   /* owner (bit31) | buffer size (low 16) */
@@ -36,6 +37,8 @@ static void replay(const rf_reg_t *r, unsigned n)
 {
     for (unsigned i = 0; i < n; i++) *(volatile uint32_t *)r[i].addr = r[i].value;
 }
+
+int rf_wifi_set_channel(unsigned ch) { if (ch < 1 || ch > 13) return RF_ERR_RANGE; ch_khz = 2412000u + 5000u * (ch - 1); return RF_OK; }   /* takes effect at the next tx_init / rx_init */
 
 int rf_wifi_tx_init(void)
 {

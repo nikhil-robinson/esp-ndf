@@ -156,6 +156,7 @@ void rf_pkt_stop(void);
 /* ---- raw 802.11 through the Wi-Fi MAC (channel 6), no vendor stack (4.2) ----------------------------
  * Our own code builds the frame, drives the MAC TX/RX descriptor path, and brings up the calibrated
  * carrier and front end. init once, then tx/rx. See docs/PENDING.md and bench/rfmeas/wifi_tx_42.txt. */
+int  rf_wifi_set_channel(unsigned ch);           /* 1..13, applied at the next tx_init / rx_init */
 int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
 int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11 frame (10..1600 B) */
 int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */

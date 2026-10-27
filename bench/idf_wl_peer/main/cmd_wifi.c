@@ -42,6 +42,7 @@ static int wifi_boot(void)
     esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, on_event, 0);
     esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_event, 0);
     esp_wifi_set_storage(WIFI_STORAGE_RAM);
+    esp_wifi_set_country_code("CN", true);                       /* channels 1..13 (the default world-safe set stops at 11) */
     esp_wifi_set_event_mask(0);                                  /* deliver the AP probe-request event too */
     inited = 1;
     return 0;
