@@ -18,6 +18,7 @@ u = n.cmd('up T', 30)[-1]
 m = re.search(r'ip (\S+)', u); ip = m.group(1) if m and m.group(1) != '-' else None
 check(ip is not None, 'join + DHCP: %s' % u)
 n.cmd('serve 80'); time.sleep(0.2)
+p.cmd('http_get http://%s/hello 3' % ip, 60); time.sleep(12)         # warm-up: one-time allocations (ARP entries, timers) happen before the baseline
 base = int(n.cmd('memused')[-1].split()[1])
 r = p.cmd('http_get http://%s/hello' % ip, 30)
 check('http status=200 bytes=5' in r, 'peer GET /hello -> 200 "hello" (%s)' % r)
@@ -33,7 +34,7 @@ r = p.cmd('http_get http://%s/hello 5' % ip, 60)
 check('http ok=5 of 5' in r, 'still serving after the malformed requests')
 time.sleep(12)                                              # idle connections are closed after 10 s
 mem = int(n.cmd('memused')[-1].split()[1])
-check(mem <= base + 64, 'lwIP heap back at baseline: %d -> %d bytes' % (base, mem))
+check(mem <= base + 32, 'lwIP heap back at baseline: %d -> %d bytes' % (base, mem))
 p.cmd('http_serve 80'); time.sleep(1.5)                        # the peer serves /hello and /big (chunked); give its server a moment
 g = n.cmd('get http://192.168.4.1/hello', 30)[-1]
 check('status 200 bytes 5 ' in g, 'we GET the peer /hello: %s' % g)

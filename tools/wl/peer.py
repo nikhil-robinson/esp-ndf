@@ -13,6 +13,14 @@ def _board(name, default):                        # make/boards.mk is the one pl
 BOX3 = _board('PEER', _board('BOX3', ''))         # the IDF peer: PEER if set, else the BOX-3
 
 
+def ap_bssid(lines):
+    """the BSSID the peer's wifi_ap printed (\"ap T ch 6 bssid xx:xx:... ip ...\")"""
+    for l in lines:
+        m = re.search(r'bssid ([0-9a-f:]{17})', l)
+        if m: return m.group(1)
+    raise RuntimeError('no bssid in %r' % (lines,))
+
+
 class Peer:
     def __init__(self, port=None):
         self.port = port or os.environ.get('PEER_PORT', BOX3)
