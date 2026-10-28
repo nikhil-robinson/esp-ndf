@@ -165,6 +165,7 @@ int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, r
 int  rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms);   /* next received frame -> out; returns length, 0 on timeout */
 const uint32_t *rf_wifi_rx_desc(void);
 const uint32_t (*rf_wifi_rx_ring(void))[4];
+int  rf_wifi_rx_decrypted(void);                /* 1 if the last frame was decrypted by the MAC (CCMP header kept, MIC and FCS removed from the returned length) */
 const uint8_t *rf_wifi_rx_header(void);         /* 48-byte receive header of the frame rf_wifi_rx returned last (rate, rssi, flags: docs/WIFI_MAC.md) */
 
 /* ---- 802.15.4 O-QPSK by DAC waveform (4.3) ---------------------------------------------------------

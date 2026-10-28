@@ -4,7 +4,7 @@ handshake, exchanges ARP through CCMP, fails fast with a wrong passphrase, and j
 WL_PASS=secret123 tools/ndf_test.py run components/lwip/test_apps/ip_unit"""
 import os, sys, time
 sys.path.insert(0, os.path.dirname(__file__))
-from peer import Peer
+from peer import Peer, ap_bssid
 from ndf import Ndf
 
 p = Peer(); time.sleep(4)
@@ -14,7 +14,7 @@ def check(c, msg):
     print(('ok   ' if c else 'FAIL ') + msg)
     if not c: fail.append(msg)
 
-p.cmd('wifi_stop'); p.cmd('wifi_ap T secret123 6 0'); time.sleep(1); p.s.reset_input_buffer()
+p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T secret123 6 0')); time.sleep(1); p.s.reset_input_buffer()
 n.cmd('init')
 sc = [l for l in n.cmd('scan', 30) if ' ssid T' in l]
 check(len(sc) == 1 and ' sec 2 ' in sc[0], 'scan reports T as WPA2 (%s)' % sc[:1])
@@ -24,7 +24,7 @@ check('event ap-join 02:4e:44:46:00:02' in p.s.read(4096).decode(errors='replace
 for tries in range(1, 4):
     a = n.cmd('arp 192.168.4.1', 10)[-1]
     if 'reply 1' in a: break
-print('xfail ARP request and reply through CCMP (%s): the IDF AP answers an IDF station but no encrypted unicast frame from it reaches us - docs/WIFI_MAC.md open item' % a)   # not counted: see the ledger (Task 10)
+check('reply 1 from ' + BSSID in a, 'ARP request and reply through CCMP in %d tries (%s)' % (tries, a))
 j = n.cmd('join T wrongpass1', 20)[-1].split()
 check(j[1] == '-3' and int(j[3]) < 3500, 'wrong passphrase: handshake failure (-3) in < 3.5 s: %s' % ' '.join(j))
 j = n.cmd('join T', 20)[-1].split()

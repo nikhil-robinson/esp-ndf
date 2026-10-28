@@ -33,7 +33,7 @@ static int tx(unsigned len) { s.last_tx = time_ms(); return wifi_mac_tx(fb, len)
 static uint16_t next_seq(void) { return s.seq++ & 0xFFF; }
 
 static void zero(void *p, unsigned n) { volatile uint8_t *q = p; while (n--) *q++ = 0; }
-static void down(void) { s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_replay = k.msg1_seen = 0; }
+static void down(void) { wifi_mac_clear_keys(); s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_replay = k.msg1_seen = 0; }
 
 static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt, unsigned rate);
 static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt) { return send_eth_rate(dst, ethertype, p, n, encrypt, data_rate); }
@@ -97,11 +97,13 @@ static void eapol_rx(const uint8_t *f, unsigned n)
         uint8_t kd[80]; int kl = aes_unwrap(KEK, e.data, e.data_len, kd);
         if (kl < 0 || take_gtk(kd, (unsigned)kl)) { zero(kd, sizeof kd); return; }    /* nothing installed on a bad message 3 */
         k.replay = e.replay; hs_send(0x030a, e.replay, 0, 0, 0);
+        wifi_mac_set_key(0, s.bssid, TK, 0); wifi_mac_set_key(1, s.bssid, k.gtk, k.gtk_id);
         k.keys = 1; k.tx_pn = 0; memset(k.rx_pn, 0, sizeof k.rx_pn); s.state = UP; s.last_beacon = time_ms();
         zero(kd, sizeof kd);
     } else if (s.state == UP) {                                                       /* group key update */
         uint8_t kd[80]; int kl = aes_unwrap(KEK, e.data, e.data_len, kd);
         if (kl < 0 || take_gtk(kd, (unsigned)kl)) { zero(kd, sizeof kd); return; }
+        wifi_mac_set_key(1, s.bssid, k.gtk, k.gtk_id);
         k.replay = e.replay; hs_send(0x0302, e.replay, 0, 0, 0);
         zero(kd, sizeof kd);
     }
@@ -141,9 +143,16 @@ static void on_frame(const wifi_rx_t *r)
     static uint8_t eth[1600];
     if (f[1] & 0x40) {                                       /* CCMP */
         unsigned hl = 24 + ((f[0] & 0x80) ? 2 : 0), grp = f[4] & 1, tid = (f[0] & 0x80) ? f[24] & 7 : 0; uint64_t pn;
-        if (!k.keys || memcmp(f + 10, s.bssid, 6) || (grp && !k.have_gtk) || len < hl + 16 || len > 1600) return;     /* only our AP's frames are worth a decryption */
-        uint8_t *pl = (uint8_t *)f;                          /* the MAC's receive buffer is ours until the next wifi_mac_rx: decrypt in place */
-        int d = ccmp_decrypt(grp ? k.gtk : TK, pl, hl, pl + hl, len - hl, &pn);
+        if (!k.keys || memcmp(f + 10, s.bssid, 6) || (grp && !k.have_gtk) || len > 1600) return;
+        uint8_t *pl = (uint8_t *)f; int d;                  /* the MAC's receive buffer is ours until the next wifi_mac_rx */
+        if (r->hw_decrypted) {                               /* decrypted and MIC-checked by the MAC (key table in wifi_mac.c): CCMP header kept, MIC gone */
+            if (len < hl + 8) return;
+            pn = (uint64_t)pl[hl] | (uint64_t)pl[hl + 1] << 8 | (uint64_t)pl[hl + 4] << 16 | (uint64_t)pl[hl + 5] << 24 | (uint64_t)pl[hl + 6] << 32 | (uint64_t)pl[hl + 7] << 40;
+            d = (int)(len - hl - 8);
+        } else {                                             /* not in the key table: decrypt in place here */
+            if (len < hl + 16) return;
+            d = ccmp_decrypt(grp ? k.gtk : TK, pl, hl, pl + hl, len - hl, &pn);
+        }
         if (d < 0 || pn <= k.rx_pn[grp][tid]) return;        /* bad MIC or a replayed packet number */
         k.rx_pn[grp][tid] = pn;
         memmove(pl + hl, pl + hl + 8, (unsigned)d); pl[1] &= (uint8_t)~0x40;

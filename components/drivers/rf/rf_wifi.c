@@ -23,10 +23,11 @@ static __attribute__((aligned(16))) uint32_t tx_desc[4];
 static __attribute__((aligned(16))) uint32_t rx_desc[WRX_N][4];
 static __attribute__((aligned(16))) uint8_t  rx_buf[WRX_N][WRX_BUF];
 
-static uint8_t last_hdr[WRX_HDR];
+static uint8_t last_hdr[WRX_HDR]; static int last_dec;
 static uint32_t last_desc[4];
 const uint32_t (*rf_wifi_rx_ring(void))[4] { return rx_desc; }   /* the 4 RX descriptors (debug) */
 const uint32_t *rf_wifi_rx_desc(void) { return last_desc; }   /* descriptor words of the frame rf_wifi_rx returned last */
+int rf_wifi_rx_decrypted(void) { return last_dec; }   /* 1 = the MAC decrypted and verified the last frame (CCMP header kept, MIC removed) */
 const uint8_t *rf_wifi_rx_header(void) { return last_hdr; }   /* the 48-byte MAC receive header of the frame rf_wifi_rx returned last */
 
 /* The TX and RX register sets each leave state the other does not rewrite; after a TX replay the receiver stays dead even when the RX set is
@@ -100,7 +101,11 @@ int rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms)
         for (int i = 0; i < WRX_N; i++) {
             if (!(rx_desc[i][0] & 0x40000000u)) continue;                             /* bit 30 (has data) is set by the MAC when the frame is complete */
             unsigned len = *(volatile uint32_t *)(rx_buf[i] + 44) & 0xFFF, dl = (rx_desc[i][0] >> 12) & 0xFFF;   /* frame length from the header; buffer length from the descriptor */
-            if (dl < len + 44 || dl >= len + 44 + 8) { rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED; continue; }    /* no MAC header: a continuation buffer. A real frame's descriptor length is frame + 44 rounded up to a multiple of 8 (156 -> 200, 155 -> 200, 137 -> 184) */
+            /* A real frame's descriptor length is the frame + 44 rounded up to 4 (156 -> 200, 155 -> 200, 137 -> 184). A protected frame the MAC decrypted
+             * (key table, wifi_mac.c) arrives with its 8-byte MIC removed: frame + 36. Anything else is a continuation buffer. */
+            int dec = (rx_buf[i][WRX_HDR + 1] & 0x40) && dl >= len + 36 && dl < len + 40;
+            if (!dec && (dl < len + 44 || dl >= len + 44 + 8)) { rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED; continue; }
+            last_dec = dec; if (dec) len -= 8;
             memcpy(last_desc, rx_desc[i], sizeof last_desc);
             if (len > WRX_BUF - WRX_HDR) len = WRX_BUF - WRX_HDR;
             if (len > max) len = max;
