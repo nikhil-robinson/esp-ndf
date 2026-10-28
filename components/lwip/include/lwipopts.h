@@ -4,7 +4,7 @@
 #include "rng.h"
 
 #ifndef NDF_NET_MEM_SIZE
-#define NDF_NET_MEM_SIZE   (24 * 1024)       /* lwIP heap: PCBs, TCP segments, outgoing pbufs */
+#define NDF_NET_MEM_SIZE   (22 * 1024)       /* lwIP heap: PCBs, TCP segments, outgoing pbufs */
 #endif
 #ifndef NDF_NET_PBUFS
 #define NDF_NET_PBUFS      7                 /* receive buffers of 1536 B */

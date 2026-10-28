@@ -7,8 +7,8 @@
 #include "xtensa.h"
 
 #define MAXF 1600
-#ifndef WIFI_QUIET_US
-#define WIFI_QUIET_US 4000
+#ifndef WIFI_ACK_US
+#define WIFI_ACK_US 400                                  /* the hardware ACK (10 us SIFS + 304 us at 1 Mbit/s) must be on the air before a TX start resets the MAC */
 #endif
 #define R32(a) (*(volatile uint32_t *)(a))
 
@@ -54,11 +54,7 @@ int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate)
     if (frame != f) memcpy(f, frame, len);
     uint32_t c = crc32_le(0, f, len);                        /* the hardware does not append the FCS (docs/WIFI_MAC.md) */
     for (int i = 0; i < 4; i++) f[len + i] = (uint8_t)(c >> 8 * i);
-    /* No hardware ACK: the sender repeats a frame to us for a few ms. Sending in the middle of that only collides with it (measured: 4 of 20 peer pings answered). */
-    while (time_us() - last_mine < WIFI_QUIET_US) {                  /* watch the air meanwhile: each repeat of a frame to us restarts the wait (the repeats are not delivered again) */
-        uint8_t drop[16];                                  /* only the addresses are needed */
-        if (rf_wifi_rx(drop, sizeof drop, 0) >= 10 && !memcmp(drop + 4, my, 6)) last_mine = time_us();
-    }
+    while (time_us() - last_mine < WIFI_ACK_US) {}           /* a TX start resets the MAC: do not cut off the ACK of the frame we just received */
     rf_wifi_set_rate(rate);
     int rc = rf_wifi_tx_init();
     if (!rc) { delay_us(1000); rc = rf_wifi_tx(f, len + 4); }   /* the TX front end needs ~1 ms to settle (measured) */
@@ -97,7 +93,7 @@ void wifi_mac_stats(uint32_t *rx, uint32_t *rx_drop, uint32_t *tx, uint32_t *tx_
 
 /* Key table, as IDF's hal_crypto_* program it (read from the library's disassembly) and as measured with host-encrypted frames (docs/WIFI_MAC.md):
  * slot n at 0x60034400 + 0x28 * n = transmitter address, a flag halfword, the 16-byte key at +8, the other words zero; 0x60033814 has one enable
- * bit per slot; 0x60033800 (interface 0) = 0x30103; 0x60033810 bits 21:6 and 0x600330d8 bit 1 as IDF has them. Measured: slots 0-3 never decrypt
+ * bit per slot; 0x60033800 (interface 0) = 0x30103; 0x60033810 bits 21:6 as IDF has them (IDF also sets 0x600330d8 bit 1; that bit stops the hardware ACK, so it stays clear). Measured: slots 0-3 never decrypt
  * CCMP, slots 4 and up do; flag halfword 0x086c | key id << 8 decrypts and verifies unicast and group frames (the pairwise flags IDF uses for its
  * transmit key, 0x48cc, make the MAC abort the frame); the highest matching slot wins, so the key id (pairwise 0, group 1..3) tells the two apart. */
 static void install_keys(void)
@@ -113,7 +109,7 @@ static void install_keys(void)
         for (int i = 0; i < 4; i++) k[2 + i] = key[4 * i] | key[4 * i + 1] << 8 | key[4 * i + 2] << 16 | (uint32_t)key[4 * i + 3] << 24;
         en |= 1u << slot;
     }
-    if (en) { R32(0x600330D8) |= 2; R32(0x60033810) &= 0xFFC0003Fu; R32(0x60033800) = (R32(0x60033800) | 0x30103u) & 0x3FFFFFFFu; R32(0x60033814) = en; }
+    if (en) { R32(0x60033810) &= 0xFFC0003Fu; R32(0x60033800) = (R32(0x60033800) | 0x30103u) & 0x3FFFFFFFu; R32(0x60033814) = en; }
 }
 void wifi_mac_set_key(unsigned kind, const uint8_t ta[6], const uint8_t key[16], unsigned key_id)
 {

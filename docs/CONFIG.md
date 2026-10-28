@@ -32,7 +32,7 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 
 | Option | File | Default | Values | Description |
 |---|---|---|---|---|
-| `NDF_NET_MEM_SIZE`<br>lwIP heap (bytes) | ndf_config.h | `24576` | 4096 – 262144 | PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks. |
+| `NDF_NET_MEM_SIZE`<br>lwIP heap (bytes) | ndf_config.h | `22528` | 4096 – 262144 | PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks. |
 | `NDF_NET_PBUFS`<br>Receive buffers (1536 B each) | ndf_config.h | `7` | 4 – 64 | Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop). |
 | `NDF_NET_TCP_SEGS`<br>TCP window / send buffer (segments) | ndf_config.h | `6` | 2 – 32 | Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS. |
 | `NDF_NET_TCP_MSS`<br>TCP segment size | ndf_config.h | `536` | 256 – 1460 | Small on purpose while the Wi-Fi downlink is 1 Mbit/s and has no hardware ACK (docs/WIFI_MAC.md). |

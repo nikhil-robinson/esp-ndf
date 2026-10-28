@@ -59,7 +59,7 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='As IDF bootloader: a clock glitch or a starved super watchdog resets the chip.'),
     ]),
     ('menu', 'Network (lwIP)', [
-        dict(key='NDF_NET_MEM_SIZE', type='int', default=24576, target='h', label='lwIP heap (bytes)', range=(4096, 262144),
+        dict(key='NDF_NET_MEM_SIZE', type='int', default=22528, target='h', label='lwIP heap (bytes)', range=(4096, 262144),
              help='PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks.'),
         dict(key='NDF_NET_PBUFS', type='int', default=7, target='h', label='Receive buffers (1536 B each)', range=(4, 64),
              help='Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop).'),

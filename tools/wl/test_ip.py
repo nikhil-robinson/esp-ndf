@@ -23,13 +23,13 @@ for _ in range(2):
     r = [l for l in p.cmd('ping %s 20' % ip, 60) if 'ping ok=' in l]
     if r: break
 print('     peer:', r)
-check(r and int(re.search(r'ok=(\d+)', r[-1]).group(1)) >= 14, 'peer pings us: >= 14/20, no hardware ACK yet (%s)' % (r[-1] if r else ''))
+check(r and int(re.search(r'ok=(\d+)', r[-1]).group(1)) >= 18, 'peer pings us: >= 18/20 (%s)' % (r[-1] if r else ''))
 r = n.cmd('ping 192.168.4.1 20', 60)[-1]
-check(int(r.split()[4]) >= 14, 'we ping the peer: >= 14/20 (%s)' % r)
+check(int(r.split()[4]) >= 18, 'we ping the peer: >= 18/20 (%s)' % r)
 p.cmd('udp_echo 7')
 r = n.cmd('udp 192.168.4.1 7 300', 600)[-1]
 m = re.match(r'udp sent 300 ok (\d+) lost (\d+) corrupt (\d+)', r)
-check(m and int(m.group(3)) == 0 and int(m.group(1)) >= 150, 'UDP echo, 300 datagrams of 1..1400 B: none corrupted, >= 50%% delivered (%s)' % r)
+check(m and int(m.group(3)) == 0 and int(m.group(1)) >= 240, 'UDP echo, 300 datagrams of 1..1400 B: none corrupted, >= 80%% delivered (%s)' % r)
 p.cmd('tcp_echo 8')
 r = n.cmd('tcp 192.168.4.1 8 65536', 300)[-1]
 check(r.startswith('tcp state 1 sent 65536 rcvd 65536 bad 0'), 'TCP echo, 64 KB intact (%s)' % r)
