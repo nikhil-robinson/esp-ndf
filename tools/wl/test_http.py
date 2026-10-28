@@ -18,7 +18,9 @@ u = n.cmd('up T', 30)[-1]
 m = re.search(r'ip (\S+)', u); ip = m.group(1) if m and m.group(1) != '-' else None
 check(ip is not None, 'join + DHCP: %s' % u)
 n.cmd('serve 80'); time.sleep(0.2)
-p.cmd('http_get http://%s/hello 3' % ip, 60); time.sleep(12)         # warm-up: one-time allocations (ARP entries, timers) happen before the baseline
+try: p.cmd('http_get http://%s/hello 3' % ip, 60)
+except RuntimeError: pass                                            # the first requests can lose to ARP
+time.sleep(12)         # warm-up: one-time allocations (ARP entries, timers) happen before the baseline
 base = int(n.cmd('memused')[-1].split()[1])
 r = p.cmd('http_get http://%s/hello' % ip, 30)
 check('http status=200 bytes=5' in r, 'peer GET /hello -> 200 "hello" (%s)' % r)
