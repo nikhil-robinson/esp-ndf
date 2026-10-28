@@ -16,7 +16,8 @@ static uint8_t my[6], chan = 6, buf[MAXF];
 uint32_t n_drop_mine, n_mine, n_retry; static uint64_t last_mine;
 static uint32_t n_rx, n_drop, n_tx, n_fail;
 
-static struct { uint8_t ta[6], key[16], id, used; } keys[2];
+#define NKEYS 8                                              /* key-table slots 4..4+NKEYS-1: the station uses two, the access point one per station */
+static struct { uint8_t ta[6], key[16], id, used; } keys[NKEYS];
 static void install_keys(void);
 
 static int listen(void)                                      /* RX front end + ring + address filter (the register replay overwrites it) */
@@ -24,6 +25,7 @@ static int listen(void)                                      /* RX front end + r
     int rc = rf_wifi_rx_init(); if (rc) return rc;
     R32(0x60033040) = my[0] | my[1] << 8 | my[2] << 16 | (uint32_t)my[3] << 24; R32(0x60033044) = my[4] | my[5] << 8;
     R32(0x60033060) = 0xFFFFFFFFu; R32(0x60033064) = 0x0001FFFFu;                 /* match all 48 bits of slot 0, filter enabled (bit 16) */
+    R32(0x60033810) &= 0xFFC0003Fu;                             /* the replayed set has bits 21:6 set: the MAC would consume protected unicast frames that no key-table entry decrypts (the AP decrypts in software) */
     install_keys();                                             /* the MAC reset in rf_wifi_rx_init cleared the key table */
     return RF_OK;
 }
@@ -99,7 +101,7 @@ void wifi_mac_stats(uint32_t *rx, uint32_t *rx_drop, uint32_t *tx, uint32_t *tx_
 static void install_keys(void)
 {
     uint32_t en = 0;
-    for (unsigned n = 0; n < 2; n++) {
+    for (unsigned n = 0; n < NKEYS; n++) {
         if (!keys[n].used) continue;
         unsigned slot = 4 + n;
         volatile uint32_t *k = (volatile uint32_t *)(0x60034400u + 0x28u * slot); const uint8_t *ta = keys[n].ta, *key = keys[n].key;
@@ -109,14 +111,16 @@ static void install_keys(void)
         for (int i = 0; i < 4; i++) k[2 + i] = key[4 * i] | key[4 * i + 1] << 8 | key[4 * i + 2] << 16 | (uint32_t)key[4 * i + 3] << 24;
         en |= 1u << slot;
     }
-    if (en) { R32(0x60033810) &= 0xFFC0003Fu; R32(0x60033800) = (R32(0x60033800) | 0x30103u) & 0x3FFFFFFFu; R32(0x60033814) = en; }
+    if (en) { R32(0x60033810) &= 0xFFC0003Fu; R32(0x60033800) = (R32(0x60033800) | 0x30103u) & 0x3FFFFFFFu; }
+    R32(0x60033814) = en;
 }
 void wifi_mac_set_key(unsigned kind, const uint8_t ta[6], const uint8_t key[16], unsigned key_id)
 {
-    if (kind > 1) return;
+    if (kind >= NKEYS) return;
     memcpy(keys[kind].ta, ta, 6); memcpy(keys[kind].key, key, 16); keys[kind].id = (uint8_t)key_id; keys[kind].used = 1;
     install_keys();
 }
+void wifi_mac_clear_key(unsigned kind) { if (kind < NKEYS) { volatile uint8_t *z = (volatile uint8_t *)&keys[kind]; for (unsigned i = 0; i < sizeof keys[kind]; i++) z[i] = 0; install_keys(); } }
 void wifi_mac_clear_keys(void)
 {
     volatile uint8_t *z = (volatile uint8_t *)keys; for (unsigned i = 0; i < sizeof keys; i++) z[i] = 0;

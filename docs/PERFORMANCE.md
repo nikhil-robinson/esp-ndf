@@ -795,3 +795,18 @@ beforehand (ours: rtc_slow_hz(), ~2 ms, cached). ULP-FSM: 99 runs/s at 10 ms as 
 | unlock (240 -> 80) | 1662 cycles (no settle needed going down) | 519 cycles (no switch) |
 
 APB stays 80 MHz on both (PLL on), so UART / USB keep running; delay_ms(10) measures 10 002 us at 80 MHz.
+
+## Wi-Fi access point (`components/wifi/test_apps/ap_unit` vs an ESP-IDF softAP, `tools/wl/bench_ap.py`, DEVKIT + C9:48 + BOX-3, 2026-10-29)
+
+Same air, the sniffer (BOX-3) timestamps beacons with the radio's own clock; the station is the IDF peer. Three runs (two open, one WPA2).
+
+| | esp-ndf AP | ESP-IDF softAP | gain |
+|---|---|---|---|
+| beacon interval (advertised 100 TU = 102 400 us) | 102 397 us mean, min 101 615, max 103 143 | 102 399 us mean, min 99 860, max 104 907 | - |
+| beacon jitter (standard deviation, 63 intervals, three runs) | 313-486 us | 512-1103 us | 1.4-2.3x |
+| beacon worst case (max - min), runs above | 1.3-2.2 ms | 3.4-5.0 ms | about 2.5x |
+| station join + DHCP (IDF `wifi_sta`, 5 joins) | 1.10 s (first 1.8 s) | 1.10 s (first 1.7 s) | equal: the 1.1 s is the peer's own scan and DHCP |
+
+The AP schedules beacons on a fixed 102.4 ms grid from the microsecond timer (a late beacon does not move the next ones); the IDF softAP
+runs them from a FreeRTOS timer task. Raw data: `bench/idf_wl_peer/data/ap_compare.txt`.
+

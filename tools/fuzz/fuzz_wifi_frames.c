@@ -48,6 +48,21 @@ int main(int argc, char **argv)
     CHECK(wifi_data_to_eth(d, n, ap_, eth, 15) == -1);               /* output too small */
     d[1] |= 0x40; CHECK(wifi_data_to_eth(d, n, ap_, eth, sizeof eth) == -1);   /* protected frame: not for the open path */
 
+    /* access point side: beacon / probe response parse back through the station's parser, response builders, to-DS data to Ethernet */
+    uint8_t bc[6] = { 255, 255, 255, 255, 255, 255 };
+    n = wifi_build_beacon(f, bc, ap_, "net", 9, 0, 0x0102030405060708ull, 3, 0);
+    CHECK(f[0] == 0x80 && !memcmp(f + 16, ap_, 6) && f[24] == 8 && f[31] == 1 && !wifi_parse_beacon(f, n, &ap) && !strcmp(ap.ssid, "net") && ap.chan == 9 && ap.sec == 0 && ap.beacon_tu == 100);
+    n = wifi_build_beacon(f, me, ap_, "net", 9, 1, 0, 3, 1); CHECK(f[0] == 0x50 && !memcmp(f + 4, me, 6) && !wifi_parse_beacon(f, n, &ap) && ap.sec == 2);
+    n = wifi_build_beacon(f, bc, ap_, "0123456789012345678901234567890123456789", 9, 0, 0, 0, 0); CHECK(n <= sizeof f && !wifi_parse_beacon(f, n, &ap) && strlen(ap.ssid) <= 32);   /* over-long SSID is cut, not overrun */
+    n = wifi_build_auth_resp(f, me, ap_, 17, 4); CHECK(n == 30 && f[0] == 0xB0 && f[26] == 2 && f[28] == 17 && !memcmp(f + 4, me, 6) && !memcmp(f + 10, ap_, 6) && !memcmp(f + 16, ap_, 6));
+    n = wifi_build_assoc_resp(f, me, ap_, 0, 3, 1, 5); CHECK(f[0] == 0x10 && f[24] == 0x11 && f[28] == 3 && f[29] == 0xC0 && n == 30 + 6);
+    n = wifi_build_deauth_ap(f, me, ap_, 15, 6); CHECK(n == 26 && f[0] == 0xC0 && f[24] == 15 && !memcmp(f + 4, me, 6) && !memcmp(f + 16, ap_, 6));
+    n = wifi_build_data_fromds(f, ap_, dst, me, 0x0800, pl, 4, 7); CHECK(f[1] == 0x02 && !memcmp(f + 4, dst, 6) && !memcmp(f + 10, ap_, 6) && !memcmp(f + 16, me, 6) && n == 24 + 8 + 4);
+    memcpy(d, f, n); d[1] = 0x01; memcpy(d + 4, ap_, 6); memcpy(d + 10, me, 6); memcpy(d + 16, dst, 6);            /* to DS: RA = AP, SA = us, DA = dst */
+    e = wifi_ap_data_to_eth(d, n, ap_, eth, sizeof eth); CHECK(e == 14 + 4 && !memcmp(eth, dst, 6) && !memcmp(eth + 6, me, 6) && eth[12] == 0x08 && !memcmp(eth + 14, pl, 4));
+    CHECK(wifi_ap_data_to_eth(d, n, me, eth, sizeof eth) == -1 && wifi_ap_data_to_eth(d, n, ap_, eth, 15) == -1);    /* not for us / output too small */
+    d[1] |= 0x40; CHECK(wifi_ap_data_to_eth(d, n, ap_, eth, sizeof eth) == -1);
+
     /* random and mutated input; guard bytes behind the frame catch overreads under ASan */
     for (unsigned long i = 0; i < rounds && !fails; i++) {
         unsigned len = rnd() % 120; uint8_t *buf = malloc(len ? len : 1); uint8_t out[64];
@@ -56,6 +71,8 @@ int main(int argc, char **argv)
         wifi_ap_t a; if (!wifi_parse_beacon(buf, len, &a)) { CHECK(strlen(a.ssid) <= 32); }
         if (len > 24 && (rnd() & 1)) { buf[0] = (rnd() & 1) ? 0x08 : 0x88; buf[1] = 0x02; memcpy(buf + 10, ap_, 6); if (len > 32 && (rnd() & 1)) memcpy(buf + 24, "\xAA\xAA\x03\0\0\0", 6); }
         int r = wifi_data_to_eth(buf, len, ap_, out, sizeof out); CHECK(r == -1 || (r >= 14 && r <= (int)sizeof out));
+        if (len > 24 && (rnd() & 1)) { buf[0] = (rnd() & 1) ? 0x08 : 0x88; buf[1] = 0x01; memcpy(buf + 4, ap_, 6); if (len > 32 && (rnd() & 1)) memcpy(buf + 24, "\xAA\xAA\x03\0\0\0", 6); }
+        r = wifi_ap_data_to_eth(buf, len, ap_, out, sizeof out); CHECK(r == -1 || (r >= 14 && r <= (int)sizeof out));
         const uint8_t *v; wifi_ie_find(buf, len, (uint8_t)rnd(), &v);
         free(buf);
     }

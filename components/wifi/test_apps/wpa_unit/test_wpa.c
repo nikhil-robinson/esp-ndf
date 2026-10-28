@@ -43,6 +43,13 @@ TEST(unwrap)                                            /* RFC 3394 with a 128-b
     uint8_t bad[sizeof uw_in0]; memcpy(bad, uw_in0, sizeof bad); bad[3] ^= 1;
     UASSERT(aes_unwrap(uw_kek, bad, sizeof bad, o) == -1);
 }
+TEST(wrap)                                              /* the same RFC 3394 vectors, forwards */
+{
+    uint8_t o[64];
+    UASSERT(aes_wrap(uw_kek, uw_key0, sizeof uw_key0, o) == (int)sizeof uw_in0 && !memcmp(o, uw_in0, sizeof uw_in0));
+    UASSERT(aes_wrap(uw_kek, uw_key1, sizeof uw_key1, o) == (int)sizeof uw_in1 && !memcmp(o, uw_in1, sizeof uw_in1));
+    UASSERT(aes_wrap(uw_kek, uw_key0, 12, o) == -1 && aes_wrap(uw_kek, uw_key0, 8, o) == -1);   /* not a multiple of 8 / too short */
+}
 static void one_ccmp(const uint8_t *hdr, unsigned hl, const uint8_t *pt, unsigned n, const uint8_t *ct, unsigned cl, uint64_t pn, int *ok)
 {
     static uint8_t b[1600]; uint64_t pn2 = 0;

@@ -96,3 +96,19 @@ int aes_unwrap(const uint8_t kek[16], const uint8_t *in, unsigned n, uint8_t *ou
     memcpy(out, r, nb * 8); zero(r, sizeof r); zero(b, 16); zero(o, 16);
     return (int)(nb * 8);
 }
+
+int aes_wrap(const uint8_t kek[16], const uint8_t *in, unsigned n, uint8_t *out)       /* RFC 3394; n = key length (multiple of 8, 16..64); writes n + 8 bytes */
+{
+    if (n < 16 || n % 8 || n > 64) return -1;
+    unsigned nb = n / 8; uint8_t a[8], r[64], b[16], o[16];
+    memset(a, 0xA6, 8); memcpy(r, in, n);
+    for (unsigned j = 0; j < 6; j++)
+        for (unsigned i = 1; i <= nb; i++) {
+            memcpy(b, a, 8); memcpy(b + 8, r + 8 * (i - 1), 8);
+            aes_block(kek, 16, true, b, o);
+            uint32_t t = nb * j + i;
+            memcpy(a, o, 8); a[7] ^= (uint8_t)t; a[6] ^= (uint8_t)(t >> 8); memcpy(r + 8 * (i - 1), o + 8, 8);
+        }
+    memcpy(out, a, 8); memcpy(out + 8, r, n); zero(r, sizeof r); zero(b, 16); zero(o, 16);
+    return (int)(n + 8);
+}

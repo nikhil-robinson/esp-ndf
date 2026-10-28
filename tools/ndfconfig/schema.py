@@ -65,8 +65,14 @@ SCHEMA = ('menu', 'esp-ndf configuration', [
              help='Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop).'),
         dict(key='NDF_NET_TCP_SEGS', type='int', default=6, target='h', label='TCP window / send buffer (segments)', range=(2, 32),
              help='Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS.'),
+        dict(key='NDF_NET_DHCP_POOL', type='int', default=4, target='h', label='DHCP server leases', range=(1, 16),
+             help='Addresses the access point hands out from 192.168.4.2 upwards (components/net/dhcpd.c).'),
         dict(key='NDF_NET_TCP_MSS', type='int', default=536, target='h', label='TCP segment size', range=(256, 1460),
              help='Small on purpose while the Wi-Fi downlink is 1 Mbit/s and has no hardware ACK (docs/WIFI_MAC.md).'),
+    ]),
+    ('menu', 'Wi-Fi access point', [
+        dict(key='NDF_WIFI_MAX_STA', type='int', default=4, target='h', label='Stations', range=(1, 8),
+             help='Stations the access point serves at once (components/wifi/ap.c). Each takes ~300 B of RAM and one slot of the MAC key table.'),
     ]),
     ('menu', 'OTA update', [
         dict(key='NDF_OTA', type='bool', default=True, target='h', label='Loader picks the image from otadata',

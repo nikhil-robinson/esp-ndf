@@ -47,6 +47,7 @@ int rf_wifi_tx_init(void)
     rc = rf_tx_start(); if (rc) return rc;
     rf_tone_off();                                           /* free the DAC path for the baseband modem */
     mac_reset();
+    for (volatile uint32_t *q = (volatile uint32_t *)0x600342e0; q < (volatile uint32_t *)0x600343fc; q++) *q = 0;   /* TX parameter RAM: the MAC patches the duration field and more into the frame from it, and it powers up with random contents; the replay sets what is needed */
     replay(rf_wifi_tx_regs, sizeof rf_wifi_tx_regs / sizeof rf_wifi_tx_regs[0]);
     return RF_OK;
 }

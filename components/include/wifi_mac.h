@@ -20,4 +20,5 @@ void wifi_mac_stats(uint32_t *rx, uint32_t *rx_drop, uint32_t *tx, uint32_t *tx_
 /* Hardware CCMP receive. Keys for frames from ta: kind 0 = pairwise (key id 0), kind 1 = group (key id as in the CCMP header). Frames the MAC cannot
  * verify are discarded by it. Transmit stays in software (the FCS and CCMP are built by the caller). */
 void wifi_mac_set_key(unsigned kind, const uint8_t ta[6], const uint8_t key[16], unsigned key_id);
+void wifi_mac_clear_key(unsigned kind);                     /* kinds 0..7: the access point keeps one pairwise key per station (key id 0) */
 void wifi_mac_clear_keys(void);

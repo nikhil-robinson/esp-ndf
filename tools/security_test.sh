@@ -13,6 +13,7 @@ gcc $F tools/test_pfs.c components/drivers/storage/pfs.c components/lib/crc32.c 
 gcc $F -Icomponents/ble_host/include tools/fuzz/test_att.c components/ble_host/att.c -o $O/att
 gcc $F -Icomponents/ble_host/include -DHOST_FUZZ tools/fuzz/fuzz_gattc.c components/ble_host/gattc.c -o $O/gattc
 gcc $F -Icomponents/wifi/include tools/fuzz/fuzz_wifi_frames.c components/wifi/ie.c components/wifi/frame.c -o $O/wififr
+gcc $F -Icomponents/wifi/include -Icomponents/drivers/rf tools/fuzz/fuzz_ap.c components/wifi/ap.c components/wifi/frame.c components/wifi/ie.c components/wifi/wpa_sha1.c components/wifi/eapol.c components/wifi/wpa_ccmp.c -o $O/ap
 gcc $F -Icomponents/wifi/include -Icomponents/wifi/test_apps/wpa_unit tools/fuzz/fuzz_eapol.c components/wifi/wpa_sha1.c components/wifi/eapol.c -o $O/eapol
 gcc $F tools/fuzz/test_ota_sig.c components/lib/ecc.c components/lib/p256_comb.c -o $O/sig
 $O/fat $((20000 * K)) 7
@@ -25,6 +26,7 @@ $O/att $((300000 * K)) 7
 $O/gattc $((20000 * K)) 7
 $O/wififr $((300000 * K)) 7
 $O/eapol $((300000 * K)) 7
+$O/ap $((100000 * K)) 7
 python3 - $O <<'PY'
 import sys, hashlib, struct, subprocess, os
 from cryptography.hazmat.primitives.asymmetric import ec

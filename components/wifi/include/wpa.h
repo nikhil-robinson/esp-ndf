@@ -7,6 +7,7 @@ void wpa_hmac_sha1(const uint8_t *key, unsigned klen, const uint8_t *data, unsig
 void wpa_pmk(const char *pass, const uint8_t *ssid, unsigned ssid_len, uint8_t pmk[32]);        /* PBKDF2-HMAC-SHA1, 4096 iterations */
 void wpa_ptk(const uint8_t pmk[32], const uint8_t aa[6], const uint8_t spa[6], const uint8_t anonce[32], const uint8_t snonce[32], uint8_t ptk[48]);   /* PRF-384: KCK 0..15, KEK 16..31, TK 32..47 */
 int  aes_unwrap(const uint8_t kek[16], const uint8_t *in, unsigned n, uint8_t *out);            /* RFC 3394; n = 8 + key length; returns the key length or -1 */
+int  aes_wrap(const uint8_t kek[16], const uint8_t *in, unsigned n, uint8_t *out);               /* RFC 3394; n = key length; writes n + 8 bytes, returns that length or -1 */
 
 /* CCMP. body points at the 8-byte CCMP header; the data (n bytes) follows it and the 8-byte MIC goes behind the data. hdr = the 802.11 header (hl bytes:
  * 24, 26 with QoS, +6 with four addresses). */

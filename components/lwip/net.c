@@ -11,6 +11,9 @@
 #include "netif/ethernet.h"
 
 static struct netif nif;
+/* the access point's functions come in as callbacks: an image that never starts it does not reference ap.c (its buffers would count against the RAM limit) */
+static int  (*ap_send)(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n);
+static void (*ap_poll)(void);                                  /* netif on the access point instead of the station */
 static uint8_t txb[1600];
 
 static err_t wifi_output(struct netif *n, struct pbuf *p)
@@ -19,7 +22,7 @@ static err_t wifi_output(struct netif *n, struct pbuf *p)
     if (p->tot_len < 14 || p->tot_len > sizeof txb) return ERR_BUF;
     pbuf_copy_partial(p, txb, p->tot_len, 0);                   /* one flat frame: 14-byte Ethernet header + payload */
     LINK_STATS_INC(link.xmit);
-    return wifi_send_eth(txb, (uint16_t)(txb[12] << 8 | txb[13]), txb + 14, p->tot_len - 14) ? ERR_IF : ERR_OK;   /* destination = first 6 bytes of txb */
+    return (ap_send ? ap_send : wifi_send_eth)(txb, (uint16_t)(txb[12] << 8 | txb[13]), txb + 14, p->tot_len - 14) ? ERR_IF : ERR_OK;   /* destination = first 6 bytes of txb */
 }
 
 static void eth_in(const uint8_t *f, unsigned n)
@@ -55,7 +58,20 @@ int net_start(const uint8_t mac[6])
     return dhcp_start(&nif) == ERR_OK ? 0 : -1;
 }
 
-void net_poll(void) { wifi_poll(); sys_check_timeouts(); }
+int net_start_ap(const uint8_t mac[6], uint32_t ip, uint32_t mask, int (*send)(const uint8_t[6], uint16_t, const uint8_t *, unsigned), void (*poll)(void))
+{
+    lwip_init();
+    ip4_addr_t a, m, z = { 0 };
+    ip4_addr_set_u32(&a, ip); ip4_addr_set_u32(&m, mask);
+    if (!netif_add(&nif, &a, &m, &z, 0, if_init, ethernet_input)) return -1;
+    memcpy(nif.hwaddr, mac, 6);
+    netif_set_default(&nif);
+    netif_set_up(&nif);
+    wifi_eth_rx = eth_in; ap_send = send; ap_poll = poll;
+    return 0;
+}
+
+void net_poll(void) { if (ap_poll) ap_poll(); else wifi_poll(); sys_check_timeouts(); }
 
 int net_ip(uint32_t *ip, uint32_t *gw)
 {

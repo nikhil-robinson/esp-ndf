@@ -1,0 +1,4 @@
+ndf beacons (heard, intervals, mean, min, max, dev us) [64, 63, 102391, 101526, 103273, 486]
+ndf AP: station join+DHCP s ['1.71', '1.11', '1.10', '1.10', '1.10']
+idf beacons (heard, intervals, mean, min, max, dev us) [64, 63, 102381, 101210, 103866, 1103]
+idf softAP: station join+DHCP s ['1.71', '1.10', '1.10', '1.10', '1.10']

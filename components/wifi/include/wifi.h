@@ -16,6 +16,23 @@ unsigned wifi_build_null(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6]
 unsigned wifi_build_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq);
 int      wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uint8_t *eth, unsigned max);   /* from-DS data frame -> 14-byte header + payload; length, -1 = not for us / malformed */
 
+/* access point side: all pure, frames without FCS */
+unsigned wifi_build_beacon(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], const char *ssid, uint8_t chan, int rsn, uint64_t tsf, uint16_t seq, int probe_resp);   /* beacon (dst broadcast) or probe response (dst = the asker) */
+unsigned wifi_build_auth_resp(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t status, uint16_t seq);
+unsigned wifi_build_assoc_resp(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t status, uint16_t aid, int rsn, uint16_t seq);
+unsigned wifi_build_deauth_ap(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t reason, uint16_t seq);
+unsigned wifi_build_data_fromds(uint8_t *o, const uint8_t bssid[6], const uint8_t dst[6], const uint8_t src[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq);
+int      wifi_ap_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uint8_t *eth, unsigned max);   /* to-DS data frame for us -> Ethernet; -1 = not ours / malformed */
+
+/* --- access point (ap.c): one network at a time, shares the radio with the station (use one or the other) --- */
+int      wifi_ap_start(const char *ssid, const char *pass /* NULL = open, else WPA2-PSK */, uint8_t chan, unsigned max_sta /* <= NDF_WIFI_MAX_STA */);   /* after wifi_init(); 0 ok */
+void     wifi_ap_stop(void);
+unsigned wifi_ap_stations(uint8_t macs[][6], unsigned max);               /* associated (and, when protected, keyed) stations */
+void     wifi_ap_stats(uint32_t *auth, uint32_t *assoc, uint32_t *refused, uint32_t *hs_timeout, uint32_t *beacons, unsigned *used);   /* counters since boot; used = station slots in use (any state) */
+void     wifi_ap_poll(void);                                              /* rx dispatch, beacons, timeouts: call from the main loop */
+int      wifi_ap_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n);   /* from the AP's own address; 0 sent */
+const uint8_t *wifi_mac_addr(void);                                       /* the address given to wifi_init() */
+
 /* --- station (sta.c) --- */
 int  wifi_init(const uint8_t mac[6]);                                      /* radio on, listening */
 int  wifi_scan(wifi_ap_t *out, unsigned max, unsigned *n);                 /* active, channels 1..13, 120 ms dwell */

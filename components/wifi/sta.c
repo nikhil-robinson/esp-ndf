@@ -175,6 +175,7 @@ static void pump(uint32_t ms)                                /* dispatch receive
 }
 
 int wifi_init(const uint8_t mac[6]) { memcpy(s.me, mac, 6); s.chan = 6; return wifi_mac_init(mac); }
+const uint8_t *wifi_mac_addr(void) { return s.me; }
 
 static int scan(wifi_ap_t *out, unsigned max, unsigned *n, const char *stop_ssid)
 {

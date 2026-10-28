@@ -69,3 +69,63 @@ int wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uin
     memcpy(eth + 14, f + h + 8, n);
     return (int)(14 + n);
 }
+
+/* --- access point side --- */
+unsigned wifi_build_beacon(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], const char *ssid, uint8_t chan, int rsn, uint64_t tsf, uint16_t seq, int probe_resp)
+{
+    unsigned n = hdr(o, probe_resp ? 0x50 : 0x80, 0, dst, bssid, bssid, seq);
+    for (int i = 0; i < 8; i++) o[n++] = (uint8_t)(tsf >> 8 * i);
+    o[n++] = 100; o[n++] = 0;                                     /* beacon interval: 100 TU */
+    o[n++] = 0x01 | (rsn ? 0x10 : 0); o[n++] = 0;                 /* capability: ESS, privacy when protected */
+    n += ssid_ie(o + n, ssid); n += rates_ie(o + n);
+    o[n++] = 3; o[n++] = 1; o[n++] = chan;                        /* DS parameter set */
+    static const uint8_t tim[] = { 5, 4, 0, 1, 0, 0 };            /* nothing buffered: no power-save stations */
+    if (!probe_resp) { memcpy(o + n, tim, sizeof tim); n += sizeof tim; }
+    if (rsn) { static const uint8_t r[] = { 48, 20, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 2, 0, 0 }; memcpy(o + n, r, sizeof r); n += sizeof r; }
+    return n;
+}
+
+unsigned wifi_build_auth_resp(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t status, uint16_t seq)
+{
+    unsigned n = hdr(o, 0xB0, 0, dst, bssid, bssid, seq);
+    o[n++] = 0; o[n++] = 0; o[n++] = 2; o[n++] = 0; o[n++] = (uint8_t)status; o[n++] = (uint8_t)(status >> 8);   /* open system, transaction 2 */
+    return n;
+}
+
+unsigned wifi_build_assoc_resp(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t status, uint16_t aid, int rsn, uint16_t seq)
+{
+    unsigned n = hdr(o, 0x10, 0, dst, bssid, bssid, seq);
+    o[n++] = 0x01 | (rsn ? 0x10 : 0); o[n++] = 0; o[n++] = (uint8_t)status; o[n++] = (uint8_t)(status >> 8);
+    aid |= 0xC000; o[n++] = (uint8_t)aid; o[n++] = (uint8_t)(aid >> 8);
+    return n + rates_ie(o + n);
+}
+
+unsigned wifi_build_deauth_ap(uint8_t *o, const uint8_t dst[6], const uint8_t bssid[6], uint16_t reason, uint16_t seq)
+{
+    unsigned n = hdr(o, 0xC0, 0, dst, bssid, bssid, seq);
+    o[n++] = (uint8_t)reason; o[n++] = (uint8_t)(reason >> 8);
+    return n;
+}
+
+unsigned wifi_build_data_fromds(uint8_t *o, const uint8_t bssid[6], const uint8_t dst[6], const uint8_t src[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq)
+{
+    unsigned k = hdr(o, 0x08, 0x02, dst, bssid, src, seq);        /* data, from DS */
+    static const uint8_t snap[6] = { 0xAA, 0xAA, 0x03, 0, 0, 0 };
+    memcpy(o + k, snap, 6); o[k + 6] = (uint8_t)(ethertype >> 8); o[k + 7] = (uint8_t)ethertype;
+    memcpy(o + k + 8, p, n);
+    return k + 8 + n;
+}
+
+int wifi_ap_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uint8_t *eth, unsigned max)
+{
+    if (len < 24 + 8 || (f[0] & 0x0C) != 0x08 || (f[1] & 0x03) != 0x01 || (f[1] & 0x40)) return -1;   /* data, to DS, not protected */
+    if (memcmp(f + 4, bssid, 6)) return -1;                        /* receiver must be us */
+    unsigned h = 24 + ((f[0] & 0x80) ? 2 : 0);
+    if (len < h + 8 || memcmp(f + h, "\xAA\xAA\x03\0\0\0", 6)) return -1;
+    unsigned n = len - h - 8;
+    if (14 + n > max) return -1;
+    memcpy(eth, f + 16, 6); memcpy(eth + 6, f + 10, 6);            /* destination (address 3), source (address 2) */
+    eth[12] = f[h + 6]; eth[13] = f[h + 7];
+    memcpy(eth + 14, f + h + 8, n);
+    return (int)(14 + n);
+}
