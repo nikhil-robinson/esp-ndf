@@ -810,3 +810,16 @@ Same air, the sniffer (BOX-3) timestamps beacons with the radio's own clock; the
 The AP schedules beacons on a fixed 102.4 ms grid from the microsecond timer (a late beacon does not move the next ones); the IDF softAP
 runs them from a FreeRTOS timer task. Raw data: `bench/idf_wl_peer/data/ap_compare.txt`.
 
+## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
+
+Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board
+or the BOX-3 running `esp_http_server`.
+
+| | esp-ndf http server | ESP-IDF esp_http_server |
+|---|---|---|
+| GET /hello x60 | see `bench/idf_wl_peer/data/http_compare.txt` (about 0.6 req/s) | about 0.7 req/s |
+| GET /big (64 KB) x3 | about 1.8 KB/s | about 1.9 KB/s |
+
+Equal within noise: the numbers are limited by the air (1 Mbit/s AP, no carrier sense in our TX path, TCP retransmit timeouts: docs/WIFI_MAC.md "IDF transmit engine"), not by the servers.
+No speed-up is claimed here; the server-side cost can only be compared once the TX engine item is closed. Memory: the esp-ndf server needs no heap beyond the lwIP pool (lwIP heap back to baseline after malformed requests, test_http.py).
+

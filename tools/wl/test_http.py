@@ -23,7 +23,7 @@ base = int(n.cmd('memused')[-1].split()[1])
 r = p.cmd('http_get http://%s/hello' % ip, 30)
 check('http status=200 bytes=5' in r, 'peer GET /hello -> 200 "hello" (%s)' % r)
 r = p.cmd('http_get http://%s/hello 100' % ip, 300)
-check('http ok=100 of 100' in r, '100 requests answered (%s)' % r[-1])
+check(any(l.startswith('http ok=100 of 100') for l in r), '100 requests answered (%s)' % r[-1])
 r = p.cmd('http_get http://%s/big' % ip, 120)
 check('http status=200 bytes=65536' in r, 'peer GET /big: 64 KB (%s)' % r)
 for kind, want in (('nocrlf', 'HTTP/1.1 400'), ('badline', 'HTTP/1.1 400'), ('longline', 'HTTP/1.1')):
@@ -31,7 +31,7 @@ for kind, want in (('nocrlf', 'HTTP/1.1 400'), ('badline', 'HTTP/1.1 400'), ('lo
     check(any(want in l or l.endswith('closed') for l in r), 'malformed request "%s": 400 or closed (%s)' % (kind, r))
 time.sleep(1)
 r = p.cmd('http_get http://%s/hello 5' % ip, 60)
-check('http ok=5 of 5' in r, 'still serving after the malformed requests')
+check(any(l.startswith('http ok=5 of 5') for l in r), 'still serving after the malformed requests')
 time.sleep(12)                                              # idle connections are closed after 10 s
 mem = int(n.cmd('memused')[-1].split()[1])
 check(mem <= base + 32, 'lwIP heap back at baseline: %d -> %d bytes' % (base, mem))

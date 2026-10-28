@@ -40,7 +40,7 @@ class Peer:
                 l, buf = buf.split(b'\n', 1)
                 l = l.decode(errors='replace').rstrip()
                 if l == 'ok': return out
-                if l.startswith('err'): raise RuntimeError(f'peer: {line!r} -> {l}')
+                if l.startswith('err'): raise RuntimeError(f'peer: {line!r} -> {l}' + ''.join('\n' + o for o in out))   # the output printed before the error stays readable
                 if l: out.append(l)
         raise TimeoutError(f'peer: no answer to {line!r} in {timeout} s')
 

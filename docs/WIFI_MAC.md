@@ -57,3 +57,7 @@ What IDF does (`bench/wifi_regs/data/idf_hal_tx.dis`, `idf_hal_txq.dis`, `idf_lm
 
 Experiments with those values on our start path (a null frame to the AP / to nobody / broadcast): with c34 = IDF's mask bit 7 appears on every frame, the same for acknowledged, unacknowledged and broadcast frames; CONF `a20013ff`, PLCP0 flags 21/22, and writing IDF's `cf4/cf8/ca0/d78/d84/3c/438/d2c/d34/d14` values did not change the event bits otherwise (queue state registers stay 0). The engine is therefore not driven by these alone: the hwtxop list, PMD fields and the txop queue word (`mac_tx_set_txop_q`) have to be programmed the way `hal_mac_tx_set_ppdu` + `lmacSetTxFrame` do, then the ISR flow (bit 7 / 19 / 8 + queue state) read. Next step: replay `lmacSetTxFrame` for one frame on the peer through OpenOCD and diff the PMD / hwtxop RAM before and after.
 
+
+### TX parameter RAM (2026-10-29)
+
+`0x600342e0..0x600343fc` (per-queue parameter block: PLCP words, duration, TX-time record, hwtxop list) powers up with random contents and the MAC patches the transmitted frame from it: the duration field (bytes 2-3) comes from `0x60034318`, and some frames got 8 zero bytes at offset 48-55 (observed on DHCP frames: IP destination and UDP ports zeroed, so the receiver dropped them). Seen by sniffing the station's own DISCOVER (BOX-3 `wifi_watch <mac> all` prints the first 64 bytes). `rf_wifi_tx_init` now zeroes the block before the register replay (the replay sets the entries it needs). Before this, TX correctness depended on what the RAM happened to hold after a power cycle.

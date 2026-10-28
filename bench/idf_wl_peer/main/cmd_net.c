@@ -118,7 +118,7 @@ static int cmd_iperf_rx(int argc, char **argv)                   /* iperf_rx <po
 static int cmd_http_get(int argc, char **argv)                    /* http_get <url> [n]: n sequential GETs, one connection each */
 {
     if (argc < 2) return -1;
-    int reps = argc > 2 ? atoi(argv[2]) : 1, good = 0;
+    int reps = argc > 2 ? atoi(argv[2]) : 1, good = 0; int64_t t0 = esp_timer_get_time(); unsigned bytes = 0;
     for (int r = 0; r < reps; r++) {
         esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 8000 };
         esp_http_client_handle_t h = esp_http_client_init(&c);
@@ -127,10 +127,10 @@ static int cmd_http_get(int argc, char **argv)                    /* http_get <u
         int status = esp_http_client_get_status_code(h); unsigned total = 0; char buf[512];
         for (int n; (n = esp_http_client_read(h, buf, sizeof buf)) > 0;) total += n;
         esp_http_client_cleanup(h);
-        if (status == 200) good++;
+        if (status == 200) { good++; bytes += total; }
         if (r == reps - 1) printf("http status=%d bytes=%u\n", status, total);
     }
-    printf("http ok=%d of %d\n", good, reps);
+    printf("http ok=%d of %d elapsed_ms=%u bytes=%u\n", good, reps, (unsigned)((esp_timer_get_time() - t0) / 1000), bytes);
     return good == reps ? 0 : -3;
 }
 /* http_raw <ip> <port> <nocrlf|badline|longline>: a malformed request; prints the first response line, or "closed" */

@@ -1,0 +1,2 @@
+esp-ndf      /hello 60/60 in 76165 ms = 0.8 req/s | /big x3: 196608 bytes in 91999 ms = 2.1 KB/s
+ESP-IDF      /hello 60/60 in 64448 ms = 0.9 req/s | /big x3: 196608 bytes in 85416 ms = 2.2 KB/s
