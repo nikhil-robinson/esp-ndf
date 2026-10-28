@@ -35,7 +35,9 @@ static uint16_t next_seq(void) { return s.seq++ & 0xFFF; }
 static void zero(void *p, unsigned n) { volatile uint8_t *q = p; while (n--) *q++ = 0; }
 static void down(void) { s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_replay = k.msg1_seen = 0; }
 
-static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt)
+static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt, unsigned rate);
+static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt) { return send_eth_rate(dst, ethertype, p, n, encrypt, data_rate); }
+static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt, unsigned rate)
 {
     unsigned l = wifi_build_data(fb, s.me, s.bssid, dst, ethertype, p, n, next_seq());
     if (encrypt) {                                           /* QoS data (as the IDF station sends): header 26 | CCMP header 8 | LLC/SNAP + payload | MIC 8 */
@@ -44,7 +46,7 @@ static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, 
         l = 26 + (unsigned)c;
     }
     s.last_tx = time_ms();
-    return wifi_mac_tx_rate(fb, l, data_rate);          /* data at 12 Mbit/s: DSSS frames over ~1200 B are not heard (docs/WIFI_MAC.md) */
+    return wifi_mac_tx_rate(fb, l, rate);               /* data at 12 Mbit/s: DSSS frames over ~1200 B are not heard (docs/WIFI_MAC.md) */
 }
 
 /* --- WPA2 4-way and group key handshake (station side) --- */
@@ -59,7 +61,7 @@ static void hs_send(uint16_t info, uint64_t replay, const uint8_t *nonce, const 
     if (nonce) memcpy(e + 17, nonce, 32);
     e[97] = (uint8_t)(dl >> 8); e[98] = (uint8_t)dl; if (dl) memcpy(e + 99, data, dl);
     uint8_t m[20]; wpa_hmac_sha1(KCK, 16, e, 4 + body, m); memcpy(e + 81, m, 16);
-    send_eth(s.bssid, 0x888E, e, 4 + body, 0);
+    send_eth_rate(s.bssid, 0x888E, e, 4 + body, 0, WIFI_RATE_1M);       /* the handshake at 1 Mbit/s: the AP misses 12 Mbit/s frames now and then (measured: 6 of 6 joins instead of about half) */
 }
 
 static int take_gtk(const uint8_t *d, unsigned n)                /* GTK KDE inside the unwrapped key data; 0 = found and stored */

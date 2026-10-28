@@ -100,7 +100,7 @@ int rf_wifi_rx(uint8_t *out, unsigned max, uint32_t timeout_ms)
         for (int i = 0; i < WRX_N; i++) {
             if (!(rx_desc[i][0] & 0x40000000u)) continue;                             /* bit 30 (has data) is set by the MAC when the frame is complete */
             unsigned len = *(volatile uint32_t *)(rx_buf[i] + 44) & 0xFFF, dl = (rx_desc[i][0] >> 12) & 0xFFF;   /* frame length from the header; buffer length from the descriptor */
-            if (dl < len + 44 || dl > len + 46) { rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED; continue; }          /* no MAC header: a continuation buffer (descriptor length = frame + 45, +-1 measured) */
+            if (dl < len + 44 || dl >= len + 44 + 8) { rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED; continue; }    /* no MAC header: a continuation buffer. A real frame's descriptor length is frame + 44 rounded up to a multiple of 8 (156 -> 200, 155 -> 200, 137 -> 184) */
             memcpy(last_desc, rx_desc[i], sizeof last_desc);
             if (len > WRX_BUF - WRX_HDR) len = WRX_BUF - WRX_HDR;
             if (len > max) len = max;

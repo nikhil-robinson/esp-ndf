@@ -115,19 +115,41 @@ static int cmd_iperf_rx(int argc, char **argv)                   /* iperf_rx <po
     return 0;
 }
 
-static int cmd_http_get(int argc, char **argv)
+static int cmd_http_get(int argc, char **argv)                    /* http_get <url> [n]: n sequential GETs, one connection each */
 {
     if (argc < 2) return -1;
-    esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 8000 };
-    esp_http_client_handle_t h = esp_http_client_init(&c);
-    int rc = esp_http_client_open(h, 0);
-    if (rc) { esp_http_client_cleanup(h); return -2; }
-    esp_http_client_fetch_headers(h);
-    int status = esp_http_client_get_status_code(h); unsigned total = 0; char buf[512];
-    for (int n; (n = esp_http_client_read(h, buf, sizeof buf)) > 0;) total += n;
-    esp_http_client_cleanup(h);
-    printf("http status=%d bytes=%u\n", status, total);
-    return status == 200 ? 0 : -3;
+    int reps = argc > 2 ? atoi(argv[2]) : 1, good = 0;
+    for (int r = 0; r < reps; r++) {
+        esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 8000 };
+        esp_http_client_handle_t h = esp_http_client_init(&c);
+        if (esp_http_client_open(h, 0)) { esp_http_client_cleanup(h); continue; }
+        esp_http_client_fetch_headers(h);
+        int status = esp_http_client_get_status_code(h); unsigned total = 0; char buf[512];
+        for (int n; (n = esp_http_client_read(h, buf, sizeof buf)) > 0;) total += n;
+        esp_http_client_cleanup(h);
+        if (status == 200) good++;
+        if (r == reps - 1) printf("http status=%d bytes=%u\n", status, total);
+    }
+    printf("http ok=%d of %d\n", good, reps);
+    return good == reps ? 0 : -3;
+}
+/* http_raw <ip> <port> <nocrlf|badline|longline>: a malformed request; prints the first response line, or "closed" */
+static int cmd_http_raw(int argc, char **argv)
+{
+    if (argc < 4) return -1;
+    int fd = socket(AF_INET, SOCK_STREAM, 0); struct sockaddr_in a = { .sin_family = AF_INET, .sin_port = htons(atoi(argv[2])) };
+    inet_aton(argv[1], &a.sin_addr);
+    struct timeval tv = { 5, 0 }; setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    if (connect(fd, (struct sockaddr *)&a, sizeof a)) { close(fd); return -2; }
+    static char junk[2400];
+    if (!strcmp(argv[3], "nocrlf")) { memset(junk, 'A', 2000); send(fd, junk, 2000, 0); }
+    else if (!strcmp(argv[3], "badline")) send(fd, "GARBAGE\r\n\r\n", 12, 0);
+    else { memset(junk, 'B', 300); memcpy(junk, "GET /", 5); memcpy(junk + 298, " HTTP/1.1\r\n\r\n", 0); send(fd, junk, 300, 0); send(fd, " HTTP/1.1\r\n\r\n", 13, 0); }
+    char buf[96] = { 0 }; int n = recv(fd, buf, sizeof buf - 1, 0);
+    char *e = strchr(buf, '\r'); if (e) *e = 0;
+    printf("raw %s\n", n > 0 ? buf : "closed");
+    close(fd);
+    return 0;
 }
 static esp_err_t hello_h(httpd_req_t *r) { return httpd_resp_sendstr(r, "hello"); }
 static esp_err_t big_h(httpd_req_t *r)
@@ -147,4 +169,4 @@ static int cmd_http_serve(int argc, char **argv)
 }
 
 const peer_cmd_t cmds_net[] = { { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
-                                { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_serve", cmd_http_serve }, { 0 } };
+                                { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { 0 } };

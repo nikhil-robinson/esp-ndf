@@ -1,4 +1,5 @@
 /* Wi-Fi commands of the peer: access point, station, sniffer (frame counts), raw frame injection. */
+#include "esp_private/wifi.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -49,7 +50,6 @@ static int wifi_boot(void)
 }
 static void halt(void) { if (mode_on) { esp_wifi_stop(); mode_on = 0; } }
 
-#include "esp_private/wifi.h"
 static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssid> <pass|-> <chan> */
 {
     if (wifi_boot() || argc < 4) return -1;
@@ -63,6 +63,7 @@ static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssi
     if (argc > 4) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed rate needs the 802.11n aggregation off */
     int rc = esp_wifi_start(); mode_on = !rc;
     if (!rc && argc > 4) esp_wifi_internal_set_fix_rate(WIFI_IF_AP, true, (wifi_phy_rate_t)strtol(argv[4], 0, 0));   /* optional: fixed PHY rate code (IDF wifi_phy_rate_t), same on every device compared */
+    if (!rc) { esp_netif_dhcps_stop(ap_if); esp_netif_dhcps_start(ap_if); }      /* the DHCP server stops answering after a few AP restarts otherwise (seen on this peer) */
     uint8_t m[6]; esp_wifi_get_mac(WIFI_IF_AP, m);
     printf("ap %s ch %d bssid %02x:%02x:%02x:%02x:%02x:%02x ip 192.168.4.1\n", argv[1], c.ap.channel, m[0], m[1], m[2], m[3], m[4], m[5]);
     return rc;
@@ -160,7 +161,7 @@ static uint8_t watch_mac[6]; static volatile uint32_t w_n; static struct { uint8
 static void watch_cb(void *buf, wifi_promiscuous_pkt_type_t t)
 {
     wifi_promiscuous_pkt_t *p = buf;
-    if (p->rx_ctrl.sig_len < 16 || memcmp(p->payload + 10, watch_mac, 6)) return;
+    if (p->rx_ctrl.sig_len < 16 || memcmp(p->payload + 10, watch_mac, 6) || p->payload[0] == 0x80) return;      /* beacons are skipped */
     if (w_n < 16) w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], p->rx_ctrl.sig_len, p->rx_ctrl.rssi, p->rx_ctrl.rate };
     w_n++;
 }
@@ -186,7 +187,22 @@ static int cmd_stas(int argc, char **argv)                          /* wifi_stas
     for (int i = 0; i < l.num; i++) printf("  %02x:%02x:%02x:%02x:%02x:%02x rssi %d\n", l.sta[i].mac[0], l.sta[i].mac[1], l.sta[i].mac[2], l.sta[i].mac[3], l.sta[i].mac[4], l.sta[i].mac[5], l.sta[i].rssi);
     return 0;
 }
+static int cmd_dhcps(int argc, char **argv)                         /* wifi_dhcps [restart]: status of the AP's DHCP server */
+{
+    esp_netif_dhcp_status_t st; esp_netif_dhcps_get_status(ap_if, &st);
+    esp_netif_ip_info_t ip; esp_netif_get_ip_info(ap_if, &ip);
+    printf("dhcps status %d ip " IPSTR "\n", (int)st, IP2STR(&ip.ip));
+    if (argc > 1) { esp_netif_dhcps_stop(ap_if); int rc = esp_netif_dhcps_start(ap_if); esp_netif_dhcps_get_status(ap_if, &st); printf("restarted rc %d status %d\n", rc, (int)st); }
+    return 0;
+}
+static int cmd_rd(int argc, char **argv)                            /* rd <addr> <n>: n words of a register block */
+{
+    if (argc < 3) return -1;
+    uint32_t a = strtoul(argv[1], 0, 0); int n = atoi(argv[2]);
+    for (int i = 0; i < n; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
+    return 0;
+}
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_unicast", cmd_unicast }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "wifi_unicast", cmd_unicast }, { 0 } };

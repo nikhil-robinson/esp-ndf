@@ -146,6 +146,12 @@ int main(void)
         else if (!strcmp(v[0], "static") && n > 1) {                  /* static <ip>: after "up": drop DHCP, use this address (netmask /24, gateway .1) */
             ip4_addr_t a, m, g; parse_ip(v[1], &a); IP4_ADDR(&m, 255, 255, 255, 0); IP4_ADDR(&g, 192, 168, 4, 1);
             dhcp_stop(net_netif()); netif_set_addr(net_netif(), &a, &m, &g); printf("static %s\n", v[1]);
+        } else if (!strcmp(v[0], "rawarp")) {                           /* the same raw ARP request as sta_unit, bypassing lwIP */
+            uint8_t a[28] = { 0, 1, 8, 0, 6, 4, 0, 1 }, bc[6] = { 255, 255, 255, 255, 255, 255 };
+            memcpy(a + 8, my, 6); a[14] = 192; a[15] = 168; a[16] = 4; a[17] = 50; a[24] = 192; a[25] = 168; a[26] = 4; a[27] = 1;
+            printf("rawarp tx %d\n", wifi_send_eth(bc, 0x0806, a, 28)); pump_ms(600);
+        } else if (!strcmp(v[0], "rd") && n > 2) { uint32_t a = strtoul(v[1], 0, 0), c = strtoul(v[2], 0, 0); for (uint32_t i = 0; i < c; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
+                } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
         } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
         else if (!strcmp(v[0], "stats"))
             printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
