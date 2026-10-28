@@ -1,0 +1,250 @@
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+42081614 <hal_mac_fill_hwtxop>:
+42081614:	004136        	entry	a1, 32
+42081617:	743030        	extui	a3, a3, 0, 8
+4208161a:	1183c0        	slli	a8, a3, 4
+4208161d:	c08830        	sub	a8, a8, a3
+42081620:	744040        	extui	a4, a4, 0, 8
+42081623:	fffb31        	l32r	a3, 42081610 <mac_tx_set_htsig+0x1e4> (6003437c <GPSPI3+0xf37c>)
+42081626:	440b      	addi.n	a4, a4, -1
+42081628:	1144e0        	slli	a4, a4, 2
+4208162b:	a08830        	addx4	a8, a8, a3
+4208162e:	c08840        	sub	a8, a8, a4
+42081631:	0020c0        	memw
+42081634:	0848      	l32i.n	a4, a8, 0
+42081636:	1298      	l32i.n	a9, a2, 4
+42081638:	fcd3b1        	l32r	a11, 42080984 <hal_mac_enable_low_rate+0x3c> (fffff <UserFrameTotalSize+0xffeff>)
+4208163b:	fa7c      	movi.n	a10, -1
+4208163d:	01aac0        	slli	a10, a10, 20
+42081640:	1044a0        	and	a4, a4, a10
+42081643:	1099b0        	and	a9, a9, a11
+42081646:	209940        	or	a9, a9, a4
+42081649:	0020c0        	memw
+4208164c:	0899      	s32i.n	a9, a8, 0
+4208164e:	0b1292        	l16ui	a9, a2, 22
+42081651:	0a1222        	l16ui	a2, a2, 20
+42081654:	0020c0        	memw
+42081657:	0848      	l32i.n	a4, a8, 0
+42081659:	992a      	add.n	a9, a9, a2
+4208165b:	0199c0        	slli	a9, a9, 20
+4208165e:	1044b0        	and	a4, a4, a11
+42081661:	209940        	or	a9, a9, a4
+42081664:	0020c0        	memw
+42081667:	0899      	s32i.n	a9, a8, 0
+42081669:	f01d      	retw.n
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+4208084c <hal_mac_tx_set_ppdu>:
+4208084c:	004136        	entry	a1, 32
+4208084f:	20a220        	or	a10, a2, a2
+42080852:	fffb81        	l32r	a8, 42080840 <hal_crypto_disable+0x38> (400053f4 <mac_tx_set_plcp0>)
+42080855:	0008e0        	callx8	a8
+42080858:	02ad      	mov.n	a10, a2
+4208085a:	201110        	or	a1, a1, a1
+4208085d:	00aee5        	call8	4208134c <mac_tx_set_plcp1>
+42080860:	02ad      	mov.n	a10, a2
+42080862:	fff881        	l32r	a8, 42080844 <hal_crypto_disable+0x3c> (4000540c <mac_tx_set_plcp2>)
+42080865:	0008e0        	callx8	a8
+42080868:	02ad      	mov.n	a10, a2
+4208086a:	fff781        	l32r	a8, 42080848 <hal_crypto_disable+0x40> (400053dc <mac_tx_set_duration>)
+4208086d:	0008e0        	callx8	a8
+42080870:	03bd      	mov.n	a11, a3
+42080872:	02ad      	mov.n	a10, a2
+42080874:	201110        	or	a1, a1, a1
+42080877:	00bb65        	call8	4208142c <mac_tx_set_htsig>
+4208087a:	02ad      	mov.n	a10, a2
+4208087c:	201110        	or	a1, a1, a1
+4208087f:	00dfa5        	call8	42081678 <mac_tx_set_txop_q>
+42080882:	02ad      	mov.n	a10, a2
+42080884:	201110        	or	a1, a1, a1
+42080887:	3aa9a5        	call8	420bb320 <mac_tx_set_pti>
+4208088a:	020c      	movi.n	a2, 0
+4208088c:	f01d      	retw.n
+Disassembly of section .iram0.text:
+
+4038a608 <hal_mac_tx_config_edca>:
+4038a608:	004136        	entry	a1, 32
+4038a60b:	040282        	l8ui	a8, a2, 4
+4038a60e:	fff191        	l32r	a9, 4038a5d4 <rcGetSched+0xa8> (60033d04 <GPSPI3+0xed04>)
+4038a611:	1188d0        	slli	a8, a8, 3
+4038a614:	c09980        	sub	a9, a9, a8
+4038a617:	050282        	l8ui	a8, a2, 5
+4038a61a:	fb0c      	movi.n	a11, 15
+4038a61c:	01bb80        	slli	a11, a11, 24
+4038a61f:	018880        	slli	a8, a8, 24
+4038a622:	0020c0        	memw
+4038a625:	09a8      	l32i.n	a10, a9, 0
+4038a627:	1088b0        	and	a8, a8, a11
+4038a62a:	d244b1        	l32r	a11, 4037ef3c <phy_i2c_bbtop_wakeup+0x5c> (f0ffffff <_rtc_reserved_end+0x90efffff>)
+4038a62d:	10aab0        	and	a10, a10, a11
+4038a630:	2088a0        	or	a8, a8, a10
+4038a633:	0020c0        	memw
+4038a636:	0989      	s32i.n	a8, a9, 0
+4038a638:	031282        	l16ui	a8, a2, 6
+4038a63b:	0020c0        	memw
+4038a63e:	09a8      	l32i.n	a10, a9, 0
+4038a640:	fff121        	l32r	a2, 4038a604 <hal_mac_tx_config_timeout+0x2c> (ffc00fff <_rtc_reserved_end+0x9fb00fff>)
+4038a643:	ffa3b2        	movi	a11, 0x3ff
+4038a646:	11bb40        	slli	a11, a11, 12
+4038a649:	118840        	slli	a8, a8, 12
+4038a64c:	10aa20        	and	a10, a10, a2
+4038a64f:	1088b0        	and	a8, a8, a11
+4038a652:	2088a0        	or	a8, a8, a10
+4038a655:	0020c0        	memw
+4038a658:	0989      	s32i.n	a8, a9, 0
+4038a65a:	020c      	movi.n	a2, 0
+4038a65c:	f01d      	retw.n
+
+Disassembly of section .flash.text:
+Disassembly of section .iram0.text:
+
+4038a5d8 <hal_mac_tx_config_timeout>:
+4038a5d8:	004136        	entry	a1, 32
+4038a5db:	040282        	l8ui	a8, a2, 4
+4038a5de:	fffd91        	l32r	a9, 4038a5d4 <rcGetSched+0xa8> (60033d04 <GPSPI3+0xed04>)
+4038a5e1:	1188d0        	slli	a8, a8, 3
+4038a5e4:	c09980        	sub	a9, a9, a8
+4038a5e7:	0020c0        	memw
+4038a5ea:	0988      	l32i.n	a8, a9, 0
+4038a5ec:	fa7c      	movi.n	a10, -1
+4038a5ee:	11aa40        	slli	a10, a10, 12
+4038a5f1:	1088a0        	and	a8, a8, a10
+4038a5f4:	b43030        	extui	a3, a3, 0, 12
+4038a5f7:	208830        	or	a8, a8, a3
+4038a5fa:	0020c0        	memw
+4038a5fd:	0989      	s32i.n	a8, a9, 0
+4038a5ff:	020c      	movi.n	a2, 0
+4038a601:	f01d      	retw.n
+
+Disassembly of section .flash.text:
+Disassembly of section .iram0.text:
+
+4038a664 <hal_mac_txq_enable>:
+4038a664:	004136        	entry	a1, 32
+4038a667:	fffe81        	l32r	a8, 4038a660 <hal_mac_tx_config_edca+0x58> (c0067a1 <UserFrameTotalSize+0xc0066a1>)
+4038a66a:	742020        	extui	a2, a2, 0, 8
+4038a66d:	c08820        	sub	a8, a8, a2
+4038a670:	1188d0        	slli	a8, a8, 3
+4038a673:	0020c0        	memw
+4038a676:	0898      	l32i.n	a9, a8, 0
+4038a678:	fa7c      	movi.n	a10, -1
+4038a67a:	01aa20        	slli	a10, a10, 30
+4038a67d:	2099a0        	or	a9, a9, a10
+4038a680:	0020c0        	memw
+4038a683:	0899      	s32i.n	a9, a8, 0
+4038a685:	f01d      	retw.n
+
+Disassembly of section .flash.text:
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+420808d8 <hal_mac_tx_set_cca>:
+420808d8:	004136        	entry	a1, 32
+420808db:	fffe91        	l32r	a9, 420808d4 <hal_mac_is_txq_valid+0x1c> (60033c50 <GPSPI3+0xec50>)
+420808de:	ffa9a1        	l32r	a10, 42080784 <hal_crypto_mgmt_rx_enabled+0x28> (3fffffff <ets_rom_layout_p+0xe0003>)
+420808e1:	0020c0        	memw
+420808e4:	0988      	l32i.n	a8, a9, 0
+420808e6:	012220        	slli	a2, a2, 30
+420808e9:	1088a0        	and	a8, a8, a10
+420808ec:	208820        	or	a8, a8, a2
+420808ef:	0020c0        	memw
+420808f2:	0989      	s32i.n	a8, a9, 0
+420808f4:	020c      	movi.n	a2, 0
+420808f6:	f01d      	retw.n
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+420bb368 <hal_mac_txq_disable>:
+420bb368:	004136        	entry	a1, 32
+420bb36b:	fffd81        	l32r	a8, 420bb360 <mac_tx_set_pti+0x40> (c0067a1 <UserFrameTotalSize+0xc0066a1>)
+420bb36e:	742020        	extui	a2, a2, 0, 8
+420bb371:	c08820        	sub	a8, a8, a2
+420bb374:	1188d0        	slli	a8, a8, 3
+420bb377:	0020c0        	memw
+420bb37a:	0898      	l32i.n	a9, a8, 0
+420bb37c:	fffaa1        	l32r	a10, 420bb364 <mac_tx_set_pti+0x44> (3fffffff <ets_rom_layout_p+0xe0003>)
+420bb37f:	1099a0        	and	a9, a9, a10
+420bb382:	0020c0        	memw
+420bb385:	0899      	s32i.n	a9, a8, 0
+420bb387:	f01d      	retw.n
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+420bb260 <hal_set_tx_pti>:
+420bb260:	004136        	entry	a1, 32
+420bb263:	748020        	extui	a8, a2, 0, 8
+420bb266:	fff9a1        	l32r	a10, 420bb24c <trc_onPPTxDone+0x88> (60033d04 <GPSPI3+0xed04>)
+420bb269:	1128d0        	slli	a2, a8, 3
+420bb26c:	c0aa20        	sub	a10, a10, a2
+420bb26f:	0020c0        	memw
+420bb272:	0a98      	l32i.n	a9, a10, 0
+420bb274:	fff721        	l32r	a2, 420bb250 <trc_onPPTxDone+0x8c> (fffffff <UserFrameTotalSize+0xffffeff>)
+420bb277:	013340        	slli	a3, a3, 28
+420bb27a:	109920        	and	a9, a9, a2
+420bb27d:	b4af22        	movi	a2, -76
+420bb280:	828820        	mull	a8, a8, a2
+420bb283:	fff421        	l32r	a2, 420bb254 <trc_onPPTxDone+0x90> (600342fc <GPSPI3+0xf2fc>)
+420bb286:	209930        	or	a9, a9, a3
+420bb289:	882a      	add.n	a8, a8, a2
+420bb28b:	0020c0        	memw
+420bb28e:	0a99      	s32i.n	a9, a10, 0
+420bb290:	0020c0        	memw
+420bb293:	0898      	l32i.n	a9, a8, 0
+420bb295:	fff021        	l32r	a2, 420bb258 <trc_onPPTxDone+0x94> (ffff0fff <_rtc_reserved_end+0x9fef0fff>)
+420bb298:	744040        	extui	a4, a4, 0, 8
+420bb29b:	114440        	slli	a4, a4, 12
+420bb29e:	109920        	and	a9, a9, a2
+420bb2a1:	f44040        	extui	a4, a4, 0, 16
+420bb2a4:	204490        	or	a4, a4, a9
+420bb2a7:	0020c0        	memw
+420bb2aa:	0849      	s32i.n	a4, a8, 0
+420bb2ac:	0020c0        	memw
+420bb2af:	0848      	l32i.n	a4, a8, 0
+420bb2b1:	aa1821        	l32r	a2, 420a5b14 <phy_freq_correct+0x160> (fffff0ff <_rtc_reserved_end+0x9feff0ff>)
+420bb2b4:	f90c      	movi.n	a9, 15
+420bb2b6:	115580        	slli	a5, a5, 8
+420bb2b9:	119980        	slli	a9, a9, 8
+420bb2bc:	104420        	and	a4, a4, a2
+420bb2bf:	105590        	and	a5, a5, a9
+420bb2c2:	205540        	or	a5, a5, a4
+420bb2c5:	0020c0        	memw
+420bb2c8:	0859      	s32i.n	a5, a8, 0
+420bb2ca:	0020c0        	memw
+420bb2cd:	0848      	l32i.n	a4, a8, 0
+420bb2cf:	746060        	extui	a6, a6, 0, 8
+420bb2d2:	0faf22        	movi	a2, -241
+420bb2d5:	1166c0        	slli	a6, a6, 4
+420bb2d8:	104420        	and	a4, a4, a2
+420bb2db:	746060        	extui	a6, a6, 0, 8
+420bb2de:	206640        	or	a6, a6, a4
+420bb2e1:	0020c0        	memw
+420bb2e4:	0869      	s32i.n	a6, a8, 0
+420bb2e6:	0020c0        	memw
+420bb2e9:	0848      	l32i.n	a4, a8, 0
+420bb2eb:	a08021        	l32r	a2, 420a34ec <freq_i2c_data_write+0x50> (fff0ffff <_rtc_reserved_end+0x9fe0ffff>)
+420bb2ee:	f50c      	movi.n	a5, 15
+420bb2f0:	115500        	slli	a5, a5, 16
+420bb2f3:	117700        	slli	a7, a7, 16
+420bb2f6:	104420        	and	a4, a4, a2
+420bb2f9:	107750        	and	a7, a7, a5
+420bb2fc:	207740        	or	a7, a7, a4
+420bb2ff:	0020c0        	memw
+420bb302:	0879      	s32i.n	a7, a8, 0
+420bb304:	0020c0        	memw
+420bb307:	0848      	l32i.n	a4, a8, 0
+420bb309:	ffd421        	l32r	a2, 420bb25c <trc_onPPTxDone+0x98> (fffff <UserFrameTotalSize+0xffeff>)
+420bb30c:	8158      	l32i.n	a5, a1, 32
+420bb30e:	104420        	and	a4, a4, a2
+420bb311:	0155c0        	slli	a5, a5, 20
+420bb314:	204450        	or	a4, a4, a5
+420bb317:	0020c0        	memw
+420bb31a:	0849      	s32i.n	a4, a8, 0
+420bb31c:	f01d      	retw.n

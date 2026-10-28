@@ -1,0 +1,59 @@
+4003b1ec <lmacTxDone>:
+4003b1ec:	004136        	entry	a1, 32
+4003b1ef:	f90541        	l32r	a4, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003b1f2:	02ad      	mov.n	a10, a2
+4003b1f4:	0488      	l32i.n	a8, a4, 0
+4003b1f6:	01a0b2        	movi	a11, 1
+4003b1f9:	b72882        	l32i	a8, a8, 0x2dc
+4003b1fc:	743030        	extui	a3, a3, 0, 8
+4003b1ff:	0008e0        	callx8	a8
+4003b202:	0488      	l32i.n	a8, a4, 0
+4003b204:	02ad      	mov.n	a10, a2
+4003b206:	382882        	l32i	a8, a8, 224
+4003b209:	0008e0        	callx8	a8
+4003b20c:	0498      	l32i.n	a9, a4, 0
+4003b20e:	b52982        	l32i	a8, a9, 0x2d4
+4003b211:	588c      	beqz.n	a8, 4003b21a <lmacTxDone+0x2e>
+4003b213:	02ad      	mov.n	a10, a2
+4003b215:	0008e0        	callx8	a8
+4003b218:	0498      	l32i.n	a9, a4, 0
+4003b21a:	b2b8      	l32i.n	a11, a2, 44
+4003b21c:	fff381        	l32r	a8, 4003b1e8 <ppEnqueueTxDone+0x38> (400008 <xthals_release_major+0x3fd128>)
+4003b21f:	0ba8      	l32i.n	a10, a11, 0
+4003b221:	108a80        	and	a8, a10, a8
+4003b224:	0a8866        	bnei	a8, 8, 4003b232 <lmacTxDone+0x46>
+4003b227:	022982        	l32i	a8, a9, 8
+4003b22a:	0922a2        	l32i	a10, a2, 36
+4003b22d:	0008e0        	callx8	a8
+4003b230:	0498      	l32i.n	a9, a4, 0
+4003b232:	1988      	l32i.n	a8, a9, 4
+4003b234:	00a0b2        	movi	a11, 0
+4003b237:	0a1c      	movi.n	a10, 16
+4003b239:	0008e0        	callx8	a8
+4003b23c:	d3bc      	beqz.n	a3, 4003b27d <lmacTxDone+0x91>
+4003b23e:	b288      	l32i.n	a8, a2, 44
+4003b240:	ff7c91        	l32r	a9, 4003b030 <ieee80211_set_tx_pti+0x2c> (3fcef308 <our_instances>)
+4003b243:	18a8      	l32i.n	a10, a8, 4
+4003b245:	34a4a0        	extui	a10, a10, 4, 4
+4003b248:	a03aa0        	addx4	a3, a10, a10
+4003b24b:	b03390        	addx8	a3, a3, a9
+4003b24e:	1d0332        	l8ui	a3, a3, 29
+4003b251:	0933f6        	bgeui	a3, 3, 4003b25e <lmacTxDone+0x72>
+4003b254:	0438      	l32i.n	a3, a4, 0
+4003b256:	3e2332        	l32i	a3, a3, 248
+4003b259:	0003e0        	callx8	a3
+4003b25c:	b288      	l32i.n	a8, a2, 44
+4003b25e:	0838      	l32i.n	a3, a8, 0
+4003b260:	0c6367        	bbci	a3, 6, 4003b270 <lmacTxDone+0x84>
+4003b263:	0438      	l32i.n	a3, a4, 0
+4003b265:	01a0a2        	movi	a10, 1
+4003b268:	5b2332        	l32i	a3, a3, 0x16c
+4003b26b:	0003e0        	callx8	a3
+4003b26e:	b288      	l32i.n	a8, a2, 44
+4003b270:	0428      	l32i.n	a2, a4, 0
+4003b272:	18a8      	l32i.n	a10, a8, 4
+4003b274:	2c2222        	l32i	a2, a2, 176
+4003b277:	34a4a0        	extui	a10, a10, 4, 4
+4003b27a:	0002e0        	callx8	a2
+4003b27d:	f01d      	retw.n
+	...

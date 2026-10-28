@@ -1,0 +1,162 @@
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+420bacc0 <lmacSetTxFrame>:
+420bacc0:	006136        	entry	a1, 48
+420bacc3:	743030        	extui	a3, a3, 0, 8
+420bacc6:	738c      	beqz.n	a3, 420bacd1 <lmacSetTxFrame+0x11>
+420bacc8:	fff631        	l32r	a3, 420baca0 <esf_buf_alloc_dynamic+0x1a0> (3fcef94c <our_wait_eb>)
+420baccb:	0338      	l32i.n	a3, a3, 0
+420baccd:	000086        	j	420bacd3 <lmacSetTxFrame+0x13>
+420bacd0:	023800        	andb	b3, b8, b0
+420bacd3:	b348      	l32i.n	a4, a3, 44
+420bacd5:	1398      	l32i.n	a9, a3, 4
+420bacd7:	0488      	l32i.n	a8, a4, 0
+420bacd9:	19a8      	l32i.n	a10, a9, 4
+420bacdb:	017827        	bbci	a8, 18, 420bace0 <lmacSetTxFrame+0x20>
+420bacde:	aa8b      	addi.n	a10, a10, 8
+420bace0:	1c0c      	movi.n	a12, 1
+420bace2:	4498      	l32i.n	a9, a4, 16
+420bace4:	01cca0        	slli	a12, a12, 22
+420bace7:	10d8c0        	and	a13, a8, a12
+420bacea:	0514b2        	l16ui	a11, a4, 10
+420baced:	359490        	extui	a9, a9, 20, 4
+420bacf0:	1d8c      	beqz.n	a13, 420bacf5 <lmacSetTxFrame+0x35>
+420bacf2:	003006        	j	420badb6 <lmacSetTxFrame+0xf6>
+420bacf5:	1f6877        	bbci	a8, 7, 420bad18 <lmacSetTxFrame+0x58>
+420bacf8:	1c42d2        	s8i	a13, a2, 28
+420bacfb:	026867        	bbci	a8, 6, 420bad01 <lmacSetTxFrame+0x41>
+420bacfe:	002dc6        	j	420badb9 <lmacSetTxFrame+0xf9>
+420bad01:	a348      	l32i.n	a4, a3, 40
+420bad03:	0002c6        	j	420bad12 <lmacSetTxFrame+0x52>
+420bad06:	820000        	mull	a0, a0, a0
+420bad09:	1b1c02        	l16ui	a0, a12, 54
+420bad0c:	8288      	l32i.n	a8, a2, 32
+420bad0e:	481c42        	l16ui	a4, a12, 144
+420bad11:	a4          	.byte	0xa4
+420bad12:	ff2456        	bnez	a4, 420bad08 <lmacSetTxFrame+0x48>
+420bad15:	002806        	j	420badb9 <lmacSetTxFrame+0xf9>
+420bad18:	32e8      	l32i.n	a14, a2, 12
+420bad1a:	ffe2d1        	l32r	a13, 420baca4 <esf_buf_alloc_dynamic+0x1a4> (ff00ff00 <_rtc_reserved_end+0x9ef0ff00>)
+420bad1d:	020ed7        	bnone	a14, a13, 420bad23 <lmacSetTxFrame+0x63>
+420bad20:	002546        	j	420badb9 <lmacSetTxFrame+0xf9>
+420bad23:	0c12d2        	l16ui	a13, a2, 24
+420bad26:	07ed16        	beqz	a13, 420bada8 <lmacSetTxFrame+0xe8>
+420bad29:	1c02d2        	l8ui	a13, a2, 28
+420bad2c:	078d56        	bnez	a13, 420bada8 <lmacSetTxFrame+0xe8>
+420bad2f:	fe86d1        	l32r	a13, 420ba748 <pp_coex_tx_release+0x5c> (3fcef954 <pTxRx>)
+420bad32:	991b      	addi.n	a9, a9, 1
+420bad34:	0dd8      	l32i.n	a13, a13, 0
+420bad36:	909990        	addx2	a9, a9, a9
+420bad39:	1199c0        	slli	a9, a9, 4
+420bad3c:	9d9a      	add.n	a9, a13, a9
+420bad3e:	000992        	l8ui	a9, a9, 0
+420bad41:	063956        	bnez	a9, 420bada8 <lmacSetTxFrame+0xe8>
+420bad44:	02a492        	movi	a9, 0x402
+420bad47:	5d8897        	bany	a8, a9, 420bada8 <lmacSetTxFrame+0xe8>
+420bad4a:	990c      	movi.n	a9, 9
+420bad4c:	0199d0        	slli	a9, a9, 19
+420bad4f:	109890        	and	a9, a8, a9
+420bad52:	5219c7        	beq	a9, a12, 420bada8 <lmacSetTxFrame+0xe8>
+420bad55:	ffd491        	l32r	a9, 420baca8 <esf_buf_alloc_dynamic+0x1a8> (40088 <UserFrameTotalSize+0x3ff88>)
+420bad58:	108890        	and	a8, a8, a9
+420bad5b:	498866        	bnei	a8, 8, 420bada8 <lmacSetTxFrame+0xe8>
+420bad5e:	9388      	l32i.n	a8, a3, 36
+420bad60:	044816        	beqz	a8, 420bada8 <lmacSetTxFrame+0xe8>
+420bad63:	820882        	l8ui	a8, a8, 130
+420bad66:	3e1866        	bnei	a8, 1, 420bada8 <lmacSetTxFrame+0xe8>
+420bad69:	14a8      	l32i.n	a10, a4, 4
+420bad6b:	34a4a0        	extui	a10, a10, 4, 4
+420bad6e:	ffd081        	l32r	a8, 420bacb0 <esf_buf_alloc_dynamic+0x1b0> (40005604 <lmacRequestTxopQueue>)
+420bad71:	0008e0        	callx8	a8
+420bad74:	041a16        	beqz	a10, 420badb9 <lmacSetTxFrame+0xf9>
+420bad77:	0c12b2        	l16ui	a11, a2, 24
+420bad7a:	03ad      	mov.n	a10, a3
+420bad7c:	201110        	or	a1, a1, a1
+420bad7f:	c1e825        	call8	4207cc00 <ppCalTxopDur>
+420bad82:	74a0a0        	extui	a10, a10, 0, 8
+420bad85:	1c42a2        	s8i	a10, a2, 28
+420bad88:	b348      	l32i.n	a4, a3, 44
+420bad8a:	ba8c      	beqz.n	a10, 420bad99 <lmacSetTxFrame+0xd9>
+420bad8c:	0488      	l32i.n	a8, a4, 0
+420bad8e:	00a192        	movi	a9, 0x100
+420bad91:	208890        	or	a8, a8, a9
+420bad94:	0489      	s32i.n	a8, a4, 0
+420bad96:	0007c6        	j	420badb9 <lmacSetTxFrame+0xf9>
+420bad99:	14a8      	l32i.n	a10, a4, 4
+420bad9b:	34a4a0        	extui	a10, a10, 4, 4
+420bad9e:	ffc581        	l32r	a8, 420bacb4 <esf_buf_alloc_dynamic+0x1b4> (40005610 <lmacReleaseTxopQueue>)
+420bada1:	0008e0        	callx8	a8
+420bada4:	000446        	j	420badb9 <lmacSetTxFrame+0xf9>
+420bada7:	044200        	extui	a4, a0, 2, 1
+420badaa:	0c0c      	movi.n	a12, 0
+420badac:	42f8      	l32i.n	a15, a2, 16
+420badae:	c4          	.byte	0xc4
+420badaf:	f0          	.byte	0xf0
+420badb0:	744040        	extui	a4, a4, 0, 8
+420badb3:	023847        	bltu	a8, a4, 420badb9 <lmacSetTxFrame+0xf9>
+420badb6:	015ab2        	s16i	a11, a10, 2
+420badb9:	ffbc91        	l32r	a9, 420bacac <esf_buf_alloc_dynamic+0x1ac> (3fc9f81c <lmacConfMib>)
+420badbc:	b3a8      	l32i.n	a10, a3, 44
+420badbe:	2e0942        	l8ui	a4, a9, 46
+420badc1:	04ac      	beqz.n	a4, 420bade5 <lmacSetTxFrame+0x125>
+420badc3:	2d0942        	l8ui	a4, a9, 45
+420badc6:	0c0a82        	l8ui	a8, a10, 12
+420badc9:	b48c      	beqz.n	a4, 420badd8 <lmacSetTxFrame+0x118>
+420badcb:	fcc882        	addi	a8, a8, -4
+420badce:	748080        	extui	a8, a8, 0, 8
+420badd1:	1048f6        	bgeui	a8, 4, 420bade5 <lmacSetTxFrame+0x125>
+420badd4:	000286        	j	420bade2 <lmacSetTxFrame+0x122>
+420badd7:	480b00        	ssx	f0, a11, a0
+420badda:	744040        	extui	a4, a4, 0, 8
+420baddd:	0434f6        	bgeui	a4, 3, 420bade5 <lmacSetTxFrame+0x125>
+420bade0:	884b      	addi.n	a8, a8, 4
+420bade2:	0c4a82        	s8i	a8, a10, 12
+420bade5:	fdb581        	l32r	a8, 420ba4bc <sta_rx_eapol+0x19c> (3fca1278 <g_mesh_is_started>)
+420bade8:	b04741        	l32r	a4, 420a6f04 <rfrx_sat_rst+0x5c> (60035000 <GPSPI3+0x10000>)
+420badeb:	000882        	l8ui	a8, a8, 0
+420badee:	0020c0        	memw
+420badf1:	0448      	l32i.n	a4, a4, 0
+420badf3:	389c      	beqz.n	a8, 420bae0a <lmacSetTxFrame+0x14a>
+420badf5:	6a38      	l32i.n	a3, a10, 24
+420badf7:	29b8      	l32i.n	a11, a9, 8
+420badf9:	c03430        	sub	a3, a4, a3
+420badfc:	413a30        	srli	a3, a3, 10
+420badff:	c03b30        	sub	a3, a11, a3
+420bae02:	3e3b37        	bltu	a11, a3, 420bae44 <lmacSetTxFrame+0x184>
+420bae05:	1b0c      	movi.n	a11, 1
+420bae07:	000d86        	j	420bae41 <lmacSetTxFrame+0x181>
+420bae0a:	0a88      	l32i.n	a8, a10, 0
+420bae0c:	057867        	bbci	a8, 22, 420bae15 <lmacSetTxFrame+0x155>
+420bae0f:	0988      	l32i.n	a8, a9, 0
+420bae11:	000086        	j	420bae17 <lmacSetTxFrame+0x157>
+420bae14:	00          	.byte	00
+420bae15:	2988      	l32i.n	a8, a9, 8
+420bae17:	118860        	slli	a8, a8, 10
+420bae1a:	04bd      	mov.n	a11, a4
+420bae1c:	03ad      	mov.n	a10, a3
+420bae1e:	01cd      	mov.n	a12, a1
+420bae20:	006182        	s32i	a8, a1, 0
+420bae23:	ffa581        	l32r	a8, 420bacb8 <esf_buf_alloc_dynamic+0x1b8> (40389b98 <ppProcessLifeTime>)
+420bae26:	0008e0        	callx8	a8
+420bae29:	b398      	l32i.n	a9, a3, 44
+420bae2b:	0188      	l32i.n	a8, a1, 0
+420bae2d:	ab0c      	movi.n	a11, 10
+420bae2f:	c03840        	sub	a3, a8, a4
+420bae32:	6948      	l32i.n	a4, a9, 24
+420bae34:	334a      	add.n	a3, a3, a4
+420bae36:	0ab387        	bgeu	a3, a8, 420bae44 <lmacSetTxFrame+0x184>
+420bae39:	400b00        	ssr	a11
+420bae3c:	91b030        	srl	a11, a3
+420bae3f:	130c      	movi.n	a3, 1
+420bae41:	73bb30        	maxu	a11, a11, a3
+420bae44:	02ad      	mov.n	a10, a2
+420bae46:	ff9d81        	l32r	a8, 420bacbc <esf_buf_alloc_dynamic+0x1bc> (4038a5d8 <hal_mac_tx_config_timeout>)
+420bae49:	0008e0        	callx8	a8
+420bae4c:	fe3f31        	l32r	a3, 420ba748 <pp_coex_tx_release+0x5c> (3fcef954 <pTxRx>)
+420bae4f:	02ad      	mov.n	a10, a2
+420bae51:	03b8      	l32i.n	a11, a3, 0
+420bae53:	201110        	or	a1, a1, a1
+420bae56:	c59f65        	call8	4208084c <hal_mac_tx_set_ppdu>
+420bae59:	f01d      	retw.n

@@ -1,0 +1,108 @@
+Disassembly of section .flash.text:
+42081808 <hal_mac_get_txq_pmd>:
+42081808:	006136        	entry	a1, 48
+4208180b:	b4af82        	movi	a8, -76
+4208180e:	742020        	extui	a2, a2, 0, 8
+42081811:	822280        	mull	a2, a2, a8
+42081814:	fffb81        	l32r	a8, 42081800 <hal_mac_clr_txq_state+0x5c> (60034320 <GPSPI3+0xf320>)
+42081817:	228a      	add.n	a2, a2, a8
+42081819:	0020c0        	memw
+4208181c:	0288      	l32i.n	a8, a2, 0
+4208181e:	74a880        	extui	a10, a8, 8, 8
+42081821:	759080        	extui	a9, a8, 16, 8
+42081824:	752880        	extui	a2, a8, 24, 8
+42081827:	004382        	s8i	a8, a3, 0
+4208182a:	034322        	s8i	a2, a3, 3
+4208182d:	0143a2        	s8i	a10, a3, 1
+42081830:	024392        	s8i	a9, a3, 2
+42081833:	fff421        	l32r	a2, 42081804 <hal_mac_clr_txq_state+0x60> (fe00ffff <_rtc_reserved_end+0x9df0ffff>)
+42081836:	118900        	slli	a8, a9, 16
+42081839:	0398      	l32i.n	a9, a3, 0
+4208183b:	109920        	and	a9, a9, a2
+4208183e:	208980        	or	a8, a9, a8
+42081841:	0389      	s32i.n	a8, a3, 0
+42081843:	020c      	movi.n	a2, 0
+42081845:	f01d      	retw.n
+Disassembly of section .flash.text:
+4208175c <hal_mac_get_txq_state>:
+4208175c:	004136        	entry	a1, 32
+4208175f:	151226        	beqi	a2, 1, 42081778 <hal_mac_get_txq_state+0x1c>
+42081762:	232226        	beqi	a2, 2, 42081789 <hal_mac_get_txq_state+0x2d>
+42081765:	080c      	movi.n	a8, 0
+42081767:	299287        	bne	a2, a8, 42081794 <hal_mac_get_txq_state+0x38>
+4208176a:	fffa21        	l32r	a2, 42081754 <mac_tx_set_txop_q+0xdc> (60033ca8 <GPSPI3+0xeca8>)
+4208176d:	0020c0        	memw
+42081770:	0288      	l32i.n	a8, a2, 0
+42081772:	a48080        	extui	a8, a8, 0, 11
+42081775:	0006c6        	j	42081794 <hal_mac_get_txq_state+0x38>
+42081778:	fff721        	l32r	a2, 42081754 <mac_tx_set_txop_q+0xdc> (60033ca8 <GPSPI3+0xeca8>)
+4208177b:	0020c0        	memw
+4208177e:	0288      	l32i.n	a8, a2, 0
+42081780:	758080        	extui	a8, a8, 16, 8
+42081783:	000346        	j	42081794 <hal_mac_get_txq_state+0x38>
+42081786:	000000        	ill
+42081789:	fff321        	l32r	a2, 42081758 <mac_tx_set_txop_q+0xe0> (60033cb0 <GPSPI3+0xecb0>)
+4208178c:	0020c0        	memw
+4208178f:	0288      	l32i.n	a8, a2, 0
+42081791:	348080        	extui	a8, a8, 0, 4
+42081794:	082d      	mov.n	a2, a8
+42081796:	f01d      	retw.n
+Disassembly of section .flash.text:
+420817a4 <hal_mac_clr_txq_state>:
+420817a4:	004136        	entry	a1, 32
+420817a7:	191226        	beqi	a2, 1, 420817c4 <hal_mac_clr_txq_state+0x20>
+420817aa:	3b2226        	beqi	a2, 2, 420817e9 <hal_mac_clr_txq_state+0x45>
+420817ad:	048256        	bnez	a2, 420817f9 <hal_mac_clr_txq_state+0x55>
+420817b0:	fffa21        	l32r	a2, 42081798 <hal_mac_get_txq_state+0x3c> (60033ca4 <GPSPI3+0xeca4>)
+420817b3:	00a892        	movi	a9, 0xfffff800
+420817b6:	0020c0        	memw
+420817b9:	0288      	l32i.n	a8, a2, 0
+420817bb:	a43030        	extui	a3, a3, 0, 11
+420817be:	108890        	and	a8, a8, a9
+420817c1:	000b06        	j	420817f1 <hal_mac_clr_txq_state+0x4d>
+420817c4:	fff521        	l32r	a2, 42081798 <hal_mac_get_txq_state+0x3c> (60033ca4 <GPSPI3+0xeca4>)
+420817c7:	ffa092        	movi	a9, 255
+420817ca:	119900        	slli	a9, a9, 16
+420817cd:	113300        	slli	a3, a3, 16
+420817d0:	0020c0        	memw
+420817d3:	0288      	l32i.n	a8, a2, 0
+420817d5:	103390        	and	a3, a3, a9
+420817d8:	fff191        	l32r	a9, 4208179c <hal_mac_get_txq_state+0x40> (ff00ffff <_rtc_reserved_end+0x9ef0ffff>)
+420817db:	108890        	and	a8, a8, a9
+420817de:	203380        	or	a3, a3, a8
+420817e1:	0020c0        	memw
+420817e4:	0239      	s32i.n	a3, a2, 0
+420817e6:	0003c6        	j	420817f9 <hal_mac_clr_txq_state+0x55>
+420817e9:	ffed21        	l32r	a2, 420817a0 <hal_mac_get_txq_state+0x44> (60033cac <GPSPI3+0xecac>)
+420817ec:	0020c0        	memw
+420817ef:	0288      	l32i.n	a8, a2, 0
+420817f1:	208830        	or	a8, a8, a3
+420817f4:	0020c0        	memw
+420817f7:	0289      	s32i.n	a8, a2, 0
+420817f9:	020c      	movi.n	a2, 0
+420817fb:	f01d      	retw.n
+Disassembly of section .flash.text:
+420808b8 <hal_mac_is_txq_valid>:
+420808b8:	004136        	entry	a1, 32
+420808bb:	fff581        	l32r	a8, 42080890 <hal_mac_tx_set_ppdu+0x44> (c0067a1 <UserFrameTotalSize+0xc0066a1>)
+420808be:	742020        	extui	a2, a2, 0, 8
+420808c1:	c08820        	sub	a8, a8, a2
+420808c4:	1188d0        	slli	a8, a8, 3
+420808c7:	0020c0        	memw
+420808ca:	0828      	l32i.n	a2, a8, 0
+420808cc:	052e20        	extui	a2, a2, 30, 1
+420808cf:	f01d      	retw.n
+Disassembly of section .flash.text:
+42080894 <hal_mac_set_txq_invalid>:
+42080894:	004136        	entry	a1, 32
+42080897:	fffe81        	l32r	a8, 42080890 <hal_mac_tx_set_ppdu+0x44> (c0067a1 <UserFrameTotalSize+0xc0066a1>)
+4208089a:	742020        	extui	a2, a2, 0, 8
+4208089d:	c08820        	sub	a8, a8, a2
+420808a0:	1188d0        	slli	a8, a8, 3
+420808a3:	0020c0        	memw
+420808a6:	0898      	l32i.n	a9, a8, 0
+420808a8:	fb27a1        	l32r	a10, 4207f544 <wDev_Rxbuf_Deinit+0x6c> (bfffffff <_rtc_reserved_end+0x5fefffff>)
+420808ab:	1099a0        	and	a9, a9, a10
+420808ae:	0020c0        	memw
+420808b1:	0899      	s32i.n	a9, a8, 0
+420808b3:	f01d      	retw.n

@@ -43,3 +43,17 @@ Register layout follows the ESP32 MAC (esp32-open-mac, plain ESP32 only) with th
 ## Gate result (plan Task 3 step 5)
 
 (a)/(b)/(f)/(g) unanswered until open item 1 is solved; Wi-Fi tasks (6-12) are re-estimated as a reverse-engineering track. BLE (Phase C) does not depend on any of this and proceeds first.
+
+## IDF transmit engine (read from the peer ELF and the ROM, 2026-10-29)
+
+Why TCP is slow (64 KB echo in ~100 s): our `rf_wifi_tx` starts a frame on TX queue 0 but never engages the MAC's frame-exchange engine, so nothing senses the air (CCA/backoff), nothing waits for the ACK, and nothing retries. A reply of the peer that arrives while we transmit collides, we never learn it, and TCP recovers only by its RTO (1 segment alone: 10 ms; 2 back-to-back segments: one of them stalls ~2 s). Measured: a fixed 8 ms blind wait after each TX halves the stalls but starves the receiver (UDP 70% -> 50%, beacon timeout), so it is not kept.
+
+What IDF does (`bench/wifi_regs/data/idf_hal_tx.dis`, `idf_hal_txq.dis`, `idf_lmac_tx.dis`, `idf_lmacSetTxFrame.dis`, `rom_mac_tx.dis`, `rom_lmacTxDone.dis`, `rom_lmacEndFrameExchange.dis`; register state `tx_param_idf_vs_ndf.json`):
+- per queue q: CONF `0x60033d04 - 8q` (`hal_mac_tx_config_edca`: bits 27:24 AIFS, 21:12 CW; `hal_mac_tx_config_timeout`: bits 11:0 = ACK timeout; IDF idle value `a20013ff`), PLCP0 / start `0x60033d08 - 8q` (`mac_tx_set_plcp0`: descriptor offset in 19:0, flag bits 21 and 22, 24..28 bandwidth/GI/HT bits, enable = bits 31:30 via `hal_mac_txq_enable`), PMD block `0x60034320 - 76q` with PLCP1 `0x600342f8`, PTI word `0x600342fc` (`hal_set_tx_pti`: rate/retry fields), HT-SIG `0x60034300`, txop queue word `0x60034314` (`mac_tx_set_txop_q`).
+- hardware TX operation list `hwtxop` at `0x6003437c`: entry = descriptor offset (19:0) | (header length + payload length) << 20, 15 entries per txop queue (`hal_mac_fill_hwtxop`, `mac_tx_set_txop_q`).
+- CCA control `0x60033c50` bits 31:30 (`hal_mac_tx_set_cca`); queue state `0x60033ca4..cb0` (`hal_mac_get/clr_txq_state`).
+- results arrive as events in `0x60033c3c` (decoded in `wDev_ProcessFiq`): bit 7 TX complete -> `lmacPostTxComplete`, bit 19 -> `lmacProcessAllTxTimeout`, bit 8 -> `lmacProcessCollisions`, bits 14/24 receive; ROM `lmacEndFrameExchangeSequence` decides retry / success from the queue state and the retry counters, `lmacRetryTxFrame` (IDF) re-arms the queue with the retry bit.
+- `hal_init` interrupt mask `0x60033c34 = 0x19a8f9e0` (ours: bit 1 only).
+
+Experiments with those values on our start path (a null frame to the AP / to nobody / broadcast): with c34 = IDF's mask bit 7 appears on every frame, the same for acknowledged, unacknowledged and broadcast frames; CONF `a20013ff`, PLCP0 flags 21/22, and writing IDF's `cf4/cf8/ca0/d78/d84/3c/438/d2c/d34/d14` values did not change the event bits otherwise (queue state registers stay 0). The engine is therefore not driven by these alone: the hwtxop list, PMD fields and the txop queue word (`mac_tx_set_txop_q`) have to be programmed the way `hal_mac_tx_set_ppdu` + `lmacSetTxFrame` do, then the ISR flow (bit 7 / 19 / 8 + queue state) read. Next step: replay `lmacSetTxFrame` for one frame on the peer through OpenOCD and diff the PMD / hwtxop RAM before and after.
+

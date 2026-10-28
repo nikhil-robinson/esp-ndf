@@ -1,0 +1,284 @@
+Disassembly of section .iram0.text:
+
+40389cf0 <lmacTxFrame>:
+40389cf0:	008136        	entry	a1, 64
+40389cf3:	fff251        	l32r	a5, 40389cbc <lmacAdjustTimestamp+0x44> (3ff1ee58 <our_instances_ptr>)
+40389cf6:	744030        	extui	a4, a3, 0, 8
+40389cf9:	0558      	l32i.n	a5, a5, 0
+40389cfb:	a03440        	addx4	a3, a4, a4
+40389cfe:	b03350        	addx8	a3, a3, a5
+40389d01:	120372        	l8ui	a7, a3, 18
+40389d04:	1164e0        	slli	a6, a4, 2
+40389d07:	fdc792        	addi	a9, a7, -3
+40389d0a:	748090        	extui	a8, a9, 0, 8
+40389d0d:	2428b6        	bltui	a8, 2, 40389d35 <lmacTxFrame+0x45>
+40389d10:	1b0c      	movi.n	a11, 1
+40389d12:	f79c      	beqz.n	a7, 40389d35 <lmacTxFrame+0x45>
+40389d14:	ffee21        	l32r	a2, 40389ccc <lmacAdjustTimestamp+0x54> (89a <UserFrameTotalSize+0x79a>)
+40389d17:	ffeaf1        	l32r	a15, 40389cc0 <lmacAdjustTimestamp+0x48> (3c0dd743 <ieee80211_ethbroadcast+0x13f>)
+40389d1a:	ffeae1        	l32r	a14, 40389cc4 <lmacAdjustTimestamp+0x4c> (3c0d715a <sbox+0x155a>)
+40389d1d:	ffead1        	l32r	a13, 40389cc8 <lmacAdjustTimestamp+0x50> (3c0e0f9d <__chclass+0x12b5>)
+40389d20:	0bcd      	mov.n	a12, a11
+40389d22:	0129      	s32i.n	a2, a1, 0
+40389d24:	11bb50        	slli	a11, a11, 11
+40389d27:	06a0a2        	movi	a10, 6
+40389d2a:	cf3981        	l32r	a8, 4037da10 <wdev_record_rx_linked_list+0x84> (42064400 <wifi_log>)
+40389d2d:	0008e0        	callx8	a8
+40389d30:	ffff06        	j	40389d30 <lmacTxFrame+0x40>
+40389d33:	660000        	ee.ldf.64.xp	f0, f6, a0, a0
+40389d36:	4a2b47        	blt	a11, a4, 40389d84 <lmacTxFrame+0x94>
+40389d39:	76          	.byte	0x76
+40389d3a:	b07750        	addx8	a7, a7, a5
+40389d3d:	0778      	l32i.n	a7, a7, 0
+40389d3f:	029727        	bne	a7, a2, 40389d45 <lmacTxFrame+0x55>
+40389d42:	0032c6        	j	40389e11 <lmacTxFrame+0x121>
+40389d45:	ffe321        	l32r	a2, 40389cd4 <lmacAdjustTimestamp+0x5c> (8a3 <UserFrameTotalSize+0x7a3>)
+40389d48:	1c0c      	movi.n	a12, 1
+40389d4a:	ffddf1        	l32r	a15, 40389cc0 <lmacAdjustTimestamp+0x48> (3c0dd743 <ieee80211_ethbroadcast+0x13f>)
+40389d4d:	ffdde1        	l32r	a14, 40389cc4 <lmacAdjustTimestamp+0x4c> (3c0d715a <sbox+0x155a>)
+40389d50:	ffe0d1        	l32r	a13, 40389cd0 <lmacAdjustTimestamp+0x58> (3c0e0f93 <__chclass+0x12ab>)
+40389d53:	0129      	s32i.n	a2, a1, 0
+40389d55:	11bc50        	slli	a11, a12, 11
+40389d58:	6a0c      	movi.n	a10, 6
+40389d5a:	cf2d81        	l32r	a8, 4037da10 <wdev_record_rx_linked_list+0x84> (42064400 <wifi_log>)
+40389d5d:	0008e0        	callx8	a8
+40389d60:	ffff06        	j	40389d60 <lmacTxFrame+0x70>
+40389d63:	764a00        	ee.ldf.64.xp	f4, f7, a0, a10
+40389d66:	b07750        	addx8	a7, a7, a5
+40389d69:	0729      	s32i.n	a2, a7, 0
+40389d6b:	c2dc      	bnez.n	a2, 40389d8b <lmacTxFrame+0x9b>
+40389d6d:	ffdb21        	l32r	a2, 40389cdc <lmacAdjustTimestamp+0x64> (8ac <UserFrameTotalSize+0x7ac>)
+40389d70:	1c0c      	movi.n	a12, 1
+40389d72:	ffd3f1        	l32r	a15, 40389cc0 <lmacAdjustTimestamp+0x48> (3c0dd743 <ieee80211_ethbroadcast+0x13f>)
+40389d75:	ffd3e1        	l32r	a14, 40389cc4 <lmacAdjustTimestamp+0x4c> (3c0d715a <sbox+0x155a>)
+40389d78:	ffd8d1        	l32r	a13, 40389cd8 <lmacAdjustTimestamp+0x60> (3c0e0f89 <__chclass+0x12a1>)
+40389d7b:	0129      	s32i.n	a2, a1, 0
+40389d7d:	11bc50        	slli	a11, a12, 11
+40389d80:	6a0c      	movi.n	a10, 6
+40389d82:	cf2381        	l32r	a8, 4037da10 <wdev_record_rx_linked_list+0x84> (42064400 <wifi_log>)
+40389d85:	0008e0        	callx8	a8
+40389d88:	ffff06        	j	40389d88 <lmacTxFrame+0x98>
+40389d8b:	b278      	l32i.n	a7, a2, 44
+40389d8d:	ffd4b1        	l32r	a11, 40389ce0 <lmacAdjustTimestamp+0x68> (2102 <UserFrameTotalSize+0x2002>)
+40389d90:	0788      	l32i.n	a8, a7, 0
+40389d92:	01a0a2        	movi	a10, 1
+40389d95:	10b8b0        	and	a11, a8, a11
+40389d98:	11aa30        	slli	a10, a10, 13
+40389d9b:	0b9ba7        	bne	a11, a10, 40389daa <lmacTxFrame+0xba>
+40389d9e:	01a0a2        	movi	a10, 1
+40389da1:	11aa40        	slli	a10, a10, 12
+40389da4:	2088a0        	or	a8, a8, a10
+40389da7:	006782        	s32i	a8, a7, 0
+40389daa:	02ad      	mov.n	a10, a2
+40389dac:	046192        	s32i	a9, a1, 16
+40389daf:	ffcd81        	l32r	a8, 40389ce4 <lmacAdjustTimestamp+0x6c> (40005340 <lmacIsLongFrame>)
+40389db2:	0008e0        	callx8	a8
+40389db5:	4198      	l32i.n	a9, a1, 16
+40389db7:	2a9c      	beqz.n	a10, 40389dcd <lmacTxFrame+0xdd>
+40389db9:	0788      	l32i.n	a8, a7, 0
+40389dbb:	0ee817        	bbsi	a8, 1, 40389dcd <lmacTxFrame+0xdd>
+40389dbe:	ab71a1        	l32r	a10, 40374b84 <_iram_text_start+0x780> (ffffefff <_rtc_reserved_end+0x9fefefff>)
+40389dc1:	1088a0        	and	a8, a8, a10
+40389dc4:	00a1a2        	movi	a10, 0x100
+40389dc7:	2088a0        	or	a8, a8, a10
+40389dca:	006782        	s32i	a8, a7, 0
+40389dcd:	0788      	l32i.n	a8, a7, 0
+40389dcf:	2668c7        	bbci	a8, 12, 40389df9 <lmacTxFrame+0x109>
+40389dd2:	39ec      	bnez.n	a9, 40389df9 <lmacTxFrame+0x109>
+40389dd4:	fe9191        	l32r	a9, 40389818 <ppCalTxAMPDULength+0x28c> (3fc9f81c <lmacConfMib>)
+40389dd7:	0507a2        	l8ui	a10, a7, 5
+40389dda:	2a0992        	l8ui	a9, a9, 42
+40389ddd:	183a97        	bltu	a10, a9, 40389df9 <lmacTxFrame+0x109>
+40389de0:	ab6991        	l32r	a9, 40374b84 <_iram_text_start+0x780> (ffffefff <_rtc_reserved_end+0x9fefefff>)
+40389de3:	108890        	and	a8, a8, a9
+40389de6:	00a192        	movi	a9, 0x100
+40389de9:	208890        	or	a8, a8, a9
+40389dec:	0789      	s32i.n	a8, a7, 0
+40389dee:	060782        	l8ui	a8, a7, 6
+40389df1:	074782        	s8i	a8, a7, 7
+40389df4:	080c      	movi.n	a8, 0
+40389df6:	064782        	s8i	a8, a7, 6
+40389df9:	0778      	l32i.n	a7, a7, 0
+40389dfb:	0777d7        	bbci	a7, 29, 40389e06 <lmacTxFrame+0x116>
+40389dfe:	02ad      	mov.n	a10, a2
+40389e00:	ffba81        	l32r	a8, 40389ce8 <lmacAdjustTimestamp+0x70> (4207ee58 <wDev_ftm_set_t1t4>)
+40389e03:	0008e0        	callx8	a8
+40389e06:	0b0c      	movi.n	a11, 0
+40389e08:	20a330        	or	a10, a3, a3
+40389e0b:	ffb881        	l32r	a8, 40389cec <lmacAdjustTimestamp+0x74> (420bacc0 <lmacSetTxFrame>)
+40389e0e:	0008e0        	callx8	a8
+40389e11:	090372        	l8ui	a7, a3, 9
+40389e14:	080382        	l8ui	a8, a3, 8
+40389e17:	777a      	add.n	a7, a7, a7
+40389e19:	18a787        	bge	a7, a8, 40389e35 <lmacTxFrame+0x145>
+40389e1c:	02ad      	mov.n	a10, a2
+40389e1e:	ffb181        	l32r	a8, 40389ce4 <lmacAdjustTimestamp+0x6c> (40005340 <lmacIsLongFrame>)
+40389e21:	0008e0        	callx8	a8
+40389e24:	dacc      	bnez.n	a10, 40389e35 <lmacTxFrame+0x145>
+40389e26:	201110        	or	a1, a1, a1
+40389e29:	0085e5        	call8	4038a688 <hal_random>
+40389e2c:	090322        	l8ui	a2, a3, 9
+40389e2f:	222a      	add.n	a2, a2, a2
+40389e31:	000246        	j	40389e3e <lmacTxFrame+0x14e>
+40389e34:	111000        	slli	a1, a0, 16
+40389e37:	84e520        	extui	a14, a2, 5, 9
+40389e3a:	032200        	rsr.m2	a0
+40389e3d:	7c08      	l32i.n	a0, a12, 28
+40389e3f:	00f8      	l32i.n	a15, a0, 0
+40389e41:	004012        	s8i	a1, a0, 0
+40389e44:	a128      	l32i.n	a2, a1, 40
+40389e46:	308820        	xor	a8, a8, a2
+40389e49:	10a8a0        	and	a10, a8, a10
+40389e4c:	f4a0a0        	extui	a10, a10, 0, 16
+40389e4f:	0353a2        	s16i	a10, a3, 6
+40389e52:	664a      	add.n	a6, a6, a4
+40389e54:	03ad      	mov.n	a10, a3
+40389e56:	201110        	or	a1, a1, a1
+40389e59:	007ae5        	call8	4038a608 <hal_mac_tx_config_edca>
+40389e5c:	b06650        	addx8	a6, a6, a5
+40389e5f:	01a022        	movi	a2, 1
+40389e62:	124622        	s8i	a2, a6, 18
+40389e65:	2b0c      	movi.n	a11, 2
+40389e67:	09a0a2        	movi	a10, 9
+40389e6a:	201110        	or	a1, a1, a1
+40389e6d:	f39fe5        	call8	4037d86c <wifi_gpio_debug>
+40389e70:	0403a2        	l8ui	a10, a3, 4
+40389e73:	201110        	or	a1, a1, a1
+40389e76:	007ee5        	call8	4038a664 <hal_mac_txq_enable>
+40389e79:	f01d      	retw.n
+
+Disassembly of section .flash.text:
+Disassembly of section .iram0.text:
+
+40389e98 <lmacTxDone>:
+40389e98:	006136        	entry	a1, 48
+40389e9b:	b248      	l32i.n	a4, a2, 44
+40389e9d:	1b0c      	movi.n	a11, 1
+40389e9f:	02ad      	mov.n	a10, a2
+40389ea1:	1448      	l32i.n	a4, a4, 4
+40389ea3:	fffa81        	l32r	a8, 40389e8c <lmacTxFrame+0x19c> (400059ac <ppProcTxCallback>)
+40389ea6:	0008e0        	callx8	a8
+40389ea9:	02ad      	mov.n	a10, a2
+40389eab:	fff981        	l32r	a8, 40389e90 <lmacTxFrame+0x1a0> (400055a4 <ppEnqueueTxDone>)
+40389eae:	0008e0        	callx8	a8
+40389eb1:	f86581        	l32r	a8, 40388048 <esp_log_timestamp+0x7c> (3fca7fe0 <g_wifi_menuconfig>)
+40389eb4:	743030        	extui	a3, a3, 0, 8
+40389eb7:	102882        	l32i	a8, a8, 64
+40389eba:	344440        	extui	a4, a4, 4, 4
+40389ebd:	086837        	bbci	a8, 3, 40389ec9 <lmacTxDone+0x31>
+40389ec0:	20a220        	or	a10, a2, a2
+40389ec3:	fff481        	l32r	a8, 40389e94 <lmacTxFrame+0x1a4> (4207d4a0 <lmac_record_txtime>)
+40389ec6:	0008e0        	callx8	a8
+40389ec9:	b2b8      	l32i.n	a11, a2, 44
+40389ecb:	ffec91        	l32r	a9, 40389e7c <lmacTxFrame+0x18c> (400008 <UserFrameTotalSize+0x3fff08>)
+40389ece:	0b88      	l32i.n	a8, a11, 0
+40389ed0:	108890        	and	a8, a8, a9
+40389ed3:	078866        	bnei	a8, 8, 40389ede <lmacTxDone+0x46>
+40389ed6:	92a8      	l32i.n	a10, a2, 36
+40389ed8:	201110        	or	a1, a1, a1
+40389edb:	003165        	call8	4038a1f0 <rcUpdateTxDone>
+40389ede:	0b0c      	movi.n	a11, 0
+40389ee0:	0a1c      	movi.n	a10, 16
+40389ee2:	ce6781        	l32r	a8, 4037d880 <wifi_gpio_debug+0x14> (400056e8 <pp_post>)
+40389ee5:	0008e0        	callx8	a8
+40389ee8:	058316        	beqz	a3, 40389f44 <lmacTxDone+0xac>
+40389eeb:	ff7431        	l32r	a3, 40389cbc <lmacAdjustTimestamp+0x44> (3ff1ee58 <our_instances_ptr>)
+40389eee:	04ad      	mov.n	a10, a4
+40389ef0:	0338      	l32i.n	a3, a3, 0
+40389ef2:	fe4a81        	l32r	a8, 4038981c <ppCalTxAMPDULength+0x290> (40005334 <lmacIsIdle>)
+40389ef5:	0008e0        	callx8	a8
+40389ef8:	dadc      	bnez.n	a10, 40389f19 <lmacTxDone+0x81>
+40389efa:	ffe321        	l32r	a2, 40389e88 <lmacTxFrame+0x198> (970 <UserFrameTotalSize+0x870>)
+40389efd:	1c0c      	movi.n	a12, 1
+40389eff:	ffe0f1        	l32r	a15, 40389e80 <lmacTxFrame+0x190> (3c0dd738 <ieee80211_ethbroadcast+0x134>)
+40389f02:	ff70e1        	l32r	a14, 40389cc4 <lmacAdjustTimestamp+0x4c> (3c0d715a <sbox+0x155a>)
+40389f05:	ffdfd1        	l32r	a13, 40389e84 <lmacTxFrame+0x194> (3c0e0f7f <__chclass+0x1297>)
+40389f08:	0129      	s32i.n	a2, a1, 0
+40389f0a:	11bc50        	slli	a11, a12, 11
+40389f0d:	6a0c      	movi.n	a10, 6
+40389f0f:	cec081        	l32r	a8, 4037da10 <wdev_record_rx_linked_list+0x84> (42064400 <wifi_log>)
+40389f12:	0008e0        	callx8	a8
+40389f15:	ffff06        	j	40389f15 <lmacTxDone+0x7d>
+40389f18:	844000        	extui	a4, a0, 0, 9
+40389f1b:	a0          	.byte	0xa0
+40389f1c:	b08830        	addx8	a8, a8, a3
+40389f1f:	1d0882        	l8ui	a8, a8, 29
+40389f22:	0738f6        	bgeui	a8, 3, 40389f2d <lmacTxDone+0x95>
+40389f25:	04ad      	mov.n	a10, a4
+40389f27:	fe4581        	l32r	a8, 4038983c <ppCalTxAMPDULength+0x2b0> (40005610 <lmacReleaseTxopQueue>)
+40389f2a:	0008e0        	callx8	a8
+40389f2d:	b228      	l32i.n	a2, a2, 44
+40389f2f:	0228      	l32i.n	a2, a2, 0
+40389f31:	076267        	bbci	a2, 6, 40389f3c <lmacTxDone+0xa4>
+40389f34:	1a0c      	movi.n	a10, 1
+40389f36:	fea381        	l32r	a8, 403899c4 <ppProcessTxQ+0x184> (420ba788 <ppProcTxDone>)
+40389f39:	0008e0        	callx8	a8
+40389f3c:	04ad      	mov.n	a10, a4
+40389f3e:	201110        	or	a1, a1, a1
+40389f41:	ff8fe5        	call8	40389840 <ppProcessTxQ>
+40389f44:	f01d      	retw.n
+
+Disassembly of section .flash.text:
+Disassembly of section .iram0.text:
+
+Disassembly of section .flash.text:
+
+4207d658 <lmacRetryTxFrame>:
+4207d658:	004136        	entry	a1, 32
+4207d65b:	0248      	l32i.n	a4, a2, 0
+4207d65d:	743030        	extui	a3, a3, 0, 8
+4207d660:	b4b8      	l32i.n	a11, a4, 44
+4207d662:	1458      	l32i.n	a5, a4, 4
+4207d664:	0b98      	l32i.n	a9, a11, 0
+4207d666:	1558      	l32i.n	a5, a5, 4
+4207d668:	4bf917        	bbsi	a9, 17, 4207d6b7 <lmacRetryTxFrame+0x5f>
+4207d66b:	07f356        	bnez	a3, 4207d6ee <lmacRetryTxFrame+0x96>
+4207d66e:	0d0282        	l8ui	a8, a2, 13
+4207d671:	079856        	bnez	a8, 4207d6ee <lmacRetryTxFrame+0x96>
+4207d674:	0f02a2        	l8ui	a10, a2, 15
+4207d677:	005a16        	beqz	a10, 4207d680 <lmacRetryTxFrame+0x28>
+4207d67a:	0f4282        	s8i	a8, a2, 15
+4207d67d:	0d4282        	s8i	a8, a2, 13
+4207d680:	017927        	bbci	a9, 18, 4207d685 <lmacRetryTxFrame+0x2d>
+4207d683:	558b      	addi.n	a5, a5, 8
+4207d685:	94a8      	l32i.n	a10, a4, 36
+4207d687:	201110        	or	a1, a1, a1
+4207d68a:	3daaa5        	call8	420bb134 <rcGetRate>
+4207d68d:	02a8      	l32i.n	a10, a2, 0
+4207d68f:	0b2a42        	l32i	a4, a10, 44
+4207d692:	002442        	l32i	a4, a4, 0
+4207d695:	106467        	bbci	a4, 6, 4207d6a9 <lmacRetryTxFrame+0x51>
+4207d698:	fda281        	l32r	a8, 4207cd20 <ppCalTxopDur+0x120> (40005544 <ppCalFrameTimes>)
+4207d69b:	0008e0        	callx8	a8
+4207d69e:	0248      	l32i.n	a4, a2, 0
+4207d6a0:	0b2442        	l32i	a4, a4, 44
+4207d6a3:	051442        	l16ui	a4, a4, 10
+4207d6a6:	015542        	s16i	a4, a5, 2
+4207d6a9:	0402b2        	l8ui	a11, a2, 4
+4207d6ac:	02a8      	l32i.n	a10, a2, 0
+4207d6ae:	fc3d81        	l32r	a8, 4207c7a4 <ppFillAMPDUBar+0xfc> (40389cf0 <lmacTxFrame>)
+4207d6b1:	0008e0        	callx8	a8
+4207d6b4:	000d86        	j	4207d6ee <lmacRetryTxFrame+0x96>
+4207d6b7:	050c      	movi.n	a5, 0
+4207d6b9:	ffe4d1        	l32r	a13, 4207d64c <lmacDiscardMSDU+0x90> (3c0e5f6d <_esp_system_init_fn_array_end+0x3819>)
+4207d6bc:	0259      	s32i.n	a5, a2, 0
+4207d6be:	124252        	s8i	a5, a2, 18
+4207d6c1:	3c0c      	movi.n	a12, 3
+4207d6c3:	0b4c      	movi.n	a11, 64
+4207d6c5:	6a0c      	movi.n	a10, 6
+4207d6c7:	201110        	or	a1, a1, a1
+4207d6ca:	e6d365        	call8	42064400 <wifi_log>
+4207d6cd:	b458      	l32i.n	a5, a4, 44
+4207d6cf:	0558      	l32i.n	a5, a5, 0
+4207d6d1:	0ff567        	bbsi	a5, 22, 4207d6e4 <lmacRetryTxFrame+0x8c>
+4207d6d4:	1c0c      	movi.n	a12, 1
+4207d6d6:	04bd      	mov.n	a11, a4
+4207d6d8:	02ad      	mov.n	a10, a2
+4207d6da:	ffdd81        	l32r	a8, 4207d650 <lmacDiscardMSDU+0x94> (40005310 <lmacDiscardAgedMSDU>)
+4207d6dd:	0008e0        	callx8	a8
+4207d6e0:	000286        	j	4207d6ee <lmacRetryTxFrame+0x96>
+4207d6e3:	1b0c00        	un.s	b0, f12, f0
+4207d6e6:	04ad      	mov.n	a10, a4
+4207d6e8:	ffdb81        	l32r	a8, 4207d654 <lmacDiscardMSDU+0x98> (4000561c <ppRecycleAmpdu>)
+4207d6eb:	0008e0        	callx8	a8
+4207d6ee:	f01d      	retw.n

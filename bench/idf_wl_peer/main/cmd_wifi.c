@@ -157,13 +157,15 @@ static int cmd_unicast(int argc, char **argv)
 }
 
 /* wifi_watch <mac>: promiscuous counter of frames whose transmitter address is <mac> (works next to a running AP); wifi_watch_stats prints it */
-static uint8_t watch_mac[6]; static volatile uint32_t w_n, w_acks; static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate; uint8_t ra[6]; } w_log[16];
+static uint8_t watch_mac[6]; static volatile uint32_t w_n, w_acks; static uint8_t w_all;
+static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate; uint8_t ra[6], ta[6]; uint32_t ts; } w_log[64];
 static void watch_cb(void *buf, wifi_promiscuous_pkt_type_t t)
 {
-    wifi_promiscuous_pkt_t *p = buf;
+    wifi_promiscuous_pkt_t *p = buf; unsigned len = p->rx_ctrl.sig_len;
     if (t == WIFI_PKT_CTRL && p->payload[0] == 0xD4 && !memcmp(p->payload + 4, watch_mac, 6)) w_acks++;           /* an ACK addressed to the watched station */
-    if (p->rx_ctrl.sig_len < 16 || memcmp(p->payload + 10, watch_mac, 6) || p->payload[0] == 0x80) return;      /* beacons are skipped */
-    if (w_n < 16) { w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], p->rx_ctrl.sig_len, p->rx_ctrl.rssi, p->rx_ctrl.rate }; memcpy(w_log[w_n].ra, p->payload + 4, 6); }
+    int from = len >= 16 && !memcmp(p->payload + 10, watch_mac, 6), to = !memcmp(p->payload + 4, watch_mac, 6);
+    if (p->payload[0] == 0x80 || !(from || (w_all && to))) return;                                                /* beacons are skipped; "all" adds frames addressed to the station (ACKs, downlink) */
+    if (w_n < 64) { w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], len, p->rx_ctrl.rssi, p->rx_ctrl.rate }; memcpy(w_log[w_n].ra, p->payload + 4, 6); if (len >= 16) memcpy(w_log[w_n].ta, p->payload + 10, 6); w_log[w_n].ts = p->rx_ctrl.timestamp; }
     w_n++;
 }
 static int cmd_mon(int argc, char **argv)                           /* wifi_mon <chan>: radio on that channel, not associated, for wifi_watch */
@@ -178,14 +180,14 @@ static int cmd_watch(int argc, char **argv)
     if (wifi_boot() || argc < 2) return -1;
     unsigned v[6]; if (sscanf(argv[1], "%x:%x:%x:%x:%x:%x", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5]) != 6) return -2;
     for (int i = 0; i < 6; i++) watch_mac[i] = v[i];
-    w_n = w_acks = 0;
+    w_n = w_acks = 0; w_all = argc > 2;                                  /* wifi_watch <mac> all: also frames addressed to <mac> */
     wifi_promiscuous_filter_t f = { .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL }; esp_wifi_set_promiscuous_filter(&f);
     esp_wifi_set_promiscuous_rx_cb(watch_cb); return esp_wifi_set_promiscuous(true);
 }
 static int cmd_watch_stats(int argc, char **argv)
 {
     printf("watch frames=%u acks-to-it=%u\n", (unsigned)w_n, (unsigned)w_acks);
-    for (unsigned i = 0; i < w_n && i < 16; i++) printf("  fc %02x%02x len %u rssi %d rate %u ra %02x:%02x:%02x:%02x:%02x:%02x\n", w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rssi, w_log[i].rate, w_log[i].ra[0], w_log[i].ra[1], w_log[i].ra[2], w_log[i].ra[3], w_log[i].ra[4], w_log[i].ra[5]);
+    for (unsigned i = 0; i < w_n && i < 64; i++) printf("  t %u fc %02x%02x len %u rate %u ra %02x:%02x:%02x:%02x:%02x:%02x ta %02x:%02x:%02x:%02x:%02x:%02x\n", (unsigned)w_log[i].ts, w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rate, w_log[i].ra[0], w_log[i].ra[1], w_log[i].ra[2], w_log[i].ra[3], w_log[i].ra[4], w_log[i].ra[5], w_log[i].ta[0], w_log[i].ta[1], w_log[i].ta[2], w_log[i].ta[3], w_log[i].ta[4], w_log[i].ta[5]);
     return 0;
 }
 static int cmd_stas(int argc, char **argv)                          /* wifi_stas: stations of the AP and the addresses its DHCP server gave out */

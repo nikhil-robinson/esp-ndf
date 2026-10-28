@@ -1,0 +1,249 @@
+4003c0dc <lmacEndFrameExchangeSequence>:
+4003c0dc:	006136        	entry	a1, 48
+4003c0df:	744040        	extui	a4, a4, 0, 8
+4003c0e2:	74b030        	extui	a11, a3, 0, 8
+4003c0e5:	1e1456        	bnez	a4, 4003c2ca <lmacEndFrameExchangeSequence+0x1ee>
+4003c0e8:	120282        	l8ui	a8, a2, 18
+4003c0eb:	026826        	beqi	a8, 6, 4003c0f1 <lmacEndFrameExchangeSequence+0x15>
+4003c0ee:	0032c6        	j	4003c1bd <lmacEndFrameExchangeSequence+0xe1>
+4003c0f1:	124242        	s8i	a4, a2, 18
+4003c0f4:	0248      	l32i.n	a4, a2, 0
+4003c0f6:	6bcc      	bnez.n	a11, 4003c100 <lmacEndFrameExchangeSequence+0x24>
+4003c0f8:	930c      	movi.n	a3, 9
+4003c0fa:	134232        	s8i	a3, a2, 19
+4003c0fd:	000106        	j	4003c105 <lmacEndFrameExchangeSequence+0x29>
+4003c100:	a30c      	movi.n	a3, 10
+4003c102:	134232        	s8i	a3, a2, 19
+4003c105:	b458      	l32i.n	a5, a4, 44
+4003c107:	05d8      	l32i.n	a13, a5, 0
+4003c109:	2c7d57        	bbci	a13, 21, 4003c139 <lmacEndFrameExchangeSequence+0x5d>
+4003c10c:	f53e21        	l32r	a2, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c10f:	0505b2        	l8ui	a11, a5, 5
+4003c112:	0238      	l32i.n	a3, a2, 0
+4003c114:	45a8      	l32i.n	a10, a5, 16
+4003c116:	3c2332        	l32i	a3, a3, 240
+4003c119:	02cbb2        	addi	a11, a11, 2
+4003c11c:	35a4a0        	extui	a10, a10, 20, 4
+4003c11f:	74b0b0        	extui	a11, a11, 0, 8
+4003c122:	0003e0        	callx8	a3
+4003c125:	b438      	l32i.n	a3, a4, 44
+4003c127:	0228      	l32i.n	a2, a2, 0
+4003c129:	43a8      	l32i.n	a10, a3, 16
+4003c12b:	322222        	l32i	a2, a2, 200
+4003c12e:	35a4a0        	extui	a10, a10, 20, 4
+4003c131:	0002e0        	callx8	a2
+4003c134:	f01d      	retw.n
+4003c136:	00          	.byte	00
+4003c137:	00          	.byte	00
+4003c138:	00          	.byte	00
+4003c139:	e29131        	l32r	a3, 40034b80 <_stext+0x8c> (400000 <xthals_release_major+0x3fd120>)
+4003c13c:	103d30        	and	a3, a13, a3
+4003c13f:	139c      	beqz.n	a3, 4003c154 <lmacEndFrameExchangeSequence+0x78>
+4003c141:	f53021        	l32r	a2, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c144:	1b0c      	movi.n	a11, 1
+4003c146:	0228      	l32i.n	a2, a2, 0
+4003c148:	04ad      	mov.n	a10, a4
+4003c14a:	3f2222        	l32i	a2, a2, 252
+4003c14d:	0002e0        	callx8	a2
+4003c150:	f01d      	retw.n
+4003c152:	00          	.byte	00
+4003c153:	00          	.byte	00
+4003c154:	f52c61        	l32r	a6, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c157:	0605a2        	l8ui	a10, a5, 6
+4003c15a:	0658      	l32i.n	a5, a6, 0
+4003c15c:	442552        	l32i	a5, a5, 0x110
+4003c15f:	0005e0        	callx8	a5
+4003c162:	0a5d      	mov.n	a5, a10
+4003c164:	9a9c      	beqz.n	a10, 4003c181 <lmacEndFrameExchangeSequence+0xa5>
+4003c166:	1202d2        	l8ui	a13, a2, 18
+4003c169:	0658      	l32i.n	a5, a6, 0
+4003c16b:	160c      	movi.n	a6, 1
+4003c16d:	8336d0        	moveqz	a3, a6, a13
+4003c170:	412552        	l32i	a5, a5, 0x104
+4003c173:	03dd      	mov.n	a13, a3
+4003c175:	2c0c      	movi.n	a12, 2
+4003c177:	04bd      	mov.n	a11, a4
+4003c179:	02ad      	mov.n	a10, a2
+4003c17b:	0005e0        	callx8	a5
+4003c17e:	f01d      	retw.n
+4003c180:	00          	.byte	00
+4003c181:	0638      	l32i.n	a3, a6, 0
+4003c183:	b488      	l32i.n	a8, a4, 44
+4003c185:	452332        	l32i	a3, a3, 0x114
+4003c188:	0708a2        	l8ui	a10, a8, 7
+4003c18b:	0003e0        	callx8	a3
+4003c18e:	0638      	l32i.n	a3, a6, 0
+4003c190:	1202d2        	l8ui	a13, a2, 18
+4003c193:	412332        	l32i	a3, a3, 0x104
+4003c196:	0a9c      	beqz.n	a10, 4003c1aa <lmacEndFrameExchangeSequence+0xce>
+4003c198:	160c      	movi.n	a6, 1
+4003c19a:	8356d0        	moveqz	a5, a6, a13
+4003c19d:	05dd      	mov.n	a13, a5
+4003c19f:	3c0c      	movi.n	a12, 3
+4003c1a1:	04bd      	mov.n	a11, a4
+4003c1a3:	02ad      	mov.n	a10, a2
+4003c1a5:	0003e0        	callx8	a3
+4003c1a8:	f01d      	retw.n
+4003c1aa:	150c      	movi.n	a5, 1
+4003c1ac:	83a5d0        	moveqz	a10, a5, a13
+4003c1af:	0add      	mov.n	a13, a10
+4003c1b1:	4c0c      	movi.n	a12, 4
+4003c1b3:	04bd      	mov.n	a11, a4
+4003c1b5:	02ad      	mov.n	a10, a2
+4003c1b7:	0003e0        	callx8	a3
+4003c1ba:	f01d      	retw.n
+4003c1bc:	00          	.byte	00
+4003c1bd:	025826        	beqi	a8, 5, 4003c1c3 <lmacEndFrameExchangeSequence+0xe7>
+4003c1c0:	005e86        	j	4003c33e <lmacEndFrameExchangeSequence+0x262>
+4003c1c3:	02b8      	l32i.n	a11, a2, 0
+4003c1c5:	124242        	s8i	a4, a2, 18
+4003c1c8:	bb38      	l32i.n	a3, a11, 44
+4003c1ca:	0338      	l32i.n	a3, a3, 0
+4003c1cc:	02f337        	bbsi	a3, 19, 4003c1d2 <lmacEndFrameExchangeSequence+0xf6>
+4003c1cf:	002946        	j	4003c278 <lmacEndFrameExchangeSequence+0x19c>
+4003c1d2:	f50c31        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c1d5:	0402a2        	l8ui	a10, a2, 4
+4003c1d8:	0358      	l32i.n	a5, a3, 0
+4003c1da:	0149      	s32i.n	a4, a1, 0
+4003c1dc:	432552        	l32i	a5, a5, 0x10c
+4003c1df:	1149      	s32i.n	a4, a1, 4
+4003c1e1:	026142        	s32i	a4, a1, 8
+4003c1e4:	01bd      	mov.n	a11, a1
+4003c1e6:	0005e0        	callx8	a5
+4003c1e9:	0268      	l32i.n	a6, a2, 0
+4003c1eb:	ef9e51        	l32r	a5, 40038064 <rom_disable_wifi_agc+0x44> (200000 <xthals_release_major+0x1fd120>)
+4003c1ee:	b648      	l32i.n	a4, a6, 44
+4003c1f0:	04e8      	l32i.n	a14, a4, 0
+4003c1f2:	10ee50        	and	a14, a14, a5
+4003c1f5:	04be56        	bnez	a14, 4003c244 <lmacEndFrameExchangeSequence+0x168>
+4003c1f8:	040282        	l8ui	a8, a2, 4
+4003c1fb:	b4af52        	movi	a5, -76
+4003c1fe:	828850        	mull	a8, a8, a5
+4003c201:	ffb551        	l32r	a5, 4003c0d8 <ppTxqUpdateBitmap+0x24> (60034320 <_iram1_text_end+0x13220>)
+4003c204:	4448      	l32i.n	a4, a4, 16
+4003c206:	585a      	add.n	a5, a8, a5
+4003c208:	fbe981        	l32r	a8, 4003b1ac <is_lmac_idle+0x20> (3fcef954 <pTxRx>)
+4003c20b:	354440        	extui	a4, a4, 20, 4
+4003c20e:	0020c0        	memw
+4003c211:	0558      	l32i.n	a5, a5, 0
+4003c213:	0888      	l32i.n	a8, a8, 0
+4003c215:	904440        	addx2	a4, a4, a4
+4003c218:	1144c0        	slli	a4, a4, 4
+4003c21b:	484a      	add.n	a4, a8, a4
+4003c21d:	155950        	extui	a5, a5, 25, 2
+4003c220:	180c      	movi.n	a8, 1
+4003c222:	838e50        	moveqz	a8, a14, a5
+4003c225:	4d4482        	s8i	a8, a4, 77
+4003c228:	b658      	l32i.n	a5, a6, 44
+4003c22a:	0348      	l32i.n	a4, a3, 0
+4003c22c:	45a8      	l32i.n	a10, a5, 16
+4003c22e:	462442        	l32i	a4, a4, 0x118
+4003c231:	0221d2        	l32i	a13, a1, 8
+4003c234:	0121c2        	l32i	a12, a1, 4
+4003c237:	0111b2        	l16ui	a11, a1, 2
+4003c23a:	35a4a0        	extui	a10, a10, 20, 4
+4003c23d:	0004e0        	callx8	a4
+4003c240:	000706        	j	4003c260 <lmacEndFrameExchangeSequence+0x184>
+4003c243:	00          	.byte	00
+4003c244:	0504e2        	l8ui	a14, a4, 5
+4003c247:	0358      	l32i.n	a5, a3, 0
+4003c249:	44a8      	l32i.n	a10, a4, 16
+4003c24b:	ee1b      	addi.n	a14, a14, 1
+4003c24d:	462542        	l32i	a4, a5, 0x118
+4003c250:	21d8      	l32i.n	a13, a1, 8
+4003c252:	11c8      	l32i.n	a12, a1, 4
+4003c254:	0111b2        	l16ui	a11, a1, 2
+4003c257:	74e0e0        	extui	a14, a14, 0, 8
+4003c25a:	35a4a0        	extui	a10, a10, 20, 4
+4003c25d:	0004e0        	callx8	a4
+4003c260:	0248      	l32i.n	a4, a2, 0
+4003c262:	0338      	l32i.n	a3, a3, 0
+4003c264:	b448      	l32i.n	a4, a4, 44
+4003c266:	322332        	l32i	a3, a3, 200
+4003c269:	44a8      	l32i.n	a10, a4, 16
+4003c26b:	35a4a0        	extui	a10, a10, 20, 4
+4003c26e:	0003e0        	callx8	a3
+4003c271:	130c      	movi.n	a3, 1
+4003c273:	134232        	s8i	a3, a2, 19
+4003c276:	f01d      	retw.n
+4003c278:	387367        	bbci	a3, 22, 4003c2b4 <lmacEndFrameExchangeSequence+0x1d8>
+4003c27b:	f4e231        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c27e:	250c      	movi.n	a5, 2
+4003c280:	0348      	l32i.n	a4, a3, 0
+4003c282:	134252        	s8i	a5, a2, 19
+4003c285:	5448      	l32i.n	a4, a4, 20
+4003c287:	9ba8      	l32i.n	a10, a11, 36
+4003c289:	0004e0        	callx8	a4
+4003c28c:	6a9c      	beqz.n	a10, 4003c2a6 <lmacEndFrameExchangeSequence+0x1ca>
+4003c28e:	0228      	l32i.n	a2, a2, 0
+4003c290:	0338      	l32i.n	a3, a3, 0
+4003c292:	b228      	l32i.n	a2, a2, 44
+4003c294:	472332        	l32i	a3, a3, 0x11c
+4003c297:	42b8      	l32i.n	a11, a2, 16
+4003c299:	12a8      	l32i.n	a10, a2, 4
+4003c29b:	35b4b0        	extui	a11, a11, 20, 4
+4003c29e:	34a0a0        	extui	a10, a10, 0, 4
+4003c2a1:	0003e0        	callx8	a3
+4003c2a4:	f01d      	retw.n
+4003c2a6:	0338      	l32i.n	a3, a3, 0
+4003c2a8:	02a8      	l32i.n	a10, a2, 0
+4003c2aa:	482322        	l32i	a2, a3, 0x120
+4003c2ad:	1b0c      	movi.n	a11, 1
+4003c2af:	0002e0        	callx8	a2
+4003c2b2:	f01d      	retw.n
+4003c2b4:	f4d431        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c2b7:	340c      	movi.n	a4, 3
+4003c2b9:	0338      	l32i.n	a3, a3, 0
+4003c2bb:	134242        	s8i	a4, a2, 19
+4003c2be:	1c2332        	l32i	a3, a3, 112
+4003c2c1:	1c0c      	movi.n	a12, 1
+4003c2c3:	02ad      	mov.n	a10, a2
+4003c2c5:	0003e0        	callx8	a3
+4003c2c8:	f01d      	retw.n
+4003c2ca:	7bdc      	bnez.n	a11, 4003c2e5 <lmacEndFrameExchangeSequence+0x209>
+4003c2cc:	f4ce31        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c2cf:	340c      	movi.n	a4, 3
+4003c2d1:	0338      	l32i.n	a3, a3, 0
+4003c2d3:	124242        	s8i	a4, a2, 18
+4003c2d6:	492332        	l32i	a3, a3, 0x124
+4003c2d9:	02ad      	mov.n	a10, a2
+4003c2db:	0003e0        	callx8	a3
+4003c2de:	530c      	movi.n	a3, 5
+4003c2e0:	134232        	s8i	a3, a2, 19
+4003c2e3:	f01d      	retw.n
+4003c2e5:	02a8      	l32i.n	a10, a2, 0
+4003c2e7:	ba48      	l32i.n	a4, a10, 44
+4003c2e9:	0438      	l32i.n	a3, a4, 0
+4003c2eb:	1af367        	bbsi	a3, 22, 4003c309 <lmacEndFrameExchangeSequence+0x22d>
+4003c2ee:	f4c531        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c2f1:	0338      	l32i.n	a3, a3, 0
+4003c2f3:	340c      	movi.n	a4, 3
+4003c2f5:	124242        	s8i	a4, a2, 18
+4003c2f8:	492332        	l32i	a3, a3, 0x124
+4003c2fb:	0b0c      	movi.n	a11, 0
+4003c2fd:	02ad      	mov.n	a10, a2
+4003c2ff:	0003e0        	callx8	a3
+4003c302:	730c      	movi.n	a3, 7
+4003c304:	134232        	s8i	a3, a2, 19
+4003c307:	f01d      	retw.n
+4003c309:	fb7451        	l32r	a5, 4003b0dc <lmacRecycleMPDU+0x24> (3fcef950 <lmacConfMib_ptr>)
+4003c30c:	050482        	l8ui	a8, a4, 5
+4003c30f:	0548      	l32i.n	a4, a5, 0
+4003c311:	f4bc31        	l32r	a3, 40039604 <chm_is_at_home_channel+0x1c> (3fcef944 <pp_wdev_funcs>)
+4003c314:	2b0442        	l8ui	a4, a4, 43
+4003c317:	d63847        	bltu	a8, a4, 4003c2f1 <lmacEndFrameExchangeSequence+0x215>
+4003c31a:	0348      	l32i.n	a4, a3, 0
+4003c31c:	392442        	l32i	a4, a4, 228
+4003c31f:	0004e0        	callx8	a4
+4003c322:	02b8      	l32i.n	a11, a2, 0
+4003c324:	cacc      	bnez.n	a10, 4003c334 <lmacEndFrameExchangeSequence+0x258>
+4003c326:	002542        	l32i	a4, a5, 0
+4003c329:	bb58      	l32i.n	a5, a11, 44
+4003c32b:	2c0442        	l8ui	a4, a4, 44
+4003c32e:	050552        	l8ui	a5, a5, 5
+4003c331:	bc3547        	bltu	a5, a4, 4003c2f1 <lmacEndFrameExchangeSequence+0x215>
+4003c334:	0338      	l32i.n	a3, a3, 0
+4003c336:	02ad      	mov.n	a10, a2
+4003c338:	4a2332        	l32i	a3, a3, 0x128
+4003c33b:	0003e0        	callx8	a3
+4003c33e:	f01d      	retw.n

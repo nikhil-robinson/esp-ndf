@@ -1,0 +1,688 @@
+4003b4c4 <mac_tx_set_plcp0>:
+4003b4c4:	004136        	entry	a1, 32
+4003b4c7:	0298      	l32i.n	a9, a2, 0
+4003b4c9:	fff981        	l32r	a8, 4003b4b0 <ppGetTxQFirstAvail_Locked+0x40> (fffff <xthals_release_major+0xfd11f>)
+4003b4cc:	19b8      	l32i.n	a11, a9, 4
+4003b4ce:	0a92a2        	l16si	a10, a2, 20
+4003b4d1:	108b80        	and	a8, a11, a8
+4003b4d4:	f2e4b1        	l32r	a11, 40038064 <rom_disable_wifi_agc+0x44> (200000 <xthals_release_major+0x1fd120>)
+4003b4d7:	b998      	l32i.n	a9, a9, 44
+4003b4d9:	2088b0        	or	a8, a8, a11
+4003b4dc:	041aa6        	blti	a10, 1, 4003b4e4 <mac_tx_set_plcp0+0x20>
+4003b4df:	09a8      	l32i.n	a10, a9, 0
+4003b4e1:	0007c6        	j	4003b504 <mac_tx_set_plcp0+0x40>
+4003b4e4:	09a8      	l32i.n	a10, a9, 0
+4003b4e6:	c0a0b2        	movi	a11, 192
+4003b4e9:	10bab0        	and	a11, a10, a11
+4003b4ec:	14eb26        	beqi	a11, 128, 4003b504 <mac_tx_set_plcp0+0x40>
+4003b4ef:	0c09b2        	l8ui	a11, a9, 12
+4003b4f2:	0fa0c2        	movi	a12, 15
+4003b4f5:	f0cbb2        	addi	a11, a11, -16
+4003b4f8:	74b0b0        	extui	a11, a11, 0, 8
+4003b4fb:	05bcb7        	bgeu	a12, a11, 4003b504 <mac_tx_set_plcp0+0x40>
+4003b4fe:	e5a0b1        	l32r	a11, 40034b80 <_stext+0x8c> (400000 <xthals_release_major+0x3fd120>)
+4003b501:	2088b0        	or	a8, a8, a11
+4003b504:	02a4b2        	movi	a11, 0x402
+4003b507:	050ab7        	bnone	a10, a11, 4003b510 <mac_tx_set_plcp0+0x4c>
+4003b50a:	0998      	l32i.n	a9, a9, 0
+4003b50c:	000c86        	j	4003b542 <mac_tx_set_plcp0+0x7e>
+4003b50f:	00          	.byte	00
+4003b510:	ffe9b1        	l32r	a11, 4003b4b4 <ppGetTxQFirstAvail_Locked+0x44> (480000 <xthals_release_major+0x47d120>)
+4003b513:	0998      	l32i.n	a9, a9, 0
+4003b515:	10aab0        	and	a10, a10, a11
+4003b518:	e59ab1        	l32r	a11, 40034b80 <_stext+0x8c> (400000 <xthals_release_major+0x3fd120>)
+4003b51b:	231ab7        	beq	a10, a11, 4003b542 <mac_tx_set_plcp0+0x7e>
+4003b51e:	ffe6a1        	l32r	a10, 4003b4b8 <ppGetTxQFirstAvail_Locked+0x48> (f8ffffff <xthals_hw_configid0+0x360f0001>)
+4003b521:	1088a0        	and	a8, a8, a10
+4003b524:	087947        	bbci	a9, 20, 4003b530 <mac_tx_set_plcp0+0x6c>
+4003b527:	ffe5a1        	l32r	a10, 4003b4bc <ppGetTxQFirstAvail_Locked+0x4c> (3000000 <xthals_release_major+0x2ffd120>)
+4003b52a:	2088a0        	or	a8, a8, a10
+4003b52d:	000446        	j	4003b542 <mac_tx_set_plcp0+0x7e>
+4003b530:	087937        	bbci	a9, 19, 4003b53c <mac_tx_set_plcp0+0x78>
+4003b533:	e7f1a1        	l32r	a10, 400354f8 <rom_get_i2c_hostid+0x3c> (2000000 <xthals_release_major+0x1ffd120>)
+4003b536:	2088a0        	or	a8, a8, a10
+4003b539:	000146        	j	4003b542 <mac_tx_set_plcp0+0x7e>
+4003b53c:	e851a1        	l32r	a10, 40035680 <rom_i2c_paral_read+0x6c> (1000000 <xthals_release_major+0xffd120>)
+4003b53f:	2088a0        	or	a8, a8, a10
+4003b542:	e900c1        	l32r	a12, 40035944 <rom_i2c_writeReg_Mask+0x6c> (f7ffffff <xthals_hw_configid0+0x350f0001>)
+4003b545:	04b890        	extui	a11, a9, 8, 1
+4003b548:	01bb50        	slli	a11, a11, 27
+4003b54b:	1088c0        	and	a8, a8, a12
+4003b54e:	040222        	l8ui	a2, a2, 4
+4003b551:	2088b0        	or	a8, a8, a11
+4003b554:	ff5da1        	l32r	a10, 4003b2c8 <hal_random+0x20> (c0067a1 <xthals_release_major+0xc0038c1>)
+4003b557:	ffdab1        	l32r	a11, 4003b4c0 <ppGetTxQFirstAvail_Locked+0x50> (efffffff <xthals_hw_configid0+0x2d0f0001>)
+4003b55a:	049990        	extui	a9, a9, 9, 1
+4003b55d:	c0aa20        	sub	a10, a10, a2
+4003b560:	019940        	slli	a9, a9, 28
+4003b563:	1088b0        	and	a8, a8, a11
+4003b566:	208890        	or	a8, a8, a9
+4003b569:	119ad0        	slli	a9, a10, 3
+4003b56c:	0020c0        	memw
+4003b56f:	0989      	s32i.n	a8, a9, 0
+4003b571:	020c      	movi.n	a2, 0
+4003b573:	f01d      	retw.n
+4003b575:	00          	.byte	00
+4003b576:	00          	.byte	00
+4003b577:	00          	.byte	00
+4003b578:	60034314 	
+4003b57c:	ffffc03f 	
+4003b580:	600342f8 	
+4003b584:	600342fc 	
+4003b588 <mac_tx_set_plcp1>:
+4003b588:	004136        	entry	a1, 32
+4003b58b:	02b8      	l32i.n	a11, a2, 0
+4003b58d:	f91c      	movi.n	a9, 31
+4003b58f:	bb88      	l32i.n	a8, a11, 44
+4003b591:	0c0882        	l8ui	a8, a8, 12
+4003b594:	0cb987        	bgeu	a9, a8, 4003b5a4 <mac_tx_set_plcp1+0x1c>
+4003b597:	f0c882        	addi	a8, a8, -16
+4003b59a:	748080        	extui	a8, a8, 0, 8
+4003b59d:	0c0c      	movi.n	a12, 0
+4003b59f:	000b86        	j	4003b5d1 <mac_tx_set_plcp1+0x49>
+4003b5a2:	00          	.byte	00
+4003b5a3:	00          	.byte	00
+4003b5a4:	f0c892        	addi	a9, a8, -16
+4003b5a7:	749090        	extui	a9, a9, 0, 8
+4003b5aa:	fa0c      	movi.n	a10, 15
+4003b5ac:	183a97        	bltu	a10, a9, 4003b5c8 <mac_tx_set_plcp1+0x40>
+4003b5af:	797c      	movi.n	a9, -9
+4003b5b1:	109890        	and	a9, a8, a9
+4003b5b4:	f0c992        	addi	a9, a9, -16
+4003b5b7:	749090        	extui	a9, a9, 0, 8
+4003b5ba:	40a2c2        	movi	a12, 0x240
+4003b5bd:	1039f6        	bgeui	a9, 3, 4003b5d1 <mac_tx_set_plcp1+0x49>
+4003b5c0:	c0a2c2        	movi	a12, 0x2c0
+4003b5c3:	000286        	j	4003b5d1 <mac_tx_set_plcp1+0x49>
+4003b5c6:	00          	.byte	00
+4003b5c7:	00          	.byte	00
+4003b5c8:	c0a2c2        	movi	a12, 0x2c0
+4003b5cb:	0288f6        	bgeui	a8, 8, 4003b5d1 <mac_tx_set_plcp1+0x49>
+4003b5ce:	11c8a0        	slli	a12, a8, 6
+4003b5d1:	040292        	l8ui	a9, a2, 4
+4003b5d4:	b4afd2        	movi	a13, -76
+4003b5d7:	82a9d0        	mull	a10, a9, a13
+4003b5da:	ffe791        	l32r	a9, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b5dd:	ffe7e1        	l32r	a14, 4003b57c <mac_tx_set_plcp0+0xb8> (ffffc03f <xthals_hw_configid0+0x3d0ec041>)
+4003b5e0:	9a9a      	add.n	a9, a10, a9
+4003b5e2:	0020c0        	memw
+4003b5e5:	09f8      	l32i.n	a15, a9, 0
+4003b5e7:	0b1ba2        	l16ui	a10, a11, 22
+4003b5ea:	10efe0        	and	a14, a15, a14
+4003b5ed:	20cec0        	or	a12, a14, a12
+4003b5f0:	0020c0        	memw
+4003b5f3:	09c9      	s32i.n	a12, a9, 0
+4003b5f5:	bbe8      	l32i.n	a14, a11, 44
+4003b5f7:	0402f2        	l8ui	a15, a2, 4
+4003b5fa:	0c0ec2        	l8ui	a12, a14, 12
+4003b5fd:	0a1b92        	l16ui	a9, a11, 20
+4003b600:	f0ccc2        	addi	a12, a12, -16
+4003b603:	82dfd0        	mull	a13, a15, a13
+4003b606:	aa9a      	add.n	a10, a10, a9
+4003b608:	7490c0        	extui	a9, a12, 0, 8
+4003b60b:	ffddc1        	l32r	a12, 4003b580 <mac_tx_set_plcp0+0xbc> (600342f8 <_iram1_text_end+0x131f8>)
+4003b60e:	ff0c      	movi.n	a15, 15
+4003b610:	ddca      	add.n	a13, a13, a12
+4003b612:	f4a0a0        	extui	a10, a10, 0, 16
+4003b615:	0c0c      	movi.n	a12, 0
+4003b617:	023f97        	bltu	a15, a9, 4003b61d <mac_tx_set_plcp1+0x95>
+4003b61a:	e7b7c1        	l32r	a12, 400354f8 <rom_get_i2c_hostid+0x3c> (2000000 <xthals_release_major+0x1ffd120>)
+4003b61d:	100ee2        	l8ui	a14, a14, 16
+4003b620:	b4a0a0        	extui	a10, a10, 0, 12
+4003b623:	01eef0        	slli	a14, a14, 17
+4003b626:	449080        	extui	a9, a8, 0, 5
+4003b629:	119940        	slli	a9, a9, 12
+4003b62c:	208ea0        	or	a8, a14, a10
+4003b62f:	208890        	or	a8, a8, a9
+4003b632:	2088c0        	or	a8, a8, a12
+4003b635:	0020c0        	memw
+4003b638:	0d89      	s32i.n	a8, a13, 0
+4003b63a:	040292        	l8ui	a9, a2, 4
+4003b63d:	bb28      	l32i.n	a2, a11, 44
+4003b63f:	4288      	l32i.n	a8, a2, 16
+4003b641:	b4af22        	movi	a2, -76
+4003b644:	829920        	mull	a9, a9, a2
+4003b647:	ffcf21        	l32r	a2, 4003b584 <mac_tx_set_plcp0+0xc0> (600342fc <_iram1_text_end+0x131fc>)
+4003b64a:	058380        	extui	a8, a8, 19, 1
+4003b64d:	292a      	add.n	a2, a9, a2
+4003b64f:	0020c0        	memw
+4003b652:	0289      	s32i.n	a8, a2, 0
+4003b654:	020c      	movi.n	a2, 0
+4003b656:	f01d      	retw.n
+4003b658:	0000f000 	
+4003b65c <mac_tx_set_plcp2>:
+4003b65c:	004136        	entry	a1, 32
+4003b65f:	0288      	l32i.n	a8, a2, 0
+4003b661:	b888      	l32i.n	a8, a8, 44
+4003b663:	4898      	l32i.n	a9, a8, 16
+4003b665:	fffc81        	l32r	a8, 4003b658 <mac_tx_set_plcp1+0xd0> (f000 <xthals_release_major+0xc120>)
+4003b668:	108980        	and	a8, a9, a8
+4003b66b:	f32491        	l32r	a9, 400382fc <rom_set_rxclk_en+0x38> (1000 <XtosCoreStateSize+0xca0>)
+4003b66e:	1f9897        	bne	a8, a9, 4003b691 <mac_tx_set_plcp2+0x35>
+4003b671:	040282        	l8ui	a8, a2, 4
+4003b674:	b4af22        	movi	a2, -76
+4003b677:	828820        	mull	a8, a8, a2
+4003b67a:	ffbf21        	l32r	a2, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b67d:	282a      	add.n	a2, a8, a2
+4003b67f:	0020c0        	memw
+4003b682:	0298      	l32i.n	a9, a2, 0
+4003b684:	081c      	movi.n	a8, 16
+4003b686:	208980        	or	a8, a9, a8
+4003b689:	0020c0        	memw
+4003b68c:	0289      	s32i.n	a8, a2, 0
+4003b68e:	000706        	j	4003b6ae <mac_tx_set_plcp2+0x52>
+4003b691:	040292        	l8ui	a9, a2, 4
+4003b694:	b4af82        	movi	a8, -76
+4003b697:	829980        	mull	a9, a9, a8
+4003b69a:	ffb781        	l32r	a8, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b69d:	898a      	add.n	a8, a9, a8
+4003b69f:	0020c0        	memw
+4003b6a2:	0828      	l32i.n	a2, a8, 0
+4003b6a4:	f96c      	movi.n	a9, -17
+4003b6a6:	109290        	and	a9, a2, a9
+4003b6a9:	0020c0        	memw
+4003b6ac:	0899      	s32i.n	a9, a8, 0
+4003b6ae:	020c      	movi.n	a2, 0
+4003b6b0:	f01d      	retw.n
+4003b6b2:	00          	.byte	00
+4003b6b3:	00          	.byte	00
+4003b6b4:	60034318 	
+4003b6b8 <mac_tx_set_duration>:
+4003b6b8:	004136        	entry	a1, 32
+4003b6bb:	0288      	l32i.n	a8, a2, 0
+4003b6bd:	b898      	l32i.n	a9, a8, 44
+4003b6bf:	1888      	l32i.n	a8, a8, 4
+4003b6c1:	0998      	l32i.n	a9, a9, 0
+4003b6c3:	067927        	bbci	a9, 18, 4003b6cd <mac_tx_set_duration+0x15>
+4003b6c6:	1898      	l32i.n	a9, a8, 4
+4003b6c8:	998b      	addi.n	a9, a9, 8
+4003b6ca:	000046        	j	4003b6cf <mac_tx_set_duration+0x17>
+4003b6cd:	1898      	l32i.n	a9, a8, 4
+4003b6cf:	0402a2        	l8ui	a10, a2, 4
+4003b6d2:	0119b2        	l16ui	a11, a9, 2
+4003b6d5:	b4af82        	movi	a8, -76
+4003b6d8:	82aa80        	mull	a10, a10, a8
+4003b6db:	fff681        	l32r	a8, 4003b6b4 <mac_tx_set_plcp2+0x58> (60034318 <_iram1_text_end+0x13218>)
+4003b6de:	119b00        	slli	a9, a11, 16
+4003b6e1:	209b90        	or	a9, a11, a9
+4003b6e4:	8a8a      	add.n	a8, a10, a8
+4003b6e6:	0020c0        	memw
+4003b6e9:	0899      	s32i.n	a9, a8, 0
+4003b6eb:	020c      	movi.n	a2, 0
+4003b6ed:	f01d      	retw.n
+4003b6ef:	00          	.byte	00
+4003b6f0:	8f000000 	
+4003b6f4:	0f000000 	
+4003b6f8:	87000000 	
+4003b6fc:	07000000 	
+4003b700:	ff3fffff 	
+4003b704:	60034310 	
+4003b708:	0fffffff 	
+4003b70c:	60034300 	
+4003b710 <mac_tx_set_htsig>:
+4003b710:	004136        	entry	a1, 32
+4003b713:	02a8      	l32i.n	a10, a2, 0
+4003b715:	e51ac1        	l32r	a12, 40034b80 <_stext+0x8c> (400000 <xthals_release_major+0x3fd120>)
+4003b718:	bae8      	l32i.n	a14, a10, 44
+4003b71a:	0b1a82        	l16ui	a8, a10, 22
+4003b71d:	0a1a92        	l16ui	a9, a10, 20
+4003b720:	0ed8      	l32i.n	a13, a14, 0
+4003b722:	9ab8      	l32i.n	a11, a10, 36
+4003b724:	889a      	add.n	a8, a8, a9
+4003b726:	f48080        	extui	a8, a8, 0, 16
+4003b729:	10ddc0        	and	a13, a13, a12
+4003b72c:	0b9c      	beqz.n	a11, 4003b740 <mac_tx_set_htsig+0x30>
+4003b72e:	820b92        	l8ui	a9, a11, 130
+4003b731:	00a0b2        	movi	a11, 0
+4003b734:	fcc992        	addi	a9, a9, -4
+4003b737:	749090        	extui	a9, a9, 0, 8
+4003b73a:	0229f6        	bgeui	a9, 2, 4003b740 <mac_tx_set_htsig+0x30>
+4003b73d:	80a0b2        	movi	a11, 128
+4003b740:	114d16        	beqz	a13, 4003b858 <mac_tx_set_htsig+0x148>
+4003b743:	0402d2        	l8ui	a13, a2, 4
+4003b746:	b4af42        	movi	a4, -76
+4003b749:	4e98      	l32i.n	a9, a14, 16
+4003b74b:	82dd40        	mull	a13, a13, a4
+4003b74e:	ff8cc1        	l32r	a12, 4003b580 <mac_tx_set_plcp0+0xbc> (600342f8 <_iram1_text_end+0x131f8>)
+4003b751:	359490        	extui	a9, a9, 20, 4
+4003b754:	ddca      	add.n	a13, a13, a12
+4003b756:	0020c0        	memw
+4003b759:	0df8      	l32i.n	a15, a13, 0
+4003b75b:	1149f0        	slli	a4, a9, 1
+4003b75e:	f4a3e1        	l32r	a14, 400389ec <rom_tx_paon_set+0x78> (dfffffff <xthals_hw_configid0+0x1d0f0001>)
+4003b761:	c49a      	add.n	a12, a4, a9
+4003b763:	10efe0        	and	a14, a15, a14
+4003b766:	11ccc0        	slli	a12, a12, 4
+4003b769:	0020c0        	memw
+4003b76c:	0de9      	s32i.n	a14, a13, 0
+4003b76e:	c3ca      	add.n	a12, a3, a12
+4003b770:	112cd2        	l32i	a13, a12, 68
+4003b773:	0598d7        	bne	a8, a13, 4003b77c <mac_tx_set_htsig+0x6c>
+4003b776:	01a0d2        	movi	a13, 1
+4003b779:	414cd2        	s8i	a13, a12, 65
+4003b77c:	0402f2        	l8ui	a15, a2, 4
+4003b77f:	949a      	add.n	a9, a4, a9
+4003b781:	b4afd2        	movi	a13, -76
+4003b784:	1199c0        	slli	a9, a9, 4
+4003b787:	339a      	add.n	a3, a3, a9
+4003b789:	82ffd0        	mull	a15, a15, a13
+4003b78c:	ff7b91        	l32r	a9, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b78f:	4003c2        	l8ui	a12, a3, 64
+4003b792:	ff9a      	add.n	a15, a15, a9
+4003b794:	0020c0        	memw
+4003b797:	0f98      	l32i.n	a9, a15, 0
+4003b799:	ffd9e1        	l32r	a14, 4003b700 <mac_tx_set_duration+0x48> (ff3fffff <xthals_hw_configid0+0x3c4f0001>)
+4003b79c:	14c0c0        	extui	a12, a12, 0, 2
+4003b79f:	01cca0        	slli	a12, a12, 22
+4003b7a2:	1099e0        	and	a9, a9, a14
+4003b7a5:	209c90        	or	a9, a12, a9
+4003b7a8:	0020c0        	memw
+4003b7ab:	0f99      	s32i.n	a9, a15, 0
+4003b7ad:	0402c2        	l8ui	a12, a2, 4
+4003b7b0:	ffd591        	l32r	a9, 4003b704 <mac_tx_set_duration+0x4c> (60034310 <_iram1_text_end+0x13210>)
+4003b7b3:	82ccd0        	mull	a12, a12, a13
+4003b7b6:	4103f2        	l8ui	a15, a3, 65
+4003b7b9:	cc9a      	add.n	a12, a12, a9
+4003b7bb:	0020c0        	memw
+4003b7be:	0c48      	l32i.n	a4, a12, 0
+4003b7c0:	14f0f0        	extui	a15, a15, 0, 2
+4003b7c3:	10e4e0        	and	a14, a4, a14
+4003b7c6:	01ffa0        	slli	a15, a15, 22
+4003b7c9:	20efe0        	or	a14, a15, a14
+4003b7cc:	0020c0        	memw
+4003b7cf:	0ce9      	s32i.n	a14, a12, 0
+4003b7d1:	0402c2        	l8ui	a12, a2, 4
+4003b7d4:	f520e1        	l32r	a14, 40038c54 <rom_fe_reg_init+0x110> (fff80000 <xthals_hw_configid0+0x3d070002>)
+4003b7d7:	82ccd0        	mull	a12, a12, a13
+4003b7da:	cc9a      	add.n	a12, a12, a9
+4003b7dc:	0020c0        	memw
+4003b7df:	0c48      	l32i.n	a4, a12, 0
+4003b7e1:	10e4e0        	and	a14, a4, a14
+4003b7e4:	208e80        	or	a8, a14, a8
+4003b7e7:	0020c0        	memw
+4003b7ea:	0c89      	s32i.n	a8, a12, 0
+4003b7ec:	040282        	l8ui	a8, a2, 4
+4003b7ef:	ba48      	l32i.n	a4, a10, 44
+4003b7f1:	8288d0        	mull	a8, a8, a13
+4003b7f4:	0c04e2        	l8ui	a14, a4, 12
+4003b7f7:	989a      	add.n	a9, a8, a9
+4003b7f9:	0020c0        	memw
+4003b7fc:	0988      	l32i.n	a8, a9, 0
+4003b7fe:	ffc2c1        	l32r	a12, 4003b708 <mac_tx_set_duration+0x50> (fffffff <xthals_release_major+0xfffd11f>)
+4003b801:	24e0e0        	extui	a14, a14, 0, 3
+4003b804:	01ee40        	slli	a14, a14, 28
+4003b807:	1088c0        	and	a8, a8, a12
+4003b80a:	208e80        	or	a8, a14, a8
+4003b80d:	0020c0        	memw
+4003b810:	0989      	s32i.n	a8, a9, 0
+4003b812:	ba48      	l32i.n	a4, a10, 44
+4003b814:	f90c      	movi.n	a9, 15
+4003b816:	0c0442        	l8ui	a4, a4, 12
+4003b819:	f0c482        	addi	a8, a4, -16
+4003b81c:	748080        	extui	a8, a8, 0, 8
+4003b81f:	02b987        	bgeu	a9, a8, 4003b825 <mac_tx_set_htsig+0x115>
+4003b822:	003b86        	j	4003b914 <mac_tx_set_htsig+0x204>
+4003b825:	040292        	l8ui	a9, a2, 4
+4003b828:	248040        	extui	a8, a4, 0, 3
+4003b82b:	112322        	l32i	a2, a3, 68
+4003b82e:	82d9d0        	mull	a13, a9, a13
+4003b831:	ffb631        	l32r	a3, 4003b70c <mac_tx_set_duration+0x54> (60034300 <_iram1_text_end+0x13200>)
+4003b834:	20bb80        	or	a11, a11, a8
+4003b837:	112280        	slli	a2, a2, 8
+4003b83a:	74b0b0        	extui	a11, a11, 0, 8
+4003b83d:	dd3a      	add.n	a13, a13, a3
+4003b83f:	731c      	movi.n	a3, 23
+4003b841:	20bb20        	or	a11, a11, a2
+4003b844:	ffab21        	l32r	a2, 4003b6f0 <mac_tx_set_duration+0x38> (8f000000 <_iram1_text_end+0x2efdef00>)
+4003b847:	023347        	bltu	a3, a4, 4003b84d <mac_tx_set_htsig+0x13d>
+4003b84a:	ffaa21        	l32r	a2, 4003b6f4 <mac_tx_set_duration+0x3c> (f000000 <xthals_release_major+0xeffd120>)
+4003b84d:	20b2b0        	or	a11, a2, a11
+4003b850:	0020c0        	memw
+4003b853:	0db9      	s32i.n	a11, a13, 0
+4003b855:	002ec6        	j	4003b914 <mac_tx_set_htsig+0x204>
+4003b858:	0402f2        	l8ui	a15, a2, 4
+4003b85b:	b4afe2        	movi	a14, -76
+4003b85e:	ff4691        	l32r	a9, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b861:	82ffe0        	mull	a15, a15, a14
+4003b864:	ffa731        	l32r	a3, 4003b700 <mac_tx_set_duration+0x48> (ff3fffff <xthals_hw_configid0+0x3c4f0001>)
+4003b867:	ff9a      	add.n	a15, a15, a9
+4003b869:	0020c0        	memw
+4003b86c:	0fd8      	l32i.n	a13, a15, 0
+4003b86e:	ffa591        	l32r	a9, 4003b704 <mac_tx_set_duration+0x4c> (60034310 <_iram1_text_end+0x13210>)
+4003b871:	10dd30        	and	a13, a13, a3
+4003b874:	20ddc0        	or	a13, a13, a12
+4003b877:	0020c0        	memw
+4003b87a:	0fd9      	s32i.n	a13, a15, 0
+4003b87c:	0402d2        	l8ui	a13, a2, 4
+4003b87f:	82dde0        	mull	a13, a13, a14
+4003b882:	dd9a      	add.n	a13, a13, a9
+4003b884:	0020c0        	memw
+4003b887:	0d48      	l32i.n	a4, a13, 0
+4003b889:	103430        	and	a3, a4, a3
+4003b88c:	2033c0        	or	a3, a3, a12
+4003b88f:	0020c0        	memw
+4003b892:	0d39      	s32i.n	a3, a13, 0
+4003b894:	040232        	l8ui	a3, a2, 4
+4003b897:	f4efc1        	l32r	a12, 40038c54 <rom_fe_reg_init+0x110> (fff80000 <xthals_hw_configid0+0x3d070002>)
+4003b89a:	8233e0        	mull	a3, a3, a14
+4003b89d:	339a      	add.n	a3, a3, a9
+4003b89f:	0020c0        	memw
+4003b8a2:	0348      	l32i.n	a4, a3, 0
+4003b8a4:	10c4c0        	and	a12, a4, a12
+4003b8a7:	20cc80        	or	a12, a12, a8
+4003b8aa:	0020c0        	memw
+4003b8ad:	03c9      	s32i.n	a12, a3, 0
+4003b8af:	040232        	l8ui	a3, a2, 4
+4003b8b2:	ba48      	l32i.n	a4, a10, 44
+4003b8b4:	8233e0        	mull	a3, a3, a14
+4003b8b7:	0c04d2        	l8ui	a13, a4, 12
+4003b8ba:	939a      	add.n	a9, a3, a9
+4003b8bc:	0020c0        	memw
+4003b8bf:	0938      	l32i.n	a3, a9, 0
+4003b8c1:	ff91c1        	l32r	a12, 4003b708 <mac_tx_set_duration+0x50> (fffffff <xthals_release_major+0xfffd11f>)
+4003b8c4:	24d0d0        	extui	a13, a13, 0, 3
+4003b8c7:	01dd40        	slli	a13, a13, 28
+4003b8ca:	1033c0        	and	a3, a3, a12
+4003b8cd:	203d30        	or	a3, a13, a3
+4003b8d0:	0020c0        	memw
+4003b8d3:	0939      	s32i.n	a3, a9, 0
+4003b8d5:	ba38      	l32i.n	a3, a10, 44
+4003b8d7:	f90c      	movi.n	a9, 15
+4003b8d9:	0c0342        	l8ui	a4, a3, 12
+4003b8dc:	f0c432        	addi	a3, a4, -16
+4003b8df:	743030        	extui	a3, a3, 0, 8
+4003b8e2:	2e3937        	bltu	a9, a3, 4003b914 <mac_tx_set_htsig+0x204>
+4003b8e5:	040232        	l8ui	a3, a2, 4
+4003b8e8:	242040        	extui	a2, a4, 0, 3
+4003b8eb:	82e3e0        	mull	a14, a3, a14
+4003b8ee:	20bb20        	or	a11, a11, a2
+4003b8f1:	ff8621        	l32r	a2, 4003b70c <mac_tx_set_duration+0x54> (60034300 <_iram1_text_end+0x13200>)
+4003b8f4:	74b0b0        	extui	a11, a11, 0, 8
+4003b8f7:	118880        	slli	a8, a8, 8
+4003b8fa:	17a032        	movi	a3, 23
+4003b8fd:	80ee20        	add	a14, a14, a2
+4003b900:	208b80        	or	a8, a11, a8
+4003b903:	ff7d21        	l32r	a2, 4003b6f8 <mac_tx_set_duration+0x40> (87000000 <_iram1_text_end+0x26fdef00>)
+4003b906:	023347        	bltu	a3, a4, 4003b90c <mac_tx_set_htsig+0x1fc>
+4003b909:	ff7c21        	l32r	a2, 4003b6fc <mac_tx_set_duration+0x44> (7000000 <xthals_release_major+0x6ffd120>)
+4003b90c:	208280        	or	a8, a2, a8
+4003b90f:	0020c0        	memw
+4003b912:	0e89      	s32i.n	a8, a14, 0
+4003b914:	020c      	movi.n	a2, 0
+4003b916:	f01d      	retw.n
+4003b918:	cfffffff 	
+4003b91c:	6003437c 	
+4003b920:	fff00000 	
+4003b924 <mac_tx_set_txop_q>:
+4003b924:	004136        	entry	a1, 32
+4003b927:	1d0232        	l8ui	a3, a2, 29
+4003b92a:	0233b6        	bltui	a3, 3, 4003b930 <mac_tx_set_txop_q+0xc>
+4003b92d:	0046c6        	j	4003ba4c <mac_tx_set_txop_q+0x128>
+4003b930:	040232        	l8ui	a3, a2, 4
+4003b933:	b4afa2        	movi	a10, -76
+4003b936:	ff1041        	l32r	a4, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003b939:	8233a0        	mull	a3, a3, a10
+4003b93c:	1c02e2        	l8ui	a14, a2, 28
+4003b93f:	334a      	add.n	a3, a3, a4
+4003b941:	0020c0        	memw
+4003b944:	0358      	l32i.n	a5, a3, 0
+4003b946:	f6ad81        	l32r	a8, 400393fc <coex_core_status_get+0x10> (f0ffffff <xthals_hw_configid0+0x2e0f0001>)
+4003b949:	3490e0        	extui	a9, a14, 0, 4
+4003b94c:	019980        	slli	a9, a9, 24
+4003b94f:	105580        	and	a5, a5, a8
+4003b952:	205950        	or	a5, a9, a5
+4003b955:	0298      	l32i.n	a9, a2, 0
+4003b957:	0020c0        	memw
+4003b95a:	0359      	s32i.n	a5, a3, 0
+4003b95c:	040232        	l8ui	a3, a2, 4
+4003b95f:	1d0282        	l8ui	a8, a2, 29
+4003b962:	8233a0        	mull	a3, a3, a10
+4003b965:	ffec51        	l32r	a5, 4003b918 <mac_tx_set_htsig+0x208> (cfffffff <xthals_hw_configid0+0xd0f0001>)
+4003b968:	334a      	add.n	a3, a3, a4
+4003b96a:	0020c0        	memw
+4003b96d:	0348      	l32i.n	a4, a3, 0
+4003b96f:	148080        	extui	a8, a8, 0, 2
+4003b972:	104450        	and	a4, a4, a5
+4003b975:	018840        	slli	a8, a8, 28
+4003b978:	204840        	or	a4, a8, a4
+4003b97b:	0020c0        	memw
+4003b97e:	0349      	s32i.n	a4, a3, 0
+4003b980:	b948      	l32i.n	a4, a9, 44
+4003b982:	fe5131        	l32r	a3, 4003b2c8 <hal_random+0x20> (c0067a1 <xthals_release_major+0xc0038c1>)
+4003b985:	0458      	l32i.n	a5, a4, 0
+4003b987:	1ae587        	bbsi	a5, 8, 4003b9a5 <mac_tx_set_txop_q+0x81>
+4003b98a:	040242        	l8ui	a4, a2, 4
+4003b98d:	e7ed51        	l32r	a5, 40035944 <rom_i2c_writeReg_Mask+0x6c> (f7ffffff <xthals_hw_configid0+0x350f0001>)
+4003b990:	c04340        	sub	a4, a3, a4
+4003b993:	1144d0        	slli	a4, a4, 3
+4003b996:	0020c0        	memw
+4003b999:	0488      	l32i.n	a8, a4, 0
+4003b99b:	105850        	and	a5, a8, a5
+4003b99e:	0020c0        	memw
+4003b9a1:	0459      	s32i.n	a5, a4, 0
+4003b9a3:	b948      	l32i.n	a4, a9, 44
+4003b9a5:	0448      	l32i.n	a4, a4, 0
+4003b9a7:	c0a052        	movi	a5, 192
+4003b9aa:	104540        	and	a4, a5, a4
+4003b9ad:	1ce466        	bnei	a4, 128, 4003b9cd <mac_tx_set_txop_q+0xa9>
+4003b9b0:	040242        	l8ui	a4, a2, 4
+4003b9b3:	c03340        	sub	a3, a3, a4
+4003b9b6:	1133d0        	slli	a3, a3, 3
+4003b9b9:	0020c0        	memw
+4003b9bc:	0358      	l32i.n	a5, a3, 0
+4003b9be:	e47041        	l32r	a4, 40034b80 <_stext+0x8c> (400000 <xthals_release_major+0x3fd120>)
+4003b9c1:	204540        	or	a4, a5, a4
+4003b9c4:	0020c0        	memw
+4003b9c7:	0349      	s32i.n	a4, a3, 0
+4003b9c9:	000646        	j	4003b9e6 <mac_tx_set_txop_q+0xc2>
+4003b9cc:	00          	.byte	00
+4003b9cd:	040242        	l8ui	a4, a2, 4
+4003b9d0:	c03340        	sub	a3, a3, a4
+4003b9d3:	1133d0        	slli	a3, a3, 3
+4003b9d6:	0020c0        	memw
+4003b9d9:	0358      	l32i.n	a5, a3, 0
+4003b9db:	f0a441        	l32r	a4, 40037c6c <rom_phy_close_rf+0x38> (ffbfffff <xthals_hw_configid0+0x3ccf0001>)
+4003b9de:	104540        	and	a4, a5, a4
+4003b9e1:	0020c0        	memw
+4003b9e4:	0349      	s32i.n	a4, a3, 0
+4003b9e6:	a998      	l32i.n	a9, a9, 40
+4003b9e8:	07e916        	beqz	a9, 4003ba6a <mac_tx_set_txop_q+0x146>
+4003b9eb:	1c0c      	movi.n	a12, 1
+4003b9ed:	ffcb41        	l32r	a4, 4003b91c <mac_tx_set_htsig+0x20c> (6003437c <_iram1_text_end+0x1327c>)
+4003b9f0:	feb0d1        	l32r	a13, 4003b4b0 <ppGetTxQFirstAvail_Locked+0x40> (fffff <xthals_release_major+0xfd11f>)
+4003b9f3:	ffcb31        	l32r	a3, 4003b920 <mac_tx_set_htsig+0x210> (fff00000 <xthals_hw_configid0+0x3cff0002>)
+4003b9f6:	0cfd      	mov.n	a15, a12
+4003b9f8:	1d0282        	l8ui	a8, a2, 29
+4003b9fb:	c05fc0        	sub	a5, a15, a12
+4003b9fe:	11a8c0        	slli	a10, a8, 4
+4003ba01:	c08a80        	sub	a8, a10, a8
+4003ba04:	a08840        	addx4	a8, a8, a4
+4003ba07:	a08580        	addx4	a8, a5, a8
+4003ba0a:	0020c0        	memw
+4003ba0d:	08b8      	l32i.n	a11, a8, 0
+4003ba0f:	19a8      	l32i.n	a10, a9, 4
+4003ba11:	10bb30        	and	a11, a11, a3
+4003ba14:	10aad0        	and	a10, a10, a13
+4003ba17:	20aab0        	or	a10, a10, a11
+4003ba1a:	0b1952        	l16ui	a5, a9, 22
+4003ba1d:	0020c0        	memw
+4003ba20:	08a9      	s32i.n	a10, a8, 0
+4003ba22:	0a19b2        	l16ui	a11, a9, 20
+4003ba25:	0020c0        	memw
+4003ba28:	08a8      	l32i.n	a10, a8, 0
+4003ba2a:	b5ba      	add.n	a11, a5, a11
+4003ba2c:	01bbc0        	slli	a11, a11, 20
+4003ba2f:	10aad0        	and	a10, a10, a13
+4003ba32:	20aba0        	or	a10, a11, a10
+4003ba35:	0020c0        	memw
+4003ba38:	08a9      	s32i.n	a10, a8, 0
+4003ba3a:	5c1b      	addi.n	a5, a12, 1
+4003ba3c:	2a1ec7        	beq	a14, a12, 4003ba6a <mac_tx_set_txop_q+0x146>
+4003ba3f:	a998      	l32i.n	a9, a9, 40
+4003ba41:	74c050        	extui	a12, a5, 0, 8
+4003ba44:	fb0956        	bnez	a9, 4003b9f8 <mac_tx_set_txop_q+0xd4>
+4003ba47:	0007c6        	j	4003ba6a <mac_tx_set_txop_q+0x146>
+4003ba4a:	00          	.byte	00
+4003ba4b:	00          	.byte	00
+4003ba4c:	040232        	l8ui	a3, a2, 4
+4003ba4f:	b4af22        	movi	a2, -76
+4003ba52:	823320        	mull	a3, a3, a2
+4003ba55:	fec821        	l32r	a2, 4003b578 <mac_tx_set_plcp0+0xb4> (60034314 <_iram1_text_end+0x13214>)
+4003ba58:	232a      	add.n	a2, a3, a2
+4003ba5a:	0020c0        	memw
+4003ba5d:	0248      	l32i.n	a4, a2, 0
+4003ba5f:	f66731        	l32r	a3, 400393fc <coex_core_status_get+0x10> (f0ffffff <xthals_hw_configid0+0x2e0f0001>)
+4003ba62:	103430        	and	a3, a4, a3
+4003ba65:	0020c0        	memw
+4003ba68:	0239      	s32i.n	a3, a2, 0
+4003ba6a:	020c      	movi.n	a2, 0
+4003ba6c:	f01d      	retw.n
+4003ba6e:	00          	.byte	00
+4003ba6f:	00          	.byte	00
+4003ba70:	fff0ffff 	
+4003ba74 <hal_set_tx_pti>:
+4003ba74:	004136        	entry	a1, 32
+4003ba77:	742020        	extui	a2, a2, 0, 8
+4003ba7a:	fe1181        	l32r	a8, 4003b2c0 <hal_random+0x18> (60033d04 <_iram1_text_end+0x12c04>)
+4003ba7d:	1192d0        	slli	a9, a2, 3
+4003ba80:	c08890        	sub	a8, a8, a9
+4003ba83:	0020c0        	memw
+4003ba86:	08a8      	l32i.n	a10, a8, 0
+4003ba88:	ff2091        	l32r	a9, 4003b708 <mac_tx_set_duration+0x50> (fffffff <xthals_release_major+0xfffd11f>)
+4003ba8b:	013340        	slli	a3, a3, 28
+4003ba8e:	10aa90        	and	a10, a10, a9
+4003ba91:	203a30        	or	a3, a10, a3
+4003ba94:	b4af92        	movi	a9, -76
+4003ba97:	0020c0        	memw
+4003ba9a:	0839      	s32i.n	a3, a8, 0
+4003ba9c:	822290        	mull	a2, a2, a9
+4003ba9f:	feb931        	l32r	a3, 4003b584 <mac_tx_set_plcp0+0xc0> (600342fc <_iram1_text_end+0x131fc>)
+4003baa2:	f9b391        	l32r	a9, 4003a170 <ieee80211_encap_esfbuf+0x550> (ffff0fff <xthals_hw_configid0+0x3d0e1001>)
+4003baa5:	223a      	add.n	a2, a2, a3
+4003baa7:	0020c0        	memw
+4003baaa:	0288      	l32i.n	a8, a2, 0
+4003baac:	744040        	extui	a4, a4, 0, 8
+4003baaf:	114440        	slli	a4, a4, 12
+4003bab2:	f44040        	extui	a4, a4, 0, 16
+4003bab5:	108890        	and	a8, a8, a9
+4003bab8:	208480        	or	a8, a4, a8
+4003babb:	0020c0        	memw
+4003babe:	0289      	s32i.n	a8, a2, 0
+4003bac0:	0020c0        	memw
+4003bac3:	0238      	l32i.n	a3, a2, 0
+4003bac5:	f85381        	l32r	a8, 40039c14 <ieee80211_align_eb+0x68> (fffff0ff <_memmap_cacheattr_unused_mask+0xf0>)
+4003bac8:	345050        	extui	a5, a5, 0, 4
+4003bacb:	108380        	and	a8, a3, a8
+4003bace:	115580        	slli	a5, a5, 8
+4003bad1:	205580        	or	a5, a5, a8
+4003bad4:	0020c0        	memw
+4003bad7:	0259      	s32i.n	a5, a2, 0
+4003bad9:	0020c0        	memw
+4003badc:	0288      	l32i.n	a8, a2, 0
+4003bade:	746060        	extui	a6, a6, 0, 8
+4003bae1:	0faf92        	movi	a9, -241
+4003bae4:	1166c0        	slli	a6, a6, 4
+4003bae7:	108890        	and	a8, a8, a9
+4003baea:	746060        	extui	a6, a6, 0, 8
+4003baed:	208680        	or	a8, a6, a8
+4003baf0:	0020c0        	memw
+4003baf3:	0289      	s32i.n	a8, a2, 0
+4003baf5:	0020c0        	memw
+4003baf8:	0288      	l32i.n	a8, a2, 0
+4003bafa:	ffdd91        	l32r	a9, 4003ba70 <mac_tx_set_txop_q+0x14c> (fff0ffff <xthals_hw_configid0+0x3d000001>)
+4003bafd:	347070        	extui	a7, a7, 0, 4
+4003bb00:	108890        	and	a8, a8, a9
+4003bb03:	117700        	slli	a7, a7, 16
+4003bb06:	208780        	or	a8, a7, a8
+4003bb09:	0020c0        	memw
+4003bb0c:	0289      	s32i.n	a8, a2, 0
+4003bb0e:	0020c0        	memw
+4003bb11:	0288      	l32i.n	a8, a2, 0
+4003bb13:	8198      	l32i.n	a9, a1, 32
+4003bb15:	fe6641        	l32r	a4, 4003b4b0 <ppGetTxQFirstAvail_Locked+0x40> (fffff <xthals_release_major+0xfd11f>)
+4003bb18:	0199c0        	slli	a9, a9, 20
+4003bb1b:	108840        	and	a8, a8, a4
+4003bb1e:	208890        	or	a8, a8, a9
+4003bb21:	0020c0        	memw
+4003bb24:	0289      	s32i.n	a8, a2, 0
+4003bb26:	f01d      	retw.n
+4003bb28 <hal_mac_tx_set_ppdu>:
+4003bb28:	004136        	entry	a1, 32
+4003bb2b:	20a220        	or	a10, a2, a2
+4003bb2e:	ff9965        	call8	4003b4c4 <mac_tx_set_plcp0>
+4003bb31:	20a220        	or	a10, a2, a2
+4003bb34:	ffa525        	call8	4003b588 <mac_tx_set_plcp1>
+4003bb37:	20a220        	or	a10, a2, a2
+4003bb3a:	ffb225        	call8	4003b65c <mac_tx_set_plcp2>
+4003bb3d:	02ad      	mov.n	a10, a2
+4003bb3f:	ffb7a5        	call8	4003b6b8 <mac_tx_set_duration>
+4003bb42:	03bd      	mov.n	a11, a3
+4003bb44:	02ad      	mov.n	a10, a2
+4003bb46:	ffbca5        	call8	4003b710 <mac_tx_set_htsig>
+4003bb49:	02ad      	mov.n	a10, a2
+4003bb4b:	ffdda5        	call8	4003b924 <mac_tx_set_txop_q>
+4003bb4e:	0402d2        	l8ui	a13, a2, 4
+4003bb51:	0228      	l32i.n	a2, a2, 0
+4003bb53:	118dd0        	slli	a8, a13, 3
+4003bb56:	b2c8      	l32i.n	a12, a2, 44
+4003bb58:	fdda21        	l32r	a2, 4003b2c0 <hal_random+0x18> (60033d04 <_iram1_text_end+0x12c04>)
+4003bb5b:	200c92        	l8ui	a9, a12, 32
+4003bb5e:	c02280        	sub	a2, a2, a8
+4003bb61:	0020c0        	memw
+4003bb64:	02b8      	l32i.n	a11, a2, 0
+4003bb66:	fee8a1        	l32r	a10, 4003b708 <mac_tx_set_duration+0x50> (fffffff <xthals_release_major+0xfffd11f>)
+4003bb69:	b4af82        	movi	a8, -76
+4003bb6c:	10bba0        	and	a11, a11, a10
+4003bb6f:	01a940        	slli	a10, a9, 28
+4003bb72:	20bba0        	or	a11, a11, a10
+4003bb75:	828d80        	mull	a8, a13, a8
+4003bb78:	fe83a1        	l32r	a10, 4003b584 <mac_tx_set_plcp0+0xc0> (600342fc <_iram1_text_end+0x131fc>)
+4003bb7b:	88aa      	add.n	a8, a8, a10
+4003bb7d:	111ca2        	l16ui	a10, a12, 34
+4003bb80:	0020c0        	memw
+4003bb83:	02b9      	s32i.n	a11, a2, 0
+4003bb85:	0020c0        	memw
+4003bb88:	0828      	l32i.n	a2, a8, 0
+4003bb8a:	f979b1        	l32r	a11, 4003a170 <ieee80211_encap_esfbuf+0x550> (ffff0fff <xthals_hw_configid0+0x3d0e1001>)
+4003bb8d:	11c940        	slli	a12, a9, 12
+4003bb90:	f4c0c0        	extui	a12, a12, 0, 16
+4003bb93:	1022b0        	and	a2, a2, a11
+4003bb96:	202c20        	or	a2, a12, a2
+4003bb99:	0020c0        	memw
+4003bb9c:	0829      	s32i.n	a2, a8, 0
+4003bb9e:	0020c0        	memw
+4003bba1:	08c8      	l32i.n	a12, a8, 0
+4003bba3:	f81cb1        	l32r	a11, 40039c14 <ieee80211_align_eb+0x68> (fffff0ff <_memmap_cacheattr_unused_mask+0xf0>)
+4003bba6:	342090        	extui	a2, a9, 0, 4
+4003bba9:	10ccb0        	and	a12, a12, a11
+4003bbac:	11b280        	slli	a11, a2, 8
+4003bbaf:	20bcb0        	or	a11, a12, a11
+4003bbb2:	0020c0        	memw
+4003bbb5:	08b9      	s32i.n	a11, a8, 0
+4003bbb7:	0020c0        	memw
+4003bbba:	08c8      	l32i.n	a12, a8, 0
+4003bbbc:	1199c0        	slli	a9, a9, 4
+4003bbbf:	0fafb2        	movi	a11, -241
+4003bbc2:	10bcb0        	and	a11, a12, a11
+4003bbc5:	749090        	extui	a9, a9, 0, 8
+4003bbc8:	2099b0        	or	a9, a9, a11
+4003bbcb:	0020c0        	memw
+4003bbce:	0899      	s32i.n	a9, a8, 0
+4003bbd0:	0020c0        	memw
+4003bbd3:	08b8      	l32i.n	a11, a8, 0
+4003bbd5:	ffa691        	l32r	a9, 4003ba70 <mac_tx_set_txop_q+0x14c> (fff0ffff <xthals_hw_configid0+0x3d000001>)
+4003bbd8:	112200        	slli	a2, a2, 16
+4003bbdb:	109b90        	and	a9, a11, a9
+4003bbde:	202920        	or	a2, a9, a2
+4003bbe1:	0020c0        	memw
+4003bbe4:	0829      	s32i.n	a2, a8, 0
+4003bbe6:	0020c0        	memw
+4003bbe9:	08b8      	l32i.n	a11, a8, 0
+4003bbeb:	fe3121        	l32r	a2, 4003b4b0 <ppGetTxQFirstAvail_Locked+0x40> (fffff <xthals_release_major+0xfd11f>)
+4003bbee:	019ac0        	slli	a9, a10, 20
+4003bbf1:	102b20        	and	a2, a11, a2
+4003bbf4:	202290        	or	a2, a2, a9
+4003bbf7:	0020c0        	memw
+4003bbfa:	0829      	s32i.n	a2, a8, 0
+4003bbfc:	020c      	movi.n	a2, 0
+4003bbfe:	f01d      	retw.n
