@@ -1,8 +1,16 @@
 """Line-command client for the ESP-IDF peer (bench/idf_wl_peer) on the BOX-3.
 The peer answers every command with output lines and then "ok" or "err <why>"."""
-import os, sys, time, serial
+import os, re, sys, time, serial
 
-BOX3 = '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_30:30:F9:5A:C1:10-if00'
+def _board(name, default):                        # make/boards.mk is the one place that maps boards to USB ids
+    try:
+        for l in open(os.path.join(os.path.dirname(__file__), '..', '..', 'make', 'boards.mk')):
+            m = re.match(r'%s\s*=\s*(\S+)' % name, l)
+            if m: return m.group(1)
+    except OSError: pass
+    return default
+
+BOX3 = _board('PEER', _board('BOX3', ''))         # the IDF peer: PEER if set, else the BOX-3
 
 
 class Peer:

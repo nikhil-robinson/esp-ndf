@@ -66,7 +66,7 @@ def run_one(app, kv, port, build=True):
         if r.returncode:
             return 'BUILD', (r.stdout + r.stderr)[-600:]
     if kv.get('TEST_HOST'):                                 # two-board / host-driven test: the script judges by its exit code
-        env = dict(os.environ, NDF_PORT=port, PEER_PORT=boards()['box3'])
+        env = dict(os.environ, NDF_PORT=port, PEER_PORT=boards().get('peer', boards()['box3']))
         r = subprocess.run([sys.executable, os.path.join(ROOT, kv['TEST_HOST'])], env=env, capture_output=True, text=True,
                            timeout=kv['TEST_TIMEOUT'])
         out = (r.stdout + r.stderr).strip().splitlines()
