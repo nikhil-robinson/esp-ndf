@@ -80,9 +80,10 @@ int wifi_mac_rx(wifi_rx_t *r, uint32_t timeout_ms)
         int l = rf_wifi_rx(buf, sizeof buf, 1);
         if (l <= 0) continue;
         const uint32_t *h = (const uint32_t *)rf_wifi_rx_header();
-        /* The delivered frame ends in 4 bytes that are not a CRC-32 of it (measured). Noise the receiver locked on to is flagged in header word 5:
-         * every real frame has bits 23:8 clear, the 32-byte "fc 94" junk and truncated frames do not (81 frames: 41 / 40 split, no real frame lost). */
-        if (l < 14 || (h[5] & 0x00FFFF00u)) { n_drop++; if (l >= 10 && !memcmp(buf + 4, my, 6)) n_drop_mine++; continue; }
+        /* Receive control header as IDF's wifi_pkt_rx_ctrl_t (esp_wifi_types_native.h, ESP32-S3): word 0 rssi / rate / sig_mode, word 11 sig_len (bits 11:0)
+         * and rx_state (bits 31:24, 0 = no error). IDF delivers only rx_state 0; noise and broken frames have it set. (The old test on word 5 was the
+         * noise floor and dropped every OFDM frame.) */
+        if (l < 14 || (h[11] >> 24)) { n_drop++; if (l >= 10 && !memcmp(buf + 4, my, 6)) n_drop_mine++; continue; }
         r->data = buf; r->len = (uint16_t)(l - 4); r->rssi = (int8_t)(h[0] & 0xFF); r->rate = (h[0] >> 8) & 0x1F; r->chan = chan; r->hw_decrypted = (uint8_t)rf_wifi_rx_decrypted();
         n_rx++;
         if (!memcmp(buf + 4, my, 6)) { n_mine++; if (buf[1] & 8) n_retry++; }

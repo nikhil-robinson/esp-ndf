@@ -24,7 +24,7 @@ p = Peer(); say('soak start: sta %.0f min, ap %.0f min, ble %.0f min' % tuple(mi
 
 # ---- 1. station, WPA2 ----
 flash('components/lwip/test_apps/ip_unit'); p.reboot()
-p.cmd('wifi_stop'); p.cmd('wifi_ap T secret123 6 0'); time.sleep(1); p.cmd('udp_echo 7'); p.cmd('tcp_echo 8')
+p.cmd('wifi_stop'); p.cmd('wifi_ap T secret123 6'); time.sleep(1); p.cmd('udp_echo 7'); p.cmd('tcp_echo 8')
 n = Ndf(ready='ip_unit ready', timeout=20)
 u = n.cmd('up T secret123', 40)[-1]; ip = re.search(r'ip (\S+)', u).group(1) if 'ip -' not in u else None
 if not ip: say('station did not get an address: ' + u, True)

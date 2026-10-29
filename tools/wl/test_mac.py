@@ -13,7 +13,7 @@ def check(c, msg):
     print(('ok   ' if c else 'FAIL ') + msg)
     if not c: fail.append(msg)
 
-p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T - 6 0'))
+p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T - 6'))
 check(n.cmd('init')[-1] == 'init 0', 'wifi_mac_init')
 c = n.cmd('count 10000 ' + BSSID, 20)[-1].split()
 check(97 <= int(c[2]) <= 102, '10 s of beacons at 100 ms: 97..102, got %s (noise frames dropped: %s)' % (c[2], c[6]))

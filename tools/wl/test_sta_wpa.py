@@ -14,7 +14,7 @@ def check(c, msg):
     print(('ok   ' if c else 'FAIL ') + msg)
     if not c: fail.append(msg)
 
-p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T secret123 6 0')); time.sleep(1); p.s.reset_input_buffer()
+p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T secret123 6')); time.sleep(1); p.s.reset_input_buffer()
 n.cmd('init')
 sc = [l for l in n.cmd('scan', 30) if l.endswith(' ssid T')]
 check(len(sc) == 1 and ' sec 2 ' in sc[0], 'scan reports T as WPA2 (%s)' % sc[:1])
@@ -29,7 +29,7 @@ j = n.cmd('join T wrongpass1', 20)[-1].split()
 check(j[1] == '-3' and int(j[3]) < 3500, 'wrong passphrase: handshake failure (-3) in < 3.5 s: %s' % ' '.join(j))
 j = n.cmd('join T', 20)[-1].split()
 check(j[1] == '-2', 'open join to a WPA2 network is refused (-2): %s' % ' '.join(j))
-p.cmd('wifi_stop'); p.cmd('wifi_ap T secret123 6 0'); time.sleep(1)
+p.cmd('wifi_stop'); p.cmd('wifi_ap T secret123 6'); time.sleep(1)
 j = n.cmd('join T secret123', 20)[-1].split()
 check(j[1] == '0', 'join again after the AP restarted: %s' % ' '.join(j))
 # forged EAPOL-Key frames from the "AP" (raw injection with the AP's address): wrong MIC, never accepted; the link and the keys stay as they are

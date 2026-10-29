@@ -11,7 +11,11 @@ static unsigned hdr(uint8_t *o, uint8_t fc0, uint8_t fc1, const uint8_t *a1, con
     return 24;
 }
 static unsigned ssid_ie(uint8_t *o, const char *ssid) { unsigned l = ssid ? (unsigned)strnlen(ssid, 32) : 0; o[0] = 0; o[1] = (uint8_t)l; if (l) memcpy(o + 2, ssid, l); return 2 + l; }
-static unsigned rates_ie(uint8_t *o) { static const uint8_t r[] = { 1, 4, 0x82, 0x84, 0x8b, 0x96 }; memcpy(o, r, sizeof r); return sizeof r; }   /* 1, 2, 5.5, 11 Mbit/s: all we transmit */
+static unsigned rates_ie(uint8_t *o)                              /* 802.11b/g as an IDF station: 1, 2, 5.5, 11 (basic), 6..36 in Supported Rates, 48, 54 in Extended Supported Rates */
+{
+    static const uint8_t r[] = { 1, 8, 0x82, 0x84, 0x8b, 0x96, 0x0c, 0x12, 0x18, 0x24, 50, 4, 0x30, 0x48, 0x60, 0x6c };
+    memcpy(o, r, sizeof r); return sizeof r;
+}
 
 unsigned wifi_build_probe_req(uint8_t *o, const uint8_t me[6], const char *ssid, uint16_t seq)
 {

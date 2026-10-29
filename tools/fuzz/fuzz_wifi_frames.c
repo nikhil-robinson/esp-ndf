@@ -27,12 +27,12 @@ int main(int argc, char **argv)
     /* builders */
     uint8_t f[200]; unsigned n;
     n = wifi_build_probe_req(f, me, NULL, 5);
-    CHECK(n == 24 + 2 + 6 && f[0] == 0x40 && f[24] == 0 && f[25] == 0 && f[22] == 0x50 && f[23] == 0);
+    CHECK(n == 24 + 2 + 16 && f[0] == 0x40 && f[24] == 0 && f[25] == 0 && f[22] == 0x50 && f[23] == 0);
     n = wifi_build_auth(f, me, ap_, 1); CHECK(n == 30 && f[0] == 0xB0 && f[26] == 1 && !memcmp(f + 4, ap_, 6) && !memcmp(f + 10, me, 6));
-    n = wifi_build_assoc_req(f, me, ap_, "net", 0, 2); CHECK(n == 24 + 4 + 5 + 6 + 9 && f[0] == 0 && f[28] == 0 && f[29] == 3 && !memcmp(f + 30, "net", 3));
+    n = wifi_build_assoc_req(f, me, ap_, "net", 0, 2); CHECK(n == 24 + 4 + 5 + 16 + 9 && f[0] == 0 && f[28] == 0 && f[29] == 3 && !memcmp(f + 30, "net", 3));
     n = wifi_build_deauth(f, me, ap_, 3, 1); CHECK(n == 26 && f[0] == 0xC0 && f[24] == 3);
 
-    n = wifi_build_assoc_req(f, me, ap_, "net", 1, 2); CHECK(n == 24 + 4 + 5 + 6 + 22 + 9 && f[n - 31] == 48 && f[n - 30] == 20 && f[n - 9] == 0xdd);
+    n = wifi_build_assoc_req(f, me, ap_, "net", 1, 2); CHECK(n == 24 + 4 + 5 + 16 + 22 + 9 && f[n - 31] == 48 && f[n - 30] == 20 && f[n - 9] == 0xdd);
     uint8_t rb2[80] = { 0x80 }; memcpy(rb2 + 16, ap_, 6); rb2[34] = 0x11; rb2[36] = 0; rb2[37] = 1; rb2[38] = 'T'; rb2[39] = 48; rb2[40] = 20; rb2[41] = 1;   /* RSN element => WPA2 */
     CHECK(wifi_parse_beacon(rb2, 36 + 3 + 22, &ap) == 0 && ap.sec == 2);
 
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
     n = wifi_build_beacon(f, me, ap_, "net", 9, 1, 0, 3, 1); CHECK(f[0] == 0x50 && !memcmp(f + 4, me, 6) && !wifi_parse_beacon(f, n, &ap) && ap.sec == 2);
     n = wifi_build_beacon(f, bc, ap_, "0123456789012345678901234567890123456789", 9, 0, 0, 0, 0); CHECK(n <= sizeof f && !wifi_parse_beacon(f, n, &ap) && strlen(ap.ssid) <= 32);   /* over-long SSID is cut, not overrun */
     n = wifi_build_auth_resp(f, me, ap_, 17, 4); CHECK(n == 30 && f[0] == 0xB0 && f[26] == 2 && f[28] == 17 && !memcmp(f + 4, me, 6) && !memcmp(f + 10, ap_, 6) && !memcmp(f + 16, ap_, 6));
-    n = wifi_build_assoc_resp(f, me, ap_, 0, 3, 1, 5); CHECK(f[0] == 0x10 && f[24] == 0x11 && f[28] == 3 && f[29] == 0xC0 && n == 30 + 6);
+    n = wifi_build_assoc_resp(f, me, ap_, 0, 3, 1, 5); CHECK(f[0] == 0x10 && f[24] == 0x11 && f[28] == 3 && f[29] == 0xC0 && n == 30 + 16);
     n = wifi_build_deauth_ap(f, me, ap_, 15, 6); CHECK(n == 26 && f[0] == 0xC0 && f[24] == 15 && !memcmp(f + 4, me, 6) && !memcmp(f + 16, ap_, 6));
     n = wifi_build_data_fromds(f, ap_, dst, me, 0x0800, pl, 4, 7); CHECK(f[1] == 0x02 && !memcmp(f + 4, dst, 6) && !memcmp(f + 10, ap_, 6) && !memcmp(f + 16, me, 6) && n == 24 + 8 + 4);
     memcpy(d, f, n); d[1] = 0x01; memcpy(d + 4, ap_, 6); memcpy(d + 10, me, 6); memcpy(d + 16, dst, 6);            /* to DS: RA = AP, SA = us, DA = dst */

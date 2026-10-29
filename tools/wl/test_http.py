@@ -13,7 +13,7 @@ def check(c, msg):
     print(('ok   ' if c else 'FAIL ') + msg)
     if not c: fail.append(msg)
 
-p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6 0'); time.sleep(1)
+p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6'); time.sleep(1)
 u = n.cmd('up T', 30)[-1]
 m = re.search(r'ip (\S+)', u); ip = m.group(1) if m and m.group(1) != '-' else None
 check(ip is not None, 'join + DHCP: %s' % u)
