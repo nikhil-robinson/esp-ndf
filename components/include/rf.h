@@ -159,7 +159,9 @@ void rf_pkt_stop(void);
 void rf_wifi_set_rate(unsigned rate);            /* IDF rate code for the next rf_wifi_tx (0 = 1 Mbit/s DSSS) */
 int  rf_wifi_set_channel(unsigned ch);           /* 1..13, applied at the next tx_init / rx_init */
 int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
-int  rf_wifi_tx_ack(const uint8_t *frame, unsigned len, int want_ack);   /* through the MAC frame-exchange engine, from the receive state: 1 acknowledged, 0 no ACK, < 0 error */
+#define RF_TX_ACK     1                             /* unicast: wait for the ACK */
+#define RF_TX_HWCRYPT 2                             /* protected frame with its CCMP header and plaintext: the MAC encrypts it with the key-table slot of the receiver (IDF's path) */
+int  rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags);   /* through the MAC frame-exchange engine, from the receive state: 1 acknowledged, 0 no ACK, < 0 error */
 uint8_t *rf_wifi_tx_buffer(void);                /* the frame buffer rf_wifi_tx sends from (1600 B): build in place, pass this pointer */
 int  rf_wifi_tx(const uint8_t *frame, unsigned len);          /* send one 802.11 frame (10..1600 B) */
 int  rf_wifi_rx_init(void);                      /* carrier + RX front end on, replay the RX config, arm our ring */

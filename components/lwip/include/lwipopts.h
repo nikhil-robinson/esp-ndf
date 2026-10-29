@@ -10,7 +10,7 @@
 #define NDF_NET_PBUFS      7                 /* receive buffers of 1536 B */
 #endif
 #ifndef NDF_NET_TCP_SEGS
-#define NDF_NET_TCP_SEGS   6                 /* TCP window and send buffer in segments */
+#define NDF_NET_TCP_SEGS   4                 /* TCP window and send buffer in segments */
 #endif
 
 #define NO_SYS                      1
@@ -51,7 +51,7 @@
 #define ARP_QUEUEING                1
 
 #ifndef NDF_NET_TCP_MSS
-#define NDF_NET_TCP_MSS            536               /* 1 Mbit/s downlink: 1460-byte frames last 12 ms and collide with our ACKs (measured) */
+#define NDF_NET_TCP_MSS            1460              /* full Ethernet-size segments, as IDF (bench_sta.py: 64 KB echo 709 ms vs 1.8 s at 536) */
 #endif
 #define TCP_MSS                     NDF_NET_TCP_MSS
 #define TCP_WND                     (NDF_NET_TCP_SEGS * TCP_MSS)
@@ -70,6 +70,9 @@
 #define ICMP_STATS                  1
 #define UDP_STATS                   1
 #define TCP_STATS                   1
+#ifndef TCP_TMR_INTERVAL                              /* TCP fast timer (delayed ACK): lwIP's 250 ms default left 100-200 ms holes in every bulk exchange; net_poll runs it, so a short one is free */
+#define TCP_TMR_INTERVAL            20
+#endif
 #define ETHARP_STATS                1
 #define IPFRAG_STATS                0
 #define IGMP_STATS                  0

@@ -1,0 +1,4 @@
+open   rate 0 TCP echo 64 KB  esp-ndf median 729 ms [719, 720, 720, 726, 729, 744, 771, 803, 2671]  ESP-IDF median 807 ms [780, 786, 790, 798, 807, 820, 822, 824, 905]
+WPA2   rate 0 TCP echo 64 KB  esp-ndf median 748 ms [717, 725, 746, 747, 748, 749, 754, 756, 763]  ESP-IDF median 812 ms [792, 807, 809, 811, 812, 817, 892, 934, 992]
+open   rate 3 TCP echo 64 KB  esp-ndf median 152 ms [141, 147, 149, 150, 152, 152, 153, 169, 174]  ESP-IDF median 207 ms [201, 202, 206, 206, 207, 218, 226, 258, 394]
+WPA2   rate 3 TCP echo 64 KB  esp-ndf median 167 ms [149, 150, 157, 163, 167, 168, 169, 173, 175]  ESP-IDF median 211 ms [189, 199, 201, 207, 211, 214, 278, 278, 348]

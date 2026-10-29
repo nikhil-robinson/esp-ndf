@@ -26,7 +26,10 @@ static struct {                                              /* WPA2 state; wipe
 #define KEK (k.ptk + 16)
 #define TK  (k.ptk + 32)
 static uint8_t fb[1600];
-static unsigned data_rate = WIFI_RATE_12M;
+#ifndef NDF_WIFI_DATA_RATE
+#define NDF_WIFI_DATA_RATE 0xD                /* 36 Mbit/s OFDM: the fastest rate the peer reliably hears from us (48/54 are not, docs/WIFI_MAC.md) */
+#endif
+static unsigned data_rate = NDF_WIFI_DATA_RATE;
 void wifi_set_data_rate(unsigned rate) { data_rate = rate; }
 
 static int tx(unsigned len) { s.last_tx = time_ms(); return wifi_mac_tx(fb, len); }
@@ -42,8 +45,11 @@ static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t
     unsigned l = wifi_build_data(fb, s.me, s.bssid, dst, ethertype, p, n, next_seq());
     if (encrypt) {                                           /* QoS data (as the IDF station sends): header 26 | CCMP header 8 | LLC/SNAP + payload | MIC 8 */
         memmove(fb + 26 + 8, fb + 24, l - 24); fb[0] = 0x88; fb[1] |= 0x40; fb[24] = fb[25] = 0;
-        int c = ccmp_encrypt(TK, fb, 26, ++k.tx_pn, 0, fb + 26, l - 24); if (c < 0) return -1;
-        l = 26 + (unsigned)c;
+        uint64_t pn = ++k.tx_pn; uint8_t *h = fb + 26;                /* CCMP header in software, encryption and MIC in the MAC (IDF's path) */
+        h[0] = (uint8_t)pn; h[1] = (uint8_t)(pn >> 8); h[2] = 0; h[3] = 0x20; for (int i = 0; i < 4; i++) h[4 + i] = (uint8_t)(pn >> (16 + 8 * i));
+        l = 26 + 8 + (l - 24) + 8;
+        s.last_tx = time_ms();
+        return wifi_mac_tx_hwcrypt(fb, l, rate);
     }
     s.last_tx = time_ms();
     return wifi_mac_tx_rate(fb, l, rate);               /* data at 12 Mbit/s: DSSS frames over ~1200 B are not heard (docs/WIFI_MAC.md) */

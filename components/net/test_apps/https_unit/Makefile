@@ -9,5 +9,5 @@ TEST_NOTE = two boards: the IDF peer runs the AP, an HTTPS client and an HTTPS s
 XIP = all
 STACK0_SIZE = 8192
 STACK1_SIZE = 2048
-DEFS = -DNDF_NET_MEM_SIZE=8192 -DNDF_NET_PBUFS=5      # RAM: the TLS state and the elliptic-curve code come out of the 160 KB below the RF dump engine banks
+DEFS = -DNDF_NET_MEM_SIZE=8192 -DNDF_NET_PBUFS=5 -DNDF_NET_TCP_MSS=536      # RAM: the TLS state and the elliptic-curve code come out of the 160 KB below the RF dump engine banks
 include $(NDF_PATH)/make/project.mk

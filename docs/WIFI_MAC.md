@@ -81,3 +81,10 @@ ours at the same instruction (`bench/wifi_regs/data/idf_txq_enable_unicast.json`
 Measured (DEVKIT station, IDF AP, same air): TCP echo 64 KB 95 s -> 2.3 s open, 15.4 s WPA2; UDP 300/300; ping RTT 5.5 -> 3.1 ms.
 Next: hardware CCMP on transmit (IDF's path) instead of software CCMP + the crypto toggle, which is what keeps WPA2 slower than open.
 
+### Hardware CCMP on transmit, receive ring order, TX parameter RAM again (2026-10-29)
+
+- **Hardware CCMP transmit** (IDF's path, JTAG capture `bench/wifi_regs/data/idf_txq_enable_ccmp.json`): IDF writes the protected frame with its CCMP header and the plaintext; the MAC encrypts it with the key-table slot of the receiver. IDF's connected key table has the pairwise key twice: slot 0 flags `0x48cc` (transmit) and slot 4 flags `0x086c` (receive). `wifi_mac_set_key` now installs the transmit twin in slot n (0-3) for every pairwise key; `wifi_mac_tx_hwcrypt` sends header + CCMP header + plaintext + 8 bytes MIC room. Frames we still encrypt in software (AP group frames) clear the interface crypto bit while they go out.
+- **Receive ring order**: `rf_wifi_rx` returned the first finished descriptor by index; after a wrap that delivered frames out of order and the CCMP replay check dropped the older ones (TCP stalls of 1-2 s). The ring is now read from a read pointer in arrival order.
+- **TX parameter RAM**: the engine path does not run the TX register set, so the zeroing of `0x600342e0..0x600343fc` moved to `rf_wifi_rx_init` (zero, then the parameter words of the TX set). Without it, stale contents (they survive resets) made the AP deauthenticate us right after association.
+- **WMM** in the association request (as an IDF station): the AP sends QoS data, one TID per queue.
+

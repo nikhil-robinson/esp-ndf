@@ -1,6 +1,6 @@
 # ap_unit: the esp-ndf access point (open and WPA2) with its DHCP server and lwIP, against the IDF station on the peer board (tools/wl/test_ap.py)
 NDF_PATH ?= ../../../..
-COMPONENTS = wifi lwip net
+COMPONENTS = wifi lwip net tls
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf $(NDF_PATH)/components/lwip/include
 TEST_KIND = unit
 TEST_HOST = tools/wl/test_ap.py

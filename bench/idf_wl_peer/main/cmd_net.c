@@ -83,6 +83,7 @@ static int cmd_tcp_send(int argc, char **argv)                   /* tcp_send <ip
 {
     if (argc < 4) return -1;
     int s = dial(argv[1], atoi(argv[2])); if (s < 0) return -2;
+    int64_t t_start = esp_timer_get_time();                          /* after connect, as esp-ndf's ip_unit measures */
     unsigned total = atoi(argv[3]), sent = 0, got = 0, bad = 0; uint8_t buf[1024];
     struct timeval tv = { 5, 0 }; setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
     while (got < total) {
@@ -92,7 +93,7 @@ static int cmd_tcp_send(int argc, char **argv)                   /* tcp_send <ip
         else if (r == 0 || (r < 0 && sent >= total)) break;
     }
     close(s);
-    printf("tcp_send sent=%u echoed=%u bad=%u\n", sent, got, bad);
+    printf("tcp_send sent=%u echoed=%u bad=%u elapsed_ms=%u\n", sent, got, bad, (unsigned)((esp_timer_get_time() - t_start) / 1000));
     return got == total && !bad ? 0 : -3;
 }
 static int cmd_iperf_tx(int argc, char **argv)                   /* iperf_tx <ip> <port> <seconds>: sink side must read */

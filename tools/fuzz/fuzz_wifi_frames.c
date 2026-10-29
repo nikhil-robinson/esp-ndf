@@ -29,10 +29,10 @@ int main(int argc, char **argv)
     n = wifi_build_probe_req(f, me, NULL, 5);
     CHECK(n == 24 + 2 + 6 && f[0] == 0x40 && f[24] == 0 && f[25] == 0 && f[22] == 0x50 && f[23] == 0);
     n = wifi_build_auth(f, me, ap_, 1); CHECK(n == 30 && f[0] == 0xB0 && f[26] == 1 && !memcmp(f + 4, ap_, 6) && !memcmp(f + 10, me, 6));
-    n = wifi_build_assoc_req(f, me, ap_, "net", 0, 2); CHECK(n == 24 + 4 + 5 + 6 && f[0] == 0 && f[28] == 0 && f[29] == 3 && !memcmp(f + 30, "net", 3));
+    n = wifi_build_assoc_req(f, me, ap_, "net", 0, 2); CHECK(n == 24 + 4 + 5 + 6 + 9 && f[0] == 0 && f[28] == 0 && f[29] == 3 && !memcmp(f + 30, "net", 3));
     n = wifi_build_deauth(f, me, ap_, 3, 1); CHECK(n == 26 && f[0] == 0xC0 && f[24] == 3);
 
-    n = wifi_build_assoc_req(f, me, ap_, "net", 1, 2); CHECK(n == 24 + 4 + 5 + 6 + 22 && f[n - 22] == 48 && f[n - 21] == 20);
+    n = wifi_build_assoc_req(f, me, ap_, "net", 1, 2); CHECK(n == 24 + 4 + 5 + 6 + 22 + 9 && f[n - 31] == 48 && f[n - 30] == 20 && f[n - 9] == 0xdd);
     uint8_t rb2[80] = { 0x80 }; memcpy(rb2 + 16, ap_, 6); rb2[34] = 0x11; rb2[36] = 0; rb2[37] = 1; rb2[38] = 'T'; rb2[39] = 48; rb2[40] = 20; rb2[41] = 1;   /* RSN element => WPA2 */
     CHECK(wifi_parse_beacon(rb2, 36 + 3 + 22, &ap) == 0 && ap.sec == 2);
 

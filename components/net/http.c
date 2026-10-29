@@ -12,7 +12,8 @@
 #endif
 #define MAX_ROUTES 8
 #define REQ_MAX    512                                    /* request line + headers; more than this without an empty line is a 400 */
-#define IDLE_POLLS 5                                      /* x 2 s */
+#define IDLE_POLLS 5                                      /* x 2 s: idle connections are freed after 10 s */
+#define POLL_TICKS (2000 / (2 * TCP_TMR_INTERVAL))       /* tcp_poll counts lwIP slow-timer ticks (2 x TCP_TMR_INTERVAL): one call every 2 s whatever the timer */
 
 /* ---------------- server ---------------- */
 static struct route { const char *m, *p; int (*h)(const http_req_t *, http_resp_t *); } routes[MAX_ROUTES];
@@ -133,7 +134,7 @@ static err_t s_accept(void *a, struct tcp_pcb *p, err_t e)
     for (unsigned i = 0; i < NDF_HTTP_CONNS; i++)
         if (!pool[i].pcb) {
             conn_t *c = &pool[i]; memset(c, 0, sizeof *c); c->pcb = p;
-            tcp_arg(p, c); tcp_recv(p, s_recv); tcp_sent(p, s_sent); tcp_poll(p, s_poll, 4); tcp_err(p, s_err);
+            tcp_arg(p, c); tcp_recv(p, s_recv); tcp_sent(p, s_sent); tcp_poll(p, s_poll, POLL_TICKS); tcp_err(p, s_err);
             return ERR_OK;
         }
     return ERR_MEM;                                                           /* pool full: lwIP aborts the new connection */

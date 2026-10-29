@@ -34,9 +34,15 @@ Generated from `tools/ndfconfig/schema.py` by `tools/ndfconfig/ndfconfig.py --do
 |---|---|---|---|---|
 | `NDF_NET_MEM_SIZE`<br>lwIP heap (bytes) | ndf_config.h | `22528` | 4096 – 262144 | PCBs, TCP segments and outgoing pbufs (components/lwip). RAM counts against the 160 KB below the RF dump engine banks. |
 | `NDF_NET_PBUFS`<br>Receive buffers (1536 B each) | ndf_config.h | `7` | 4 – 64 | Frames waiting for lwIP; a full pool drops frames and counts them (lwip_stats.link.drop). |
-| `NDF_NET_TCP_SEGS`<br>TCP window / send buffer (segments) | ndf_config.h | `6` | 2 – 32 | Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS. |
+| `NDF_NET_TCP_SEGS`<br>TCP window / send buffer (segments) | ndf_config.h | `4` | 2 – 32 | Both the receive window and the send buffer are this many segments of NDF_NET_TCP_MSS. |
 | `NDF_NET_DHCP_POOL`<br>DHCP server leases | ndf_config.h | `4` | 1 – 16 | Addresses the access point hands out from 192.168.4.2 upwards (components/net/dhcpd.c). |
-| `NDF_NET_TCP_MSS`<br>TCP segment size | ndf_config.h | `536` | 256 – 1460 | Small on purpose while the Wi-Fi downlink is 1 Mbit/s and has no hardware ACK (docs/WIFI_MAC.md). |
+| `NDF_NET_TCP_MSS`<br>TCP segment size | ndf_config.h | `1460` | 256 – 1460 | Full-size segments; smaller saves lwIP heap (TCP send buffer = segments x MSS). |
+
+## Wi-Fi radio
+
+| Option | File | Default | Values | Description |
+|---|---|---|---|---|
+| `NDF_WIFI_RX_BUFS`<br>Receive buffers (1664 B each) | ndf_config.h | `11` | 4 – 32 | Frames the MAC can take while the CPU is busy; 8 overflowed under an 11 Mbit/s burst (components/drivers/rf/rf_wifi.c). |
 
 ## Wi-Fi access point
 

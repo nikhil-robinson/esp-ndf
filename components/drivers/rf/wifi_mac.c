@@ -47,7 +47,10 @@ int wifi_mac_set_channel(uint8_t ch)
 
 int wifi_mac_tx(const uint8_t *frame, unsigned len) { return wifi_mac_tx_rate(frame, len, WIFI_RATE_1M); }
 
-int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate)
+static int tx_frame(const uint8_t *frame, unsigned len, unsigned rate, unsigned hw);
+int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate) { return tx_frame(frame, len, rate, 0); }
+int wifi_mac_tx_hwcrypt(const uint8_t *frame, unsigned len, unsigned rate) { return tx_frame(frame, len, rate, RF_TX_HWCRYPT); }
+static int tx_frame(const uint8_t *frame, unsigned len, unsigned rate, unsigned hw)
 {
     if (len < 10 || len > MAXF - 4) return RF_ERR_RANGE;
     uint8_t *f = rf_wifi_tx_buffer();
@@ -59,7 +62,7 @@ int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate)
     rf_wifi_set_rate(rate);
     int group = f[4] & 1, r = 0;
     for (int tries = 0; tries < WIFI_TX_TRIES; tries++) {
-        r = rf_wifi_tx_ack(f, len + 4, !group);
+        r = rf_wifi_tx_ack(f, len + 4, (group ? 0 : RF_TX_ACK) | hw);
         if (r != 0) break;
         f[1] |= 0x08; c = crc32_le(0, f, len); for (int i = 0; i < 4; i++) f[len + i] = (uint8_t)(c >> 8 * i);
         n_retries_tx++;
@@ -113,6 +116,12 @@ static void install_keys(void)
         k[1] = ta[4] | ta[5] << 8 | (uint32_t)(0x086c | (keys[n].id & 3) << 8) << 16;
         for (int i = 0; i < 4; i++) k[2 + i] = key[4 * i] | key[4 * i + 1] << 8 | key[4 * i + 2] << 16 | (uint32_t)key[4 * i + 3] << 24;
         en |= 1u << slot;
+        if (!keys[n].id && n < 4) {                              /* pairwise: a transmit twin in slot n (0-3) with IDF's transmit flags 0x48cc (IDF's connected key table) */
+            volatile uint32_t *t = (volatile uint32_t *)(0x60034400u + 0x28u * n);
+            for (int i = 0; i < 10; i++) t[i] = k[i];
+            t[1] = (k[1] & 0xFFFF) | 0x48ccu << 16;
+            en |= 1u << n;
+        }
     }
     if (en) { R32(0x60033810) &= 0xFFC0003Fu; R32(0x60033800) = (R32(0x60033800) | 0x30103u) & 0x3FFFFFFFu; }
     R32(0x60033814) = en;

@@ -4,6 +4,8 @@
 # and is built from inside that folder:   make [flash] [monitor] [PORT=...] [DEFS="-DNDF_X=1"]
 # Settings in the app Makefile (before the include), <app>/app.mk (menuconfig) or on the command line override the
 # defaults below. Test applications add TEST_* keys (docs/TESTING.md).
+SHELL := /bin/bash
+.SHELLFLAGS := -o pipefail -c                  # the compile step pipes gcc into the loop fixer: without pipefail a compile error left an empty object and a "successful" build
 NDF_PATH ?= $(error NDF_PATH is not set: the app Makefile must set it to the esp-ndf root)
 NDF  := $(abspath $(NDF_PATH))
 APP  := $(CURDIR)

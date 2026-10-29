@@ -10,7 +10,8 @@
 #include "lwip/tcp.h"
 
 #define REQ_MAX    512
-#define IDLE_POLLS 5
+#define IDLE_POLLS 5                                      /* x 2 s: idle connections are freed after 10 s */
+#define POLL_TICKS (2000 / (2 * TCP_TMR_INTERVAL))       /* tcp_poll counts lwIP slow-timer ticks (2 x TCP_TMR_INTERVAL): one call every 2 s whatever the timer */
 #ifndef HTTPS_TIMEOUT_MS
 #define HTTPS_TIMEOUT_MS 90000                /* whole request: connect, handshake, body (a slow link needs minutes for 64 KB) */
 #endif
@@ -33,12 +34,14 @@ static tls_t tls_inst; static uint8_t tls_busy;
 /* ---------------- server ---------------- */
 typedef struct { struct tcp_pcb *pcb; char req[REQ_MAX + 1]; uint16_t rl; uint8_t busy, idle, close_after, closing; char hdr[160]; uint16_t hlen, hoff; const uint8_t *body; uint32_t blen, boff; } sconn_t;
 static sconn_t sc;
-static struct tcp_pcb *lpcb; static const tls_server_cfg_t *scfg;
+static struct tcp_pcb *lpcb, *waiting; static const tls_server_cfg_t *scfg;   /* waiting: a connection that arrived while the TLS slot was busy (served next, as a listen backlog) */
+static void start(struct tcp_pcb *p);
 
 static void conn_free(sconn_t *c)
 {
     if (c->pcb) { tcp_arg(c->pcb, 0); tcp_recv(c->pcb, 0); tcp_sent(c->pcb, 0); tcp_poll(c->pcb, 0, 0); tcp_err(c->pcb, 0); if (tcp_close(c->pcb)) tcp_abort(c->pcb); tls_busy = 0; }
     memset(c, 0, sizeof *c);
+    if (waiting && !tls_busy) { struct tcp_pcb *w = waiting; waiting = 0; start(w); }
 }
 
 static void finish(sconn_t *c)                                           /* answer sent: next request, or close_notify and close */
@@ -94,7 +97,7 @@ static err_t s_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
     if (tls_state(&tls_inst) == TLS_FAILED || tls_state(&tls_inst) == TLS_CLOSED) c->closing = 1;       /* a failed connection sends its alert first */
     flush(p, &tls_inst);
     unsigned left; tls_out(&tls_inst, &left);
-    if (c->closing && !left) conn_free(c);
+    if (c->closing) conn_free(c);                                           /* tcp_close still sends what is queued (the alert, close_notify) */
     return ERR_OK;
 }
 static err_t s_sent(void *a, struct tcp_pcb *p, u16_t len)
@@ -102,7 +105,7 @@ static err_t s_sent(void *a, struct tcp_pcb *p, u16_t len)
     sconn_t *c = a; flush(p, &tls_inst);
     if (c->busy) pump_out(c);
     unsigned left; tls_out(&tls_inst, &left);
-    if (c->closing && !left) conn_free(c);
+    if (c->closing) conn_free(c);                                           /* tcp_close still sends what is queued (the alert, close_notify) */
     return ERR_OK;
 }
 static err_t s_poll(void *a, struct tcp_pcb *p)
@@ -114,12 +117,19 @@ static err_t s_poll(void *a, struct tcp_pcb *p)
 }
 static void s_err(void *a, err_t e) { sconn_t *c = a; c->pcb = 0; memset(c, 0, sizeof *c); tls_busy = 0; }
 
+static err_t w_err_dummy(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e) { if (q) { tcp_recved(p, 0); return ERR_MEM; } return ERR_OK; }   /* hold its bytes (lwIP keeps them) until it is served */
+static void w_err(void *a, err_t e) { waiting = 0; }
+static void start(struct tcp_pcb *p)
+{
+    memset(&sc, 0, sizeof sc); sc.pcb = p; tls_busy = 1;
+    tls_server_init(&tls_inst, scfg);
+    tcp_arg(p, &sc); tcp_recv(p, s_recv); tcp_sent(p, s_sent); tcp_poll(p, s_poll, POLL_TICKS); tcp_err(p, s_err);
+}
 static err_t s_accept(void *a, struct tcp_pcb *p, err_t e)
 {
-    if (sc.pcb) return ERR_MEM;                                           /* one connection at a time */
-    memset(&sc, 0, sizeof sc); sc.pcb = p;
-    tls_server_init(&tls_inst, scfg);
-    tcp_arg(p, &sc); tcp_recv(p, s_recv); tcp_sent(p, s_sent); tcp_poll(p, s_poll, 4); tcp_err(p, s_err);
+    if (!sc.pcb && !tls_busy) { start(p); return ERR_OK; }
+    if (waiting) return ERR_MEM;                                          /* slot and backlog full: lwIP refuses the connection */
+    waiting = p; tcp_arg(p, 0); tcp_recv(p, w_err_dummy); tcp_err(p, w_err);
     return ERR_OK;
 }
 

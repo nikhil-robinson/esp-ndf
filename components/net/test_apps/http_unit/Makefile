@@ -1,6 +1,6 @@
 # http_unit: HTTP server and client on lwIP over the Wi-Fi station, against the IDF peer (tools/wl/test_http.py)
 NDF_PATH ?= ../../../..
-COMPONENTS = wifi lwip net
+COMPONENTS = wifi lwip net tls
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf $(NDF_PATH)/components/lwip/include
 TEST_KIND = unit
 TEST_HOST = tools/wl/test_http.py

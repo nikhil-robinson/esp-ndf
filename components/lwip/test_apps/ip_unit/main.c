@@ -95,7 +95,7 @@ static void t_err(void *a, err_t e) { t_state = 3; tp = 0; }
 static void do_tcp(unsigned port, uint32_t bytes)
 {
     t_total = bytes; t_sent = t_rcvd = t_bad = 0; t_state = 0;
-    tp = tcp_new(); tcp_recv(tp, t_recv); tcp_err(tp, t_err);
+    tp = tcp_new(); tcp_recv(tp, t_recv); tcp_err(tp, t_err); tcp_nagle_disable(tp);     /* a bulk sender: no 200 ms wait on the last partial segment */
     if (tcp_connect(tp, &peer, (u16_t)port, t_conn)) { printf("tcp connect refused\n"); return; }
     uint32_t t0 = time_ms(), t1 = 0;
     while (t_state == 0 && time_ms() - t0 < 4000) net_poll();
