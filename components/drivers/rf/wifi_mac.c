@@ -7,13 +7,13 @@
 #include "xtensa.h"
 
 #define MAXF 1600
-#ifndef WIFI_ACK_US
-#define WIFI_ACK_US 400                                  /* the hardware ACK (10 us SIFS + 304 us at 1 Mbit/s) must be on the air before a TX start resets the MAC */
+#ifndef WIFI_TX_TRIES
+#define WIFI_TX_TRIES 7                                  /* attempts per unicast frame until the ACK comes (IDF: short retry limit 7) */
 #endif
 #define R32(a) (*(volatile uint32_t *)(a))
 
 static uint8_t my[6], chan = 6, buf[MAXF];
-uint32_t n_drop_mine, n_mine, n_retry; static uint64_t last_mine;
+uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack;
 static uint32_t n_rx, n_drop, n_tx, n_fail;
 
 #define NKEYS 8                                              /* key-table slots 4..4+NKEYS-1: the station uses two, the access point one per station */
@@ -44,8 +44,6 @@ int wifi_mac_set_channel(uint8_t ch)
     return listen();
 }
 
-/* Mbit/s of an IDF rate code (wifi_phy_rate_t), enough for the airtime wait; unknown codes count as 1 */
-static unsigned mbps(unsigned r) { switch (r) { case 1: return 2; case 3: return 11; case 0xB: return 6; case 0xF: return 9; case 0xA: return 12; case 0xE: return 18; case 9: return 24; case 0xD: return 36; default: return 1; } }
 
 int wifi_mac_tx(const uint8_t *frame, unsigned len) { return wifi_mac_tx_rate(frame, len, WIFI_RATE_1M); }
 
@@ -56,13 +54,18 @@ int wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate)
     if (frame != f) memcpy(f, frame, len);
     uint32_t c = crc32_le(0, f, len);                        /* the hardware does not append the FCS (docs/WIFI_MAC.md) */
     for (int i = 0; i < 4; i++) f[len + i] = (uint8_t)(c >> 8 * i);
-    while (time_us() - last_mine < WIFI_ACK_US) {}           /* a TX start resets the MAC: do not cut off the ACK of the frame we just received */
+    /* Frame-exchange engine (IDF's flow): carrier sense, ACK wait and retries with the retry bit; the radio stays in its receive set, so a received
+     * frame's hardware ACK is never cut off and our own ACKs keep going out while we send. */
     rf_wifi_set_rate(rate);
-    int rc = rf_wifi_tx_init();
-    if (!rc) { delay_us(1000); rc = rf_wifi_tx(f, len + 4); }   /* the TX front end needs ~1 ms to settle (measured) */
-    if (!rc) delay_us(192 + 8 * (len + 4) / mbps(rate) + 100);        /* the done flag comes before the frame has left the air (long DSSS preamble as an upper bound) */
-    int rl = listen();
-    if (rc || rl) { n_fail++; return rc ? rc : rl; }
+    int group = f[4] & 1, r = 0;
+    for (int tries = 0; tries < WIFI_TX_TRIES; tries++) {
+        r = rf_wifi_tx_ack(f, len + 4, !group);
+        if (r != 0) break;
+        f[1] |= 0x08; c = crc32_le(0, f, len); for (int i = 0; i < 4; i++) f[len + i] = (uint8_t)(c >> 8 * i);
+        n_retries_tx++;
+    }
+    if (r < 0) { n_fail++; return r; }
+    if (r == 0) { n_noack++; return RF_ERR_TIMEOUT; }
     n_tx++;
     return RF_OK;
 }
@@ -79,7 +82,7 @@ int wifi_mac_rx(wifi_rx_t *r, uint32_t timeout_ms)
         if (l < 14 || (h[5] & 0x00FFFF00u)) { n_drop++; if (l >= 10 && !memcmp(buf + 4, my, 6)) n_drop_mine++; continue; }
         r->data = buf; r->len = (uint16_t)(l - 4); r->rssi = (int8_t)(h[0] & 0xFF); r->rate = (h[0] >> 8) & 0x1F; r->chan = chan; r->hw_decrypted = (uint8_t)rf_wifi_rx_decrypted();
         n_rx++;
-        if (!memcmp(buf + 4, my, 6)) { n_mine++; if (buf[1] & 8) n_retry++; last_mine = time_us(); }
+        if (!memcmp(buf + 4, my, 6)) { n_mine++; if (buf[1] & 8) n_retry++; }
         return 1;
     } while ((ccount() - t0) / 240000u < timeout_ms);
     return 0;

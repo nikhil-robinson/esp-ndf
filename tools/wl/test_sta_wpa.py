@@ -16,7 +16,7 @@ def check(c, msg):
 
 p.cmd('wifi_stop'); BSSID = ap_bssid(p.cmd('wifi_ap T secret123 6 0')); time.sleep(1); p.s.reset_input_buffer()
 n.cmd('init')
-sc = [l for l in n.cmd('scan', 30) if ' ssid T' in l]
+sc = [l for l in n.cmd('scan', 30) if l.endswith(' ssid T')]
 check(len(sc) == 1 and ' sec 2 ' in sc[0], 'scan reports T as WPA2 (%s)' % sc[:1])
 j = n.cmd('join T secret123', 20)[-1].split()
 check(j[1] == '0', 'join with the 4-way handshake: %s' % ' '.join(j))

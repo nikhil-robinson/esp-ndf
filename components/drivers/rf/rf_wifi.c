@@ -53,9 +53,45 @@ int rf_wifi_tx_init(void)
 }
 
 static uint8_t tx_rate;
+#include "wifi_tx_cfg.h"
 void rf_wifi_set_rate(unsigned r) { tx_rate = (uint8_t)r; }
 
 uint8_t *rf_wifi_tx_buffer(void) { return tx_frame; }       /* build the frame here and pass the same pointer to rf_wifi_tx: no copy */
+
+/* Transmit through the MAC's frame-exchange engine from the receive state, as IDF does (no TX register replay): the MAC senses the air, sends,
+ * and for a unicast frame waits for the ACK itself. Configuration and result bits read from IDF at a unicast start (JTAG, docs/WIFI_MAC.md):
+ * start word bits 31:30 = go, 22:21 always, 24 = a response (ACK) is expected; events 0x60033c3c bit 7 = done, bit 14 = response received,
+ * bit 19 = response timeout. Returns 1 = acknowledged (or no ACK expected), 0 = no ACK, < 0 = error. */
+int rf_wifi_tx_ack(const uint8_t *frame, unsigned len, int want_ack)
+{
+    if (len < 10 || len > sizeof tx_frame) return RF_ERR_RANGE;
+    if (frame != tx_frame) memcpy(tx_frame, frame, len);
+    *(volatile uint32_t *)0x60033d08 = 0;                     /* an older exchange that never finished is dropped */
+    *(volatile uint32_t *)0x60033c40 = 0xFFFFFFFFu;           /* events: write-1-to-clear */
+    tx_desc[0] = 0xC0000000u | ((uint32_t)len << 12) | len;
+    tx_desc[1] = (uint32_t)tx_frame; tx_desc[2] = (uint32_t)tx_desc; tx_desc[3] = 0;
+    for (unsigned i = 0; i < sizeof wifi_tx_cfg / sizeof wifi_tx_cfg[0]; i++) *(volatile uint32_t *)wifi_tx_cfg[i][0] = wifi_tx_cfg[i][1];
+    *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12;      /* PLCP1: length, rate */
+    *(volatile uint32_t *)0x60034300 = 0x6400;               /* HTSIG */
+    uint32_t dur = want_ack ? (tx_rate ? 44u : 314u) : 0;      /* duration (NAV) the MAC writes into the frame: SIFS + ACK (mac_tx_set_duration) */
+    *(volatile uint32_t *)0x60034318 = dur | dur << 16;
+    uint32_t ic = *(volatile uint32_t *)0x60033800; *(volatile uint32_t *)0x60033800 = ic & ~0x103u;   /* interface crypto off while sending: our CCMP is done in software, the engine would encrypt again */
+    *(volatile uint32_t *)0x60033d08 = ((uint32_t)tx_desc & 0xFFFFF) | 0xC0600000u | (want_ack ? 0x01000000u : 0);
+    /* Completion as IDF's lmacProcessTxComplete decides it: 0x60033cb0 bits 3:0 = queues done; the queue's status word (0x60034320 for queue 0)
+     * bits 15:12 = result (0 success, else RTS / CTS / ACK timeout / TX error); the done bit is cleared by setting it in 0x60033cac. */
+    uint32_t t0 = ccount(), done = 0, st = 0;
+    while (ccount() - t0 < 240000u * 30) {                   /* 30 ms: airtime at 1 Mbit/s + backoff + ACK timeout */
+        done = *(volatile uint32_t *)0x60033cb0 & 1;
+        if (done || (*(volatile uint32_t *)0x60033cac & 0x10000)) break;
+    }
+    st = (*(volatile uint32_t *)0x60034320 >> 12) & 0xF;
+    *(volatile uint32_t *)0x60033cac = done ? 1 : *(volatile uint32_t *)0x60033cac;
+    *(volatile uint32_t *)0x60033d08 = 0;                     /* queue idle again */
+    *(volatile uint32_t *)0x60033800 = ic;
+    *(volatile uint32_t *)0x60033c40 = 0xFFFFFFFFu;
+    if (!done) return want_ack ? 0 : RF_ERR_TIMEOUT;          /* no completion: the ACK timed out (or the medium never freed) */
+    return st == 0;
+}
 
 int rf_wifi_tx(const uint8_t *frame, unsigned len)
 {

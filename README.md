@@ -36,7 +36,7 @@ BLE GATT server and client, Wi-Fi station and access point (open and WPA2-PSK), 
 | AES-128-GCM, 1 MB | **169 ms** | 447 ms |
 | softAP beacon jitter (std dev) | **313-486 us** | 512-1103 us |
 
-Open: the Wi-Fi transmit path does not use the MAC's frame-exchange engine yet (bulk TCP is slow); GATT notification throughput.
+Open: hardware CCMP on Wi-Fi transmit (WPA2 TCP 15 s per 64 KB vs 2.3 s open); GATT notification throughput.
 
 ## Design
 

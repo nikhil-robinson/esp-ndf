@@ -32,7 +32,7 @@ int main(void)
         if (!n) { printf("ok\n"); continue; }
         if (!strcmp(v[0], "init")) printf("init %d\n", wifi_init(my));
         else if (!strcmp(v[0], "scan")) {
-            static wifi_ap_t a[16]; unsigned c = 0; uint32_t t0 = time_ms(); wifi_scan(a, 16, &c);
+            static wifi_ap_t a[40]; unsigned c = 0; uint32_t t0 = time_ms(); wifi_scan(a, 40, &c);
             for (unsigned i = 0; i < c; i++)
                 printf("ap %02x:%02x:%02x:%02x:%02x:%02x ch %d rssi %d sec %d ssid %s\n", a[i].bssid[0], a[i].bssid[1], a[i].bssid[2], a[i].bssid[3], a[i].bssid[4], a[i].bssid[5], a[i].chan, a[i].rssi, a[i].sec, a[i].ssid);
             printf("scan %u aps in %lu ms\n", c, (unsigned long)(time_ms() - t0));

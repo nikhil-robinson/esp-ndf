@@ -61,3 +61,23 @@ Experiments with those values on our start path (a null frame to the AP / to nob
 ### TX parameter RAM (2026-10-29)
 
 `0x600342e0..0x600343fc` (per-queue parameter block: PLCP words, duration, TX-time record, hwtxop list) powers up with random contents and the MAC patches the transmitted frame from it: the duration field (bytes 2-3) comes from `0x60034318`, and some frames got 8 zero bytes at offset 48-55 (observed on DHCP frames: IP destination and UDP ports zeroed, so the receiver dropped them). Seen by sniffing the station's own DISCOVER (BOX-3 `wifi_watch <mac> all` prints the first 64 bytes). `rf_wifi_tx_init` now zeroes the block before the register replay (the replay sets the entries it needs). Before this, TX correctness depended on what the RAM happened to hold after a power cycle.
+
+### Transmit through the frame-exchange engine: solved (2026-10-29)
+
+Root cause of the slow TCP: we switched the radio to a TX register set for every frame (receiver off, nobody listening for the ACK) and started queue 0 with
+the "response expected" field cleared, so the MAC never sensed the air, never waited for an ACK and never retried. IDF transmits from its receive state
+and lets the MAC run the exchange. Found by halting IDF over JTAG at `hal_mac_txq_enable` on unicast data frames and diffing every MAC register against
+ours at the same instruction (`bench/wifi_regs/data/idf_txq_enable_unicast.json`, `ndf_txq_start_unicast.json`), then reading `lmacProcessTxComplete`.
+
+`rf_wifi_tx_ack` (used by `wifi_mac_tx` for every frame):
+- no TX replay, no MAC reset: the radio stays in its receive set (our hardware ACKs keep going out while we send);
+- IDF's TX configuration (`components/drivers/rf/wifi_tx_cfg.h`: queue 0 CONF `0x420033ff` with the ACK timeout, event mask, PTI word, timing registers);
+- start word `desc | 0xC0600000 | 0x01000000` (bit 24 = a response is expected, only for unicast), duration word `0x60034318` = SIFS + ACK;
+- completion exactly as `lmacProcessTxComplete`: `0x60033cb0` bits 3:0 = queues done, queue 0 status `0x60034320` bits 15:12 = result (0 success),
+  done bit cleared through `0x60033cac`; no completion within the ACK timeout = no ACK;
+- `wifi_mac_tx` retries up to 7 times with the retry bit (IDF's short retry limit);
+- the interface crypto bit (`0x60033800` bits 8, 1:0) is cleared while sending: our CCMP is software, the engine would encrypt the frame again.
+
+Measured (DEVKIT station, IDF AP, same air): TCP echo 64 KB 95 s -> 2.3 s open, 15.4 s WPA2; UDP 300/300; ping RTT 5.5 -> 3.1 ms.
+Next: hardware CCMP on transmit (IDF's path) instead of software CCMP + the crypto toggle, which is what keeps WPA2 slower than open.
+

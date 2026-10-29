@@ -1,0 +1,21 @@
+/* MAC transmit configuration as ESP-IDF has it at the start of a unicast data frame (JTAG halt at hal_mac_txq_enable, bench/wifi_regs/data/idf_txq_enable_unicast.json,
+ * diffed against ours: bench/wifi_regs/data/ndf_txq_start_unicast.json). 0x60033d04 = queue 0 CONF (AIFS/CW, ACK timeout 0x3ff), 0x60033c34 = event mask,
+ * 0x600342fc = queue 0 PTI word, 0x60034314 = txop queue word; the others are MAC timing registers IDF's lmac sets. */
+static const uint32_t wifi_tx_cfg[][2] = {
+    { 0x60033c24, 0x0000013e },
+    { 0x60033c34, 0x19a879e0 },
+    { 0x60033c54, 0xffff0fff },
+    { 0x60033c5c, 0x000f8000 },
+    { 0x60033c60, 0x00084000 },
+    { 0x60033c6c, 0xb1c8bf24 },
+    { 0x60033c78, 0x00000003 },
+    { 0x60033c94, 0x00000040 },
+    { 0x60033cb0, 0x00000000 },
+    { 0x60033d04, 0x420033ff },
+    { 0x60033d14, 0x00000001 },
+    { 0x60033d34, 0x00000059 },
+    { 0x60033d44, 0x00000151 },
+    { 0x60033d78, 0x00000003 },
+    { 0x600342fc, 0x00144441 },
+    { 0x60034314, 0x00400020 },
+};
