@@ -1,0 +1,559 @@
+2026-10-29 06:17:22 soak start: sta 25 min, ap 15 min, ble 20 min
+2026-10-29 06:17:45 round 1 sta: peer-ping 19/20 our-ping 20/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:18:04 round 2 sta: peer-ping 19/20 our-ping 20/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:18:17 round 3 sta: peer-ping 18/20 our-ping 18/20 udp 92/100 tcp ok heap 72
+2026-10-29 06:18:35 round 4 sta: peer-ping 20/20 our-ping 19/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:19:00 round 5 sta: peer-ping 18/20 our-ping 17/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:19:17 round 6 sta: peer-ping 17/20 our-ping 18/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:19:36 FAIL round 7 sta: peer-ping 19/20 our-ping 15/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:19:55 round 8 sta: peer-ping 18/20 our-ping 17/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:20:16 round 9 sta: peer-ping 18/20 our-ping 18/20 udp 82/100 tcp ok heap 72
+2026-10-29 06:20:34 round 10 sta: peer-ping 17/20 our-ping 18/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:20:55 round 11 sta: peer-ping 19/20 our-ping 19/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:21:09 round 12 sta: peer-ping 17/20 our-ping 20/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:21:27 round 13 sta: peer-ping 20/20 our-ping 20/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:21:40 round 14 sta: peer-ping 20/20 our-ping 20/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:21:57 FAIL round 15 sta: peer-ping 19/20 our-ping 18/20 udp 88/100 tcp ok heap 152
+2026-10-29 06:22:13 round 16 sta: peer-ping 19/20 our-ping 18/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:22:32 round 17 sta: peer-ping 18/20 our-ping 18/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:22:47 round 18 sta: peer-ping 20/20 our-ping 19/20 udp 83/100 tcp ok heap 72
+2026-10-29 06:23:00 round 19 sta: peer-ping 20/20 our-ping 20/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:23:19 round 20 sta: peer-ping 19/20 our-ping 19/20 udp 83/100 tcp ok heap 72
+2026-10-29 06:23:30 round 21 sta: peer-ping 20/20 our-ping 20/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:23:44 round 22 sta: peer-ping 18/20 our-ping 20/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:23:57 round 23 sta: peer-ping 20/20 our-ping 18/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:24:13 FAIL round 24 sta: peer-ping 20/20 our-ping 20/20 udp 82/100 tcp ok heap 152
+2026-10-29 06:24:23 round 25 sta: peer-ping 20/20 our-ping 20/20 udp 94/100 tcp ok heap 72
+2026-10-29 06:24:36 round 26 sta: peer-ping 16/20 our-ping 19/20 udp 94/100 tcp ok heap 72
+2026-10-29 06:24:51 round 27 sta: peer-ping 20/20 our-ping 20/20 udp 84/100 tcp ok heap 72
+2026-10-29 06:25:11 round 28 sta: peer-ping 20/20 our-ping 18/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:25:29 round 29 sta: peer-ping 20/20 our-ping 19/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:25:49 round 30 sta: peer-ping 17/20 our-ping 17/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:26:11 round 31 sta: peer-ping 17/20 our-ping 20/20 udp 82/100 tcp ok heap 72
+2026-10-29 06:26:30 round 32 sta: peer-ping 18/20 our-ping 17/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:26:46 round 33 sta: peer-ping 20/20 our-ping 20/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:27:09 round 34 sta: peer-ping 20/20 our-ping 16/20 udp 77/100 tcp ok heap 72
+2026-10-29 06:27:25 round 35 sta: peer-ping 20/20 our-ping 18/20 udp 83/100 tcp ok heap 72
+2026-10-29 06:27:45 round 36 sta: peer-ping 20/20 our-ping 20/20 udp 84/100 tcp ok heap 72
+2026-10-29 06:27:59 round 37 sta: peer-ping 20/20 our-ping 20/20 udp 84/100 tcp ok heap 72
+2026-10-29 06:28:19 round 38 sta: peer-ping 16/20 our-ping 17/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:28:36 round 39 sta: peer-ping 17/20 our-ping 20/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:28:58 FAIL round 40 sta: peer-ping 20/20 our-ping 15/20 udp 88/100 tcp ok heap 152
+2026-10-29 06:29:19 round 41 sta: peer-ping 18/20 our-ping 19/20 udp 84/100 tcp ok heap 72
+2026-10-29 06:29:38 round 42 sta: peer-ping 17/20 our-ping 18/20 udp 83/100 tcp ok heap 72
+2026-10-29 06:29:51 round 43 sta: peer-ping 19/20 our-ping 20/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:30:08 round 44 sta: peer-ping 20/20 our-ping 20/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:30:25 round 45 sta: peer-ping 18/20 our-ping 19/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:30:41 round 46 sta: peer-ping 20/20 our-ping 20/20 udp 85/100 tcp ok heap 72
+2026-10-29 06:30:56 round 47 sta: peer-ping 19/20 our-ping 20/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:31:19 round 48 sta: peer-ping 20/20 our-ping 18/20 udp 84/100 tcp ok heap 72
+2026-10-29 06:31:37 round 49 sta: peer-ping 18/20 our-ping 16/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:31:52 round 50 sta: peer-ping 20/20 our-ping 19/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:32:06 round 51 sta: peer-ping 19/20 our-ping 19/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:32:23 round 52 sta: peer-ping 17/20 our-ping 18/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:32:41 round 53 sta: peer-ping 16/20 our-ping 18/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:32:58 FAIL round 54 sta: peer-ping 17/20 our-ping 18/20 udp 87/100 tcp ok heap 152
+2026-10-29 06:33:16 round 55 sta: peer-ping 17/20 our-ping 16/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:33:31 FAIL round 56 sta: peer-ping 19/20 our-ping 19/20 udp 85/100 tcp ok heap 152
+2026-10-29 06:33:53 FAIL round 57 sta: peer-ping 16/20 our-ping 17/20 udp 85/100 tcp ok heap 152
+2026-10-29 06:34:12 round 58 sta: peer-ping 16/20 our-ping 20/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:34:30 round 59 sta: peer-ping 16/20 our-ping 18/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:34:45 round 60 sta: peer-ping 20/20 our-ping 20/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:35:03 round 61 sta: peer-ping 16/20 our-ping 20/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:35:18 FAIL round 62 sta: peer-ping 19/20 our-ping 20/20 udp 86/100 tcp ok heap 152
+2026-10-29 06:35:33 round 63 sta: peer-ping 19/20 our-ping 18/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:35:48 round 64 sta: peer-ping 18/20 our-ping 18/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:36:01 round 65 sta: peer-ping 20/20 our-ping 18/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:36:22 FAIL round 66 sta: peer-ping 15/20 our-ping 19/20 udp 90/100 tcp ok heap 152
+2026-10-29 06:36:38 round 67 sta: peer-ping 18/20 our-ping 19/20 udp 86/100 tcp ok heap 72
+2026-10-29 06:36:52 round 68 sta: peer-ping 19/20 our-ping 20/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:37:06 round 69 sta: peer-ping 19/20 our-ping 18/20 udp 93/100 tcp ok heap 72
+2026-10-29 06:37:27 round 70 sta: peer-ping 17/20 our-ping 18/20 udp 94/100 tcp ok heap 72
+2026-10-29 06:37:43 FAIL round 71 sta: peer-ping 20/20 our-ping 19/20 udp 91/100 tcp ok heap 152
+2026-10-29 06:38:02 round 72 sta: peer-ping 18/20 our-ping 18/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:38:13 round 73 sta: peer-ping 18/20 our-ping 20/20 udp 92/100 tcp ok heap 72
+2026-10-29 06:38:29 FAIL round 74 sta: peer-ping 16/20 our-ping 18/20 udp 91/100 tcp ok heap 152
+2026-10-29 06:38:41 round 75 sta: peer-ping 17/20 our-ping 19/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:38:53 round 76 sta: peer-ping 20/20 our-ping 18/20 udp 93/100 tcp ok heap 72
+2026-10-29 06:39:10 FAIL round 77 sta: peer-ping 17/20 our-ping 19/20 udp 88/100 tcp ok heap 152
+2026-10-29 06:39:29 round 78 sta: peer-ping 20/20 our-ping 16/20 udp 87/100 tcp ok heap 72
+2026-10-29 06:39:50 round 79 sta: peer-ping 18/20 our-ping 19/20 udp 89/100 tcp ok heap 72
+2026-10-29 06:40:06 round 80 sta: peer-ping 18/20 our-ping 17/20 udp 93/100 tcp ok heap 72
+2026-10-29 06:40:20 round 81 sta: peer-ping 17/20 our-ping 18/20 udp 94/100 tcp ok heap 72
+2026-10-29 06:40:39 round 82 sta: peer-ping 16/20 our-ping 17/20 udp 88/100 tcp ok heap 72
+2026-10-29 06:40:56 round 83 sta: peer-ping 18/20 our-ping 17/20 udp 91/100 tcp ok heap 72
+2026-10-29 06:41:11 FAIL round 84 sta: peer-ping 18/20 our-ping 15/20 udp 97/100 tcp ok heap 72
+2026-10-29 06:41:24 round 85 sta: peer-ping 19/20 our-ping 19/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:41:38 round 86 sta: peer-ping 17/20 our-ping 19/20 udp 92/100 tcp ok heap 72
+2026-10-29 06:41:53 round 87 sta: peer-ping 18/20 our-ping 19/20 udp 90/100 tcp ok heap 72
+2026-10-29 06:42:05 round 88 sta: peer-ping 18/20 our-ping 19/20 udp 93/100 tcp ok heap 72
+2026-10-29 06:42:17 round 89 sta: peer-ping 19/20 our-ping 19/20 udp 92/100 tcp ok heap 72
+2026-10-29 06:42:33 round 90 sta: peer-ping 18/20 our-ping 16/20 udp 94/100 tcp ok heap 72
+2026-10-29 06:42:47 round 91 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:42:50 round 92 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:42:53 round 93 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:42:54 round 94 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:42:59 round 95 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:01 round 96 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:09 round 97 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:10 round 98 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:13 FAIL round 99 ap: peer-ping 18/20 tcp ok stations 1 heap 80
+2026-10-29 06:43:16 round 100 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:19 round 101 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:24 FAIL round 102 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:43:27 round 103 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:29 round 104 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:32 round 105 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:34 round 106 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:36 round 107 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:39 round 108 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:41 round 109 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:42 round 110 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:45 round 111 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:49 round 112 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:52 round 113 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:56 round 114 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:57 round 115 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:43:59 round 116 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:02 round 117 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:05 round 118 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:06 round 119 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:10 round 120 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:13 round 121 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:16 round 122 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:19 round 123 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:22 round 124 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:24 round 125 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:26 round 126 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:28 round 127 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:31 round 128 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:36 FAIL round 129 ap: peer-ping 15/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:39 round 130 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:42 round 131 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:47 round 132 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:50 round 133 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:56 round 134 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:44:59 round 135 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:03 round 136 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:04 round 137 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:08 round 138 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:12 round 139 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:15 round 140 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:19 round 141 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:22 round 142 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:24 round 143 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:26 round 144 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:28 round 145 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:31 round 146 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:35 round 147 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:41 round 148 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:44 round 149 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:46 round 150 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:48 round 151 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:50 round 152 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:55 round 153 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:57 round 154 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:45:58 round 155 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:01 round 156 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:04 round 157 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:08 round 158 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:12 round 159 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:14 round 160 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:15 round 161 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:19 FAIL round 162 ap: peer-ping 17/20 tcp ok stations 1 heap 80
+2026-10-29 06:46:22 round 163 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:24 round 164 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:26 round 165 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:27 round 166 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:30 round 167 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:32 round 168 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:33 round 169 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:37 round 170 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:38 round 171 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:39 round 172 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:42 round 173 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:44 round 174 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:45 round 175 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:47 round 176 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:49 round 177 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:52 round 178 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:53 round 179 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:56 round 180 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:46:59 round 181 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:03 round 182 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:05 round 183 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:06 round 184 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:10 round 185 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:13 round 186 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:16 FAIL round 187 ap: peer-ping 18/20 tcp ok stations 1 heap 80
+2026-10-29 06:47:18 round 188 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:20 round 189 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:23 round 190 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:25 round 191 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:27 round 192 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:29 round 193 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:36 FAIL round 194 ap: peer-ping 19/20 tcp peer: 'tcp_send 192.168.4.1 8 1024' -> err -3
+tcp_send sent= stations 1 heap 1232
+2026-10-29 06:47:39 round 195 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:40 round 196 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:42 round 197 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:44 round 198 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:46 round 199 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:49 round 200 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:51 FAIL round 201 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:47:53 FAIL round 202 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:47:54 FAIL round 203 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:47:57 round 204 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:47:58 round 205 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:01 round 206 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:03 round 207 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:04 round 208 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:07 round 209 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:10 round 210 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:13 round 211 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:15 round 212 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:17 round 213 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:19 round 214 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:20 round 215 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:23 round 216 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:25 round 217 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:27 round 218 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:30 round 219 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:32 round 220 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:33 round 221 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:36 round 222 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:38 round 223 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:40 round 224 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:43 round 225 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:45 round 226 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:46 round 227 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:48 round 228 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:50 round 229 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:53 round 230 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:48:57 round 231 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:02 round 232 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:05 round 233 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:07 round 234 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:10 round 235 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:12 round 236 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:16 round 237 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:19 round 238 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:22 round 239 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:24 round 240 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:27 round 241 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:30 round 242 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:31 round 243 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:38 round 244 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:42 round 245 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:45 round 246 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:47 round 247 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:48 round 248 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:52 round 249 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:55 round 250 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:49:58 round 251 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:00 round 252 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:04 round 253 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:07 round 254 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:09 round 255 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:11 round 256 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:15 round 257 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:17 round 258 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:20 round 259 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:23 round 260 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:24 FAIL round 261 ap: peer-ping 20/20 tcp ok stations 1 heap 80
+2026-10-29 06:50:29 round 262 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:32 round 263 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:36 round 264 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:38 round 265 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:42 round 266 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:45 round 267 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:49 round 268 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:55 round 269 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:57 round 270 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:50:58 round 271 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:00 round 272 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:01 round 273 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:06 round 274 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:08 round 275 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:15 FAIL round 276 ap: peer-ping 19/20 tcp peer: 'tcp_send 192.168.4.1 8 1024' -> err -3
+tcp_send sent= stations 1 heap 1232
+2026-10-29 06:51:18 round 277 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:22 round 278 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:25 round 279 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:29 round 280 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:31 round 281 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:36 round 282 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:39 round 283 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:43 round 284 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:47 round 285 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:49 round 286 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:51 round 287 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:53 round 288 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:55 round 289 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:57 round 290 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:51:58 round 291 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:01 round 292 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:03 round 293 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:05 round 294 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:09 round 295 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:13 round 296 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:18 round 297 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:21 round 298 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:26 round 299 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:27 round 300 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:29 round 301 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:32 round 302 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:35 round 303 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:39 round 304 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:42 round 305 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:48 round 306 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:52 round 307 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:52:55 round 308 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:01 round 309 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:09 FAIL round 310 ap: peer-ping 18/20 tcp peer: 'tcp_send 192.168.4.1 8 1024' -> err -3
+tcp_send sent= stations 1 heap 648
+2026-10-29 06:53:14 round 311 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:15 round 312 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:18 round 313 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:20 round 314 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:21 round 315 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:24 round 316 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:26 round 317 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:28 round 318 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:30 round 319 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:31 round 320 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:34 round 321 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:36 round 322 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:39 FAIL round 323 ap: peer-ping 17/20 tcp ok stations 1 heap 80
+2026-10-29 06:53:43 round 324 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:47 round 325 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:49 round 326 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:51 round 327 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:53 round 328 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:55 round 329 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:57 round 330 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:53:59 round 331 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:03 round 332 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:09 round 333 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:12 round 334 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:16 round 335 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:21 round 336 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:23 round 337 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:26 round 338 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:30 round 339 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:34 round 340 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:36 FAIL round 341 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:54:40 round 342 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:42 round 343 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:45 round 344 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:52 FAIL round 345 ap: peer-ping 19/20 tcp peer: 'tcp_send 192.168.4.1 8 1024' -> err -3
+tcp_send sent= stations 1 heap 1232
+2026-10-29 06:54:55 round 346 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:57 round 347 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:54:59 round 348 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:01 round 349 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:03 round 350 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:06 FAIL round 351 ap: peer-ping 18/20 tcp ok stations 1 heap 80
+2026-10-29 06:55:09 round 352 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:11 round 353 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:13 round 354 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:16 round 355 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:17 round 356 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:20 round 357 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:24 round 358 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:27 round 359 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:31 round 360 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:33 round 361 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:36 round 362 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:38 round 363 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:46 FAIL round 364 ap: peer-ping 17/20 tcp peer: 'tcp_send 192.168.4.1 8 1024' -> err -3
+tcp_send sent= stations 1 heap 1232
+2026-10-29 06:55:49 round 365 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:52 round 366 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:54 round 367 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:56 round 368 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:55:58 round 369 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:01 round 370 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:05 round 371 ap: peer-ping 16/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:11 round 372 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:13 FAIL round 373 ap: peer-ping 19/20 tcp ok stations 1 heap 80
+2026-10-29 06:56:15 round 374 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:17 round 375 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:20 round 376 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:24 round 377 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:29 FAIL round 378 ap: peer-ping 17/20 tcp ok stations 1 heap 80
+2026-10-29 06:56:30 round 379 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:34 round 380 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:37 round 381 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:41 round 382 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:44 round 383 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:51 round 384 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:56 round 385 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:56:57 round 386 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:00 FAIL round 387 ap: peer-ping 18/20 tcp ok stations 1 heap 80
+2026-10-29 06:57:02 round 388 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:03 round 389 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:06 round 390 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:11 round 391 ap: peer-ping 18/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:15 round 392 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:18 round 393 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:23 round 394 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:24 round 395 ap: peer-ping 20/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:27 FAIL round 396 ap: peer-ping 18/20 tcp ok stations 1 heap 80
+2026-10-29 06:57:31 round 397 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:36 round 398 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:38 round 399 ap: peer-ping 19/20 tcp ok stations 1 heap 0
+2026-10-29 06:57:43 round 400 ap: peer-ping 17/20 tcp ok stations 1 heap 0
+2026-10-29 06:58:02 round 401 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 06:58:15 round 402 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 06:58:29 round 403 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 06:58:42 round 404 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 06:58:55 round 405 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 06:59:09 round 406 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 06:59:22 round 407 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 06:59:36 round 408 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 06:59:49 round 409 ble: discovered 7 attributes, 94 notifications in 10 s, gaps 0
+2026-10-29 07:00:03 round 410 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:00:16 round 411 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:00:30 round 412 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:00:43 round 413 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:00:57 round 414 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:01:10 round 415 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:01:24 round 416 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:01:37 round 417 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:01:51 round 418 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:02:04 round 419 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:02:18 round 420 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:02:31 round 421 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:02:45 round 422 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:02:58 round 423 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:03:11 round 424 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:03:25 round 425 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:03:38 round 426 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:03:52 round 427 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:04:05 round 428 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:04:19 round 429 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:04:32 round 430 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:04:46 round 431 ble: discovered 7 attributes, 97 notifications in 10 s, gaps 0
+2026-10-29 07:04:59 round 432 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:05:13 round 433 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:05:26 round 434 ble: discovered 7 attributes, 97 notifications in 10 s, gaps 0
+2026-10-29 07:05:40 round 435 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:05:53 round 436 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:06:07 round 437 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:06:20 round 438 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:06:34 round 439 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:06:47 round 440 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:07:01 round 441 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:07:14 round 442 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:07:28 round 443 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:07:41 round 444 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:07:55 round 445 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:08:08 round 446 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:08:22 round 447 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:08:35 round 448 ble: discovered 7 attributes, 99 notifications in 10 s, gaps 0
+2026-10-29 07:08:49 round 449 ble: discovered 7 attributes, 100 notifications in 10 s, gaps 0
+2026-10-29 07:09:02 round 450 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:09:16 round 451 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:09:29 round 452 ble: discovered 7 attributes, 98 notifications in 10 s, gaps 0
+2026-10-29 07:09:30 FAIL round 453 ble: peer: 'ble_disc' -> err -3
+svc 1 3 0x1800
+svc 4 4 0x1801
+svc 5 10 0xfff0
+chr 2 3 0x2a00 props=02
+2026-10-29 07:09:35 FAIL round 454 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:09:41 FAIL round 455 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:09:46 FAIL round 456 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:09:51 FAIL round 457 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:09:56 FAIL round 458 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:01 FAIL round 459 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:07 FAIL round 460 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:12 FAIL round 461 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:17 FAIL round 462 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:22 FAIL round 463 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:27 FAIL round 464 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:33 FAIL round 465 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:38 FAIL round 466 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:43 FAIL round 467 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:48 FAIL round 468 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:53 FAIL round 469 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:10:59 FAIL round 470 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:04 FAIL round 471 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:09 FAIL round 472 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:14 FAIL round 473 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:19 FAIL round 474 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:25 FAIL round 475 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:30 FAIL round 476 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:35 FAIL round 477 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:40 FAIL round 478 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:46 FAIL round 479 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:51 FAIL round 480 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:11:56 FAIL round 481 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:01 FAIL round 482 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:06 FAIL round 483 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:12 FAIL round 484 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:17 FAIL round 485 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:22 FAIL round 486 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:27 FAIL round 487 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:32 FAIL round 488 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:38 FAIL round 489 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:43 FAIL round 490 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:48 FAIL round 491 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:53 FAIL round 492 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:12:58 FAIL round 493 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:04 FAIL round 494 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:09 FAIL round 495 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:14 FAIL round 496 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:19 FAIL round 497 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:24 FAIL round 498 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:30 FAIL round 499 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:35 FAIL round 500 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:40 FAIL round 501 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:45 FAIL round 502 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:50 FAIL round 503 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:13:56 FAIL round 504 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:01 FAIL round 505 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:06 FAIL round 506 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:11 FAIL round 507 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:16 FAIL round 508 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:22 FAIL round 509 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:27 FAIL round 510 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:32 FAIL round 511 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:37 FAIL round 512 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:42 FAIL round 513 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:48 FAIL round 514 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:53 FAIL round 515 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:14:58 FAIL round 516 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:03 FAIL round 517 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:08 FAIL round 518 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:14 FAIL round 519 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:19 FAIL round 520 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:24 FAIL round 521 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:29 FAIL round 522 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:34 FAIL round 523 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:40 FAIL round 524 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:45 FAIL round 525 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:50 FAIL round 526 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:15:55 FAIL round 527 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:00 FAIL round 528 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:06 FAIL round 529 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:11 FAIL round 530 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:16 FAIL round 531 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:21 FAIL round 532 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:26 FAIL round 533 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:32 FAIL round 534 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:37 FAIL round 535 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:42 FAIL round 536 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:47 FAIL round 537 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:52 FAIL round 538 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:16:58 FAIL round 539 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:03 FAIL round 540 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:08 FAIL round 541 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:13 FAIL round 542 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:18 FAIL round 543 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:24 FAIL round 544 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:29 FAIL round 545 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:34 FAIL round 546 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:39 FAIL round 547 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:44 FAIL round 548 ble: peer: 'ble_connect c6:55:44:33:22:11 1' -> err 14
+2026-10-29 07:17:49 === soak wireless: rounds 548 fails 130 ===

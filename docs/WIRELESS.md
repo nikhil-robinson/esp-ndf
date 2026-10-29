@@ -34,7 +34,8 @@ Boards sit side by side at low TX power index; esp-ndf never links IDF code (the
 
 1. **Wi-Fi transmit engine.** `rf_wifi_tx` starts a frame on TX queue 0 but does not engage the MAC's frame-exchange engine, so nothing senses the air, waits for an ACK or retries. Replies of the peer that arrive while we transmit collide and TCP recovers only by its retransmit timer (bulk TCP ~0.7 KB/s; one segment is fine, two back-to-back stall ~2 s). IDF's flow, read from its ELF and the ROM, and everything tried so far: [WIFI_MAC.md](WIFI_MAC.md) "IDF transmit engine".
 2. **GATT server throughput** (T4b above).
-3. BLE and Wi-Fi do not run at the same time (one radio, no coexistence tuning); power save, WPA3, HT rates, BLE central role and LE pairing are not in v1.
+3. **One-hour soak gate not met** (`tools/wl/soak_wl.py`, log `bench/soak/data/wireless.log`, 2026-10-29): station WPA2 25 min / 90 rounds: no UDP or TCP failure, 4 rounds with ping a little below 16/20, heap steady (72 B, one-time 152 B); access point 15 min / 310 rounds: 5 TCP echo failures (1.6 %, the TX-engine item) and 5 rounds where the station was briefly missing from the table, heap flat; BLE GATT server 20 min: 52 clean rounds (>= 94 notifications per 10 s, no gap), then `ble_disc` of the IDF central timed out (the service-discovery request got no answer) and the peer stayed stuck on connect errors until reboot; a rerun failed the same way at round 13. The board kept running and advertising, so this is an intermittent loss of an ATT response near connection start in `ble_hw` (or the peer's central), not yet analysed.
+4. BLE and Wi-Fi do not run at the same time (one radio, no coexistence tuning); power save, WPA3, HT rates, BLE central role and LE pairing are not in v1.
 
 ## Tests
 
