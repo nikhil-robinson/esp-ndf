@@ -69,6 +69,16 @@ int main(int argc, char **argv)
     CHECK(exchange(0, 150000, &ok) && ok);
     tls_close(&C); move(&C, &S, 0); { uint8_t d[16]; CHECK(tls_read(&S, d, sizeof d) == TLS_ERR_CLOSED); }                  /* close_notify arrives as a clean close */
 
+    /* 1b. key update both ways, the peer answers a request; traffic continues under the new keys */
+    { tls_client_cfg_t cfg = { .ca_pub = ca, .host = "ndf.local" }; tls_server_cfg_t scfg = { cert, cert_len, priv }; uint8_t d[64];
+      tls_client_init(&C, &cfg); tls_server_init(&S, &scfg); for (int i = 0; i < 8; i++) { move(&C, &S, 0); move(&S, &C, 0); }
+      CHECK(tls_state(&C) == TLS_CONNECTED && tls_state(&S) == TLS_CONNECTED);
+      CHECK(tls_key_update(&C, 1) == 0); move(&C, &S, 0); move(&S, &C, 0);
+      CHECK(tls_write(&C, "after-c", 7) == 7 && tls_write(&S, "after-s", 7) == 7); move(&C, &S, 0); move(&S, &C, 0);
+      CHECK(tls_read(&S, d, sizeof d) == 7 && !memcmp(d, "after-c", 7) && tls_read(&C, d, sizeof d) == 7 && !memcmp(d, "after-s", 7));
+      CHECK(tls_key_update(&S, 0) == 0); move(&S, &C, 0); CHECK(tls_write(&S, "again", 5) == 5); move(&S, &C, 0); CHECK(tls_read(&C, d, sizeof d) == 5);
+      tls_close(&C); move(&C, &S, 0); CHECK(tls_read(&S, d, sizeof d) == TLS_ERR_CLOSED); CHECK(tls_feed(&S, (const uint8_t *)"\x17\x03\x03\x00\x01x", 6) == 0); }   /* nothing is parsed after close_notify */
+
     /* 2. wrong trust anchor, wrong name: the client refuses */
     { static tls_client_cfg_t cfg; uint8_t other[64]; memcpy(other, ca, 64); other[5] ^= 1; cfg.ca_pub = other; cfg.host = "ndf.local";
       static tls_server_cfg_t scfg; scfg.cert = cert; scfg.cert_len = cert_len; scfg.priv = priv;

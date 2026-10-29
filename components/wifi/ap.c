@@ -51,6 +51,12 @@ static void zero(void *p, unsigned n) { volatile uint8_t *q = p; while (n--) *q+
 static sta_t *find(const uint8_t *mac) { for (unsigned i = 0; i < NDF_WIFI_MAX_STA; i++) if (st[i].state && !memcmp(st[i].mac, mac, 6)) return &st[i]; return 0; }
 static void drop(sta_t *s) { wifi_mac_clear_key((unsigned)(s - st)); zero(s, sizeof *s); }
 static void deauth(const uint8_t *mac, uint16_t reason) { tx(wifi_build_deauth_ap(rf_wifi_tx_buffer(), mac, a.me, reason, next_seq())); }
+static void deauth_limited(const uint8_t *mac, uint16_t reason)         /* answers to frames from strangers: at most one per 100 ms, so junk cannot make us transmit all day */
+{
+    static uint32_t last; uint32_t now = time_ms();
+    if (now - last < 100 && last) return;
+    last = now; deauth(mac, reason);
+}
 
 /* --- transmit --- */
 static int send_frame(const uint8_t dst[6], const uint8_t src[6], uint16_t ethertype, const uint8_t *p, unsigned n, const uint8_t *key, uint64_t *pn, uint8_t key_id, unsigned rate)
@@ -130,7 +136,7 @@ static void data_rx(const wifi_rx_t *r)
     const uint8_t *f = r->data; unsigned len = r->len;
     if ((f[1] & 3) != 1 || memcmp(f + 4, a.me, 6) || len > 1600) return;
     sta_t *s = find(f + 10);
-    if (!s) { deauth(f + 10, 7); return; }                       /* class 3 frame from a station that is not associated */
+    if (!s) { deauth_limited(f + 10, 7); return; }                       /* class 3 frame from a station that is not associated */
     s->last_rx = time_ms();
     if (f[0] == 0x48 || f[0] == 0xC8) return;                    /* null / QoS null: keep-alive */
     uint16_t sq = (uint16_t)((f[22] | f[23] << 8) >> 4);
@@ -180,7 +186,7 @@ static void mgmt_rx(const wifi_rx_t *r)
     case 0x00: {                                                 /* association request */
         if (!mine || len < 28) return;
         unsigned ok = 0; for (unsigned i = 0; i < PEND_N; i++) if (!memcmp(pend[i].mac, f + 10, 6) && pend[i].t && now - pend[i].t < AUTH_MS) ok = 1;
-        if (!ok && !find(f + 10)) { deauth(f + 10, 6); return; }   /* class 2 frame from a station that did not authenticate */
+        if (!ok && !find(f + 10)) { deauth_limited(f + 10, 6); return; }   /* class 2 frame from a station that did not authenticate */
         const uint8_t *v; int l = wifi_ie_find(f + 28, len - 28, 0, &v);
         uint16_t status = 0;
         if (l < 0 || (unsigned)l != strlen(a.ssid) || memcmp(v, a.ssid, (unsigned)l)) status = 1;

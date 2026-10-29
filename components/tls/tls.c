@@ -309,12 +309,23 @@ static int record_rx(tls_t *t)
     }
 }
 
+int tls_key_update(tls_t *t, int request)
+{
+    if (t->state != TLS_CONNECTED) return TLS_ERR_PROTO;
+    uint8_t m[5]; hs_hdr(m, HS_KEY_UPDATE, 1); m[4] = request ? 1 : 0;
+    if (put_record(t, 22, m, 5)) return TLS_ERR_OVERFLOW;
+    uint8_t *wsec = t->is_server ? t->sec_ap_s : t->sec_ap_c;
+    tls_expand_label(wsec, "traffic upd", 0, 0, wsec, 32); use_write(t, wsec);
+    return 0;
+}
+
 void tls_server_init(tls_t *t, const tls_server_cfg_t *c) { memset(t, 0, sizeof *t); t->is_server = 1; t->scfg = c; t->hs = S_WAIT_CH; sha_start(&t->th, SHA256); }
 
 int tls_feed(tls_t *t, const uint8_t *in, unsigned n)
 {
     unsigned used = 0;
     if (t->state == TLS_FAILED) return t->err;
+    if (t->state == TLS_CLOSED) return 0;                                            // nothing follows a close_notify
     while (used < n) {
         if (t->rplain_len) break;                                                    // application data waits for tls_read: no new record until it is drained
         unsigned want;

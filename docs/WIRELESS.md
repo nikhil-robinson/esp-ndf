@@ -5,23 +5,44 @@ Plan: [superpowers/plans/2026-10-27-wireless.md](superpowers/plans/2026-10-27-wi
 | Board | Runs | Port |
 |---|---|---|
 | DEVKIT C9:D0 | esp-ndf (our CALL0 code) | `make/boards.mk` DEVKIT |
-| BOX-3 | ESP-IDF peer `bench/idf_wl_peer` (NimBLE, esp_wifi, lwIP sockets), line commands | `make/boards.mk` BOX3 |
+| second dev board C9:48 | ESP-IDF peer `bench/idf_wl_peer` (NimBLE, esp_wifi, lwIP sockets, esp_http_client, esp_https_server, mbedtls), line commands | `make/boards.mk` PEER |
+| BOX-3 | the same peer image, used as the sniffer (`wifi_mon`, `wifi_watch`, `wifi_bcn`) and as a second IDF station / server | `make/boards.mk` BOX3 |
 
 Two-board tests are applications with `TEST_HOST = tools/wl/<script>.py`: `tools/ndf_test.py` builds and flashes the
 esp-ndf app, then runs the script with `NDF_PORT` / `PEER_PORT` in the environment; its exit code is the verdict.
 `tools/wl/peer.py` (`Peer.cmd("wifi_ap T - 6")`) talks to the peer. An app lists the optional components it needs
 (`COMPONENTS = ble_host wifi lwip net`); nothing else grows.
-Boards sit side by side at low TX power index; esp-ndf never links IDF code (the peer is the only IDF image).
+Boards sit side by side at low TX power index; esp-ndf never links IDF code (the peer is the only IDF image). Every two-board suite reboots the peer first (`Peer.reboot()`): its AP and DHCP server degrade after many restarts inside one boot.
 
-## Status (2026-10-27)
+## Status (2026-10-29)
 
 | Item | State |
 |---|---|
-| Peer firmware, harness (T1, T2) | done: `bench/idf_wl_peer`, `tools/wl/{peer,ndf}.py`, `TEST_HOST` tests |
-| Wi-Fi MAC (T3, T6) | `wifi_mac` driver: software FCS on TX, TX/RX switching by MAC reset (~2.3 ms), channels 1-13, TX rates 1-36 Mbit/s; receives 1 Mbit/s DSSS only; hardware ACK open: [WIFI_MAC.md](WIFI_MAC.md) |
-| Wi-Fi station (T7) | done: `components/wifi` scan, open join (0.3-0.8 s), data both ways, link-down, deauth rules; fuzzed parsers |
-| WPA2 station (T9, T10) | done: handshake + group rekey, CCMP receive in the MAC key table, CCMP transmit in software; DHCP, ping, UDP and TCP run over WPA2 (loss is high without hardware ACK, see WIFI_MAC.md) |
-| HTTP (T12) | `components/net`: server (routes, keep-alive, fixed pool, 400 on bad requests) and blocking client (Content-Length and chunked); `http_unit` passes: 100 requests, 64 KB both ways, malformed requests, heap back at baseline |
-| IP (T8) | `components/lwip` (lwIP 2.x raw API, NO_SYS) over the station: DHCP in 1.7-3.7 s, ICMP both ways (>= 14/20), UDP echo (none corrupted, ~70% delivered), TCP echo 64 KB intact in 72 s. **Slow**: about 7 kbit/s TCP, because the downlink is 1 Mbit/s DSSS without hardware ACK and the radio is half duplex. Image RAM at the dump-engine limit (0x580 B left of 0x3FCB0000), so lwIP code and the RF replay tables run from flash (`XIP=all`) |
-| GATT server (T4) | done: `components/ble_host` (ATT: MTU, find info, find by type, read by type / group, read, blob, write, write cmd, notify, indicate, CCCD; 16-bit UUIDs, MTU 23). Two-board test `examples/bluetooth/ble_gatts` passes: discovery, read / write, ATT errors, 50 notifications / 5 s without a gap, graceful reconnect, abrupt link loss. Host: 600 000 fuzzed PDUs under ASan / UBSan (`make security-test`). Found and fixed in `ble_hw`: LL_TERMINATE_IND ended the link from the main loop and stalled the core |
+| Peer firmware, harness (T1, T2) | done: `bench/idf_wl_peer`, `tools/wl/{peer,ndf}.py`, `TEST_HOST` tests, sniffer with timestamps in both directions |
+| Wi-Fi MAC (T3, T6) | `wifi_mac` driver on the S3's own MAC: software FCS, TX/RX switching by MAC reset (~2.3 ms), channels 1-13, TX rates 1-36 Mbit/s, receives 802.11b (1-11 Mbit/s); **hardware ACK works** (address filter; IDF's rx-queue policy bit must stay clear), hardware CCMP receive through the key table (one slot per key, 8 slots), TX parameter RAM zeroed at every TX start. Details and every measurement: [WIFI_MAC.md](WIFI_MAC.md) |
+| Wi-Fi station (T7) | done: scan, open join (0.3-0.8 s), data both ways, link-down on beacon loss, deauth rules; fuzzed parsers |
+| WPA2 station (T9, T10) | done: PBKDF2/PRF/MIC/RFC 3394, 4-way handshake and group rekey, wrong passphrase refused (-3), CCMP receive in the MAC key table, CCMP transmit in software; DHCP, ping 20/20, UDP ~93%, TCP 64 KB over WPA2 (`WL_PASS=... tools/wl/test_ip.py`). Forged / replayed message 3 is rejected (`sta_unit`, `wpa_unit`) |
+| Wi-Fi access point (T11) | done: `components/wifi/ap.c` beacons on a 102.4 ms grid (jitter 313-486 us, IDF softAP 512-1103 us), probe / auth / assoc, WPA2-PSK authenticator (one fixed group key), per-station key slot, DHCP server (`components/net/dhcpd.c`), `NDF_WIFI_MAX_STA` stations (status 17 beyond), stateless open-system auth so junk cannot fill the table, half-open stations freed after 5 s, idle stations after 300 s. No power-save buffering (stations must run with power save off). `ap_unit` + `tools/wl/test_ap.py` open and WPA2; `fuzz_ap` in `make security-test` |
+| IP (T8) | `components/lwip` (lwIP 2.x raw API, NO_SYS), STA and AP netifs. DHCP 1.6 s, ping 20/20 both ways, UDP echo ~93%, TCP echo 64 KB intact in ~95 s |
+| HTTP (T12) | `components/net`: server (routes, keep-alive, fixed pool, 400 on bad requests) and client (Content-Length, chunked); `http_unit` passes. Throughput equal to `esp_http_server` on the same air (air-limited) |
+| TLS 1.3 / HTTPS (T13) | `components/tls` (own engine: HKDF, record layer, X.509 subset, client and server, X25519, ECDSA P-256, AES-128-GCM) and `components/net/https.c`. Interoperates with OpenSSL (host, 1 MB both ways), with `esp_http_client` and `esp_https_server` over the air in both directions, wrong CA and wrong host name refused. X25519 2.4x, ECDSA sign 5.5x, verify 5.4x, AES-GCM 2.6x faster than mbedtls on the same chip ([PERFORMANCE.md](PERFORMANCE.md)). Limits: one TLS connection at a time, records <= 4096 bytes (a peer sending 16 KB records gets `record_overflow`), no HelloRetryRequest / PSK / client certificates, certificate validity dates are not checked (no RTC) |
+| GATT server (T4) | done: `components/ble_host` (ATT: MTU, find info, find by type, read by type / group, read, blob, write, write cmd, notify, indicate, CCCD; 16-bit UUIDs, MTU 23). Two-board test `examples/bluetooth/ble_gatts`; 600 000 fuzzed PDUs under ASan / UBSan. Found and fixed in `ble_hw`: LL_TERMINATE_IND ended the link from the main loop and stalled the core |
+| GATT client (T5) | done: `components/ble_host/gattc.c` over the existing link (the LL stays slave); fuzzed (`fuzz_gattc`) |
 | GATT server throughput (T4b) | **open**: 14 notifications/s vs 739/s for IDF NimBLE on the same 50 ms connection (one PDU per event; IDF chains ~37). Needs a multi-descriptor TX chain with the more-data bit in `ble_hw` |
+
+## Open items
+
+1. **Wi-Fi transmit engine.** `rf_wifi_tx` starts a frame on TX queue 0 but does not engage the MAC's frame-exchange engine, so nothing senses the air, waits for an ACK or retries. Replies of the peer that arrive while we transmit collide and TCP recovers only by its retransmit timer (bulk TCP ~0.7 KB/s; one segment is fine, two back-to-back stall ~2 s). IDF's flow, read from its ELF and the ROM, and everything tried so far: [WIFI_MAC.md](WIFI_MAC.md) "IDF transmit engine".
+2. **GATT server throughput** (T4b above).
+3. BLE and Wi-Fi do not run at the same time (one radio, no coexistence tuning); power save, WPA3, HT rates, BLE central role and LE pairing are not in v1.
+
+## Tests
+
+| Command | What |
+|---|---|
+| `python3 tools/ndf_test.py run components/wifi/test_apps/{wifi_mac_unit,sta_unit,wpa_unit,ap_unit}` | MAC, station, WPA2 primitives, access point |
+| `python3 tools/ndf_test.py run components/lwip/test_apps/ip_unit` (`WL_PASS=<pass> python3 tools/wl/test_ip.py` for WPA2) | IP over the station |
+| `python3 tools/ndf_test.py run components/net/test_apps/{http_unit,https_unit}` | HTTP and HTTPS against the IDF peer |
+| `python3 tools/ndf_test.py run components/tls/test_apps/tls_unit` | TLS on the board's crypto engines |
+| `make security-test` | host fuzzers (ATT, GATT client, Wi-Fi frames, EAPOL, access point, TLS under ASan / UBSan) and the TLS engine against OpenSSL |
+| `python3 tools/wl/bench_ap.py`, `bench_http.py` | AP and HTTP comparisons with IDF |

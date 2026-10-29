@@ -46,6 +46,7 @@ int  tls_write(tls_t *t, const void *p, unsigned n);                           /
 int  tls_read(tls_t *t, void *p, unsigned max);                                /* application bytes; 0 = none now; TLS_ERR_CLOSED after close_notify, < 0 failed */
 int  tls_state(const tls_t *t);
 void tls_close(tls_t *t);                                                      /* queue close_notify */
+int  tls_key_update(tls_t *t, int request);                                    /* RFC 8446 4.6.3: our traffic keys rotate; request = ask the peer to rotate its own as well */
 
 /* test hooks: fixed randomness for the known-answer tests */
 void tls_test_fix_random(const uint8_t rnd[32], const uint8_t x25519_priv[32], const uint8_t sess[32]);

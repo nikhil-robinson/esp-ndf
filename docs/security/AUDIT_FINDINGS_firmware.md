@@ -56,3 +56,18 @@ AES DMA, WL state sanity before recovery (fuzz_wl), printf %n off by default, -W
 LCD-239 workarounds (ERRATA.md). Remaining analyzer reports are reviewed false positives: signed `>> 31`
 (implementation-defined, GCC arithmetic shift), `%lu` with uint32_t (unsigned long on Xtensa), loader/ota arrays
 filled byte-wise or by slots(), the FIR read-behind window (documented taps-1 history, callers pass it), dead stores.
+
+## Pass 3: wireless (BLE host, Wi-Fi, lwIP, TLS), 2026-10-29
+
+Static review of the new components plus the hardware behaviour found on the bench (these are code-level findings; the live behaviour was checked with two-board tests, see docs/WIRELESS.md).
+
+| ID | Sev | Location | Issue | Fix |
+|---|---|---|---|---|
+| W1 | HIGH | components/drivers/rf/rf_wifi.c rf_wifi_tx_init | the MAC patches the transmitted frame from its TX parameter RAM (duration field, and bytes of the frame); that RAM powers up with random contents, so frames were corrupted depending on the board's history (DHCP packets arrived with a zeroed destination address and ports) | the block is zeroed before the register replay at every TX start |
+| W2 | MEDIUM | components/drivers/rf/wifi_mac.c key install | setting IDF's rx-queue policy bit (0x600330D8 bit 1) with the key table stopped the hardware ACK: the peer repeated every frame about 15 times | bit left clear, documented in WIFI_MAC.md |
+| W3 | MEDIUM | components/drivers/rf/wifi_mac.c wifi_mac_tx | a 4 ms "quiet window" drained and dropped received frames (including the only ACKed copy of a frame to us and the AP's beacons), producing lost datagrams and false beacon timeouts | replaced by a 400 us guard so that a TX start does not cut off the hardware ACK of the frame just received |
+| W4 | MEDIUM | components/wifi/ap.c | an access point that allocates a station at authentication lets 20 junk authentications per second pin every slot | authentication is stateless (8-entry recent list), the slot is taken at association, half-open stations expire after 5 s |
+| W5 | LOW | components/tls/tls.c | a peer record larger than the buffer (the default 16 KB records of OpenSSL / browsers without max_fragment_length) | fails closed with a record_overflow alert; tested against OpenSSL |
+| W6 | LOW | components/net/http.c | the request head limit and the connection pool are fixed; a handshake that stalls holds the single TLS slot | idle polls free it after 10 s, `https_unit` checks the server recovers after refused handshakes |
+| W7 | INFO | components/tls (design) | no certificate validity check (no RTC), no revocation, one connection at a time | accepted, documented |
+

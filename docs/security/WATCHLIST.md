@@ -155,3 +155,20 @@ Every item of the watchlist, with what the SDK does and the evidence. **Fixed** 
 | Security regression tests | Done | make security-test + on-target tests (SECURITY.md) |
 | Threat model / review | Done | THREAT_MODEL.md, AUDIT_MAP.md |
 | Disclosure / patch process | Done | SECURITY.md |
+
+## Radio and network (BLE host, Wi-Fi MAC, station, access point, lwIP, HTTP, TLS) - added 2026-10-29
+| Item | Status | How / evidence |
+|---|---|---|
+| Untrusted frame / PDU parsing | Fixed | every length checked against the buffer before use (ATT, GATT client, 802.11 frames and IEs, EAPOL-Key, DHCP options, X.509 DER, TLS records and handshake messages); fuzzed under ASan/UBSan in `make security-test` (`fuzz_att`, `fuzz_gattc`, `fuzz_wifi_frames`, `fuzz_eapol`, `fuzz_ap`, `fuzz_tls`) |
+| Replay of protected traffic | Done | CCMP packet numbers checked per TID and per key (station and AP), EAPOL replay counter, forged / replayed EAPOL messages ignored (`tools/wl/test_sta_wpa.py`) |
+| Key handling | Done | PMK / PTK / GTK / TLS secrets wiped with volatile writes when the link goes down or the connection ends; hardware key-table slots cleared per station; the PTK is installed only after the MIC of message 2 / 3 verified |
+| Wrong passphrase / bad certificate | Done | station join returns -3 in under 3.5 s; TLS client refuses a wrong CA, a wrong host name and a client without any trust anchor (`tools/wl/test_https.py`, `fuzz_tls`) |
+| Denial of service on the access point | Done | stateless open-system authentication (an 8-entry list of recent askers, oldest evicted), stations are allocated at association only, half-open stations freed after 5 s, idle ones after 300 s, `NDF_WIFI_MAX_STA` honoured (status 17); 100 junk authentications at 20/s keep no slot (`tools/wl/test_ap.py`) |
+| Unprotected frames on a protected network | Done | the station and the AP accept only EAPOL in the clear on a WPA2 network; unkeyed protected frames are dropped by the MAC |
+| Uninitialised hardware state | Fixed | the MAC patches transmitted frames from its parameter RAM, which powers up random: zeroed at every TX start (docs/WIFI_MAC.md); found by sniffing a corrupted DHCP frame |
+| Resource exhaustion in the IP stack | Done | fixed lwIP pools (`NDF_NET_*`), pbuf pool exhaustion counted and frames dropped, HTTP/HTTPS connection pools fixed, request head limited to 512 B, one TLS connection at a time; heap back at baseline after malformed requests (`http_unit`) |
+| Certificate validity dates | Accepted | the SDK has no real-time clock source: validity is not checked, trust is the pinned CA or leaf key (documented in `components/tls/include/tls.h` and docs/WIRELESS.md) |
+| Static group key, no power-save buffering, no WPA3 | Accepted | access point v1 limits; the group key is random per start and not rotated |
+| Test keys in the repository | Accepted | `tools/wl/pki`, `components/*/test_apps/*/certs.h`, `bench/idf_wl_peer/main/certs` are lab keys for the interoperability tests; never use them outside the lab |
+| Fault injection on signatures | Done | `p256_sign` verifies its own signature before returning (existing hardening), used by the TLS server |
+

@@ -23,6 +23,21 @@ Interrupt latency, timer match → first instruction of the C handler
 | timer ISR period jitter | **16 ns** | 62 ns | 15 µs (73 ISRs lost) |
 | missed 50 µs deadlines | 0 | 1 | 0 |
 
+## Wireless (own stack, no IDF code on the board)
+
+BLE GATT server and client, Wi-Fi station and access point (open and WPA2-PSK), lwIP, HTTP, TLS 1.3 / HTTPS: optional components
+(`COMPONENTS = ble_host wifi lwip net tls`), tested against ESP-IDF on a second board. Measured on the same chip, same air
+([docs/PERFORMANCE.md](docs/PERFORMANCE.md), status and open items in [docs/WIRELESS.md](docs/WIRELESS.md), the MAC bring-up in [docs/WIFI_MAC.md](docs/WIFI_MAC.md)):
+
+| | esp-ndf | ESP-IDF |
+|---|---|---|
+| ECDSA P-256 verify / sign (TLS) | **54 / 27 ms** | 291 / 148 ms (mbedtls) |
+| X25519 shared secret | **46 ms** | 117 ms |
+| AES-128-GCM, 1 MB | **169 ms** | 447 ms |
+| softAP beacon jitter (std dev) | **313-486 us** | 512-1103 us |
+
+Open: the Wi-Fi transmit path does not use the MAC's frame-exchange engine yet (bulk TCP is slow); GATT notification throughput.
+
 ## Design
 
 - **Interrupt and control code always in RAM**: vectors, handlers, the scheduler and everything an interrupt

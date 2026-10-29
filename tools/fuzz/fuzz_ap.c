@@ -80,6 +80,9 @@ static void handshake_test(void)
     CHECK(wifi_ap_stations(macs, 8) == 0);
     key_frame(e, 0x030a, rc3, anonce, ptk, 0, 0, 0); send_eapol(sta, e, 4 + 95);
     CHECK(wifi_ap_stations(macs, 8) == 1 && !memcmp(macs[0], sta, 6));                                                      /* message 4 done: keyed and up */
+    { unsigned before = n_tx; uint8_t junk[40] = { 0x08, 0x01 }; memcpy(junk + 4, mine, 6); junk[10] = 2; junk[15] = 0x77;        /* data from a station that never associated */
+      for (int i = 0; i < 20; i++) feed(junk, sizeof junk, 0);
+      CHECK(n_tx - before <= 2); }                                                                                              /* answered with at most one deauth per 100 ms, not 20 */
     now_us += 10000000ull; wifi_ap_poll();
     wifi_ap_stats(&au, &as, &re, &ht, &be, &used); CHECK(used == 1);                                                         /* a keyed station is not a handshake timeout */
     now_us += 400000000ull; wifi_ap_poll();
