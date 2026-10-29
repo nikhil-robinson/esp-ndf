@@ -11,6 +11,9 @@
 #define TLS_REC_PLAIN 4096          /* largest record plaintext we accept and send; a peer that sends more gets record_overflow (RAM: 2 x (this + 261) per connection) */
 #endif
 #define TLS_REC_BUF   (5 + TLS_REC_PLAIN + 256)
+#ifndef TLS_WBUF
+#define TLS_WBUF      2560          /* output queue: a server flight (certificate up to about 1.7 KB) or one application record; tls_write takes what fits */
+#endif
 
 enum { TLS_HANDSHAKE = 0, TLS_CONNECTED, TLS_CLOSED /* peer sent close_notify */, TLS_FAILED };
 enum { TLS_OK = 0, TLS_ERR_PROTO = -1, TLS_ERR_UNSUPPORTED = -2, TLS_ERR_CERT = -3, TLS_ERR_NAME = -4, TLS_ERR_SIG = -5, TLS_ERR_FINISHED = -6,
@@ -26,7 +29,7 @@ typedef struct { const uint8_t *cert; unsigned cert_len; const uint8_t *priv; /*
 typedef struct tls {
     uint8_t is_server, state, hs, err_alert; int8_t err;
     uint8_t rbuf[TLS_REC_BUF]; uint16_t rfill, rplain_off, rplain_len;         /* received record being assembled; decrypted application data waits in it */
-    uint8_t wbuf[TLS_REC_BUF]; uint16_t wlen;                                   /* bytes queued for the peer */
+    uint8_t wbuf[TLS_WBUF]; uint16_t wlen;                                   /* bytes queued for the peer */
     uint8_t wkey[16], wiv[12], rkey[16], riv[12]; uint64_t wseq, rseq; uint8_t wenc, renc;
     uint8_t sec_hs_c[32], sec_hs_s[32], sec_ap_c[32], sec_ap_s[32], master[32];  /* traffic secrets; master only until the application keys exist */
     uint8_t priv[32]; uint8_t sess[32], sess_len; sha_ctx_t th;                 /* ephemeral X25519 key, legacy session id (echoed by the server), transcript hash */

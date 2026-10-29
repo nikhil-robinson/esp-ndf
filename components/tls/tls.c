@@ -203,12 +203,11 @@ static int client_hello_rx(tls_t *t, const uint8_t *m, unsigned n)              
 
     /* EncryptedExtensions, Certificate, CertificateVerify, Finished in one protected record, built in place in the output queue */
     use_write(t, t->sec_hs_s); use_read(t, t->sec_hs_c);
-    if (t->wlen + 5 + 4096 + 17 > sizeof t->wbuf) return TLS_ERR_OVERFLOW;
+    if (t->scfg->cert_len > 3000 || t->wlen + 5 + 4 + 11 + 4 + 4 + t->scfg->cert_len + 10 + 4 + 4 + 76 + 36 + 1 + 16 > sizeof t->wbuf) return TLS_ERR_OVERFLOW;     /* the whole flight must fit the output queue */
     uint8_t *o = t->wbuf + t->wlen, *b = o + 5; unsigned n2 = 0, mark;
     mark = n2; n2 += 4; if (t->mfl) { b[n2++] = 0; b[n2++] = 5; b[n2++] = 0; b[n2++] = 1; b[n2++] = 0; b[n2++] = 1; b[n2++] = 4; } else { b[n2++] = 0; b[n2++] = 0; }
     hs_hdr(b + mark, HS_ENC_EXT, n2 - mark - 4); th_add(t, b + mark, n2 - mark);
     const tls_server_cfg_t *cfg = t->scfg;
-    if (cfg->cert_len > 3000) return TLS_ERR_OVERFLOW;
     mark = n2; n2 += 4; b[n2++] = 0; n2 += 3; n2 += 0;                                /* request context (empty), list length below */
     unsigned lstart = n2;
     b[n2++] = (uint8_t)(cfg->cert_len >> 16); b[n2++] = (uint8_t)(cfg->cert_len >> 8); b[n2++] = (uint8_t)cfg->cert_len; memcpy(b + n2, cfg->cert, cfg->cert_len); n2 += cfg->cert_len; b[n2++] = 0; b[n2++] = 0;

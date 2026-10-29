@@ -6,6 +6,13 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "esp_timer.h"
+#include "esp_https_server.h"
+#include "mbedtls/ecdsa.h"
+#include "mbedtls/ecdh.h"
+#include "mbedtls/gcm.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ctr_drbg.h"
 #include "lwip/sockets.h"
 #include "lwip/inet.h"
 #include "ping/ping_sock.h"
@@ -158,6 +165,63 @@ static esp_err_t big_h(httpd_req_t *r)
     for (int i = 0; i < 64; i++) httpd_resp_send_chunk(r, chunk, sizeof chunk);
     return httpd_resp_send_chunk(r, 0, 0);
 }
+extern const char ca_pem_start[] asm("_binary_ca_pem_start"), ca_pem_end[] asm("_binary_ca_pem_end"), other_ca_pem_start[] asm("_binary_other_ca_pem_start"), other_ca_pem_end[] asm("_binary_other_ca_pem_end"),
+                  server_pem_start[] asm("_binary_server_pem_start"), server_pem_end[] asm("_binary_server_pem_end"), server_key_pem_start[] asm("_binary_server_key_pem_start"), server_key_pem_end[] asm("_binary_server_key_pem_end");
+
+/* https_get <url> [other|-] [n] [host]: n sequential GETs over TLS; trust is our test CA (tools/wl/pki), or with "other" an unrelated one; the certificate name is checked against host (default ndf.local) */
+static int cmd_https_get(int argc, char **argv)
+{
+    if (argc < 2) return -1;
+    int other = argc > 2 && !strcmp(argv[2], "other"), reps = argc > 3 ? atoi(argv[3]) : 1, good = 0; const char *host = argc > 4 ? argv[4] : "ndf.local"; int64_t t0 = esp_timer_get_time(); unsigned bytes = 0;
+    for (int r = 0; r < reps; r++) {
+        esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 10000, .cert_pem = other ? other_ca_pem_start : ca_pem_start, .cert_len = (size_t)((other ? other_ca_pem_end : ca_pem_end) - (other ? other_ca_pem_start : ca_pem_start)), .common_name = host };
+        esp_http_client_handle_t h = esp_http_client_init(&c);
+        if (esp_http_client_open(h, 0)) { esp_http_client_cleanup(h); continue; }
+        esp_http_client_fetch_headers(h);
+        int status = esp_http_client_get_status_code(h); unsigned total = 0; char buf[512];
+        for (int n; (n = esp_http_client_read(h, buf, sizeof buf)) > 0;) total += n;
+        esp_http_client_cleanup(h);
+        if (status == 200) { good++; bytes += total; }
+        if (r == reps - 1) printf("https status=%d bytes=%u\n", status, total);
+    }
+    printf("https ok=%d of %d elapsed_ms=%u bytes=%u\n", good, reps, (unsigned)((esp_timer_get_time() - t0) / 1000), bytes);
+    return good == reps ? 0 : -3;
+}
+static esp_err_t hello_h(httpd_req_t *r);
+static esp_err_t big_h(httpd_req_t *r);
+static int cmd_https_serve(int argc, char **argv)                  /* https_serve [port]: esp_https_server with the test certificate; /hello and /big as http_serve */
+{
+    httpd_ssl_config_t c = HTTPD_SSL_CONFIG_DEFAULT(); httpd_handle_t h;
+    if (argc > 1) c.port_secure = atoi(argv[1]);
+    c.servercert = (const uint8_t *)server_pem_start; c.servercert_len = (size_t)(server_pem_end - server_pem_start);
+    c.prvtkey_pem = (const uint8_t *)server_key_pem_start; c.prvtkey_len = (size_t)(server_key_pem_end - server_key_pem_start);
+    if (httpd_ssl_start(&h, &c)) return -1;
+    httpd_uri_t u1 = { .uri = "/hello", .method = HTTP_GET, .handler = hello_h }, u2 = { .uri = "/big", .method = HTTP_GET, .handler = big_h };
+    httpd_register_uri_handler(h, &u1); httpd_register_uri_handler(h, &u2);
+    return 0;
+}
+/* tls_prims: the TLS 1.3 building blocks on mbedtls (what esp-tls uses), timed the way components/tls/test_apps/tls_unit times ours */
+static int cmd_tls_prims(int argc, char **argv)
+{
+    mbedtls_entropy_context ent; mbedtls_ctr_drbg_context drbg; mbedtls_entropy_init(&ent); mbedtls_ctr_drbg_init(&drbg); mbedtls_ctr_drbg_seed(&drbg, mbedtls_entropy_func, &ent, 0, 0);
+    int64_t t; unsigned x_base, x_shared, sign, verify;
+    mbedtls_ecdh_context a, b; mbedtls_ecdh_init(&a); mbedtls_ecdh_init(&b);
+    mbedtls_ecdh_setup(&a, MBEDTLS_ECP_DP_CURVE25519); mbedtls_ecdh_setup(&b, MBEDTLS_ECP_DP_CURVE25519);
+    unsigned char pa[64], pb[64], sec[64]; size_t la = 0, lb = 0, ls = 0;
+    t = esp_timer_get_time(); mbedtls_ecdh_make_public(&a, &la, pa, sizeof pa, mbedtls_ctr_drbg_random, &drbg); x_base = (unsigned)(esp_timer_get_time() - t);
+    mbedtls_ecdh_make_public(&b, &lb, pb, sizeof pb, mbedtls_ctr_drbg_random, &drbg);
+    mbedtls_ecdh_read_public(&a, pb, lb);
+    t = esp_timer_get_time(); mbedtls_ecdh_calc_secret(&a, &ls, sec, sizeof sec, mbedtls_ctr_drbg_random, &drbg); x_shared = (unsigned)(esp_timer_get_time() - t);
+    mbedtls_ecdsa_context e; mbedtls_ecdsa_init(&e); mbedtls_ecdsa_genkey(&e, MBEDTLS_ECP_DP_SECP256R1, mbedtls_ctr_drbg_random, &drbg);
+    unsigned char h[32] = { 1 }, sig[80]; size_t sl = 0;
+    t = esp_timer_get_time(); mbedtls_ecdsa_write_signature(&e, MBEDTLS_MD_SHA256, h, 32, sig, sizeof sig, &sl, mbedtls_ctr_drbg_random, &drbg); sign = (unsigned)(esp_timer_get_time() - t);
+    t = esp_timer_get_time(); int vr = mbedtls_ecdsa_read_signature(&e, h, 32, sig, sl); verify = (unsigned)(esp_timer_get_time() - t);
+    mbedtls_gcm_context g; mbedtls_gcm_init(&g); unsigned char key[16] = { 0 }, iv[12] = { 0 }, tag[16]; static unsigned char buf[4096];
+    mbedtls_gcm_setkey(&g, MBEDTLS_CIPHER_ID_AES, key, 128);
+    t = esp_timer_get_time(); for (int i = 0; i < 256; i++) mbedtls_gcm_crypt_and_tag(&g, MBEDTLS_GCM_ENCRYPT, sizeof buf, iv, 12, 0, 0, buf, buf, 16, tag); unsigned gcm_us = (unsigned)(esp_timer_get_time() - t);
+    printf("mbedtls x25519_base_us=%u x25519_shared_us=%u ecdsa_sign_us=%u ecdsa_verify_us=%u(%d) gcm_1MB_us=%u (4096-byte calls, tag over 16 B)\n", x_base, x_shared, sign, verify, vr, gcm_us);
+    return vr ? -1 : 0;
+}
 static int cmd_http_serve(int argc, char **argv)
 {
     httpd_config_t c = HTTPD_DEFAULT_CONFIG(); httpd_handle_t h;
@@ -169,4 +233,4 @@ static int cmd_http_serve(int argc, char **argv)
 }
 
 const peer_cmd_t cmds_net[] = { { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
-                                { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { 0 } };
+                                { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { "https_get", cmd_https_get }, { "tls_prims", cmd_tls_prims }, { "https_serve", cmd_https_serve }, { 0 } };

@@ -125,7 +125,7 @@ static int name_eq(const uint8_t *pat, unsigned pl, const char *host)
 {
     unsigned hl = (unsigned)strlen(host); if (!pl || !hl) return -1;
     if (pl > 2 && pat[0] == '*' && pat[1] == '.') {                                  /* one wildcard label, never matching an empty one */
-        const char *dot = memchr(host, '.', hl); if (!dot || dot == host) return -1;
+        const char *dot = host; while (*dot && *dot != '.') dot++; if (!*dot || dot == host) return -1;
         host = dot + 1; hl = (unsigned)strlen(host); pat += 2; pl -= 2;
     }
     if (pl != hl) return -1;

@@ -29,8 +29,8 @@ MEMORY
 /* Libraries never called from interrupts, flash operations or the panic path. Kept in RAM on purpose: printf
  * (panic report with the cache off), string (memcpy/memset everywhere), heap, ringbuf, div64, dsp, float, fpu. */
 #define XIP_LIB(S) *build?ndf?components?lib?strtod.c.o(S) *build?ndf?components?lib?bigint.c.o(S) *build?ndf?components?lib?stdlib.c.o(S) *build?ndf?components?lib?math.c.o(S) *build?ndf?components?lib?mathf.c.o(S) \
-                   *build?ndf?components?lib?double.c.o(S) *build?ndf?components?lib?md5.c.o(S) *build?ndf?components?lib?crc32.c.o(S) *build?ndf?components?lib?p256_comb.c.o(S) *build?ndf?components?lib?musl?*.c.o(S)
-#define XIP_ALL(S) *build?app?*.o(S) *build?ndf?components?drivers?storage?*.o(S) *build?ndf?components?lwip?*.o(S) *build?ndf?components?lwip?lwip?*.o(S) *build?ndf?components?wifi?*.o(S) *build?ndf?components?net?*.o(S)   /* "?" for the slash: no comment opener for cpp */
+                   *build?ndf?components?lib?double.c.o(S) *build?ndf?components?lib?md5.c.o(S) *build?ndf?components?lib?crc32.c.o(S) *build?ndf?components?lib?p256_comb.c.o(S) *build?ndf?components?lib?ecc.c.o(S) *build?ndf?components?lib?musl?*.c.o(S)
+#define XIP_ALL(S) *build?app?*.o(S) *build?ndf?components?drivers?storage?*.o(S) *build?ndf?components?lwip?*.o(S) *build?ndf?components?lwip?lwip?*.o(S) *build?ndf?components?wifi?*.o(S) *build?ndf?components?net?*.o(S) *build?ndf?components?tls?*.o(S)   /* "?" for the slash: no comment opener for cpp */
 
 SECTIONS
 {

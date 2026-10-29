@@ -29,6 +29,14 @@ class Peer:
         self.s.dtr = self.s.rts = False                 # never touch DTR/RTS: it resets the board
         self.s.open()
 
+    def reboot(self, timeout=25.0):
+        """restart the peer and wait for its banner: its AP / DHCP server degrades after many restarts within one boot"""
+        self.s.reset_input_buffer(); self.s.write(b'reboot\n'); buf, t0 = b'', time.time()
+        while time.time() - t0 < timeout:
+            buf += self.s.read(4096)
+            if b'peer ready' in buf: time.sleep(1); return
+        raise TimeoutError('peer did not come back after reboot')
+
     def cmd(self, line, timeout=10.0):
         """send one command, return the output lines before its ok/err; raises on err or timeout"""
         self.s.reset_input_buffer()

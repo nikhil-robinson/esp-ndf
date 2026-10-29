@@ -62,31 +62,44 @@ static int has_close(const char *h)                                       /* a "
     return 0;
 }
 
+static const char *reason_of(int status) { return status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 404 ? "Not Found" : status == 405 ? "Method Not Allowed" : "Error"; }
+unsigned http_head(char *out, unsigned max, int status, const char *ctype, unsigned long len, int close_after)
+{
+    int n = snprintf(out, max, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nConnection: %s\r\n\r\n", status, reason_of(status), ctype ? ctype : "text/plain", len, close_after ? "close" : "keep-alive");
+    return n < 0 ? 0 : (unsigned)n < max ? (unsigned)n : max - 1;
+}
+
 static void respond(conn_t *c, int status, const char *ctype, const uint8_t *body, uint32_t len)
 {
-    const char *reason = status == 200 ? "OK" : status == 400 ? "Bad Request" : status == 404 ? "Not Found" : status == 405 ? "Method Not Allowed" : "Error";
-    c->hlen = (uint16_t)snprintf(c->hdr, sizeof c->hdr, "HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nConnection: %s\r\n\r\n", status, reason, ctype ? ctype : "text/plain",
-                                 (unsigned long)len, c->close_after ? "close" : "keep-alive");
+    c->hlen = (uint16_t)http_head(c->hdr, sizeof c->hdr, status, ctype, len, c->close_after);
     c->hoff = 0; c->body = body; c->blen = len; c->boff = 0; c->busy = 1;
     pump_out(c);
+}
+
+/* req = the request head, NUL-terminated and ending in an empty line (modified). Fills rs; *close_after tells whether the connection ends with the answer. */
+void http_dispatch(char *req, http_resp_t *rs, int *close_after)
+{
+    static const uint8_t bad[] = "bad request\n", nf[] = "not found\n", err[] = "error\n";
+    char *eol = strstr(req, "\r\n"); *eol = 0;                           /* the request line ends before the first CRLF (the blank line was found by the caller) */
+    char *sp1 = strchr(req, ' '); char *sp2 = sp1 ? strchr(sp1 + 1, ' ') : 0;
+    if (!sp1 || !sp2 || sp1 - req > 7 || sp2 - sp1 > 129 || sp1[1] != '/' || strncmp(sp2 + 1, "HTTP/1.", 7)) { *close_after = 1; *rs = (http_resp_t){ 400, "text/plain", bad, sizeof bad - 1 }; return; }
+    *sp1 = 0; *sp2 = 0;
+    *close_after = sp2[8] == '0' || has_close(eol + 2);
+    http_req_t rq = { req, sp1 + 1 };
+    for (unsigned i = 0; i < n_routes; i++)
+        if (!strcmp(routes[i].m, rq.method) && !strcmp(routes[i].p, rq.path)) {
+            *rs = (http_resp_t){ 200, "text/plain", 0, 0 };
+            if (routes[i].h(&rq, rs)) { *close_after = 1; *rs = (http_resp_t){ 500, "text/plain", err, sizeof err - 1 }; }
+            return;
+        }
+    *rs = (http_resp_t){ 404, "text/plain", nf, sizeof nf - 1 };
 }
 
 static void handle_request(conn_t *c)
 {
     c->req[c->rl] = 0;
-    char *eol = strstr(c->req, "\r\n"); *eol = 0;                          /* the request line ends before the first CRLF (the blank line was found by the caller) */
-    char *sp1 = strchr(c->req, ' '); char *sp2 = sp1 ? strchr(sp1 + 1, ' ') : 0;
-    if (!sp1 || !sp2 || sp1 - c->req > 7 || sp2 - sp1 > 129 || sp1[1] != '/' || strncmp(sp2 + 1, "HTTP/1.", 7)) { c->close_after = 1; respond(c, 400, "text/plain", (const uint8_t *)"bad request\n", 12); return; }
-    *sp1 = 0; *sp2 = 0;
-    c->close_after = sp2[8] == '0' || has_close(eol + 2);
-    http_req_t rq = { c->req, sp1 + 1 };
-    for (unsigned i = 0; i < n_routes; i++)
-        if (!strcmp(routes[i].m, rq.method) && !strcmp(routes[i].p, rq.path)) {
-            http_resp_t rs = { 200, "text/plain", 0, 0 };
-            if (routes[i].h(&rq, &rs)) { c->close_after = 1; respond(c, 500, "text/plain", (const uint8_t *)"error\n", 6); return; }
-            respond(c, rs.status, rs.ctype, rs.body, rs.len); return;
-        }
-    respond(c, 404, "text/plain", (const uint8_t *)"not found\n", 10);
+    http_resp_t rs; int ca; http_dispatch(c->req, &rs, &ca); c->close_after = (uint8_t)ca;
+    respond(c, rs.status, rs.ctype, rs.body, rs.len);
 }
 
 static err_t s_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
@@ -153,26 +166,37 @@ static void body_byte(uint8_t b)
     }
 }
 
+int http_resp_feed(const uint8_t *p, unsigned n)                             /* decoded bytes of a response; the client state afterwards */
+{
+    for (unsigned i = 0; i < n && g.state >= 1 && g.state < 3; i++) {
+        uint8_t ch = p[i];
+        if (g.state == 1) {
+            if (g.hl >= REQ_MAX) { g.state = -1; break; }
+            g.hdr[g.hl++] = (char)ch; g.hdr[g.hl] = 0;
+            if (g.hl >= 4 && !memcmp(g.hdr + g.hl - 4, "\r\n\r\n", 4)) {
+                g.status = strncmp(g.hdr, "HTTP/1.", 7) ? 0 : atoi(g.hdr + 9);
+                g.clen = -1; g.chunked = 0;
+                for (char *l = strstr(g.hdr, "\r\n"); l && *l; l = strstr(l + 2, "\r\n")) {
+                    if (!strncmp(l + 2, "Content-Length:", 15)) g.clen = atol(l + 17);
+                    else if (!strncmp(l + 2, "Transfer-Encoding: chunked", 26)) g.chunked = 1;
+                }
+                if (!g.status) g.state = -1; else if (!g.chunked && g.clen == 0) g.state = 3; else g.state = 2;
+            }
+        } else body_byte(ch);
+    }
+    return g.state;
+}
+void http_resp_begin(uint8_t *out, unsigned max) { memset(&g, 0, sizeof g); g.out = out; g.max = max; g.clen = -1; g.state = 1; }
+int http_resp_end(int *status)                                                /* bytes received, -1 on error; the transport closed (or not) */
+{
+    if (status) *status = g.status;
+    return g.state == 3 || (g.state == 2 && g.clen < 0 && !g.chunked) ? (int)g.got : -1;
+}
+
 static err_t c_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
 {
     if (!q) { if (g.state < 3) g.state = g.state == 2 && g.clen < 0 && !g.chunked ? 3 : -1; return ERR_OK; }       /* close ends a body without a length */
-    for (struct pbuf *b = q; b && g.state >= 1 && g.state < 3; b = b->next)
-        for (u16_t i = 0; i < b->len && g.state >= 1 && g.state < 3; i++) {
-            uint8_t ch = ((uint8_t *)b->payload)[i];
-            if (g.state == 1) {
-                if (g.hl >= REQ_MAX) { g.state = -1; break; }
-                g.hdr[g.hl++] = (char)ch; g.hdr[g.hl] = 0;
-                if (g.hl >= 4 && !memcmp(g.hdr + g.hl - 4, "\r\n\r\n", 4)) {
-                    g.status = strncmp(g.hdr, "HTTP/1.", 7) ? 0 : atoi(g.hdr + 9);
-                    g.clen = -1; g.chunked = 0;
-                    for (char *l = strstr(g.hdr, "\r\n"); l && *l; l = strstr(l + 2, "\r\n")) {
-                        if (!strncmp(l + 2, "Content-Length:", 15)) g.clen = atol(l + 17);
-                        else if (!strncmp(l + 2, "Transfer-Encoding: chunked", 26)) g.chunked = 1;
-                    }
-                    if (!g.status) g.state = -1; else if (!g.chunked && g.clen == 0) g.state = 3; else g.state = 2;
-                }
-            } else body_byte(ch);
-        }
+    for (struct pbuf *b = q; b && g.state >= 1 && g.state < 3; b = b->next) http_resp_feed(b->payload, b->len);
     tcp_recved(p, q->tot_len); pbuf_free(q);
     return ERR_OK;
 }

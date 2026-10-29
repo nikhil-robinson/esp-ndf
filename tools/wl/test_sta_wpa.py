@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from peer import Peer, ap_bssid
 from ndf import Ndf
 
-p = Peer(); time.sleep(4)
+p = Peer(); p.reboot()
 n = Ndf(ready='sta_unit ready', timeout=20)
 fail = []
 def check(c, msg):

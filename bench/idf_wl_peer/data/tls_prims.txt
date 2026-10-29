@@ -1,0 +1,37 @@
+ESP-ROM:esp32s3-20210327
+Build:Mar 27 2021
+rst:0x15 (USB_UART_CHIP_RESET),boot:0x8 (SPI_FAST_FLASH_BOOT)
+Saved PC:0x4037f2be
+SPIWP:0xee
+mode:DIO, clock div:1
+load:0x3fce2810,len:0x1828
+load:0x403c8700,len:0x4
+load:0x403c8704,len:0xc40
+load:0x403cb700,len:0x2ec8
+entry 0x403c8908
+[0;32mI (18) boot: ESP-IDF v5.3.5 2nd stage bootloader[0m
+[0;32mI (18) boot: compile time Oct 29 2026 05:23:17[0m
+[0;32mI (18) boot: Multicore bootloader[0m
+[0;32mI (19) boot: chip revision: v0.2[0m
+[0;32mI (19) boot: efuse block revision: v1.3[0m
+[0;32mI (19) boot.esp32s3: Boot SPI Speed : 80MHz[0m
+[0;32mI (19) boot.esp32s3: SPI Mode       : DIO[0m
+[0;32mI (20) boot.esp32s3: SPI Flash Size : 16MB[0m
+[0;32mI (20) boot: Enabling RNG early entropy source...[0m
+[0;32mI (20) boot: Partition Table:[0m
+[0;32mI (20) boot: ## Label            Usage          Type ST Offset   Length[0m
+[0;32mI (20) boot:  0 nvs              WiFi data        01 02 00009000 00006000[0m
+[0;32mI (21) boot:  1 phy_init         RF data          01 01 0000f000 00001000[0m
+[0;32mI (21) boot:  2 factory          factory app      00 00 00010000 00177000[0m
+[0;32mI (22) boot: End of partition table[0m
+[0;32mI (22) esp_image: segment 0: paddr=00010020 vaddr=3c0d0020 size=235fch (144892) map[0m
+[0;32mI (49) esp_image: segment 1: paddr=00033624 vaddr=3fc9e400 size=050b8h ( 20664) load[0m
+[0;32mI (54) esp_image: segment 2: paddr=000386e4 vaddr=40374000 size=07934h ( 31028) load[0m
+[0;32mI (61) esp_image: segment 3: paddr=00040020 vaddr=42000020 size=cc0e0h (835808) map[0m
+[0;32mI (214) esp_image: segment 4: paddr=0010c108 vaddr=4037b934 size=129d0h ( 76240) load[0m
+[0;32mI (242) boot: Loaded app from partition at offset 0x10000[0m
+[0;32mI (242) boot: Disabling RNG early entropy source...[0m
+peer ready
+mbedtls x25519_base_us=112304 x25519_shared_us=112905 ecdsa_sign_us=148307 ecdsa_verify_us=290862(0) gcm_1MB_us=446579 (4096-byte calls, tag over 16 B)
+mbedtls x25519_base_us=112695 x25519_shared_us=111735 ecdsa_sign_us=148452 ecdsa_verify_us=290083(0) gcm_1MB_us=446380 (4096-byte calls, tag over 16 B)
+mbedtls x25519_base_us=112343 x25519_shared_us=116213 ecdsa_sign_us=148202 ecdsa_verify_us=290805(0) gcm_1MB_us=447253 (4096-byte calls, tag over 16 B)

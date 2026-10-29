@@ -823,3 +823,21 @@ or the BOX-3 running `esp_http_server`.
 Equal within noise: the numbers are limited by the air (1 Mbit/s AP, no carrier sense in our TX path, TCP retransmit timeouts: docs/WIFI_MAC.md "IDF transmit engine"), not by the servers.
 No speed-up is claimed here; the server-side cost can only be compared once the TX engine item is closed. Memory: the esp-ndf server needs no heap beyond the lwIP pool (lwIP heap back to baseline after malformed requests, test_http.py).
 
+## TLS 1.3 (`components/tls/test_apps/tls_unit` vs mbedtls in the IDF peer `tls_prims`, ESP32-S3 at 240 MHz, DEVKIT / C9:48, 2026-10-29)
+
+Same chip, same operations: the elliptic-curve and hash/AEAD building blocks of a TLS 1.3 handshake (X25519, ECDSA P-256 / SHA-256, AES-128-GCM).
+
+| operation | esp-ndf | ESP-IDF mbedtls (esp-tls) | gain |
+|---|---|---|---|
+| X25519 public key | 45.9 ms | 112.2 ms | 2.4x |
+| X25519 shared secret | 46.0 ms | 116.8 ms | 2.5x |
+| ECDSA P-256 sign | 27.0 ms | 148.2 ms | 5.5x |
+| ECDSA P-256 verify | 54.1 ms | 290.7 ms | 5.4x |
+| AES-128-GCM, 1 MB in 4096-byte calls | 168.8 ms | 447.1 ms | 2.6x |
+| handshake CPU, client (2 verifies + 2 X25519, from these rows) | 203 ms measured | about 810 ms | about 4x |
+| handshake CPU, server (sign + 2 X25519) | 121 ms measured | about 377 ms | about 3.1x |
+
+End to end over the air (`tools/wl/test_https.py`, IDF `esp_http_client` / `esp_https_server` as the peer, AP fixed at 1 Mbit/s): IDF client to our server GET /hello 1.28 s including the handshake
+(8 requests in 16.6 s), 64 KB through our records in 40 s; our client to the IDF server GET /hello 1.1 s, chunked 64 KB in 4.9 s. Those are air-limited, not CPU-limited. Raw numbers:
+`bench/idf_wl_peer/data/tls_prims.txt`. RAM: one connection takes a 7 KB `tls_t`; records are limited to 4096 bytes.
+
