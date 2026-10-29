@@ -60,7 +60,7 @@ static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssi
     if (strcmp(argv[2], "-")) { strlcpy((char *)c.ap.password, argv[2], sizeof c.ap.password); c.ap.authmode = WIFI_AUTH_WPA2_PSK; }
     else c.ap.authmode = WIFI_AUTH_OPEN;
     esp_wifi_set_mode(WIFI_MODE_AP); esp_wifi_set_config(WIFI_IF_AP, &c);
-    if (argc > 4) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed rate needs the 802.11n aggregation off */
+    if (argc > 4 && strtol(argv[4], 0, 0) < WIFI_PHY_RATE_MCS0_LGI) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed legacy rate needs the 802.11n aggregation off; an MCS code keeps 11n */
     int rc = esp_wifi_start(); mode_on = !rc;
     if (!rc && argc > 4) esp_wifi_internal_set_fix_rate(WIFI_IF_AP, true, (wifi_phy_rate_t)strtol(argv[4], 0, 0));   /* optional: fixed PHY rate code (IDF wifi_phy_rate_t), same on every device compared */
     if (!rc) { esp_netif_dhcps_stop(ap_if); esp_netif_dhcps_start(ap_if); }      /* the DHCP server stops answering after a few AP restarts otherwise (seen on this peer) */
@@ -159,14 +159,14 @@ static int cmd_unicast(int argc, char **argv)
 
 /* wifi_watch <mac>: promiscuous counter of frames whose transmitter address is <mac> (works next to a running AP); wifi_watch_stats prints it */
 static uint8_t watch_mac[6]; static volatile uint32_t w_n, w_acks; static uint8_t w_all;
-static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate; uint8_t ra[6], ta[6]; uint32_t ts; uint8_t pl[64]; } w_log[64];
+static struct { uint8_t fc0, fc1; uint16_t len; int8_t rssi; uint8_t rate, sig, mcs; uint8_t ra[6], ta[6]; uint32_t ts; uint8_t pl[64]; } w_log[64];
 static void watch_cb(void *buf, wifi_promiscuous_pkt_type_t t)
 {
     wifi_promiscuous_pkt_t *p = buf; unsigned len = p->rx_ctrl.sig_len;
     if (t == WIFI_PKT_CTRL && p->payload[0] == 0xD4 && !memcmp(p->payload + 4, watch_mac, 6)) w_acks++;           /* an ACK addressed to the watched station */
     int from = len >= 16 && !memcmp(p->payload + 10, watch_mac, 6), to = !memcmp(p->payload + 4, watch_mac, 6);
     if (p->payload[0] == 0x80 || !(from || (w_all && to))) return;                                                /* beacons are skipped; "all" adds frames addressed to the station (ACKs, downlink) */
-    if (w_n < 64) { w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], len, p->rx_ctrl.rssi, p->rx_ctrl.rate }; memcpy(w_log[w_n].ra, p->payload + 4, 6); if (len >= 16) memcpy(w_log[w_n].ta, p->payload + 10, 6); w_log[w_n].ts = p->rx_ctrl.timestamp; memcpy(w_log[w_n].pl, p->payload, len < 64 ? len : 64); }
+    if (w_n < 64) { w_log[w_n] = (typeof(w_log[0])){ p->payload[0], p->payload[1], len, p->rx_ctrl.rssi, p->rx_ctrl.rate, p->rx_ctrl.sig_mode, p->rx_ctrl.mcs }; memcpy(w_log[w_n].ra, p->payload + 4, 6); if (len >= 16) memcpy(w_log[w_n].ta, p->payload + 10, 6); w_log[w_n].ts = p->rx_ctrl.timestamp; memcpy(w_log[w_n].pl, p->payload, len < 64 ? len : 64); }
     w_n++;
 }
 /* wifi_bcn <bssid> <n> <ms>: timestamps (us, from the radio) of up to n beacons of that BSSID within ms; prints the intervals' statistics. Needs wifi_mon first. */
@@ -211,7 +211,7 @@ static int cmd_watch(int argc, char **argv)
 static int cmd_watch_stats(int argc, char **argv)
 {
     printf("watch frames=%u acks-to-it=%u\n", (unsigned)w_n, (unsigned)w_acks);
-    for (unsigned i = 0; i < w_n && i < 64; i++) printf("  t %u fc %02x%02x len %u rate %u ra %02x:%02x:%02x:%02x:%02x:%02x ta %02x:%02x:%02x:%02x:%02x:%02x\n", (unsigned)w_log[i].ts, w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rate, w_log[i].ra[0], w_log[i].ra[1], w_log[i].ra[2], w_log[i].ra[3], w_log[i].ra[4], w_log[i].ra[5], w_log[i].ta[0], w_log[i].ta[1], w_log[i].ta[2], w_log[i].ta[3], w_log[i].ta[4], w_log[i].ta[5]);
+    for (unsigned i = 0; i < w_n && i < 64; i++) printf("  t %u fc %02x%02x len %u rate %u sig %u mcs %u ra %02x:%02x:%02x:%02x:%02x:%02x ta %02x:%02x:%02x:%02x:%02x:%02x\n", (unsigned)w_log[i].ts, w_log[i].fc0, w_log[i].fc1, w_log[i].len, w_log[i].rate, w_log[i].sig, w_log[i].mcs, w_log[i].ra[0], w_log[i].ra[1], w_log[i].ra[2], w_log[i].ra[3], w_log[i].ra[4], w_log[i].ra[5], w_log[i].ta[0], w_log[i].ta[1], w_log[i].ta[2], w_log[i].ta[3], w_log[i].ta[4], w_log[i].ta[5]);
     for (unsigned i = 0; i < w_n && i < 64; i++) { if (w_log[i].len < 100) continue; printf("  pl %u:", (unsigned)w_log[i].ts); for (int k = 0; k < 64; k++) printf("%02x", w_log[i].pl[k]); printf("\n"); }
     return 0;
 }
@@ -237,7 +237,25 @@ static int cmd_rd(int argc, char **argv)                            /* rd <addr>
     for (int i = 0; i < n; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
     return 0;
 }
+/* i2crd <block>: analog registers 0..31 of a regi2c block, read with the same raw protocol as components/drivers/rf/rf_regi2c.c (for the IDF vs ndf diff) */
+static int cmd_i2crd(int argc, char **argv)
+{
+    static const uint32_t mask[13] = { 0x400000, 0x800, 0x200, 0x100, 0x10000, 0x20000, 0x400, 0x8000, 0x40000, 0x2000, 0x1000, 0, 0x4000 };
+    if (argc < 2) return -1;
+    uint8_t b = (uint8_t)strtoul(argv[1], 0, 0); unsigned i = (uint8_t)(b - 0x62), m = (i <= 9 && ((0x227u >> i) & 1)) ? 1 : 0, j = (uint8_t)(b - 0x61);
+    volatile uint32_t *mst = (volatile uint32_t *)(0x6000E000u + 4 * m);
+    printf("i2c %02x", b);
+    for (unsigned r = 0; r < 32; r++) {
+        *(volatile uint32_t *)0x6000E048 = (*(volatile uint32_t *)0x6000E048 & 0xFFFE000Fu) | 0x0001FE00u;
+        for (int n = 0; (*mst & (1u << 25)) && n < 100000; n++) {}
+        *(volatile uint32_t *)0x6000E044 = ~(j < 13 ? mask[j] : 0u);
+        *mst = 0x04000000u | r << 8 | b;
+        for (int n = 0; (*mst & (1u << 25)) && n < 100000; n++) {}
+        printf(" %02x", (unsigned)((*mst >> 16) & 0xFF));
+    }
+    printf("\n"); return 0;
+}
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "wifi_unicast", cmd_unicast }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "i2crd", cmd_i2crd }, { "wifi_unicast", cmd_unicast }, { 0 } };

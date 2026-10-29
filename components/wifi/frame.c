@@ -39,6 +39,8 @@ unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bss
     o[n++] = 10; o[n++] = 0;                                      /* listen interval */
     n += ssid_ie(o + n, ssid); n += rates_ie(o + n);
     if (rsn) { static const uint8_t r[] = { 48, 20, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 2, 0, 0 }; memcpy(o + n, r, sizeof r); n += sizeof r; }   /* RSN: CCMP group, CCMP pairwise, PSK */
+    static const uint8_t ht[] = { 45, 26, 0x6e, 0x11, 0x00, 0xff, 0,0,0,0,0,0,0,0,0,0,0, 0x01, 0,0,0,0,0,0,0,0,0,0 };   /* HT capabilities as an IDF station sends them (captured): 0x116e, MCS 0-7, Tx MCS set defined */
+    memcpy(o + n, ht, sizeof ht); n += sizeof ht;
     static const uint8_t wmm[] = { 0xdd, 7, 0x00, 0x50, 0xf2, 2, 0, 1, 0 };   /* WMM information element: a QoS station, so the AP sends QoS data with one TID per queue (as to an IDF station) */
     memcpy(o + n, wmm, sizeof wmm); n += sizeof wmm;
     return n;

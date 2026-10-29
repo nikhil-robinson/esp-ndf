@@ -95,7 +95,8 @@ static void t_err(void *a, err_t e) { t_state = 3; tp = 0; }
 static void do_tcp(unsigned port, uint32_t bytes)
 {
     t_total = bytes; t_sent = t_rcvd = t_bad = 0; t_state = 0;
-    tp = tcp_new(); tcp_recv(tp, t_recv); tcp_err(tp, t_err); tcp_nagle_disable(tp);     /* a bulk sender: no 200 ms wait on the last partial segment */
+    tp = tcp_new(); if (!tp) { printf("tcp no pcb\n"); return; }
+    tcp_recv(tp, t_recv); tcp_err(tp, t_err); tcp_nagle_disable(tp);     /* a bulk sender: no 200 ms wait on the last partial segment */
     if (tcp_connect(tp, &peer, (u16_t)port, t_conn)) { printf("tcp connect refused\n"); return; }
     uint32_t t0 = time_ms(), t1 = 0;
     while (t_state == 0 && time_ms() - t0 < 4000) net_poll();
@@ -121,7 +122,7 @@ int main(void)
 {
     delay_ms(300);
     printf("ip_unit ready open %d\n", rf_open());
-    static char line[100]; int k = 0;
+    static char line[100]; int k = 0, net_on = 0;
     for (;;) {
         net_poll();
         int ch = console_getc();
@@ -135,10 +136,12 @@ int main(void)
             uint32_t t0 = time_ms(); int rc = wifi_init(my); if (!rc) rc = wifi_sta_join(v[1], n > 2 ? v[2] : 0, 5000);
             uint32_t tj = time_ms() - t0; uint32_t ip = 0, gw = 0;
             if (!rc) rc = net_start(my);
+            if (!rc) net_on = 1;
             while (!rc && net_ip(&ip, &gw) && time_ms() - t0 < 8000) net_poll();
             ip4_addr_t a = { ip }, g = { gw }; char ab[16], gb[16];
             printf("up rc %d join_ms %lu total_ms %lu ip %s gw %s\n", rc, (unsigned long)tj, (unsigned long)(time_ms() - t0), ip ? ip4addr_ntoa_r(&a, ab, sizeof ab) : "-", gw ? ip4addr_ntoa_r(&g, gb, sizeof gb) : "-");
-        } else if (!strcmp(v[0], "ping") && n > 2 && !parse_ip(v[1], &peer)) do_ping((unsigned)atoi(v[2]));
+        } else if (!net_on && (!strcmp(v[0], "ping") || !strcmp(v[0], "udp") || !strcmp(v[0], "tcp") || !strcmp(v[0], "stats"))) printf("not up\n");     /* lwIP is started by a successful up */
+        else if (!strcmp(v[0], "ping") && n > 2 && !parse_ip(v[1], &peer)) do_ping((unsigned)atoi(v[2]));
         else if (!strcmp(v[0], "udp") && n > 3 && !parse_ip(v[1], &peer)) do_udp((unsigned)atoi(v[2]), (unsigned)atoi(v[3]));
         else if (!strcmp(v[0], "tcp") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]));
         else if (!strcmp(v[0], "rate") && n > 1) { wifi_set_data_rate(strtoul(v[1], 0, 0)); printf("rate %s\n", v[1]); }
@@ -153,6 +156,7 @@ int main(void)
         } else if (!strcmp(v[0], "rd") && n > 2) { uint32_t a = strtoul(v[1], 0, 0), c = strtoul(v[2], 0, 0); for (uint32_t i = 0; i < c; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
                 } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
         } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
+        else if (!strcmp(v[0], "i2crd") && n > 1) { extern uint8_t rf_regi2c_read(uint8_t, uint8_t); uint8_t b = (uint8_t)strtoul(v[1], 0, 0); printf("i2c %02x", b); for (unsigned r = 0; r < 32; r++) printf(" %02x", rf_regi2c_read(b, (uint8_t)r)); printf("\n"); }
         else if (!strcmp(v[0], "stats"))
             printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
                    (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max, (unsigned)lwip_stats.memp[MEMP_PBUF_POOL]->err);

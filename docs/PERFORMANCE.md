@@ -810,6 +810,18 @@ Same air, the sniffer (BOX-3) timestamps beacons with the radio's own clock; the
 The AP schedules beacons on a fixed 102.4 ms grid from the microsecond timer (a late beacon does not move the next ones); the IDF softAP
 runs them from a FreeRTOS timer task. Raw data: `bench/idf_wl_peer/data/ap_compare.txt`.
 
+## Wi-Fi station with HT, same board (DEVKIT C9:D0; IDF peer image vs esp-ndf `ip_unit`, AP = IDF on C9:48, open, channel 6, 2026-10-30)
+
+64 KB TCP echo (`tcp` / `tcp_send`), same AP, same position. Both stations send the same HT Capabilities element.
+
+| | esp-ndf | ESP-IDF station | gain |
+|---|---|---|---|
+| 64 KB TCP echo, unpinned AP | 331-423 ms | 990-1116 ms | about 2.7x |
+
+On this board pair both stations lose most HT frames from the AP (the AP retries them at legacy rates, seen by the BOX-3 sniffer); IDF on the
+BOX-3 does the same echo in 135-179 ms. Floor: the air time of 64 KB at the AP's HT rate (about 10 ms each way at MCS 7); the gap is the
+board's HT reception, not the stack. Data: `bench/wifi_regs/data/ht_sta_*.json`, `idf_devkit_ht_sta.json`.
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

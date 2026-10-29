@@ -1,0 +1,6 @@
+# IDF 5.3.5 station (PEER C9:48) association request to our AP when the beacon carries HT Capabilities 2d1a6e11... and HT Operation (captured with ap.c DUMP_ASSOC hex dump, 2026-10-29)
+assoc_req 00 00 3a 01 02 4e 44 46 00 01 24 58 7c e2 c9 48 02 4e 44 46 00 01 90 e9 21 00 03 00 00 06 6e 64 66 2d 61 70 01 08 8b 96 82 84 0c 18 30 60 32 04 6c 12 24 48 2d 1a 6e 11 00 ff 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00
+# same station to our AP without HT in the beacon: no HT element
+assoc_req 00 00 3a 01 02 4e 44 46 00 01 24 58 7c e2 c9 48 02 4e 44 46 00 01 b0 f2 21 00 03 00 00 06 6e 64 66 2d 61 70 01 08 8b 96 82 84 0c 18 30 60 32 04 6c 12 24 48
+# IDF AP (BOX-3, wifi_ap junk - 6) beacon: HT Capabilities 2d 1a 6e 11 ..., HT Operation 3d 16 06 05 ...
+beacon 80 00 00 00 ff ff ff ff ff ff 30 30 f9 5a c1 11 30 30 f9 5a c1 11 70 00 38 d1 07 00 00 00 00 00 64 00 21 04 00 04 6a 75 6e 6b 01 08 8b 96 82 84 0c 18 30 60 03 01 06 05 06 00 01 00 00 00 00 07 06 43 4e 20 01 0d 14 2a 01 00 32 04 6c 12 24 48 2d 1a 6e 11 00 ff 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 00 00 00 3d 16 06 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 dd 18 00 50 f2 02 01 01 04 00 03 a4 00 00 27 a4 00 00 42 43 5e 00 62 32 2f 00
