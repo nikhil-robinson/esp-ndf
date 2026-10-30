@@ -856,6 +856,20 @@ One GET of /hello per connection: TCP connect, full handshake, request, response
 The IDF server's own handshake work is common to both columns, so the floor is that server; ours uses the board's AES / SHA engines and
 our P-256 / X25519 code. Data: `bench/idf_wl_peer/data/tls12_compare.txt`.
 
+## WebSocket echo (esp-ndf `http_unit` on DEVKIT, IDF peer AP with `esp_http_server` :8080/ws, BOX-3 IDF station with `esp_websocket_client`, 2026-10-31)
+
+20 binary messages of 1000 bytes, each sent after the previous echo arrived (round trips), connect = TCP + upgrade.
+
+| | connect | 20 round trips |
+|---|---|---|
+| esp-ndf client -> IDF server | 17 ms | 439 ms |
+| IDF client -> IDF server | 16 ms | 5095 ms |
+| IDF client -> esp-ndf server | 24 ms | 624 ms |
+
+Ours as client is 11x faster against the same server: `esp_websocket_client` delivers through its own task and polls its socket on a
+timeout, while ours runs the echo inside net_poll(). As server, ours answers IDF's client 8x faster than IDF's own server does.
+Data: `bench/idf_wl_peer/data/ws_compare.txt`.
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

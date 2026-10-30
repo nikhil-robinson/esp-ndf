@@ -1,0 +1,12 @@
+ok   joined (up rc 0 ip 192.168.4.2)
+ok   IDF client -> our server: 20 binary echoes of 1000 bytes and a text one (ws_get conn 1 connect_ms 18 echoes 20 of 20 text 1 echo_ms 559)
+ok   IDF client -> our server: 4096-byte messages (NDF_WS_MSG_MAX) (ws_get conn 1 connect_ms 17 echoes 5 of 5 text 1 echo_ms 206)
+ok   a message above NDF_WS_MSG_MAX is refused (close 1009) (ws_get conn 1 connect_ms 16 echoes 0 of 1 text 0 echo_ms 5004)
+ok   HTTP on the same port still answers after the WebSocket sessions (['http ok=1 of 1 elapsed_ms=17 bytes=5'])
+ok   our client -> IDF server: 20 binary echoes, text, ping, close handshake (wsget rc 0 connect_ms 16 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 440)
+ok   our client -> IDF server: 4096-byte messages (wsget rc 0 connect_ms 14 echoes 5 of 5 text 1 ping 1 closed 1 echo_ms 195)
+ok   a path without a WebSocket handler: the handshake fails (wsget rc -1 connect_ms 29 echoes 0 of 1 text 0 ping 0 closed 1 echo_ms 0)
+     ours -> IDF server: wsget rc 0 connect_ms 16 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 440
+     IDF  -> IDF server: ws_get conn 1 connect_ms 18 echoes 20 of 20 text 1 echo_ms 5100
+     IDF  -> our server: ws_get conn 1 connect_ms 18 echoes 20 of 20 text 1 echo_ms 559
+ws: all passed

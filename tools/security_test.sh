@@ -14,6 +14,7 @@ gcc $F -Icomponents/ble_host/include tools/fuzz/test_att.c components/ble_host/a
 gcc $F -Icomponents/ble_host/include -DHOST_FUZZ tools/fuzz/fuzz_gattc.c components/ble_host/gattc.c -o $O/gattc
 gcc $F -Icomponents/wifi/include tools/fuzz/fuzz_wifi_frames.c components/wifi/ie.c components/wifi/frame.c -o $O/wififr
 gcc $F -Icomponents/wifi/include -Icomponents/drivers/rf tools/fuzz/fuzz_ap.c components/wifi/ap.c components/wifi/frame.c components/wifi/ie.c components/wifi/wpa_sha1.c components/wifi/eapol.c components/wifi/wpa_ccmp.c -o $O/ap
+gcc $F -Icomponents/net/include tools/fuzz/fuzz_ws.c components/net/ws_frame.c -lcrypto -o $O/ws
 gcc $F -Icomponents/wifi/include -Itools tools/fuzz/fuzz_sae.c components/wifi/sae.c components/wifi/wpa_sha256.c components/wifi/eapol.c components/wifi/wpa_sha1.c components/lib/ecc.c components/lib/p256_comb.c -lcrypto -o $O/sae
 gcc $F -Icomponents/wifi/include -Icomponents/wifi/test_apps/wpa_unit tools/fuzz/fuzz_eapol.c components/wifi/wpa_sha1.c components/wifi/eapol.c -o $O/eapol
 python3 tools/wl/tls_certs.py $O/tls >/dev/null
@@ -31,6 +32,7 @@ $O/wififr $((300000 * K)) 7
 $O/eapol $((300000 * K)) 7
 $O/ap $((100000 * K)) 7
 $O/sae $((300 * K)) 7
+$O/ws $((300000 * K)) 7
 $O/fuzz_tls $O/tls/server.der $(cat $O/tls/server_priv.hex) $(cat $O/tls/ca_pub.hex) $((1500 * K)) 7
 bash tools/tls_host_test.sh
 python3 - $O <<'PY'

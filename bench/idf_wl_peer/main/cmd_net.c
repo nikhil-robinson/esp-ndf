@@ -22,6 +22,7 @@
 #include <sys/time.h>
 #include "lwip/netdb.h"
 #include "esp_sntp.h"
+#include "esp_websocket_client.h"
 
 static SemaphoreHandle_t psem;
 static volatile uint32_t p_ok, p_n, p_time_sum;
@@ -310,5 +311,58 @@ static int cmd_sntp_get(int argc, char **argv)                        /* sntp_ge
     printf("sntp_get %s us %lld time %lld.%06ld\n", sntp_done ? "ok" : "timeout", t1 - t0, (long long)tv.tv_sec, (long)tv.tv_usec);
     return 0;
 }
-const peer_cmd_t cmds_net[] = { { "dns_serve", cmd_dns_serve }, { "sntp_serve", cmd_sntp_serve }, { "dns_get", cmd_dns_get }, { "sntp_get", cmd_sntp_get }, { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
+
+/* --- WebSocket: esp_http_server echo on :8080/ws, esp_websocket_client against the esp-ndf server --- */
+static esp_err_t ws_echo(httpd_req_t *req)
+{
+    if (req->method == HTTP_GET) return ESP_OK;                                   /* the handshake */
+    httpd_ws_frame_t f = { 0 };
+    if (httpd_ws_recv_frame(req, &f, 0)) return ESP_FAIL;
+    uint8_t *b = f.len ? malloc(f.len) : 0; if (f.len && !b) return ESP_ERR_NO_MEM;
+    f.payload = b; esp_err_t e = f.len ? httpd_ws_recv_frame(req, &f, f.len) : ESP_OK;
+    if (!e) e = httpd_ws_send_frame(req, &f);
+    free(b); return e;
+}
+static int cmd_ws_serve(int argc, char **argv)                                    /* ws_serve: echo server on :8080/ws */
+{
+    static httpd_handle_t h; if (h) return 0;
+    httpd_config_t c = HTTPD_DEFAULT_CONFIG(); c.server_port = 8080; c.ctrl_port = 32769;
+    if (httpd_start(&h, &c)) return -2;
+    static const httpd_uri_t u = { .uri = "/ws", .method = HTTP_GET, .handler = ws_echo, .is_websocket = true };
+    return httpd_register_uri_handler(h, &u) ? -3 : 0;
+}
+static volatile int wsc_got, wsc_len, wsc_conn; static int64_t wsc_t;
+static void wsc_ev(void *a, esp_event_base_t b, int32_t id, void *d)
+{
+    esp_websocket_event_data_t *e = d;
+    if (id == WEBSOCKET_EVENT_CONNECTED) wsc_conn = 1;
+    else if (id == WEBSOCKET_EVENT_DATA && (e->op_code == 1 || e->op_code == 2) && e->payload_offset + e->data_len == e->payload_len) { wsc_len = e->payload_len; wsc_got++; wsc_t = esp_timer_get_time(); }
+    else if (id == WEBSOCKET_EVENT_DISCONNECTED || id == WEBSOCKET_EVENT_CLOSED) wsc_conn = 0;
+}
+static int cmd_ws_get(int argc, char **argv)                                      /* ws_get <url> <n> <bytes>: connect, n binary echoes of <bytes>, then a text one; times */
+{
+    if (argc < 4) return -1;
+    int n = atoi(argv[2]), sz = atoi(argv[3]); wsc_got = 0; wsc_conn = 0;
+    esp_websocket_client_config_t c = { .uri = argv[1], .buffer_size = 4200, .network_timeout_ms = 5000 };
+    int64_t t0 = esp_timer_get_time();
+    esp_websocket_client_handle_t h = esp_websocket_client_init(&c);
+    esp_websocket_register_events(h, WEBSOCKET_EVENT_ANY, wsc_ev, 0);
+    esp_websocket_client_start(h);
+    while (!wsc_conn && esp_timer_get_time() - t0 < 5000000) vTaskDelay(1);
+    int64_t tc = esp_timer_get_time(); int ok = 0;
+    uint8_t *b = malloc(sz ? sz : 1); for (int i = 0; i < sz; i++) b[i] = (uint8_t)i;
+    for (int i = 0; i < n && wsc_conn; i++) {
+        int want = wsc_got + 1; esp_websocket_client_send_bin(h, (char *)b, sz, pdMS_TO_TICKS(5000));
+        int64_t w0 = esp_timer_get_time(); while (wsc_got < want && esp_timer_get_time() - w0 < 5000000) vTaskDelay(1);
+        if (wsc_got >= want && wsc_len == sz) ok++;
+    }
+    int64_t td = esp_timer_get_time();
+    int want = wsc_got + 1; esp_websocket_client_send_text(h, "hello", 5, pdMS_TO_TICKS(5000));
+    int64_t w0 = esp_timer_get_time(); while (wsc_got < want && esp_timer_get_time() - w0 < 5000000) vTaskDelay(1);
+    int text = wsc_got >= want && wsc_len == 5;
+    esp_websocket_client_close(h, pdMS_TO_TICKS(2000)); esp_websocket_client_destroy(h); free(b);
+    printf("ws_get conn %d connect_ms %d echoes %d of %d text %d echo_ms %d\n", tc - t0 < 5000000, (int)((tc - t0) / 1000), ok, n, text, (int)((td - tc) / 1000));
+    return 0;
+}
+const peer_cmd_t cmds_net[] = { { "ws_serve", cmd_ws_serve }, { "ws_get", cmd_ws_get }, { "dns_serve", cmd_dns_serve }, { "sntp_serve", cmd_sntp_serve }, { "dns_get", cmd_dns_get }, { "sntp_get", cmd_sntp_get }, { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
                                 { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { "https_get", cmd_https_get }, { "tls_prims", cmd_tls_prims }, { "https_serve", cmd_https_serve }, { 0 } };

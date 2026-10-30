@@ -27,6 +27,7 @@ int http_route(const char *method, const char *path, int (*h)(const http_req_t *
 
 typedef struct { struct tcp_pcb *pcb; char req[REQ_MAX + 1]; uint16_t rl; uint8_t busy, idle, close_after; char hdr[160]; uint16_t hlen, hoff; const uint8_t *body; uint32_t blen, boff; } conn_t;
 static conn_t pool[NDF_HTTP_CONNS];
+int (*http_upgrade_hook)(struct tcp_pcb *pcb, char *req);              /* set by ws_route (ws.c): takes over an Upgrade request's connection */
 static struct tcp_pcb *lpcb;
 
 static void conn_free(conn_t *c) { if (c->pcb) { tcp_arg(c->pcb, 0); tcp_recv(c->pcb, 0); tcp_sent(c->pcb, 0); tcp_poll(c->pcb, 0, 0); tcp_err(c->pcb, 0); if (tcp_close(c->pcb)) tcp_abort(c->pcb); } memset(c, 0, sizeof *c); }
@@ -115,7 +116,10 @@ static err_t s_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
     }
     tcp_recved(p, q->tot_len); pbuf_free(q);
     c->req[c->rl] = 0;
-    if (strstr(c->req, "\r\n\r\n")) handle_request(c);
+    if (strstr(c->req, "\r\n\r\n")) {
+        if (http_upgrade_hook && http_upgrade_hook(p, c->req)) { memset(c, 0, sizeof *c); return ERR_OK; }   /* the pcb now belongs to ws.c */
+        handle_request(c);
+    }
     else if (c->rl >= REQ_MAX) { c->close_after = 1; respond(c, 400, "text/plain", (const uint8_t *)"header too long\n", 16); }   /* no empty line within the limit */
     return ERR_OK;
 }

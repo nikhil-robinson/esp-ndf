@@ -11,6 +11,9 @@ int http_server_start(uint16_t port);                                           
 void http_server_stop(void);
 int http_get(const char *url, uint8_t *body, unsigned max, int *status);           /* "http://a.b.c.d[:port]/path"; body length received (only the first max bytes are stored, the rest is counted), -1 on connect / protocol error or 10 s timeout */
 
+struct tcp_pcb;
+extern int (*http_upgrade_hook)(struct tcp_pcb *pcb, char *req);   /* ws.c: 1 = it took the connection */
+
 /* pieces shared with the TLS transport (https.c) */
 unsigned http_head(char *out, unsigned max, int status, const char *ctype, unsigned long len, int close_after);   /* status line + headers; returns the length */
 void http_dispatch(char *req, http_resp_t *rs, int *close_after);          /* req: request head ending in an empty line, NUL-terminated (modified) */
