@@ -1,4 +1,4 @@
-/* TLS 1.3 engine (RFC 8446), sans-IO, one cipher suite. See tls.h and docs/superpowers/plans/2026-10-29-tls.md. */
+/* TLS 1.3 engine (RFC 8446) with a TLS 1.2 path (RFC 5246, one suite: ECDHE-ECDSA-AES128-GCM-SHA256), sans-IO. See tls.h and docs/superpowers/plans/2026-10-29-tls.md. */
 #include <string.h>
 #include "tls.h"
 #include "aes.h"
@@ -6,8 +6,9 @@
 #include "p256.h"
 #include "rng.h"
 
-enum { C_WAIT_SH, C_WAIT_EE, C_WAIT_CERT, C_WAIT_CV, C_WAIT_FIN, S_WAIT_CH, S_WAIT_FIN, ESTABLISHED };
-enum { HS_CLIENT_HELLO = 1, HS_SERVER_HELLO = 2, HS_TICKET = 4, HS_ENC_EXT = 8, HS_CERT = 11, HS_CERT_REQ = 13, HS_CERT_VERIFY = 15, HS_FINISHED = 20, HS_KEY_UPDATE = 24 };
+enum { C_WAIT_SH, C_WAIT_EE, C_WAIT_CERT, C_WAIT_CV, C_WAIT_FIN, S_WAIT_CH, S_WAIT_FIN, ESTABLISHED,
+       C12_CERT, C12_SKE, C12_SHD, C12_CCS, C12_FIN, S12_CKE, S12_CCS, S12_FIN };   /* TLS 1.2: *_CCS waits for change_cipher_spec */
+enum { HS_CLIENT_HELLO = 1, HS_SERVER_HELLO = 2, HS_TICKET = 4, HS_ENC_EXT = 8, HS_CERT = 11, HS_SKE = 12, HS_CERT_REQ = 13, HS_SHD = 14, HS_CERT_VERIFY = 15, HS_CKE = 16, HS_FINISHED = 20, HS_KEY_UPDATE = 24 };
 enum { ALERT_UNEXPECTED = 10, ALERT_BAD_MAC = 20, ALERT_OVERFLOW = 22, ALERT_HANDSHAKE_FAIL = 40, ALERT_BAD_CERT = 42, ALERT_ILLEGAL_PARAM = 47, ALERT_DECODE = 50,
        ALERT_DECRYPT = 51, ALERT_PROTO_VERSION = 70, ALERT_INTERNAL = 80 };
 
@@ -33,7 +34,16 @@ static void use_read(tls_t *t, const uint8_t sec[32]) { set_keys(sec, t->rkey, t
 /* the plaintext of n bytes is at o + 5; writes the record around it (protected once write keys exist); returns the record length */
 static unsigned seal(tls_t *t, uint8_t type, uint8_t *o, unsigned n)
 {
-    if (!t->wenc) { o[0] = type; o[1] = 3; o[2] = (type == 22 && !t->is_server && o == t->wbuf) ? 1 : 3; o[3] = (uint8_t)(n >> 8); o[4] = (uint8_t)n; return 5 + n; }
+    if (!t->wenc) { o[0] = type; o[1] = 3; o[2] = (type == 22 && !t->is_server && t->hs == C_WAIT_SH) ? 1 : 3;   /* 0x0301 on the ClientHello record only */ o[3] = (uint8_t)(n >> 8); o[4] = (uint8_t)n; return 5 + n; }
+    if (t->v12) {                                                                    /* TLS 1.2 GCM: explicit nonce = sequence number, AAD = seq | type | version | length */
+        uint8_t nonce[12], aad[13]; uint64_t sq = t->wseq++;
+        memmove(o + 5 + 8, o + 5, n);
+        memcpy(nonce, t->wiv, 4); for (int i = 0; i < 8; i++) nonce[4 + i] = o[5 + i] = aad[i] = (uint8_t)(sq >> (56 - 8 * i));
+        aad[8] = type; aad[9] = 3; aad[10] = 3; aad[11] = (uint8_t)(n >> 8); aad[12] = (uint8_t)n;
+        aes_gcm(t->wkey, 16, true, nonce, 12, aad, 13, o + 13, o + 13, n, o + 13 + n);
+        unsigned cl = 8 + n + 16; o[0] = type; o[1] = 3; o[2] = 3; o[3] = (uint8_t)(cl >> 8); o[4] = (uint8_t)cl;
+        return 5 + cl;
+    }
     unsigned cl = n + 1 + 16; uint8_t nonce[12];
     o[0] = 23; o[1] = 3; o[2] = 3; o[3] = (uint8_t)(cl >> 8); o[4] = (uint8_t)cl; o[5 + n] = type;
     nonce_of(t->wiv, t->wseq++, nonce);
@@ -42,7 +52,7 @@ static unsigned seal(tls_t *t, uint8_t type, uint8_t *o, unsigned n)
 }
 static int put_record(tls_t *t, uint8_t type, const uint8_t *body, unsigned n)
 {
-    if (t->wlen + 5 + n + 17 > sizeof t->wbuf) return -1;
+    if (t->wlen + 5 + n + 24 > sizeof t->wbuf) return -1;                            /* 1.3: type + tag; 1.2: explicit nonce + tag */
     uint8_t *o = t->wbuf + t->wlen; memcpy(o + 5, body, n);
     t->wlen = (uint16_t)(t->wlen + seal(t, type, o, n));
     return 0;
@@ -76,19 +86,55 @@ static void cv_input(const uint8_t h[32], int server, uint8_t out[98 + 32])
 }
 static unsigned hs_hdr(uint8_t *o, uint8_t type, unsigned len) { o[0] = type; o[1] = (uint8_t)(len >> 16); o[2] = (uint8_t)(len >> 8); o[3] = (uint8_t)len; return 4; }
 
+/* --- TLS 1.2 key schedule (RFC 5246 6.3, 8.1; RFC 7627): master secret from the X25519 shared secret, then the GCM keys and 4-byte salts --- */
+static void keys12(tls_t *t, const uint8_t pms[32])
+{
+    uint8_t seed[64], kb[40];
+    if (t->ems) { th_get(t, seed); tls12_prf(pms, 32, "extended master secret", seed, 32, t->master12, 48); }   /* session hash: through ClientKeyExchange */
+    else { memcpy(seed, t->crand, 32); memcpy(seed + 32, t->srand, 32); tls12_prf(pms, 32, "master secret", seed, 64, t->master12, 48); }
+    memcpy(seed, t->srand, 32); memcpy(seed + 32, t->crand, 32);
+    tls12_prf(t->master12, 48, "key expansion", seed, 64, kb, 40);               /* client key 16 | server key 16 | client salt 4 | server salt 4 */
+    memcpy(t->wkey, kb + (t->is_server ? 16 : 0), 16); memcpy(t->wiv, kb + (t->is_server ? 36 : 32), 4);
+    memcpy(t->rkey, kb + (t->is_server ? 0 : 16), 16); memcpy(t->riv, kb + (t->is_server ? 32 : 36), 4);
+    wipe(kb, sizeof kb);
+}
+static void fin12(tls_t *t, int server, uint8_t out[12]) { uint8_t h[32]; th_get(t, h); tls12_prf(t->master12, 48, server ? "server finished" : "client finished", h, 32, out, 12); }
+static int send_fin12(tls_t *t)                                                    /* change_cipher_spec, then our Finished under the new keys */
+{
+    uint8_t c = 1, m[16]; if (put_record(t, 20, &c, 1)) return TLS_ERR_OVERFLOW;
+    t->wenc = 1; t->wseq = 0;
+    hs_hdr(m, HS_FINISHED, 12); fin12(t, t->is_server, m + 4); th_add(t, m, 16);
+    return put_record(t, 22, m, 16) ? TLS_ERR_OVERFLOW : 0;
+}
+static int cert12_parse(tls_t *t, const uint8_t *m, unsigned n, x509_t *c)        /* 1.2 Certificate: list length 3 | (length 3 | DER)...; the leaf comes first */
+{
+    (void)t;
+    if (n < 6 || be24(m) + 3 != n) return TLS_ERR_PROTO;
+    unsigned cl = be24(m + 3); if (cl + 6 > n) return TLS_ERR_PROTO;
+    return x509_parse(m + 6, cl, c) ? TLS_ERR_CERT : 0;
+}
+
 /* --- client --- */
 static void build_client_hello(tls_t *t)
 {
-    uint8_t m[256]; unsigned n = 4; uint8_t pub[32], rnd[32];
+    uint8_t m[300]; unsigned n = 4; uint8_t pub[32], rnd[32];
     rand_fill(rnd, 32, fix_rnd); rand_fill(t->sess, 32, fix_sess); t->sess_len = 32; rand_fill(t->priv, 32, fix_priv); x25519_base(pub, t->priv);
     m[n++] = 3; m[n++] = 3; memcpy(m + n, rnd, 32); n += 32; m[n++] = 32; memcpy(m + n, t->sess, 32); n += 32;
-    m[n++] = 0; m[n++] = 2; m[n++] = 0x13; m[n++] = 0x01; m[n++] = 1; m[n++] = 0;
+    memcpy(t->crand, rnd, 32);
+    uint16_t only = t->ccfg->only_version; unsigned cs = n; n += 2;                     /* TLS_AES_128_GCM_SHA256, ECDHE-ECDSA-AES128-GCM-SHA256, renegotiation SCSV */
+    if (only != 0x0303) { m[n++] = 0x13; m[n++] = 0x01; }
+    if (only != 0x0304) { m[n++] = 0xC0; m[n++] = 0x2B; m[n++] = 0x00; m[n++] = 0xFF; }
+    m[cs] = 0; m[cs + 1] = (uint8_t)(n - cs - 2); m[n++] = 1; m[n++] = 0;
     unsigned ext = n; n += 2;
-    static const uint8_t fixed[] = { 0x00, 0x2b, 0x00, 0x03, 0x02, 0x03, 0x04,            /* supported_versions: TLS 1.3 */
-                                     0x00, 0x0a, 0x00, 0x04, 0x00, 0x02, 0x00, 0x1d,        /* supported_groups: x25519 */
+    static const uint8_t fixed[] = { 0x00, 0x2b, 0x00, 0x05, 0x04, 0x03, 0x04, 0x03, 0x03,  /* supported_versions: TLS 1.3, 1.2 */
+                                     0x00, 0x0b, 0x00, 0x02, 0x01, 0x00,                    /* ec_point_formats: uncompressed (1.2) */
+                                     0x00, 0x17, 0x00, 0x00,                                /* extended_master_secret (1.2) */
+                                     0x00, 0x0a, 0x00, 0x06, 0x00, 0x04, 0x00, 0x1d, 0x00, 0x17,   /* supported_groups: x25519, secp256r1 (1.2: the ECDSA certificate's curve must be listed, RFC 4492; 1.3 key share stays x25519) */
                                      0x00, 0x0d, 0x00, 0x04, 0x00, 0x02, 0x04, 0x03,        /* signature_algorithms: ecdsa_secp256r1_sha256 */
                                      0x00, 0x01, 0x00, 0x01, 0x04 };                        /* max_fragment_length: 2^12 */
-    memcpy(m + n, fixed, sizeof fixed); n += sizeof fixed;
+    memcpy(m + n, fixed, sizeof fixed);
+    if (only) { m[n + 3] = 3; m[n + 4] = 2; m[n + 5] = 3; m[n + 6] = (uint8_t)only; memmove(m + n + 7, m + n + 9, sizeof fixed - 9); n -= 2; }   /* supported_versions with the one version */
+    n += sizeof fixed;
     static const uint8_t ks[] = { 0x00, 0x33, 0x00, 0x26, 0x00, 0x24, 0x00, 0x1d, 0x00, 0x20 };
     memcpy(m + n, ks, sizeof ks); n += sizeof ks; memcpy(m + n, pub, 32); n += 32;
     const char *h = t->ccfg->host; unsigned hl = h ? (unsigned)strlen(h) : 0;
@@ -114,19 +160,31 @@ static int server_hello_rx(tls_t *t, const uint8_t *m, unsigned n)              
     if (n < 2 + 32 + 1) return TLS_ERR_PROTO;
     if (!memcmp(m + 2, hrr, 32)) return TLS_ERR_UNSUPPORTED;                          /* HelloRetryRequest */
     const uint8_t *p = m + 34, *e = m + n; unsigned sl = *p++;
-    if (e - p < (long)sl + 5 || sl != t->sess_len || memcmp(p, t->sess, sl)) return TLS_ERR_PROTO;
+    if (sl > 32 || e - p < (long)sl + 3) return TLS_ERR_PROTO;
+    int echo = sl == t->sess_len && !memcmp(p, t->sess, sl);                          /* 1.3 echoes our legacy session id; a 1.2 server picks its own */
     p += sl;
-    if (p[0] != 0x13 || p[1] != 0x01 || p[2] != 0) return TLS_ERR_UNSUPPORTED;        /* cipher suite, compression */
-    p += 3; unsigned xl = be16(p); p += 2; if (e - p != (long)xl) return TLS_ERR_PROTO;
+    unsigned suite = be16(p);
+    if ((suite != 0x1301 && suite != 0xC02B) || p[2] != 0) return TLS_ERR_UNSUPPORTED;   /* cipher suite, compression */
+    p += 3; unsigned xl = p == e ? 0 : be16(p); if (p < e) p += 2; if (e - p != (long)xl) return TLS_ERR_PROTO;
     int v13 = 0; const uint8_t *key = 0;
     while (p < e) {
         if (e - p < 4) return TLS_ERR_PROTO;
         unsigned ty = be16(p), l = be16(p + 2); p += 4; if (e - p < (long)l) return TLS_ERR_PROTO;
         if (ty == 0x002b) { if (l != 2 || p[0] != 3 || p[1] != 4) return TLS_ERR_UNSUPPORTED; v13 = 1; }
         else if (ty == 0x0033) { if (l != 36 || be16(p) != 0x001d || be16(p + 2) != 32) return TLS_ERR_UNSUPPORTED; key = p + 4; }
+        else if (ty == 0x0017) { if (l) return TLS_ERR_PROTO; t->ems = 1; }
+        else if (ty == 0xff01) { if (l != 1 || p[0]) return TLS_ERR_PROTO; t->reneg = 1; }
         p += l;
     }
-    if (!v13) return TLS_ERR_UNSUPPORTED;
+    if (!v13) {                                                                       /* TLS 1.2 */
+        static const uint8_t downgrade[8] = { 'D', 'O', 'W', 'N', 'G', 'R', 'D', 1 };
+        if (be16(m) != 0x0303 || suite != 0xC02B || t->ccfg->only_version == 0x0304) return TLS_ERR_UNSUPPORTED;
+        if (t->ccfg->only_version != 0x0303 && !memcmp(m + 2 + 24, downgrade, 8)) return TLS_ERR_UNSUPPORTED;   /* RFC 8446 4.1.3: we offered 1.3 and a 1.3 server was pushed down to 1.2 (the sentinel is normal when we asked for 1.2 only) */
+        memcpy(t->srand, m + 2, 32); t->v12 = 1;
+        return 0;
+    }
+    if (suite != 0x1301 || t->ccfg->only_version == 0x0303) return TLS_ERR_UNSUPPORTED;
+    if (!echo) return TLS_ERR_PROTO;
     if (!key) return TLS_ERR_PROTO;
     uint8_t shared[32];
     if (x25519(shared, t->priv, key)) return TLS_ERR_PROTO;                           /* low-order point */
@@ -161,6 +219,41 @@ static int cert_verify_rx(tls_t *t, const uint8_t *m, unsigned n, int server_sig
 }
 
 /* --- server --- */
+/* TLS 1.2 server flight: ServerHello, Certificate, ServerKeyExchange (x25519, signed), ServerHelloDone in one plaintext record, built in place */
+static int server12(tls_t *t)
+{
+    const tls_server_cfg_t *cfg = t->scfg;
+    if (cfg->cert_len > 3000 || t->wlen + 5 + 4 + 70 + 4 + 6 + cfg->cert_len + 4 + 73 + 72 + 4 > sizeof t->wbuf) return TLS_ERR_OVERFLOW;
+    uint8_t *o = t->wbuf + t->wlen, *b = o + 5; unsigned n = 0, mark = 0;
+    t->v12 = 1;
+    n += 4; b[n++] = 3; b[n++] = 3; rand_fill(t->srand, 32, fix_rnd); memcpy(b + n, t->srand, 32); n += 32;
+    b[n++] = 0;                                                                      /* empty session id: no resumption */
+    b[n++] = 0xC0; b[n++] = 0x2B; b[n++] = 0;
+    unsigned xs = n; n += 2;
+    if (t->reneg) { b[n++] = 0xff; b[n++] = 0x01; b[n++] = 0; b[n++] = 1; b[n++] = 0; }
+    if (t->ems) { b[n++] = 0; b[n++] = 0x17; b[n++] = 0; b[n++] = 0; }
+    b[n++] = 0; b[n++] = 0x0b; b[n++] = 0; b[n++] = 2; b[n++] = 1; b[n++] = 0;      /* ec_point_formats: uncompressed */
+    if (t->mfl) { b[n++] = 0; b[n++] = 1; b[n++] = 0; b[n++] = 1; b[n++] = 4; }
+    b[xs] = (uint8_t)((n - xs - 2) >> 8); b[xs + 1] = (uint8_t)(n - xs - 2);
+    hs_hdr(b, HS_SERVER_HELLO, n - 4); th_add(t, b, n);
+    mark = n; n += 4; unsigned cl = cfg->cert_len;
+    b[n++] = (uint8_t)((cl + 3) >> 16); b[n++] = (uint8_t)((cl + 3) >> 8); b[n++] = (uint8_t)(cl + 3);
+    b[n++] = (uint8_t)(cl >> 16); b[n++] = (uint8_t)(cl >> 8); b[n++] = (uint8_t)cl; memcpy(b + n, cfg->cert, cl); n += cl;
+    hs_hdr(b + mark, HS_CERT, n - mark - 4); th_add(t, b + mark, n - mark);
+    mark = n; n += 4;
+    unsigned pl;
+    if (t->p256) { b[n++] = 3; b[n++] = 0; b[n++] = 0x17; b[n++] = 65; b[n++] = 4; if (p256_keygen(t->priv, b + n)) return TLS_ERR_PROTO; n += 64; pl = 4 + 65; }
+    else { rand_fill(t->priv, 32, fix_priv); b[n++] = 3; b[n++] = 0; b[n++] = 0x1d; b[n++] = 32; x25519_base(b + n, t->priv); n += 32; pl = 4 + 32; }
+    { uint8_t in[64 + 4 + 65], h[32], rs[64], der[72];
+      memcpy(in, t->crand, 32); memcpy(in + 32, t->srand, 32); memcpy(in + 64, b + mark + 4, pl); sha(SHA256, in, 64 + pl, h);
+      if (p256_sign(rs, cfg->priv, h)) return TLS_ERR_SIG;
+      unsigned dl = x509_ecdsa_to_der(rs, der); b[n++] = 4; b[n++] = 3; b[n++] = 0; b[n++] = (uint8_t)dl; memcpy(b + n, der, dl); n += dl; }
+    hs_hdr(b + mark, HS_SKE, n - mark - 4); th_add(t, b + mark, n - mark);
+    mark = n; n += 4; hs_hdr(b + mark, HS_SHD, 0); th_add(t, b + mark, 4);
+    t->wlen = (uint16_t)(t->wlen + seal(t, 22, o, n));
+    t->hs = S12_CKE;
+    return 0;
+}
 static int client_hello_rx(tls_t *t, const uint8_t *m, unsigned n)               /* m = body */
 {
     if (n < 2 + 32 + 1) return TLS_ERR_PROTO;
@@ -168,10 +261,12 @@ static int client_hello_rx(tls_t *t, const uint8_t *m, unsigned n)              
     if (sl > 32 || e - p < (long)sl + 2) return TLS_ERR_PROTO;
     memcpy(t->sess, p, sl); t->sess_len = (uint8_t)sl; p += sl;
     unsigned csl = be16(p); p += 2; if ((csl & 1) || e - p < (long)csl + 1) return TLS_ERR_PROTO;
-    int suite = 0; for (unsigned i = 0; i < csl; i += 2) if (p[i] == 0x13 && p[i + 1] == 0x01) suite = 1;
+    int suite = 0, suite12 = 0; t->reneg = 0;
+    for (unsigned i = 0; i < csl; i += 2) { unsigned cs = be16(p + i); if (cs == 0x1301) suite = 1; if (cs == 0xC02B) suite12 = 1; if (cs == 0x00FF) t->reneg = 1; }
     p += csl; unsigned cm = *p++; if (e - p < (long)cm + 2) return TLS_ERR_PROTO; p += cm;
     unsigned xl = be16(p); p += 2; if (e - p != (long)xl) return TLS_ERR_PROTO;
-    int v13 = 0, sig = 0; const uint8_t *ks = 0; t->mfl = 0;
+    int v13 = 0, sig = 0, x25519_ok = 0, p256_ok = 0; const uint8_t *ks = 0; t->mfl = 0; t->ems = 0;
+    memcpy(t->crand, m + 2, 32);
     while (p < e) {
         if (e - p < 4) return TLS_ERR_PROTO;
         unsigned ty = be16(p), l = be16(p + 2); p += 4; if (e - p < (long)l) return TLS_ERR_PROTO;
@@ -181,9 +276,13 @@ static int client_hello_rx(tls_t *t, const uint8_t *m, unsigned n)              
             if (l < 2 || be16(p) != l - 2) return TLS_ERR_PROTO;
             for (const uint8_t *q = p + 2, *qe = p + l; q < qe; ) { if (qe - q < 4) return TLS_ERR_PROTO; unsigned g = be16(q), kl = be16(q + 2); q += 4; if (qe - q < (long)kl) return TLS_ERR_PROTO; if (g == 0x001d && kl == 32) ks = q; q += kl; }
         } else if (ty == 0x0001 && l == 1 && p[0] == 4) t->mfl = 1;
+        else if (ty == 0x000a) { if (l < 2 || be16(p) != l - 2 || (l & 1)) return TLS_ERR_PROTO; for (unsigned i = 2; i + 1 < l; i += 2) { if (be16(p + i) == 0x001d) x25519_ok = 1; if (be16(p + i) == 0x0017) p256_ok = 1; } }
+        else if (ty == 0x0017) { if (l) return TLS_ERR_PROTO; t->ems = 1; }
+        else if (ty == 0xff01) { if (l != 1 || p[0]) return TLS_ERR_PROTO; t->reneg = 1; }      /* initial handshake: empty renegotiated_connection */
         p += l;
     }
-    if (!v13 || !suite || !sig || !ks) return TLS_ERR_UNSUPPORTED;                    /* another version / group would need a HelloRetryRequest or a fallback */
+    if (!v13) { t->p256 = !x25519_ok; return suite12 && sig && (x25519_ok || p256_ok) ? server12(t) : TLS_ERR_UNSUPPORTED; }   /* TLS 1.2 client: x25519 preferred */
+    if (!suite || !sig || !ks) return TLS_ERR_UNSUPPORTED;                           /* another group would need a HelloRetryRequest */
     uint8_t shared[32], pub[32];
     rand_fill(t->priv, 32, fix_priv); x25519_base(pub, t->priv);
     if (x25519(shared, t->priv, ks)) return TLS_ERR_PROTO;
@@ -231,7 +330,55 @@ static int on_hs(tls_t *t, uint8_t type, const uint8_t *full, unsigned fl)      
 {
     const uint8_t *b = full + 4; unsigned n = fl - 4; int r;
     switch (t->hs) {
-    case C_WAIT_SH: if (type != HS_SERVER_HELLO) return TLS_ERR_PROTO; th_add(t, full, fl); if ((r = server_hello_rx(t, b, n))) return r; t->hs = C_WAIT_EE; return 0;
+    case C_WAIT_SH: if (type != HS_SERVER_HELLO) return TLS_ERR_PROTO; th_add(t, full, fl); if ((r = server_hello_rx(t, b, n))) return r; t->hs = t->v12 ? C12_CERT : C_WAIT_EE; return 0;
+    case C12_CERT: {
+        if (type != HS_CERT) return TLS_ERR_PROTO;
+        x509_t c; if ((r = cert12_parse(t, b, n, &c))) return r;
+        const tls_client_cfg_t *cfg = t->ccfg;
+        if (cfg->pin_leaf) { if (!ct_eq(cfg->pin_leaf, c.pub, 64)) return TLS_ERR_CERT; } else if (x509_verify(&c, cfg->ca_pub)) return TLS_ERR_CERT;
+        if (cfg->host && x509_host_ok(&c, cfg->host)) return TLS_ERR_NAME;
+        memcpy(t->leaf, c.pub, 64); th_add(t, full, fl); t->hs = C12_SKE; return 0; }
+    case C12_SKE: {                                                                  /* named curve x25519, ecdsa_secp256r1_sha256 over client_random | server_random | params */
+        if (type != HS_SKE) return TLS_ERR_PROTO;
+        if (n < 4 || b[0] != 3) return TLS_ERR_UNSUPPORTED;
+        unsigned g = be16(b + 1), kl = b[3], pl = 4 + kl;                             /* x25519: 32-byte key; secp256r1: 65-byte uncompressed point */
+        if (!((g == 0x001d && kl == 32) || (g == 0x0017 && kl == 65))) return TLS_ERR_UNSUPPORTED;
+        if (n < pl + 4 || be16(b + pl) != 0x0403 || be16(b + pl + 2) != n - pl - 4) return TLS_ERR_SIG;
+        if (g == 0x0017 && (b[4] != 4 || p256_check_pub(b + 5))) return TLS_ERR_PROTO;
+        uint8_t in[64 + 4 + 65], h[32], rs[64];
+        memcpy(in, t->crand, 32); memcpy(in + 32, t->srand, 32); memcpy(in + 64, b, pl); sha(SHA256, in, 64 + pl, h);
+        if (x509_ecdsa_der(b + pl + 4, n - pl - 4, rs) || p256_verify(t->leaf, h, rs)) return TLS_ERR_SIG;
+        t->p256 = g == 0x0017; memcpy(t->spub, b + (t->p256 ? 5 : 4), t->p256 ? 64 : 32); th_add(t, full, fl); t->hs = C12_SHD; return 0; }
+    case C12_SHD: {
+        if (type == HS_CERT_REQ) return TLS_ERR_UNSUPPORTED;
+        if (type != HS_SHD || n) return TLS_ERR_PROTO;
+        th_add(t, full, fl);
+        uint8_t m[4 + 66], pms[32]; unsigned ml;
+        if (t->p256) {
+            hs_hdr(m, HS_CKE, 66); m[4] = 65; m[5] = 4; ml = 70;
+            if (p256_keygen(t->priv, m + 6) || p256_ecdh(pms, t->priv, t->spub)) return TLS_ERR_PROTO;
+        } else {
+            rand_fill(t->priv, 32, fix_priv); hs_hdr(m, HS_CKE, 33); m[4] = 32; x25519_base(m + 5, t->priv); ml = 37;
+            if (x25519(pms, t->priv, t->spub)) return TLS_ERR_PROTO;
+        }
+        wipe(t->priv, 32);
+        th_add(t, m, ml); if (put_record(t, 22, m, ml)) return TLS_ERR_OVERFLOW;
+        keys12(t, pms); wipe(pms, 32);
+        if ((r = send_fin12(t))) return r;
+        t->hs = C12_CCS; return 0; }
+    case C12_FIN: case S12_FIN: {
+        if (type != HS_FINISHED || n != 12) return TLS_ERR_PROTO;
+        uint8_t vd[12]; fin12(t, !t->is_server, vd);
+        if (!ct_eq(vd, b, 12)) return TLS_ERR_FINISHED;
+        th_add(t, full, fl);
+        if (t->is_server && (r = send_fin12(t))) return r;
+        t->hs = ESTABLISHED; t->state = TLS_CONNECTED; return 0; }
+    case S12_CKE: {
+        if (type != HS_CKE || n != 1u + b[0] || b[0] != (t->p256 ? 65 : 32)) return TLS_ERR_PROTO;
+        uint8_t pms[32];
+        if (t->p256 ? (b[1] != 4 || p256_ecdh(pms, t->priv, b + 2)) : x25519(pms, t->priv, b + 1)) return TLS_ERR_PROTO;   /* p256_ecdh checks the point is on the curve */
+        wipe(t->priv, 32); th_add(t, full, fl);
+        keys12(t, pms); wipe(pms, 32); t->hs = S12_CCS; return 0; }
     case C_WAIT_EE: if (type == HS_CERT_REQ) return TLS_ERR_UNSUPPORTED; if (type != HS_ENC_EXT || n < 2 || be16(b) != n - 2) return TLS_ERR_PROTO; th_add(t, full, fl); t->hs = C_WAIT_CERT; return 0;
     case C_WAIT_CERT: if (type == HS_CERT_REQ) return TLS_ERR_UNSUPPORTED; if (type != HS_CERT) return TLS_ERR_PROTO; if ((r = cert_rx(t, b, n))) return r; th_add(t, full, fl); t->hs = C_WAIT_CV; return 0;
     case C_WAIT_CV: if (type != HS_CERT_VERIFY) return TLS_ERR_PROTO; if ((r = cert_verify_rx(t, b, n, 1))) return r; th_add(t, full, fl); t->hs = C_WAIT_FIN; return 0;
@@ -245,7 +392,7 @@ static int on_hs(tls_t *t, uint8_t type, const uint8_t *full, unsigned fl)      
         use_write(t, t->sec_hs_c); if (put_record(t, 22, m, 36)) return TLS_ERR_OVERFLOW;
         use_write(t, t->sec_ap_c); use_read(t, t->sec_ap_s);
         t->hs = ESTABLISHED; t->state = TLS_CONNECTED; return 0; }
-    case S_WAIT_CH: if (type != HS_CLIENT_HELLO) return TLS_ERR_PROTO; th_add(t, full, fl); t->hs = S_WAIT_FIN; return client_hello_rx(t, b, n);
+    case S_WAIT_CH: if (type != HS_CLIENT_HELLO) return TLS_ERR_PROTO; th_add(t, full, fl); t->hs = S_WAIT_FIN; return client_hello_rx(t, b, n);   /* a 1.2 client: server12 moves on to S12_CKE */
     case S_WAIT_FIN: {
         if (type != HS_FINISHED || n != 32) return TLS_ERR_PROTO;
         uint8_t vd[32]; finished_mac(t->sec_hs_c, t->fin_hash, vd);
@@ -282,9 +429,24 @@ static int record_rx(tls_t *t)
 {
     uint8_t *r = t->rbuf; unsigned type = r[0], len = be16(r + 3), n;
     if (r[1] != 3) return TLS_ERR_PROTO;
-    if (type == 20) return len == 1 && r[5] == 1 ? 0 : TLS_ERR_PROTO;                // compatibility change_cipher_spec: ignored
+    if (type == 20) {
+        if (len != 1 || r[5] != 1) return TLS_ERR_PROTO;
+        if (!t->v12) return 0;                                                       // 1.3: compatibility change_cipher_spec, ignored
+        if (t->hs != C12_CCS && t->hs != S12_CCS) return TLS_ERR_PROTO;               // 1.2: the peer's keys start here
+        t->renc = 1; t->rseq = 0; t->hs = t->hs == C12_CCS ? C12_FIN : S12_FIN; return 0;
+    }
     uint8_t *body = r + 5; uint8_t inner;
     if (!t->renc) { if (type != 22 && type != 21) return TLS_ERR_PROTO; inner = (uint8_t)type; n = len; }
+    else if (t->v12) {
+        if (len < 8 + 16 || (type != 22 && type != 21 && type != 23)) return TLS_ERR_PROTO;
+        uint8_t nonce[12], aad[13]; n = len - 24;
+        memcpy(nonce, t->riv, 4); memcpy(nonce + 4, body, 8);
+        for (int i = 0; i < 8; i++) aad[i] = (uint8_t)(t->rseq >> (56 - 8 * i));
+        aad[8] = (uint8_t)type; aad[9] = 3; aad[10] = 3; aad[11] = (uint8_t)(n >> 8); aad[12] = (uint8_t)n;
+        if (aes_gcm(t->rkey, 16, false, nonce, 12, aad, 13, body + 8, body + 8, n, body + 8 + n)) return TLS_ERR_MAC;
+        t->rseq++; body += 8; inner = (uint8_t)type;
+        if (n > TLS_REC_PLAIN) return TLS_ERR_OVERFLOW;
+    }
     else {
         if (type != 23 || len < 17) return TLS_ERR_PROTO;
         uint8_t nonce[12]; nonce_of(t->riv, t->rseq, nonce);
@@ -352,8 +514,8 @@ int tls_write(tls_t *t, const void *p, unsigned n)
 {
     if (t->state != TLS_CONNECTED) return 0;
     if (n > TLS_REC_PLAIN) n = TLS_REC_PLAIN;
-    unsigned room = sizeof t->wbuf - t->wlen; if (room < 5 + 17 + 1) return 0;
-    if (n > room - 5 - 17) n = room - 5 - 17;
+    unsigned room = sizeof t->wbuf - t->wlen; if (room < 5 + 24 + 1) return 0;
+    if (n > room - 5 - 24) n = room - 5 - 24;
     if (!n) return 0;
     put_record(t, 23, p, n);
     return (int)n;
@@ -371,4 +533,5 @@ int tls_read(tls_t *t, void *p, unsigned max)
 }
 
 int tls_state(const tls_t *t) { return t->state; }
+int tls_version(const tls_t *t) { return t->state == TLS_CONNECTED || t->state == TLS_CLOSED ? (t->v12 ? 0x0303 : 0x0304) : 0; }
 void tls_close(tls_t *t) { if (t->state == TLS_CONNECTED) { uint8_t a[2] = { 1, 0 }; put_record(t, 21, a, 2); t->state = TLS_CLOSED; } }

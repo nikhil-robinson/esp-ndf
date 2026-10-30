@@ -42,11 +42,13 @@ int main(void)
             printf("serve %d\n", https_server_start((uint16_t)atoi(v[1]), &srv));
         } else if (!strcmp(v[0], "get") && n > 2) {
             static uint8_t body[600]; int st = 0; uint32_t t0 = time_ms();
-            tls_client_cfg_t cfg = { .ca_pub = n > 3 ? tls_other_ca_pub : tls_ca_pub, .host = strcmp(v[2], "-") ? v[2] : 0 };
+            int other = n > 3 && !strcmp(v[3], "other");                                /* get <url> <host|-> [other | 12 | 13] */
+            tls_client_cfg_t cfg = { .ca_pub = other ? tls_other_ca_pub : tls_ca_pub, .host = strcmp(v[2], "-") ? v[2] : 0, .only_version = n > 3 && !strcmp(v[3], "12") ? 0x0303 : n > 3 && !strcmp(v[3], "13") ? 0x0304 : 0 };
             int len = https_get(v[1], &cfg, body, sizeof body, &st); unsigned bad = 0;
             for (int i = 0; i < len && i < (int)sizeof body && strstr(v[1], "/big"); i++) if (body[i] != 'x') bad++;
-            printf("get status %d bytes %d bad %u in %lu ms\n", st, len, bad, (unsigned long)(time_ms() - t0));
-        } else if (!strcmp(v[0], "memused")) printf("memused %u\n", (unsigned)lwip_stats.mem.used);
+            printf("get status %d bytes %d bad %u in %lu ms tls %04x err %d\n", st, len, bad, (unsigned long)(time_ms() - t0), https_tls_version(), https_tls_error());
+        } else if (!strcmp(v[0], "tlsver")) printf("tlsver %04x\n", https_tls_version());
+        else if (!strcmp(v[0], "memused")) printf("memused %u\n", (unsigned)lwip_stats.mem.used);
         else printf("?\n");
         printf("ok\n");
     }

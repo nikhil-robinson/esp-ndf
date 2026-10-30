@@ -35,10 +35,19 @@ r = peer_cmd('https_get https://%s/hello - 1 evil.example.com' % ip, 60)
 check('ERR' in r, 'IDF client refuses our certificate for another host name (%s)' % r)
 r = peer_cmd('https_get https://%s/hello - 1' % ip, 60)
 check('https status=200 bytes=5' in r, 'the server still answers after the refused handshakes (%s)' % r)
+r = peer_cmd('https_get https://%s/hello - 1 ndf.local 12' % ip, 60)
+v = n.cmd('tlsver', 10)[-1]
+check('https status=200 bytes=5' in r and v == 'tlsver 0303', 'IDF client forced to TLS 1.2: our server answers over 1.2 (%s, %s)' % (r[-1:], v))
+r = peer_cmd('https_get https://%s/big - 1 ndf.local 12' % ip, 300)
+check('https status=200 bytes=65536' in r, 'IDF client TLS 1.2 GET /big: 64 KB (%s)' % r[-1:])
 
 p.cmd('https_serve 443'); time.sleep(2)
 g = n.cmd('get https://192.168.4.1/hello ndf.local', 60)[-1]
-check('status 200 bytes 5 ' in g, 'we GET the IDF server /hello over TLS: %s' % g)
+check('status 200 bytes 5 ' in g and ' tls 0304 ' in g, 'we GET the IDF server /hello over TLS 1.3: %s' % g)
+g = n.cmd('get https://192.168.4.1/hello ndf.local 12', 60)[-1]
+check('status 200 bytes 5 ' in g and ' tls 0303 ' in g, 'we GET the IDF server /hello over TLS 1.2 (esp_https_server / mbedtls): %s' % g)
+g = n.cmd('get https://192.168.4.1/big ndf.local 12', 200)[-1]
+check('status 200 bytes 65536 bad 0' in g and ' tls 0303 ' in g, 'TLS 1.2 chunked 64 KB /big from the IDF server: %s' % g)
 g = n.cmd('get https://192.168.4.1/big ndf.local', 200)[-1]
 check('status 200 bytes 65536 bad 0' in g, 'we GET the IDF server chunked 64 KB /big: %s' % g)
 g = n.cmd('get https://192.168.4.1/hello ndf.local other', 60)[-1]

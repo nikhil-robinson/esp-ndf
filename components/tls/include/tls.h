@@ -1,4 +1,4 @@
-/* TLS 1.3 (RFC 8446), client and server, our own code. Sans-IO: the caller feeds the bytes it received and sends the bytes the engine has queued, so the
+/* TLS 1.3 (RFC 8446) and TLS 1.2 (RFC 5246: ECDHE-ECDSA-AES128-GCM-SHA256 with X25519, extended master secret RFC 7627), client and server, our own code. Sans-IO: the caller feeds the bytes it received and sends the bytes the engine has queued, so the
  * same engine runs over an lwIP pcb on the board and over a socket in the host tests. One cipher suite (TLS_AES_128_GCM_SHA256), X25519, ECDSA P-256 /
  * SHA-256, no PSK / resumption / 0-RTT / client certificates / HelloRetryRequest. Records are limited to 4096 bytes of plaintext (max_fragment_length).
  * A handshake message must fit one record. One connection per tls_t; a tls_t is about 10 KB. See docs/superpowers/plans/2026-10-29-tls.md. */
@@ -23,6 +23,7 @@ typedef struct {
     const uint8_t *ca_pub;      /* 64-byte P-256 point (X||Y): the server certificate must be signed by it */
     const uint8_t *pin_leaf;    /* or: accept exactly this leaf public key (self-signed servers); at least one of the two is required */
     const char *host;           /* sent as SNI and checked against the certificate (SAN dNSName, else CN); NULL = neither */
+    uint16_t only_version;      /* 0: TLS 1.3 or 1.2 (the server picks); 0x0303 / 0x0304: offer only that version (IDF esp_http_client tls_version) */
 } tls_client_cfg_t;
 typedef struct { const uint8_t *cert; unsigned cert_len; const uint8_t *priv; /* 32-byte P-256 private key of the certificate */ } tls_server_cfg_t;
 
@@ -35,6 +36,7 @@ typedef struct tls {
     uint8_t priv[32]; uint8_t sess[32], sess_len; sha_ctx_t th;                 /* ephemeral X25519 key, legacy session id (echoed by the server), transcript hash */
     const tls_client_cfg_t *ccfg; const tls_server_cfg_t *scfg;
     uint8_t fin_hash[32]; uint8_t leaf[64]; uint8_t mfl;
+    uint8_t v12, ems, reneg, p256, crand[32], srand[32], spub[64], master12[48];          /* TLS 1.2: randoms, ECDHE group (p256: secp256r1, else x25519), the server's ECDHE key (client side), master secret */
 } tls_t;
 
 void tls_client_init(tls_t *t, const tls_client_cfg_t *c);                    /* queues the ClientHello */
@@ -56,3 +58,5 @@ void tls_hmac(const uint8_t *key, unsigned kl, const uint8_t *m, unsigned ml, ui
 void tls_hkdf_extract(const uint8_t *salt, unsigned sl, const uint8_t *ikm, unsigned il, uint8_t out[32]);
 void tls_expand_label(const uint8_t secret[32], const char *label, const uint8_t *ctx, unsigned cl, uint8_t *out, unsigned len);   /* HKDF-Expand-Label, len <= 32 */
 void tls_derive_secret(const uint8_t secret[32], const char *label, const uint8_t hash[32], uint8_t out[32]);
+void tls12_prf(const uint8_t *secret, unsigned sl, const char *label, const uint8_t *seed, unsigned seedl, uint8_t *out, unsigned n);   /* RFC 5246 P_SHA256 */
+int  tls_version(const tls_t *t);                                             /* 0x0304 or 0x0303 once negotiated */

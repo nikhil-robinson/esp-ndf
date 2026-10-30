@@ -37,10 +37,11 @@ static unsigned move(tls_t *from, tls_t *to, int mangle)
     return n;
 }
 
-/* run a full exchange; returns 1 when both sides finished the data transfer */
+/* run a full exchange; returns 1 when both sides finished the data transfer. only_v: the client's only_version (0x0303 = the TLS 1.2 path) */
+static uint16_t only_v;
 static int exchange(int mangle, unsigned bytes, int *delivered_ok)
 {
-    static tls_client_cfg_t cfg; cfg.ca_pub = ca; cfg.host = "ndf.local";
+    static tls_client_cfg_t cfg; cfg.ca_pub = ca; cfg.host = "ndf.local"; cfg.only_version = only_v;
     static tls_server_cfg_t scfg; scfg.cert = cert; scfg.cert_len = cert_len; scfg.priv = priv;
     tls_client_init(&C, &cfg); tls_server_init(&S, &scfg);
     *delivered_ok = 1;
@@ -95,6 +96,12 @@ int main(int argc, char **argv)
         CHECK(ok2);                                                                                                           /* whatever was delivered is what was sent */
         if (conn) connected++;
     }
+    /* 3b. the same over TLS 1.2: a clean exchange (version checked), then mangled streams */
+    only_v = 0x0303;
+    CHECK(exchange(0, 150000, &ok) && ok && tls_version(&C) == 0x0303 && tls_version(&S) == 0x0303);
+    unsigned long done12 = 0, conn12 = 0;
+    for (unsigned long i = 0; i < rounds && !fails; i++) { int ok2; int conn = exchange(1, 20000 + rnd() % 5000, &ok2); done12++; CHECK(ok2); if (conn) conn12++; }
+    only_v = 0;
 
     /* 4. X.509: every truncation and random flips of the server certificate */
     x509_t c;
@@ -114,6 +121,6 @@ int main(int argc, char **argv)
             unsigned off = 0; while (off < n) { int u = tls_feed(t, g + off, n - off); if (u <= 0) break; off += (unsigned)u; } }
     }
     if (fails) { printf("%d failed\n", fails); return 1; }
-    printf("fuzz_tls: ok (%lu mangled exchanges, %lu of them completed)\n", done, connected);
+    printf("fuzz_tls: ok (%lu mangled exchanges, %lu of them completed; TLS 1.2: %lu, %lu completed)\n", done, connected, done12, conn12);
     return 0;
 }

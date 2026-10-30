@@ -34,4 +34,23 @@ $D/tls_host server $PORT $D/server.der $PRIV > $D/srv.out & SP=$!; sleep 0.5
 r=$(echo hi | openssl s_client -connect 127.0.0.1:$PORT -tls1_3 -CAfile $D/other_ca.pem -verify_return_error -quiet 2>&1 | grep -c "verify error" || true)
 kill $SP 2>/dev/null || true; wait $SP 2>/dev/null || true
 check "server: openssl client with the wrong CA gives up" "$([ "$r" -ge 1 ] && echo yes || echo no)" "yes"
+# TLS 1.2 (ECDHE-ECDSA-AES128-GCM-SHA256, X25519, extended master secret) both ways
+(cd $D/www && exec openssl s_server -accept $PORT -cert $R/$D/server.pem -key $R/$D/server_key.pem -tls1_2 -cipher ECDHE-ECDSA-AES128-GCM-SHA256 -groups X25519 -WWW -quiet >/dev/null 2>&1) &
+SP=$!; sleep 0.5
+r=$($D/tls_host client 127.0.0.1 $PORT $CA ndf.local /hello.txt | tail -2 | tr '\n' ' '); check "1.2 client: GET /hello.txt from a TLS 1.2-only server" "$r" "version 0303 status HTTP/1.0 200 body 9 sum $(python3 -c "print(sum(b'hello tls'))") "
+r=$($D/tls_host client 127.0.0.1 $PORT $CA ndf.local /big.bin | tail -1); check "1.2 client: 1 MB download intact" "$r" "status HTTP/1.0 200 body 1048576 sum $SUM"
+r=$($D/tls_host client 127.0.0.1 $PORT $OTHER ndf.local /hello.txt | tail -1); check "1.2 client: wrong CA refused" "${r%% -*}" "handshake failed"
+kill $SP 2>/dev/null || true; wait $SP 2>/dev/null || true
+$D/tls_host server $PORT $D/server.der $PRIV 1048576 > $D/srv.out & SP=$!; sleep 0.5
+head -c 1048576 $D/www_big.bin | openssl s_client -connect 127.0.0.1:$PORT -tls1_2 -cipher ECDHE-ECDSA-AES128-GCM-SHA256 -groups X25519:P-256 -CAfile $D/ca.pem -verify_hostname ndf.local -verify_return_error -max_send_frag 4096 -quiet >/dev/null 2>&1 || true
+wait $SP 2>/dev/null || true
+check "1.2 server: 1 MB upload from openssl s_client -tls1_2" "$(tail -2 $D/srv.out | tr '\n' ' ')" "version 0303 got 1048576 bytes sum $SUM "
+$D/tls_host server $PORT $D/server.der $PRIV 100 > $D/srv.out & SP=$!; sleep 0.5
+head -c 100 $D/www_big.bin | openssl s_client -connect 127.0.0.1:$PORT -tls1_2 -cipher ECDHE-ECDSA-AES128-GCM-SHA256 -groups P-256 -CAfile $D/ca.pem -verify_return_error -quiet >/dev/null 2>&1 || true
+wait $SP 2>/dev/null || true
+check "1.2 server: secp256r1 ECDHE when the client has no x25519" "$(tail -2 $D/srv.out | head -1)" "version 0303"
+(cd $D/www && exec openssl s_server -accept $PORT -cert $R/$D/server.pem -key $R/$D/server_key.pem -tls1_2 -cipher ECDHE-ECDSA-AES128-GCM-SHA256 -groups P-256 -WWW -quiet >/dev/null 2>&1) &
+SP=$!; sleep 0.5
+r=$($D/tls_host client 127.0.0.1 $PORT $CA ndf.local /hello.txt | tail -1); check "1.2 client: secp256r1 ECDHE (server without x25519)" "${r%% body*}" "status HTTP/1.0 200"
+kill $SP 2>/dev/null || true; wait $SP 2>/dev/null || true
 [ $fail = 0 ] && echo "=== tls host test ALL PASS ===" || { echo "=== tls host test FAILED ==="; exit 1; }

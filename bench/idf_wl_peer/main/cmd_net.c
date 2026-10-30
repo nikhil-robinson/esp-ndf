@@ -176,9 +176,9 @@ extern const char ca_pem_start[] asm("_binary_ca_pem_start"), ca_pem_end[] asm("
 static int cmd_https_get(int argc, char **argv)
 {
     if (argc < 2) return -1;
-    int other = argc > 2 && !strcmp(argv[2], "other"), reps = argc > 3 ? atoi(argv[3]) : 1, good = 0; const char *host = argc > 4 ? argv[4] : "ndf.local"; int64_t t0 = esp_timer_get_time(); unsigned bytes = 0;
+    int other = argc > 2 && !strcmp(argv[2], "other"), reps = argc > 3 ? atoi(argv[3]) : 1, good = 0; const char *host = argc > 4 ? argv[4] : "ndf.local"; int v12 = argc > 5 && !strcmp(argv[5], "12");   /* https_get <url> [other|-] [n] [host] [12] */ int64_t t0 = esp_timer_get_time(); unsigned bytes = 0;
     for (int r = 0; r < reps; r++) {
-        esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 10000, .cert_pem = other ? other_ca_pem_start : ca_pem_start, .cert_len = (size_t)((other ? other_ca_pem_end : ca_pem_end) - (other ? other_ca_pem_start : ca_pem_start)), .common_name = host };
+        esp_http_client_config_t c = { .url = argv[1], .timeout_ms = 10000, .cert_pem = other ? other_ca_pem_start : ca_pem_start, .cert_len = (size_t)((other ? other_ca_pem_end : ca_pem_end) - (other ? other_ca_pem_start : ca_pem_start)), .common_name = host, .tls_version = v12 ? ESP_HTTP_CLIENT_TLS_VER_TLS_1_2 : ESP_HTTP_CLIENT_TLS_VER_ANY };
         esp_http_client_handle_t h = esp_http_client_init(&c);
         if (esp_http_client_open(h, 0)) { esp_http_client_cleanup(h); continue; }
         esp_http_client_fetch_headers(h);

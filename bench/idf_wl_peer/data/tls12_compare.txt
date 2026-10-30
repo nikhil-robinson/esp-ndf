@@ -1,0 +1,5 @@
+up rc 0 ip 192.168.4.2
+esp-ndf client ->IDF server  13 ['778', '620', '686']
+esp-ndf client ->IDF server  12 ['648', '652', '656']
+IDF client (BOX-3) -> IDF server  any(1.3) https ok=3 of 3 elapsed_ms=3762 bytes=15
+IDF client (BOX-3) -> IDF server  ndf.local 12 https ok=3 of 3 elapsed_ms=3698 bytes=15

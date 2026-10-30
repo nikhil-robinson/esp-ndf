@@ -34,3 +34,17 @@ void tls_expand_label(const uint8_t secret[32], const char *label, const uint8_t
 }
 
 void tls_derive_secret(const uint8_t secret[32], const char *label, const uint8_t hash[32], uint8_t out[32]) { tls_expand_label(secret, label, hash, 32, out, 32); }
+
+void tls12_prf(const uint8_t *secret, unsigned sl, const char *label, const uint8_t *seed, unsigned seedl, uint8_t *out, unsigned n)
+{
+    uint8_t ls[32 + 96], a[32 + sizeof ls], b[32]; unsigned ll = (unsigned)strlen(label);
+    if (ll + seedl > sizeof ls) return;
+    memcpy(ls, label, ll); memcpy(ls + ll, seed, seedl); ll += seedl;
+    tls_hmac(secret, sl, ls, ll, a);                                                 /* A(1) */
+    for (unsigned done = 0; done < n; ) {
+        memcpy(a + 32, ls, ll); tls_hmac(secret, sl, a, 32 + ll, b);
+        unsigned m = n - done < 32 ? n - done : 32; memcpy(out + done, b, m); done += m;
+        tls_hmac(secret, sl, a, 32, a);                                              /* A(i+1) */
+    }
+    wipe(a, sizeof a); wipe(b, sizeof b); wipe(ls, sizeof ls);
+}

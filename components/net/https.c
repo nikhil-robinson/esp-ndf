@@ -166,6 +166,8 @@ static err_t c_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
 static err_t c_conn(void *a, struct tcp_pcb *p, err_t e) { cl.state = e ? -1 : 1; return ERR_OK; }
 static void c_err(void *a, err_t e) { cl.state = -1; cl.pcb = 0; }
 
+int https_tls_version(void) { return tls_version(&tls_inst); }
+int https_tls_error(void) { return tls_inst.err; }
 int https_get(const char *url, const tls_client_cfg_t *cfg, uint8_t *body, unsigned max, int *status)
 {
     if (strncmp(url, "https://", 8)) return -1;

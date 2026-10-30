@@ -844,6 +844,18 @@ computed during the scan, and our P-256 software multiply is the floor today (no
 
 Data: `bench/idf_wl_peer/data/dns_sntp.txt`. Ours also corrects for half the round trip (4 ms here) where lwIP / IDF set the server's transmit time.
 
+## HTTPS client GET, TLS 1.3 and 1.2 (esp-ndf `https_unit` on DEVKIT vs IDF `esp_http_client` on the BOX-3, both against `esp_https_server` on C9:48, 2026-10-30)
+
+One GET of /hello per connection: TCP connect, full handshake, request, response (no resumption on either side).
+
+| | esp-ndf client | ESP-IDF client | gain |
+|---|---|---|---|
+| TLS 1.3 | 620-778 ms | about 1250 ms (3 GETs in 3762 ms) | about 1.8x |
+| TLS 1.2 | 648-656 ms | about 1230 ms (3698 ms for 3) | about 1.9x |
+
+The IDF server's own handshake work is common to both columns, so the floor is that server; ours uses the board's AES / SHA engines and
+our P-256 / X25519 code. Data: `bench/idf_wl_peer/data/tls12_compare.txt`.
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

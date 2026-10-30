@@ -70,6 +70,7 @@ int main(int argc, char **argv)
         tls_client_init(&t, &cfg);
         int r = 0; while (r >= 0 && tls_state(&t) == TLS_HANDSHAKE) r = pump(&t, s, 1);
         if (tls_state(&t) != TLS_CONNECTED) { pump(&t, s, 0); printf("handshake failed %d\n", t.err ? t.err : r); return 4; }
+        printf("version %04x\n", tls_version(&t));
         char req[300]; int rl = snprintf(req, sizeof req, "GET %s HTTP/1.0\r\n\r\n", argv[6]);
         for (int off = 0; off < rl; ) { int w = tls_write(&t, req + off, (unsigned)(rl - off)); off += w; pump(&t, s, 0); }
         unsigned long sum = 0, body = 0; static uint8_t d[5000]; int hdr_done = 0; char head[600]; unsigned hl = 0;
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
         tls_server_init(&t, &cfg);
         int r = 0; while (r >= 0 && tls_state(&t) == TLS_HANDSHAKE) r = pump(&t, s, 1);
         if (tls_state(&t) != TLS_CONNECTED) { pump(&t, s, 0); printf("handshake failed %d\n", t.err ? t.err : r); return 4; }
+        printf("version %04x\n", tls_version(&t));
         unsigned long total = 0, sum = 0, want = argc > 5 ? strtoul(argv[5], 0, 0) : 0; static uint8_t d[5000];     /* want: answer after this many bytes (openssl s_client does not close first) */
         for (;;) {
             int n = tls_read(&t, d, sizeof d);
