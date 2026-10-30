@@ -85,3 +85,60 @@ int net_ip(uint32_t *ip, uint32_t *gw)
 }
 
 struct netif *net_netif(void) { return &nif; }
+
+/* --- DNS (lwIP's resolver; the server comes from DHCP) and SNTP --- */
+#include "lwip/dns.h"
+#include "lwip/udp.h"
+#include <sys/time.h>
+#include "sys.h"
+
+static volatile int dns_state; static uint32_t dns_addr;      /* 0 waiting, 1 found, -1 failed */
+static void dns_cb(const char *name, const ip_addr_t *a, void *arg) { (void)name; (void)arg; if (a) { dns_addr = ip4_addr_get_u32(ip_2_ip4(a)); dns_state = 1; } else dns_state = -1; }
+int net_dns(const char *host, uint32_t *ip, uint32_t timeout_ms)
+{
+    ip_addr_t a; dns_state = 0;
+    err_t e = dns_gethostbyname(host, &a, dns_cb, 0);
+    if (e == ERR_OK) { *ip = ip4_addr_get_u32(ip_2_ip4(&a)); return 0; }      /* a literal address or a cached name */
+    if (e != ERR_INPROGRESS) return -1;
+    uint32_t t0 = time_ms();
+    while (!dns_state && time_ms() - t0 < timeout_ms) net_poll();
+    if (dns_state != 1) return dns_state ? -1 : -2;
+    *ip = dns_addr; return 0;
+}
+
+/* SNTP (RFC 4330) client: one request, the answer must come from the server's port 123, be a server-mode reply (mode 4) with a stratum
+ * (0 = kiss of death) and echo our transmit timestamp (stricter than lwIP's default SNTP_CHECK_RESPONSE 0 that IDF uses: a spoofed
+ * reply needs our timestamp). The clock is set to the server's transmit time plus half the round trip (IDF / lwIP: no compensation). */
+static volatile int sntp_state; static uint8_t sntp_tx[8]; static int64_t sntp_us; static uint32_t sntp_t0, sntp_rtt;
+static uint32_t sntp_server;
+static void sntp_rx(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *from, u16_t port)
+{
+    (void)arg; (void)pcb;
+    uint8_t r[48];
+    if (sntp_state == 0 && port == 123 && ip4_addr_get_u32(ip_2_ip4(from)) == sntp_server && p->tot_len >= 48 && pbuf_copy_partial(p, r, 48, 0) == 48
+        && (r[0] & 7) == 4 && r[1] && !memcmp(r + 24, sntp_tx, 8)) {
+        uint32_t sec = (uint32_t)r[40] << 24 | r[41] << 16 | r[42] << 8 | r[43], fr = (uint32_t)r[44] << 24 | r[45] << 16 | r[46] << 8 | r[47];
+        sntp_rtt = (uint32_t)(time_us() - sntp_t0);
+        sntp_us = ((int64_t)sec - 2208988800LL) * 1000000 + (int64_t)(((uint64_t)fr * 1000000) >> 32) + sntp_rtt / 2;
+        sntp_state = 1;
+    } else if (sntp_state == 0 && port == 123 && p->tot_len >= 2 && pbuf_get_at(p, 1) == 0 && ip4_addr_get_u32(ip_2_ip4(from)) == sntp_server) sntp_state = -1;   /* kiss of death */
+    pbuf_free(p);
+}
+int net_sntp(uint32_t server, uint32_t timeout_ms, uint32_t *rtt_us)
+{
+    struct udp_pcb *u = udp_new(); if (!u) return -1;
+    udp_recv(u, sntp_rx, 0); sntp_server = server; sntp_state = 0;
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, 48, PBUF_RAM); if (!p) { udp_remove(u); return -1; }
+    uint8_t *q = p->payload; memset(q, 0, 48); q[0] = 0x23;                     /* LI 0, VN 4, mode 3 client */
+    uint64_t t = time_us(); for (int i = 0; i < 8; i++) sntp_tx[i] = (uint8_t)(t >> (56 - 8 * i));   /* a nonce in the transmit timestamp (RFC 4330 allows any value) */
+    memcpy(q + 40, sntp_tx, 8);
+    ip_addr_t a; ip_addr_set_ip4_u32(&a, server);
+    sntp_t0 = (uint32_t)time_us(); err_t e = udp_sendto(u, p, &a, 123); pbuf_free(p);
+    uint32_t t0 = time_ms();
+    while (!e && !sntp_state && time_ms() - t0 < timeout_ms) net_poll();
+    udp_remove(u);
+    if (sntp_state != 1) return e ? -1 : sntp_state ? -3 : -2;
+    struct timeval tv = { .tv_sec = (time_t)(sntp_us / 1000000), .tv_usec = (suseconds_t)(sntp_us % 1000000) }; settimeofday(&tv, 0);
+    if (rtt_us) *rtt_us = sntp_rtt;
+    return 0;
+}

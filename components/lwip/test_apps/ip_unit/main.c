@@ -16,6 +16,7 @@
 #include "lwip/prot/icmp.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 static const uint8_t my[6] = { 0x02, 0x4e, 0x44, 0x46, 0x00, 0x02 };
 static ip4_addr_t peer;
@@ -140,7 +141,7 @@ int main(void)
             while (!rc && net_ip(&ip, &gw) && time_ms() - t0 < 8000) net_poll();
             ip4_addr_t a = { ip }, g = { gw }; char ab[16], gb[16];
             printf("up rc %d join_ms %lu total_ms %lu ip %s gw %s\n", rc, (unsigned long)tj, (unsigned long)(time_ms() - t0), ip ? ip4addr_ntoa_r(&a, ab, sizeof ab) : "-", gw ? ip4addr_ntoa_r(&g, gb, sizeof gb) : "-");
-        } else if (!net_on && (!strcmp(v[0], "ping") || !strcmp(v[0], "udp") || !strcmp(v[0], "tcp") || !strcmp(v[0], "stats"))) printf("not up\n");     /* lwIP is started by a successful up */
+        } else if (!net_on && (!strcmp(v[0], "ping") || !strcmp(v[0], "udp") || !strcmp(v[0], "tcp") || !strcmp(v[0], "stats") || !strcmp(v[0], "dns") || !strcmp(v[0], "sntp"))) printf("not up\n");     /* lwIP is started by a successful up */
         else if (!strcmp(v[0], "ping") && n > 2 && !parse_ip(v[1], &peer)) do_ping((unsigned)atoi(v[2]));
         else if (!strcmp(v[0], "udp") && n > 3 && !parse_ip(v[1], &peer)) do_udp((unsigned)atoi(v[2]), (unsigned)atoi(v[3]));
         else if (!strcmp(v[0], "tcp") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]));
@@ -157,6 +158,8 @@ int main(void)
                 } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
         } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
         else if (!strcmp(v[0], "i2crd") && n > 1) { extern uint8_t rf_regi2c_read(uint8_t, uint8_t); uint8_t b = (uint8_t)strtoul(v[1], 0, 0); printf("i2c %02x", b); for (unsigned r = 0; r < 32; r++) printf(" %02x", rf_regi2c_read(b, (uint8_t)r)); printf("\n"); }
+        else if (!strcmp(v[0], "dns") && n > 1) { uint32_t t0 = time_us(), ip = 0; int rc = net_dns(v[1], &ip, 5000); ip4_addr_t a = { ip }; char b[16]; printf("dns rc %d ip %s us %lu\n", rc, rc ? "-" : ip4addr_ntoa_r(&a, b, sizeof b), (unsigned long)(time_us() - t0)); }
+        else if (!strcmp(v[0], "sntp") && n > 1 && !parse_ip(v[1], &peer)) { uint32_t t0 = time_us(), rtt = 0; int rc = net_sntp(ip4_addr_get_u32(&peer), 3000, &rtt); struct timeval tv; gettimeofday(&tv, 0); printf("sntp rc %d us %lu rtt %lu time %lld.%06ld\n", rc, (unsigned long)(time_us() - t0), (unsigned long)rtt, (long long)tv.tv_sec, (long)tv.tv_usec); }
         else if (!strcmp(v[0], "link")) { uint32_t t0 = time_ms(); while (time_ms() - t0 < (n > 1 ? (uint32_t)atoi(v[1]) : 0)) net_poll(); printf("link %d\n", wifi_sta_up()); }   /* link [ms]: poll for ms, then the station state */
         else if (!strcmp(v[0], "stats"))
             printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,

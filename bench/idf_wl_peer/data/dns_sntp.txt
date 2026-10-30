@@ -1,0 +1,11 @@
+ok   joined (up rc 0 join_ms 618 total_ms 1619 ip 192.168.4.2 gw 192.168.4.1)
+ok   net_dns resolves ndf.test to 192.168.4.77 (dns rc 0 ip 192.168.4.77 us 14028)
+ok   second lookup from the cache (dns rc 0 ip 192.168.4.77 us 6)
+ok   unknown name: NXDOMAIN, -1 at once (dns rc -1 ip - us 8380)
+ok   reply with the wrong transaction id ignored (dns rc -2 ip - us 5001100)
+ok   net_sntp sets the clock to the server time within 0.5 s (sntp rc 0 us 7789 rtt 6720 time 1767225607.754080; server about 1767225607.730)
+ok   SNTP reply without our timestamp ignored (sntp rc -2 us 3001693 rtt 0 time 1767225610.949137)
+ok   kiss of death (stratum 0) refused (sntp rc -3 us 6679 rtt 0 time 1767225611.166684)
+     ours: dns dns rc 0 ip 192.168.4.77 us 14028 | sntp sntp rc 0 us 6386 rtt 5329 time 1767225611.122678 | sntp rc 0 us 4764 rtt 3709 time 1767225611.220836 | sntp rc 0 us 8598 rtt 7543 time 1767225611.324465
+     IDF:  dns_get ndf.test ip 192.168.4.77 us 4653 | sntp_get ok us 4029446 time 1767225617.337652 | sntp_get ok us 1163381 time 1767225618.588047 | sntp_get ok us 3515736 time 1767225622.146046
+dns_sntp: all passed

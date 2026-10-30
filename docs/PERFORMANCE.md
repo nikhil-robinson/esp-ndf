@@ -835,6 +835,15 @@ Time from the join call to an IP address (both include the 1 s DHCP wait; ours a
 Equal within the scan time; SAE adds about 0.7 s on both sides (40-round hunting-and-pecking PWE on P-256 in software). Room: the PWE can be
 computed during the scan, and our P-256 software multiply is the floor today (no ECC engine use yet).
 
+## DNS and SNTP clients (DEVKIT esp-ndf `ip_unit` vs IDF station on the BOX-3, servers on the IDF AP, `tools/wl/test_dns_sntp.py`, 2026-10-30)
+
+| | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| DNS lookup (A record, not cached; two runs) | 10.2 / 14.0 ms | 7.2 / 4.7 ms (getaddrinfo) | slower: open item (our NXDOMAIN answer takes 6 ms, ping 4-7 ms; the first lookup likely includes ARP for the server) |
+| SNTP: call to the clock set | 4.5-5.9 ms | 1.1-4.7 s (esp_sntp poll mode, first sync) | about 200x: lwIP's SNTP app waits a random startup delay before its first request; ours sends at once |
+
+Data: `bench/idf_wl_peer/data/dns_sntp.txt`. Ours also corrects for half the round trip (4 ms here) where lwIP / IDF set the server's transmit time.
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

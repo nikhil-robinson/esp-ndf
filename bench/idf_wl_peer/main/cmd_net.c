@@ -19,6 +19,9 @@
 #include "esp_http_client.h"
 #include "esp_http_server.h"
 #include "../peer.h"
+#include <sys/time.h>
+#include "lwip/netdb.h"
+#include "esp_sntp.h"
 
 static SemaphoreHandle_t psem;
 static volatile uint32_t p_ok, p_n, p_time_sum;
@@ -233,5 +236,79 @@ static int cmd_http_serve(int argc, char **argv)
     return 0;
 }
 
-const peer_cmd_t cmds_net[] = { { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
+
+/* --- DNS and SNTP for the esp-ndf client tests (the IDF AP's DHCP hands out 192.168.4.1 as DNS server) and the IDF client twins --- */
+static char dns_name[64]; static uint32_t dns_ip; static volatile int dns_mode, sntp_mode;   /* mode 0 normal; dns 1 wrong id, 2 NXDOMAIN; sntp 1 wrong origin, 2 stratum 0 (kiss of death) */
+static void dns_task(void *a)
+{
+    int s = socket(AF_INET, SOCK_DGRAM, 0); struct sockaddr_in me = { .sin_family = AF_INET, .sin_port = htons(53) }; bind(s, (struct sockaddr *)&me, sizeof me);
+    for (;;) {
+        uint8_t q[512]; struct sockaddr_in from; socklen_t fl = sizeof from;
+        int n = recvfrom(s, q, sizeof q, 0, (struct sockaddr *)&from, &fl);
+        if (n < 12 + 5) continue;
+        char name[64]; int o = 12, k = 0;                                           /* QNAME as a dotted string */
+        while (o < n && q[o] && k < 62) { int l = q[o++]; if (k) name[k++] = '.'; while (l-- && o < n && k < 62) name[k++] = (char)q[o++]; }
+        name[k] = 0; o += 1 + 4;                                                    /* zero label, QTYPE, QCLASS */
+        if (o > n) continue;
+        int hit = !strcmp(name, dns_name) && dns_mode != 2;
+        q[2] = 0x81; q[3] = hit ? 0x80 : 0x83;                                     /* response, recursion; NXDOMAIN when not ours */
+        q[6] = 0; q[7] = hit ? 1 : 0; q[8] = q[9] = q[10] = q[11] = 0;
+        if (dns_mode == 1) q[1] ^= 0x55;                                           /* wrong transaction id */
+        int r = o;
+        if (hit) { uint8_t an[16] = { 0xc0, 12, 0, 1, 0, 1, 0, 0, 0, 60, 0, 4 }; memcpy(an + 12, &dns_ip, 4); memcpy(q + r, an, 16); r += 16; }
+        sendto(s, q, r, 0, (struct sockaddr *)&from, fl);
+    }
+}
+static int cmd_dns_serve(int argc, char **argv)                       /* dns_serve <name> <ip> [mode]: A record for one name on UDP 53 */
+{
+    static int up; if (argc < 3) return -1;
+    strlcpy(dns_name, argv[1], sizeof dns_name); dns_ip = inet_addr(argv[2]); dns_mode = argc > 3 ? atoi(argv[3]) : 0;
+    if (!up) up = xTaskCreate(dns_task, "dns", 4096, 0, 5, 0) == pdPASS;
+    return up ? 0 : -2;
+}
+static void sntp_task(void *a)
+{
+    int s = socket(AF_INET, SOCK_DGRAM, 0); struct sockaddr_in me = { .sin_family = AF_INET, .sin_port = htons(123) }; bind(s, (struct sockaddr *)&me, sizeof me);
+    for (;;) {
+        uint8_t q[48]; struct sockaddr_in from; socklen_t fl = sizeof from;
+        int n = recvfrom(s, q, sizeof q, 0, (struct sockaddr *)&from, &fl);
+        struct timeval tv; gettimeofday(&tv, 0);
+        if (n < 48 || (q[0] & 7) != 3) continue;
+        uint8_t r[48] = { 0x24, sntp_mode == 2 ? 0 : 2, q[2], 0xec };                 /* LI 0, VN 4, mode 4 server; stratum 2 */
+        memcpy(r + 24, q + 40, 8);                                                  /* originate = the client's transmit */
+        if (sntp_mode == 1) r[31] ^= 1;
+        uint32_t sec = (uint32_t)tv.tv_sec + 2208988800u, fr = (uint32_t)(((uint64_t)tv.tv_usec << 32) / 1000000);
+        for (int i = 0; i < 2; i++) { uint8_t *t = r + 32 + 8 * i; t[0] = sec >> 24; t[1] = sec >> 16; t[2] = sec >> 8; t[3] = sec; t[4] = fr >> 24; t[5] = fr >> 16; t[6] = fr >> 8; t[7] = fr; }   /* receive, transmit */
+        sendto(s, r, 48, 0, (struct sockaddr *)&from, fl);
+    }
+}
+static int cmd_sntp_serve(int argc, char **argv)                      /* sntp_serve <unix seconds> [mode]: set our clock, answer SNTP on UDP 123 */
+{
+    static int up; if (argc < 2) return -1;
+    struct timeval tv = { .tv_sec = atoll(argv[1]) }; settimeofday(&tv, 0); sntp_mode = argc > 2 ? atoi(argv[2]) : 0;
+    if (!up) up = xTaskCreate(sntp_task, "sntps", 4096, 0, 5, 0) == pdPASS;
+    return up ? 0 : -2;
+}
+static int cmd_dns_get(int argc, char **argv)                         /* dns_get <name>: getaddrinfo (lwIP DNS), time in us */
+{
+    if (argc < 2) return -1;
+    int64_t t0 = esp_timer_get_time(); struct addrinfo h = { .ai_family = AF_INET }, *r = 0;
+    int e = getaddrinfo(argv[1], 0, &h, &r); int64_t t1 = esp_timer_get_time();
+    if (e || !r) { printf("dns_get %s fail %d us %lld\n", argv[1], e, t1 - t0); return 0; }
+    printf("dns_get %s ip %s us %lld\n", argv[1], inet_ntoa(((struct sockaddr_in *)r->ai_addr)->sin_addr), t1 - t0); freeaddrinfo(r); return 0;
+}
+static volatile int sntp_done;
+static void sntp_cb(struct timeval *tv) { sntp_done = 1; }
+static int cmd_sntp_get(int argc, char **argv)                        /* sntp_get <server ip>: esp_sntp poll mode, time to the first sync in us, then the clock */
+{
+    if (argc < 2) return -1;
+    struct timeval z = { 0 }; settimeofday(&z, 0); sntp_done = 0;
+    esp_sntp_stop(); esp_sntp_setoperatingmode(SNTP_OPMODE_POLL); esp_sntp_setservername(0, argv[1]); sntp_set_time_sync_notification_cb(sntp_cb);
+    int64_t t0 = esp_timer_get_time(); esp_sntp_init();
+    while (!sntp_done && esp_timer_get_time() - t0 < 20000000) vTaskDelay(1);
+    int64_t t1 = esp_timer_get_time(); struct timeval tv; gettimeofday(&tv, 0); esp_sntp_stop();
+    printf("sntp_get %s us %lld time %lld.%06ld\n", sntp_done ? "ok" : "timeout", t1 - t0, (long long)tv.tv_sec, (long)tv.tv_usec);
+    return 0;
+}
+const peer_cmd_t cmds_net[] = { { "dns_serve", cmd_dns_serve }, { "sntp_serve", cmd_sntp_serve }, { "dns_get", cmd_dns_get }, { "sntp_get", cmd_sntp_get }, { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
                                 { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { "https_get", cmd_https_get }, { "tls_prims", cmd_tls_prims }, { "https_serve", cmd_https_serve }, { 0 } };
