@@ -810,17 +810,18 @@ Same air, the sniffer (BOX-3) timestamps beacons with the radio's own clock; the
 The AP schedules beacons on a fixed 102.4 ms grid from the microsecond timer (a late beacon does not move the next ones); the IDF softAP
 runs them from a FreeRTOS timer task. Raw data: `bench/idf_wl_peer/data/ap_compare.txt`.
 
-## Wi-Fi station with HT, same board (DEVKIT C9:D0; IDF peer image vs esp-ndf `ip_unit`, AP = IDF on C9:48, open, channel 6, 2026-10-30)
+## Wi-Fi station HT receive, same board (BOX-3; IDF peer image vs esp-ndf `ip_unit`, AP = IDF on C9:48 pinned HT20, 2026-10-31)
 
-64 KB TCP echo (`tcp` / `tcp_send`), same AP, same position. Both stations send the same HT Capabilities element.
+64 KB TCP echo, two runs per MCS. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt` and the commit message.
 
-| | esp-ndf | ESP-IDF station | gain |
-|---|---|---|---|
-| 64 KB TCP echo, unpinned AP | 331-423 ms | 990-1116 ms | about 2.7x |
+| AP rate | esp-ndf | ESP-IDF |
+|---|---|---|
+| MCS0-4 | 121-187 ms | 119-214 ms (one 499) |
+| MCS5 | 4253-5750 ms | 127-142 ms |
+| MCS6 | 5787-17759 ms | 131-140 ms |
+| MCS7 | 19-39 s | stalls (link limit) |
 
-On this board pair both stations lose most HT frames from the AP (the AP retries them at legacy rates, seen by the BOX-3 sniffer); IDF on the
-BOX-3 does the same echo in 135-179 ms. Floor: the air time of 64 KB at the AP's HT rate (about 10 ms each way at MCS 7); the gap is the
-board's HT reception, not the stack. Data: `bench/wifi_regs/data/ht_sta_*.json`, `idf_devkit_ht_sta.json`.
+Equal up to MCS4; the 64-QAM HT rates are an open gap (legacy 54 Mbit/s 64-QAM is fine). HT40 is not received yet.
 
 ## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
 

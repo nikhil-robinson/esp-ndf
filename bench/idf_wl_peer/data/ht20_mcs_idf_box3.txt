@@ -1,0 +1,14 @@
+# IDF station on the BOX-3, AP (IDF, C9:48) HT20 pinned MCS, 64 KB tcp_send echo x2, 2026-10-31
+MCS0 ['200', '214']
+MCS1 ['134', '143']
+MCS2 ['131', '126']
+MCS3 ['125', '127']
+MCS4 ['499', '119']
+MCS5 ['127', '142']
+MCS6 ['131', '140']
+MCS7 peer: no answer to 'tcp_send 192.168.4.1 8 65536' in 120 s
+Traceback (most recent call last):
+  File "<stdin>", line 12, in <module>
+  File "/home/nikhil/esp-ndf/tools/wl/peer.py", line 53, in cmd
+    raise TimeoutError(f'peer: no answer to {line!r} in {timeout} s')
+TimeoutError: peer: no answer to 'wifi_stop' in 10.0 s

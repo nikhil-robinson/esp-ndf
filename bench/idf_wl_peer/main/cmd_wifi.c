@@ -73,9 +73,11 @@ static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssi
         strlcpy((char *)c.ap.password, pw, sizeof c.ap.password);
     } else c.ap.authmode = WIFI_AUTH_OPEN;
     esp_wifi_set_mode(WIFI_MODE_AP); esp_wifi_set_config(WIFI_IF_AP, &c);
-    if (argc > 4 && strtol(argv[4], 0, 0) < WIFI_PHY_RATE_MCS0_LGI) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed legacy rate needs the 802.11n aggregation off; an MCS code keeps 11n */
+    if (argc > 4 && strcmp(argv[4], "-") && strtol(argv[4], 0, 0) < WIFI_PHY_RATE_MCS0_LGI) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed legacy rate needs the 802.11n aggregation off; an MCS code keeps 11n */
+    int bw20 = argc > 5 && !strcmp(argv[5], "20");            /* wifi_ap <ssid> <pass> <chan> <rate|-> 20: HT20 instead of IDF's default HT40 */
     int rc = esp_wifi_start(); mode_on = !rc;
-    if (!rc && argc > 4) esp_wifi_internal_set_fix_rate(WIFI_IF_AP, true, (wifi_phy_rate_t)strtol(argv[4], 0, 0));   /* optional: fixed PHY rate code (IDF wifi_phy_rate_t), same on every device compared */
+    if (!rc && bw20) esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+    if (!rc && argc > 4 && strcmp(argv[4], "-")) esp_wifi_internal_set_fix_rate(WIFI_IF_AP, true, (wifi_phy_rate_t)strtol(argv[4], 0, 0));   /* optional: fixed PHY rate code (IDF wifi_phy_rate_t), same on every device compared */
     if (!rc) { esp_netif_dhcps_stop(ap_if); esp_netif_dhcps_start(ap_if); }      /* the DHCP server stops answering after a few AP restarts otherwise (seen on this peer) */
     uint8_t m[6]; esp_wifi_get_mac(WIFI_IF_AP, m);
     printf("ap %s ch %d bssid %02x:%02x:%02x:%02x:%02x:%02x ip 192.168.4.1\n", argv[1], c.ap.channel, m[0], m[1], m[2], m[3], m[4], m[5]);
@@ -93,6 +95,7 @@ static int cmd_sta(int argc, char **argv)                        /* wifi_sta <ss
     int rc = esp_wifi_start(); mode_on = !rc;
     if (rc) return rc;
     esp_wifi_set_ps(WIFI_PS_NONE);                               /* the esp-ndf access point has no power-save buffering (v1) */
+    if (argc > 3 && !strcmp(argv[3], "bg")) esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* wifi_sta <ssid> <pass> bg: no 802.11n (to isolate IDF's HT settings) */
     int64_t t0 = esp_timer_get_time(); t_conn = 0;
     esp_wifi_connect();
     int ok = (xEventGroupWaitBits(evg, GOT_IP, 0, 0, pdMS_TO_TICKS(20000)) & GOT_IP) != 0;
@@ -148,6 +151,7 @@ static int cmd_unicast(int argc, char **argv)
     int n = atoi(argv[3]); unsigned len = argc > 5 ? atoi(argv[5]) : 60; if (len < 32) len = 32; if (len > 400) len = 400;
     wifi_phy_rate_t rate = WIFI_PHY_RATE_6M;
     if (argc > 4 && !strcmp(argv[4], "1m")) rate = WIFI_PHY_RATE_1M_L; else if (argc > 4 && !strcmp(argv[4], "54m")) rate = WIFI_PHY_RATE_54M;
+    else if (argc > 4 && !strncmp(argv[4], "0x", 2)) rate = (wifi_phy_rate_t)strtol(argv[4], 0, 0);   /* any IDF rate code, e.g. 0x10 MCS0, 0x17 MCS7 */
     int ap = argc > 6 && !strcmp(argv[6], "ap");               /* send from the AP interface (an unassociated STA drops raw frames) */
     wifi_interface_t ifx = ap ? WIFI_IF_AP : WIFI_IF_STA;
     if (ap) {
@@ -272,7 +276,8 @@ static int cmd_i2crd(int argc, char **argv)
     printf("\n"); return 0;
 }
 static int cmd_kick(int argc, char **argv) { return esp_wifi_deauth_sta(0); }   /* wifi_kick: the AP deauthenticates every station (protected when PMF is on) */
+static int cmd_pbusrd(int argc, char **argv) { unsigned (*rd)(unsigned, unsigned) = (unsigned (*)(unsigned, unsigned))0x40035b28; for (unsigned r = 0; r < 8; r++) { printf("pbus %u", r); for (unsigned c = 0; c < 8; c++) printf(" %03x", rd(r, c)); printf("\n"); } return 0; }   /* ROM rom_pbus_rd, as in ip_unit */
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "wifi_kick", cmd_kick }, { "i2crd", cmd_i2crd }, { "wifi_unicast", cmd_unicast }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "pbusrd", cmd_pbusrd }, { "wifi_kick", cmd_kick }, { "i2crd", cmd_i2crd }, { "wifi_unicast", cmd_unicast }, { 0 } };

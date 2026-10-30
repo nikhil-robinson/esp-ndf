@@ -1,0 +1,3 @@
+# 10 uncached lookups (NXDOMAIN from the peer test server), us; 2026-10-31
+esp-ndf [5857, 2571, 2559, 3830, 2647, 3629, 2823, 3760, 2660, 4378] median 3226.0
+IDF     [6742, 2901, 2927, 2943, 2963, 2956, 2874, 2891, 2605, 2916] median 2921.5

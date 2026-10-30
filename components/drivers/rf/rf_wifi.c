@@ -128,6 +128,13 @@ int rf_wifi_rx_init(void)
     for (unsigned i = 0; i < sizeof rf_wifi_tx_regs / sizeof rf_wifi_tx_regs[0]; i++)
         if (rf_wifi_tx_regs[i].addr >= 0x600342e0u && rf_wifi_tx_regs[i].addr < 0x600343fcu) *(volatile uint32_t *)rf_wifi_tx_regs[i].addr = rf_wifi_tx_regs[i].value;
     replay(rf_wifi_rx_regs, sizeof rf_wifi_rx_regs / sizeof rf_wifi_rx_regs[0]);
+    /* 802.11n receive: the registers where IDF's state differs between an 11b/g/n and an 11b/g-only station on the same board and AP
+     * (bench/wifi_regs/data/idf_box3_n_vs_bg.json; the replay above was captured in the b/g state) */
+    static const struct { uint32_t a, v; } ht_rx[] = { { 0x60006100, 0x02d20404 }, { 0x60006124, 0x00004000 }, { 0x6001c078, 0x0082024c }, { 0x6001cc10, 0x2fdbf6fd },
+        { 0x6001cc14, 0x0862dbae }, { 0x6001cc48, 0x17042f49 }, { 0x6001ccb0, 0x00000003 }, { 0x6001d014, 0x6d806066 }, { 0x6001d08c, 0x07ea0330 }, { 0x60033400, 0xc1800007 } };
+#ifndef NO_HT_RX
+    for (unsigned i = 0; i < sizeof ht_rx / sizeof ht_rx[0]; i++) *(volatile uint32_t *)ht_rx[i].a = ht_rx[i].v;
+#endif
     for (int i = 0; i < WRX_N; i++) {
         rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED;
         rx_desc[i][1] = (uint32_t)rx_buf[i];
