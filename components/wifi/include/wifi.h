@@ -3,14 +3,15 @@
 #pragma once
 #include <stdint.h>
 
-typedef struct { uint8_t bssid[6], chan; int8_t rssi; char ssid[33]; uint8_t sec; /* 0 open, 1 other privacy (WEP, WPA), 2 WPA2 (RSN element) */ uint16_t beacon_tu; } wifi_ap_t;
+typedef struct { uint8_t bssid[6], chan; int8_t rssi; char ssid[33]; uint8_t sec; /* 0 open, 1 other privacy (WEP, WPA), 2 WPA2 / WPA3 (RSN element) */ uint16_t beacon_tu;
+                 uint16_t akm, rsn_caps; /* RSN: bit n = AKM suite 00-0f-ac:n (2 PSK, 6 PSK-SHA256, 8 SAE); capabilities (0x80 MFPC, 0x40 MFPR) */ } wifi_ap_t;
 
 /* --- pure helpers (ie.c, frame.c) --- */
 int      wifi_ie_find(const uint8_t *ies, unsigned n, uint8_t id, const uint8_t **val);   /* length of the first IE with that id, -1 = none or malformed */
 int      wifi_parse_beacon(const uint8_t *f, unsigned len, wifi_ap_t *ap);                /* beacon or probe response; 0 ok, -1 malformed */
 unsigned wifi_build_probe_req(uint8_t *o, const uint8_t me[6], const char *ssid, uint16_t seq);   /* ssid NULL = wildcard; returns the frame length (no FCS) */
 unsigned wifi_build_auth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t seq);
-unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, int rsn, uint16_t seq);   /* rsn: add the WPA2-PSK / CCMP element */
+unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, const uint8_t *rsn, uint16_t seq);   /* rsn: the RSN element to send (id, length, body), NULL = open */
 unsigned wifi_build_deauth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t reason, uint16_t seq);
 unsigned wifi_build_null(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t seq);   /* null data frame, to DS */
 unsigned wifi_build_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq);

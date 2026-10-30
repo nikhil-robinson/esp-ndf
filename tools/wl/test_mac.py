@@ -24,4 +24,6 @@ for ch in (1, 11, 13, 6):
     check(n.cmd('chan %d' % ch)[-1] == 'chan 0', 'channel %d set' % ch)
     c = n.cmd('count 1500 ' + BSSID, 10)[-1].split()
     check(int(c[2]) >= 12, 'channel %d: beacons in 1.5 s: %s (expect ~15)' % (ch, c[2]))
+h = n.cmd('heapbank', 20)[-1]
+check(' in_bank 0 ' in h and ' capture 0 ' in h and ' clobbered 0 ' in h and h.endswith('check 1'), 'heap blocks stay out of the capture bank and survive a capture (%s)' % h)
 print('FAIL: %s' % fail if fail else 'wifi_mac: all passed'); sys.exit(1 if fail else 0)

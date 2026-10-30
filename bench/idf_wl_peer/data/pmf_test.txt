@@ -1,0 +1,7 @@
+# 2026-10-30 tools/wl/test_pmf.py, DEVKIT (esp-ndf ip_unit) vs IDF 5.3.5 AP on C9:48, BOX-3 forges frames: all passed
+# SA Query check (forged association request in our name, then 4 s): our reply disabled -> AP sent 6 SA Query requests, dropped us (stas 0);
+# reply enabled -> 3 requests answered, station kept (stas 1, ping 5/5). The AP's own deauthentication on kick: protected disassoc + deauth (fc1 0x40, 46 bytes, 6 Mbit/s), decrypted by the MAC key table.
+# 2026-10-30 join times to IP (IDF station on BOX-3: sta join_ms / total_ms; esp-ndf ip_unit on DEVKIT: up ... total_ms), AP IDF on C9:48
+# IDF wpa2:   716/1716 721/1722 713/1713     esp-ndf wpa2: total 1782
+# IDF pmfreq: 725/1725 720/1721 725/1726     esp-ndf pmfreq: total 1785-1789
+# IDF wpa3:   1560/2561 1569/2569 1576/2575  esp-ndf wpa3: total 2499-2509, wpa23: 2501-2503

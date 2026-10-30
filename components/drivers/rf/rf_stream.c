@@ -60,6 +60,7 @@ static uint32_t find_end(unsigned b, uint32_t o, uint32_t wi, uint32_t guard)
 
 int rf_stream(uint32_t rate, uint32_t units, rf_stream_cb cb, void *ctx, rf_stream_stats_t *st)
 {
+    extern const uint8_t rf_dac_ram_marker; __asm__ volatile("" :: "r"(&rf_dac_ram_marker));   /* banks 0..2: see rf_dump.c */
     uint32_t sprobe[3] = { 0 }, eprobe[3] = { 0 }, owner = REG(BANK_SEL) & ~15u;
     int rc = 0;
     st->units = 0; st->pairs = 0; st->late_max = 0;

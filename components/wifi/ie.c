@@ -27,6 +27,14 @@ int wifi_parse_beacon(const uint8_t *f, unsigned len, wifi_ap_t *ap)
     memcpy(ap->ssid, v, (unsigned)l);
     ap->chan = (l = wifi_ie_find(ie, n, 3, &v)) == 1 ? v[0] : 0;
     ap->sec = (f[34] & 0x10) != 0;                              /* capability: privacy: 1 = WEP / WPA / WPA2 */
-    if ((l = wifi_ie_find(ie, n, 48, &v)) >= 8 && v[0] == 1) ap->sec = 2;   /* RSN element present: WPA2 */
+    if ((l = wifi_ie_find(ie, n, 48, &v)) >= 8 && v[0] == 1) {        /* RSN element: version, group suite, pairwise count + list, AKM count + list, capabilities */
+        ap->sec = 2; unsigned o = 6, c;
+        if (o + 2 > (unsigned)l) return 0;
+        c = v[o] | v[o + 1] << 8; o += 2 + 4 * c;
+        if (o + 2 > (unsigned)l) return 0;
+        c = v[o] | v[o + 1] << 8; o += 2;
+        for (unsigned i = 0; i < c; i++, o += 4) if (o + 4 <= (unsigned)l && !memcmp(v + o, "\x00\x0f\xac", 3) && v[o + 3] < 16) ap->akm |= (uint16_t)(1u << v[o + 3]);
+        if (o + 2 <= (unsigned)l) ap->rsn_caps = (uint16_t)(v[o] | v[o + 1] << 8);
+    }
     return 0;
 }

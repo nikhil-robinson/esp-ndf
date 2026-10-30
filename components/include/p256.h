@@ -12,3 +12,11 @@ int p256_ecdh(uint8_t shared[32], const uint8_t priv[32], const uint8_t peer[64]
 int p256_sign(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32]);      /* random k */
 int p256_sign_k(uint8_t sig[64], const uint8_t priv[32], const uint8_t hash[32], const uint8_t k[32]);
 int p256_verify(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64]);  /* 0 = valid */
+
+/* SAE (WPA3 dragonfly) helpers: points x || y big-endian, scalars big-endian */
+int  p256_sae_y(const uint8_t x[32], uint8_t y[32]);                           /* 0: x < p and x^3 - 3x + b is a square, y = one root */
+int  p256_scalar_ok(const uint8_t k[32]);                                      /* 1: 0 < k < n */
+int  p256_scalar_add(uint8_t r[32], const uint8_t a[32], const uint8_t b[32]); /* (a + b) mod n */
+int  p256_point_mul(uint8_t out[64], const uint8_t k[32], const uint8_t in[64]);
+int  p256_point_add(uint8_t out[64], const uint8_t a[64], const uint8_t b[64]);
+void p256_point_neg(uint8_t out[64], const uint8_t in[64]);

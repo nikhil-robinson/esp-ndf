@@ -32,9 +32,14 @@ int main(int argc, char **argv)
     n = wifi_build_assoc_req(f, me, ap_, "net", 0, 2); CHECK(n == 24 + 4 + 5 + 16 + 28 + 9 && f[0] == 0 && f[28] == 0 && f[29] == 3 && !memcmp(f + 30, "net", 3));
     n = wifi_build_deauth(f, me, ap_, 3, 1); CHECK(n == 26 && f[0] == 0xC0 && f[24] == 3);
 
-    n = wifi_build_assoc_req(f, me, ap_, "net", 1, 2); CHECK(n == 24 + 4 + 5 + 16 + 22 + 28 + 9 && f[n - 59] == 48 && f[n - 58] == 20 && f[n - 37] == 45 && f[n - 9] == 0xdd);
+    static const uint8_t rsn[22] = { 48, 20, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 2, 0x80, 0 };
+    n = wifi_build_assoc_req(f, me, ap_, "net", rsn, 2); CHECK(n == 24 + 4 + 5 + 16 + 22 + 28 + 9 && f[n - 59] == 48 && f[n - 58] == 20 && f[n - 37] == 45 && f[n - 9] == 0xdd);
     uint8_t rb2[80] = { 0x80 }; memcpy(rb2 + 16, ap_, 6); rb2[34] = 0x11; rb2[36] = 0; rb2[37] = 1; rb2[38] = 'T'; rb2[39] = 48; rb2[40] = 20; rb2[41] = 1;   /* RSN element => WPA2 */
     CHECK(wifi_parse_beacon(rb2, 36 + 3 + 22, &ap) == 0 && ap.sec == 2);
+    static const uint8_t rsn2[] = { 48, 24, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 2, 0, 0x00, 0x0f, 0xac, 2, 0x00, 0x0f, 0xac, 6, 0xc0, 0 };   /* PSK + PSK-SHA256, MFPC | MFPR */
+    memcpy(rb2 + 39, rsn2, sizeof rsn2);
+    CHECK(wifi_parse_beacon(rb2, 36 + 3 + sizeof rsn2, &ap) == 0 && ap.sec == 2 && ap.akm == ((1 << 2) | (1 << 6)) && ap.rsn_caps == 0xc0);
+    CHECK(wifi_parse_beacon(rb2, 36 + 3 + sizeof rsn2 - 6, &ap) == -1);                      /* element cut short: malformed */
 
     /* data frame to the AP, and a from-DS frame converted to Ethernet */
     const uint8_t dst[6] = { 1, 2, 3, 4, 5, 6 }, pl[4] = { 9, 8, 7, 6 };

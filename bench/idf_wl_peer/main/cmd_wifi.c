@@ -1,3 +1,4 @@
+#include "esp_timer.h"
 /* Wi-Fi commands of the peer: access point, station, sniffer (frame counts), raw frame injection. */
 #include "esp_private/wifi.h"
 #include <stdio.h>
@@ -17,6 +18,7 @@ static EventGroupHandle_t evg;
 static esp_netif_t *sta_if, *ap_if;
 static volatile uint32_t sn_mgmt, sn_ctrl, sn_data, sn_beacon, sn_rate_sum, sn_n;
 
+static int64_t t_conn;                                           /* connected event (cmd_sta prints join / total time from the connect call) */
 static void on_event(void *a, esp_event_base_t base, int32_t id, void *d)
 {
     if (base == WIFI_EVENT && id == WIFI_EVENT_AP_STACONNECTED) {
@@ -25,7 +27,7 @@ static void on_event(void *a, esp_event_base_t base, int32_t id, void *d)
         wifi_event_ap_stadisconnected_t *e = d; printf("event ap-leave %02x:%02x:%02x:%02x:%02x:%02x\n", e->mac[0], e->mac[1], e->mac[2], e->mac[3], e->mac[4], e->mac[5]);
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_AP_PROBEREQRECVED) {
         wifi_event_ap_probe_req_rx_t *e = d; printf("event ap-probe from %02x:%02x:%02x:%02x:%02x:%02x rssi %d\n", e->mac[0], e->mac[1], e->mac[2], e->mac[3], e->mac[4], e->mac[5], e->rssi);
-    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) printf("event sta-connected\n");
+    } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_CONNECTED) { t_conn = esp_timer_get_time(); printf("event sta-connected\n"); }
     else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t *e = d; printf("event sta-disconnected reason %d\n", e->reason);
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
@@ -57,8 +59,19 @@ static int cmd_ap(int argc, char **argv)                         /* wifi_ap <ssi
     wifi_config_t c = { 0 };
     strlcpy((char *)c.ap.ssid, argv[1], sizeof c.ap.ssid); c.ap.ssid_len = strlen(argv[1]);
     c.ap.channel = atoi(argv[3]); c.ap.max_connection = 4; c.ap.beacon_interval = 100;
-    if (strcmp(argv[2], "-")) { strlcpy((char *)c.ap.password, argv[2], sizeof c.ap.password); c.ap.authmode = WIFI_AUTH_WPA2_PSK; }
-    else c.ap.authmode = WIFI_AUTH_OPEN;
+    if (strcmp(argv[2], "-")) {                                  /* pass, or <mode>:pass with mode pmf (WPA2, PMF capable), pmfreq (PMF required), wpa3 (SAE), wpa23 (WPA2/WPA3 transition) */
+        const char *pw = argv[2], *col = strchr(pw, ':'); c.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        if (col) {
+            unsigned ml = (unsigned)(col - pw);
+            if (ml == 3 && !strncmp(pw, "pmf", 3)) c.ap.pmf_cfg.capable = true;
+            else if (ml == 6 && !strncmp(pw, "pmfreq", 6)) { c.ap.pmf_cfg.capable = true; c.ap.pmf_cfg.required = true; }
+            else if (ml == 4 && !strncmp(pw, "wpa3", 4)) { c.ap.authmode = WIFI_AUTH_WPA3_PSK; c.ap.pmf_cfg.required = true; }
+            else if (ml == 5 && !strncmp(pw, "wpa23", 5)) { c.ap.authmode = WIFI_AUTH_WPA2_WPA3_PSK; c.ap.pmf_cfg.capable = true; }
+            else return -1;
+            pw = col + 1;
+        }
+        strlcpy((char *)c.ap.password, pw, sizeof c.ap.password);
+    } else c.ap.authmode = WIFI_AUTH_OPEN;
     esp_wifi_set_mode(WIFI_MODE_AP); esp_wifi_set_config(WIFI_IF_AP, &c);
     if (argc > 4 && strtol(argv[4], 0, 0) < WIFI_PHY_RATE_MCS0_LGI) esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);   /* a fixed legacy rate needs the 802.11n aggregation off; an MCS code keeps 11n */
     int rc = esp_wifi_start(); mode_on = !rc;
@@ -80,8 +93,11 @@ static int cmd_sta(int argc, char **argv)                        /* wifi_sta <ss
     int rc = esp_wifi_start(); mode_on = !rc;
     if (rc) return rc;
     esp_wifi_set_ps(WIFI_PS_NONE);                               /* the esp-ndf access point has no power-save buffering (v1) */
+    int64_t t0 = esp_timer_get_time(); t_conn = 0;
     esp_wifi_connect();
-    return (xEventGroupWaitBits(evg, GOT_IP, 0, 0, pdMS_TO_TICKS(20000)) & GOT_IP) ? 0 : -2;
+    int ok = (xEventGroupWaitBits(evg, GOT_IP, 0, 0, pdMS_TO_TICKS(20000)) & GOT_IP) != 0;
+    if (ok) printf("sta join_ms %d total_ms %d\n", t_conn ? (int)((t_conn - t0) / 1000) : -1, (int)((esp_timer_get_time() - t0) / 1000));
+    return ok ? 0 : -2;
 }
 static int cmd_stop(int argc, char **argv) { halt(); return 0; }
 
@@ -255,7 +271,8 @@ static int cmd_i2crd(int argc, char **argv)
     }
     printf("\n"); return 0;
 }
+static int cmd_kick(int argc, char **argv) { return esp_wifi_deauth_sta(0); }   /* wifi_kick: the AP deauthenticates every station (protected when PMF is on) */
 static int cmd_chan(int argc, char **argv) { return argc < 2 ? -1 : esp_wifi_set_channel(atoi(argv[1]), WIFI_SECOND_CHAN_NONE); }
 
 const peer_cmd_t cmds_wifi[] = { { "wifi_ap", cmd_ap }, { "wifi_sta", cmd_sta }, { "wifi_stop", cmd_stop }, { "wifi_sniff", cmd_sniff },
-                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "i2crd", cmd_i2crd }, { "wifi_unicast", cmd_unicast }, { 0 } };
+                                 { "wifi_raw", cmd_raw }, { "wifi_chan", cmd_chan }, { "wifi_watch", cmd_watch }, { "wifi_watch_stats", cmd_watch_stats }, { "wifi_stas", cmd_stas }, { "wifi_mon", cmd_mon }, { "wifi_bcn", cmd_bcn }, { "wifi_dhcps", cmd_dhcps }, { "rd", cmd_rd }, { "wifi_kick", cmd_kick }, { "i2crd", cmd_i2crd }, { "wifi_unicast", cmd_unicast }, { 0 } };

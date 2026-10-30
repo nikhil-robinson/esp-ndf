@@ -10,7 +10,7 @@ static void E(const uint8_t k[16], const uint8_t in[16], uint8_t out[16]) { aes_
 static unsigned build_aad(const uint8_t *h, unsigned hl, uint8_t *aad, uint8_t *tid)
 {
     unsigned n = 0, qos = (h[0] & 0x80) != 0 && (h[0] & 0x0C) == 0x08, four = (h[1] & 3) == 3;
-    aad[n++] = h[0] & 0x8F; aad[n++] = (h[1] & 0xC7) | 0x40;                          /* FC: subtype bits and retry / power / more-data cleared, protected set */
+    aad[n++] = (h[0] & 0x0C) ? h[0] & 0x8F : h[0]; aad[n++] = (h[1] & 0xC7) | 0x40;   /* FC: subtype bits (data frames only: a management frame keeps them, 802.11w) and retry / power / more-data cleared, protected set */
     memcpy(aad + n, h + 4, 18); n += 18;                                              /* A1 A2 A3 */
     aad[n++] = h[22] & 0x0F; aad[n++] = 0;                                            /* sequence control: fragment number only */
     if (four) { memcpy(aad + n, h + 24, 6); n += 6; }
@@ -50,7 +50,7 @@ static void ccm(const uint8_t k[16], const uint8_t nonce[13], const uint8_t *aad
 
 static void nonce_of(uint8_t nonce[13], uint8_t tid, const uint8_t *h, uint64_t pn)
 {
-    nonce[0] = tid; memcpy(nonce + 1, h + 10, 6);
+    nonce[0] = (uint8_t)(tid | ((h[0] & 0x0C) ? 0 : 0x10)); memcpy(nonce + 1, h + 10, 6);   /* nonce flags: priority, Management bit for a management frame (PMF) */
     for (int i = 0; i < 6; i++) nonce[7 + i] = (uint8_t)(pn >> (40 - 8 * i));
 }
 
@@ -81,8 +81,8 @@ int ccmp_decrypt(const uint8_t tk[16], const uint8_t *hdr, unsigned hl, uint8_t 
 
 int aes_unwrap(const uint8_t kek[16], const uint8_t *in, unsigned n, uint8_t *out)
 {
-    if (n < 24 || n % 8 || n > 8 + 64) return -1;
-    unsigned nb = n / 8 - 1; uint8_t a[8], r[64], b[16], o[16];
+    if (n < 24 || n % 8 || n > 8 + WPA_UNWRAP_MAX) return -1;
+    unsigned nb = n / 8 - 1; uint8_t a[8], r[WPA_UNWRAP_MAX], b[16], o[16];
     memcpy(a, in, 8); memcpy(r, in + 8, nb * 8);
     for (int j = 5; j >= 0; j--)
         for (int i = (int)nb; i >= 1; i--) {

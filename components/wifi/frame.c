@@ -32,13 +32,13 @@ unsigned wifi_build_auth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6]
     return n + 6;
 }
 
-unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, int rsn, uint16_t seq)
+unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, const uint8_t *rsn, uint16_t seq)
 {
     unsigned n = hdr(o, 0x00, 0, bssid, me, bssid, seq);
     o[n++] = 0x01; o[n++] = 0x00;                                 /* capability: ESS */
     o[n++] = 10; o[n++] = 0;                                      /* listen interval */
     n += ssid_ie(o + n, ssid); n += rates_ie(o + n);
-    if (rsn) { static const uint8_t r[] = { 48, 20, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 4, 1, 0, 0x00, 0x0f, 0xac, 2, 0, 0 }; memcpy(o + n, r, sizeof r); n += sizeof r; }   /* RSN: CCMP group, CCMP pairwise, PSK */
+    if (rsn) { memcpy(o + n, rsn, 2u + rsn[1]); n += 2u + rsn[1]; }
     static const uint8_t ht[] = { 45, 26, 0x6e, 0x11, 0x00, 0xff, 0,0,0,0,0,0,0,0,0,0,0, 0x01, 0,0,0,0,0,0,0,0,0,0 };   /* HT capabilities as an IDF station sends them (captured): 0x116e, MCS 0-7, Tx MCS set defined */
     memcpy(o + n, ht, sizeof ht); n += sizeof ht;
     static const uint8_t wmm[] = { 0xdd, 7, 0x00, 0x50, 0xf2, 2, 0, 1, 0 };   /* WMM information element: a QoS station, so the AP sends QoS data with one TID per queue (as to an IDF station) */

@@ -661,3 +661,65 @@ void p256_bench(void)
     ecc_unlock();
 }
 #endif
+
+/* --- SAE (dragonfly, IEEE 802.11-2020 12.4) helpers: points as 64-byte big-endian x || y, scalars 32-byte big-endian --- */
+static void shr(fe r, const fe a, int s) { for (int i = 0; i < 8; i++) r[i] = a[i] >> s | (i < 7 ? a[i + 1] << (32 - s) : 0); }
+
+/* y with y^2 = x^3 - 3x + b, when x < p and the right side is a square. Both exponentiations always run (the PWE loop's timing does not
+ * depend on which candidate is a square); 0 = square, y written; -1 = not a square or x >= p. ponytail: no qr/qnr blinding as in
+ * hostapd's dragonfly_is_quadratic_residue_blind; the work is the same either way, add the blinding if a power side channel matters. */
+int p256_sae_y(const uint8_t x_be[32], uint8_t y_be[32])
+{
+    ecc_lock(); init();
+    fe x, r, t, e, l, y, one = { 1 }; int ok;
+    from_be(x, x_be); ok = lt(x, P);
+    to_m(&mp_, x, x);
+    FM(r, x, x); FM(r, r, x); FA(t, x, x); FA(t, t, x); FS(r, r, t); FA(r, r, b_m);
+    sub8(e, P, one); shr(e, e, 1); mpow(&mp_, l, r, e);                       /* Euler: r^((p-1)/2) = 1 for a square */
+    add8(e, P, one); shr(e, e, 2); mpow(&mp_, y, r, e);                       /* p = 3 mod 4: sqrt = r^((p+1)/4) */
+    from_m(&mp_, l, l); from_m(&mp_, y, y);
+    ok = ok && !memcmp(l, one, 32);
+    if (ok) to_be(y_be, y);
+    WIPE(x, r, t, l, y);
+    ecc_unlock();
+    return ok ? 0 : -1;
+}
+
+int p256_scalar_ok(const uint8_t k[32]) { fe d; from_be(d, k); int r = scalar_ok(d); WIPE(d); return r; }   /* 0 < k < n */
+
+int p256_scalar_add(uint8_t r[32], const uint8_t a[32], const uint8_t b[32])  /* (a + b) mod n; a, b < n */
+{
+    ecc_lock(); init();
+    fe x, y, z; from_be(x, a); from_be(y, b); int ok = lt(x, N) && lt(y, N);
+    if (ok) { madd(&mn_, z, x, y); to_be(r, z); }
+    WIPE(x, y, z); ecc_unlock();
+    return ok ? 0 : -1;
+}
+
+int p256_point_mul(uint8_t out[64], const uint8_t k[32], const uint8_t in[64])   /* k in [1, n-1], in on the curve; -1 otherwise or infinity */
+{
+    ecc_lock(); init();
+    fe d, x, y; pt q; int r = -1; from_be(d, k);
+    if (scalar_ok(d) && !load_pub(&q, in)) { pmul(&q, d, &q); if (!affine(x, y, &q)) { to_be(out, x); to_be(out + 32, y); r = 0; } }
+    WIPE(d, x, y); explicit_bzero(&q, sizeof q); ecc_unlock();
+    return r;
+}
+
+int p256_point_add(uint8_t out[64], const uint8_t a[64], const uint8_t b[64])    /* both on the curve; -1 for a + (-a) (infinity) */
+{
+    ecc_lock(); init();
+    pt p, q, s; fe x, y; int r = -1;
+    if (!load_pub(&p, a) && !load_pub(&q, b)) {
+        if (memcmp(p.x, q.x, 32)) padd(&s, &p, &q);
+        else if (!memcmp(p.y, q.y, 32)) pdbl(&s, &p);
+        else memset(&s, 0, sizeof s);
+        if (!affine(x, y, &s)) { to_be(out, x); to_be(out + 32, y); r = 0; }
+    }
+    WIPE(x, y); explicit_bzero(&p, sizeof p); explicit_bzero(&q, sizeof q); explicit_bzero(&s, sizeof s); ecc_unlock();
+    return r;
+}
+
+void p256_point_neg(uint8_t out[64], const uint8_t in[64])                     /* (x, p - y) */
+{
+    fe y; from_be(y, in + 32); sub8(y, P, y); memmove(out, in, 32); to_be(out + 32, y);
+}

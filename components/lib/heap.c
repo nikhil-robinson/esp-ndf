@@ -27,10 +27,14 @@ static void corrupt(const char *why)               /* a hook (tests) sees it and
 
 extern char _stack1_top[];
 #define HEAP_END ((char *)(NDF_APPTRACE ? 0x3FCE8000 : 0x3FCE9000))   /* ROM loader data / trace blocks above (link.ld RAM_END) */
+/* SRAM banks the RF dump engine writes are left out (components/drivers/rf/rf_dump.c, link.ld): bank 2 (0x3FCD0000..0x3FCDFFFF) when
+ * the capture is linked (RX IQ calibration), banks 0..2 from 0x3FCB0000 when DAC playback / streaming is. Sizes from the linker. */
+extern char _rfmark_size[], _rfmark_dac_size[];
+#define RF_BANKS_END ((char *)0x3FCE0000)
 
 typedef struct { char *base, *end; size_t nfree, minfree; uint32_t caps; } region_t;
-static region_t reg[2];
-static int nreg;
+static region_t reg[3];                            /* internal (one, or two around the dump banks), then PSRAM */
+static int nreg, has_psram;
 static xc_spin_t lock;
 
 #define NEXT(b) ((blk_t *)((char *)(b) + (b)->size))
@@ -47,7 +51,14 @@ static void region_init(region_t *r, char *start, char *end, uint32_t caps)
     r->nfree = r->minfree = b->size - sizeof(blk_t);
 }
 
-static void init(void) { region_init(&reg[0], _stack1_top, HEAP_END, HEAP_INTERNAL | HEAP_DMA); nreg = 1; }
+static void init(void)
+{
+    char *lo = (uintptr_t)_rfmark_dac_size ? (char *)0x3FCB0000 : (uintptr_t)_rfmark_size ? (char *)0x3FCD0000 : 0;
+    if (!lo) { region_init(&reg[0], _stack1_top, HEAP_END, HEAP_INTERNAL | HEAP_DMA); nreg = 1; return; }
+    nreg = 0;
+    if (lo - _stack1_top > 256) region_init(&reg[nreg++], _stack1_top, lo, HEAP_INTERNAL | HEAP_DMA);   /* (link.ld keeps the stacks below lo) */
+    region_init(&reg[nreg++], RF_BANKS_END, HEAP_END, HEAP_INTERNAL | HEAP_DMA);
+}
 
 static inline uint32_t lock_all(void) { uint32_t ps = irq_lock(); xc_spin_lock(&lock); if (!nreg) init(); return ps; }
 static inline void unlock_all(uint32_t ps) { xc_spin_unlock(&lock); irq_unlock(ps); }
@@ -84,19 +95,19 @@ void *heap_caps_malloc(size_t n, uint32_t caps)
 
 void *malloc(size_t n)
 {
-    if (nreg > 1 && n >= NDF_PSRAM_MALLOC_MIN) {      /* large: PSRAM first (keeps internal RAM for DMA, stacks) */
+    if (has_psram && n >= NDF_PSRAM_MALLOC_MIN) {      /* large: PSRAM first (keeps internal RAM for DMA, stacks) */
         void *p = heap_caps_malloc(n, HEAP_SPIRAM);
         if (p) return p;
     }
     void *p = heap_caps_malloc(n, HEAP_INTERNAL);
-    return p || nreg < 2 ? p : heap_caps_malloc(n, HEAP_SPIRAM);
+    return p || !has_psram ? p : heap_caps_malloc(n, HEAP_SPIRAM);
 }
 
 int heap_add_psram(void *start, size_t size)
 {
     uint32_t ps = lock_all();
     int r = -1;
-    if (nreg < 2 && size > 4096) { region_init(&reg[1], start, (char *)start + size, HEAP_SPIRAM); nreg = 2; r = 0; }
+    if (!has_psram && size > 4096) { region_init(&reg[nreg++], start, (char *)start + size, HEAP_SPIRAM); has_psram = 1; r = 0; }
     unlock_all(ps);
     return r;
 }
@@ -155,13 +166,14 @@ size_t heap_caps_free_size(uint32_t caps)
     return f;
 }
 size_t heap_free(void) { return heap_caps_free_size(HEAP_INTERNAL); }
-size_t heap_min_free(void) { uint32_t ps = lock_all(); size_t f = reg[0].minfree; unlock_all(ps); return f; }
+size_t heap_min_free(void) { uint32_t ps = lock_all(); size_t f = 0; for (int i = 0; i < nreg; i++) if (reg[i].caps & HEAP_INTERNAL) f += reg[i].minfree; unlock_all(ps); return f; }
 
 size_t heap_largest(void)
 {
     uint32_t ps = lock_all(); size_t m = 0;
-    for (blk_t *b = (blk_t *)reg[0].base; b->size; b = NEXT(b))
-        if (!b->used && b->size - sizeof(blk_t) > m) m = b->size - sizeof(blk_t);
+    for (int i = 0; i < nreg; i++) if (reg[i].caps & HEAP_INTERNAL)
+        for (blk_t *b = (blk_t *)reg[i].base; b->size; b = NEXT(b))
+            if (!b->used && b->size - sizeof(blk_t) > m) m = b->size - sizeof(blk_t);
     unlock_all(ps);
     return m;
 }

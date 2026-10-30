@@ -7,8 +7,13 @@
 #define BANK_SEL 0x600C101Cu                    /* 3:0 one-hot banks the engine owns */
 #define UNWRITTEN 0xA5A0055Au                   /* bits 31:28 never written by the engine */
 
+/* linked in only together with the functions that reference them: the linker script checks their sizes (SRAM banks the engine
+ * owns) and the heap leaves those banks out. Capture: bank 2. DAC playback / streaming and continuous capture: banks 0..2. */
+const uint8_t rf_dac_ram_marker __attribute__((section(".rfmark_dac"), used)) = 1;
+
 void rf_dac_play(unsigned bank, uint32_t n, int rate80, int loop)
 {
+    __asm__ volatile("" :: "r"(&rf_dac_ram_marker));
     uint32_t ctrl = 1u << 31 | (rate80 ? 1u << 15 : 0) | n;
     REG(BANK_SEL) = (REG(BANK_SEL) & ~15u) | 1u << bank;
     REG(DAC) = 0;
@@ -23,7 +28,6 @@ void rf_dac_stop(void)
     REG(BANK_SEL) &= ~15u;
 }
 
-/* linked in only together with the dump engine: the linker script checks its size (SRAM banks the engine writes) */
 const uint8_t rf_dump_ram_marker __attribute__((section(".rfmark"), used)) = 1;
 int rf_dump_burst(uint32_t rate, uint32_t n)
 {
@@ -57,6 +61,7 @@ static inline uint32_t ccount_now(void) { uint32_t c; __asm__ volatile("rsr.ccou
 #define CPS      6u                                    /* CPU cycles per DAC sample (240 MHz / 40 MS/s) */
 int rf_dac_stream(uint32_t units, rf_dac_cb cb, void *ctx, rf_dac_stats_t *st)
 {
+    __asm__ volatile("" :: "r"(&rf_dac_ram_marker));
     uint32_t *bank[2] = { (uint32_t *)RF_DUMP_BANK(0), (uint32_t *)RF_DUMP_BANK(1) };
     st->units = 0; st->late = 0; st->min_margin = 0xFFFFFFFF; st->cb_max = st->copy_max = 0;
     if (cb(bank[0], TXU, ctx)) return 0;                       /* the callback writes straight into the free bank */

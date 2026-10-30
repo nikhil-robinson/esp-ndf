@@ -48,6 +48,9 @@ static err_t if_init(struct netif *n)
 
 int net_start(const uint8_t mac[6])
 {
+    static int started;
+    if (started) { dhcp_stop(&nif); return dhcp_start(&nif) == ERR_OK ? 0 : -1; }   /* again after a new join: same interface, fresh lease (a second lwip_init / netif_add would loop the netif list) */
+    started = 1;
     lwip_init();
     ip4_addr_t z = { 0 };
     if (!netif_add(&nif, &z, &z, &z, 0, if_init, ethernet_input)) return -1;

@@ -822,6 +822,19 @@ On this board pair both stations lose most HT frames from the AP (the AP retries
 BOX-3 does the same echo in 135-179 ms. Floor: the air time of 64 KB at the AP's HT rate (about 10 ms each way at MCS 7); the gap is the
 board's HT reception, not the stack. Data: `bench/wifi_regs/data/ht_sta_*.json`, `idf_devkit_ht_sta.json`.
 
+## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
+
+Time from the join call to an IP address (both include the 1 s DHCP wait; ours also includes radio init and the scan).
+
+| network | esp-ndf | ESP-IDF station |
+|---|---|---|
+| WPA2-PSK | 1.78 s | 1.71-1.72 s |
+| WPA2 + PMF required (PSK-SHA256) | 1.79 s | 1.72-1.73 s |
+| WPA3-SAE | 2.50 s | 2.56-2.58 s |
+
+Equal within the scan time; SAE adds about 0.7 s on both sides (40-round hunting-and-pecking PWE on P-256 in software). Room: the PWE can be
+computed during the scan, and our P-256 software multiply is the floor today (no ECC engine use yet).
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

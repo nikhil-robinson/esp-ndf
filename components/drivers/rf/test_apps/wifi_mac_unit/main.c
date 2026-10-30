@@ -6,6 +6,8 @@
 #include "rf.h"
 #include "wifi_mac.h"
 #include <stdlib.h>
+#include "heap.h"
+#include "rf_dump.h"
 #include <string.h>
 
 static unsigned rate;
@@ -27,6 +29,13 @@ int main(void)
         uint8_t bs[6]; wifi_rx_t r;
         if (!n) { printf("ok\n"); continue; }
         if (!strcmp(v[0], "init")) printf("init %d\n", wifi_mac_init(my));
+        else if (!strcmp(v[0], "heapbank")) {               /* fill the heap in 4 KB blocks: none may sit in the capture bank (rf_dump.c); a capture, then the heap still checks */
+            static void *b[96]; unsigned nb = 0, in_bank = 0;
+            while (nb < 96 && (b[nb] = malloc(4096))) { uintptr_t a = (uintptr_t)b[nb]; if (a + 4096 > RF_DUMP_BURST_ADDR && a < RF_DUMP_BURST_ADDR + 0x10000) in_bank++; memset(b[nb], 0x5A, 4096); nb++; }
+            int cap = rf_dump_burst(RF_DUMP_80M, 4096); unsigned bad = 0;
+            for (unsigned i = 0; i < nb; i++) { for (int j = 0; j < 4096; j++) if (((uint8_t *)b[i])[j] != 0x5A) { bad++; break; } free(b[i]); }
+            printf("heapbank blocks %u in_bank %u capture %d clobbered %u check %d\n", nb, in_bank, cap, bad, heap_check());
+        }
         else if (!strcmp(v[0], "chan") && n > 1) printf("chan %d\n", wifi_mac_set_channel((uint8_t)atoi(v[1])));
         else if (!strcmp(v[0], "count") && n > 2 && !parse_mac(v[2], bs)) {
             uint32_t ms = atoi(v[1]), t0 = ccount(), bc = 0, other = 0;

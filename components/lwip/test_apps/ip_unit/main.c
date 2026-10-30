@@ -157,6 +157,7 @@ int main(void)
                 } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
         } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
         else if (!strcmp(v[0], "i2crd") && n > 1) { extern uint8_t rf_regi2c_read(uint8_t, uint8_t); uint8_t b = (uint8_t)strtoul(v[1], 0, 0); printf("i2c %02x", b); for (unsigned r = 0; r < 32; r++) printf(" %02x", rf_regi2c_read(b, (uint8_t)r)); printf("\n"); }
+        else if (!strcmp(v[0], "link")) { uint32_t t0 = time_ms(); while (time_ms() - t0 < (n > 1 ? (uint32_t)atoi(v[1]) : 0)) net_poll(); printf("link %d\n", wifi_sta_up()); }   /* link [ms]: poll for ms, then the station state */
         else if (!strcmp(v[0], "stats"))
             printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
                    (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max, (unsigned)lwip_stats.memp[MEMP_PBUF_POOL]->err);

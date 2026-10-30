@@ -25,7 +25,7 @@ def prf(k, a, b, n):
     while len(r) * 8 < n: r += hmac.new(k, a + b'\0' + b + bytes([i]), hashlib.sha1).digest(); i += 1
     return r[:n // 8]
 pmk = rb(32); aa = rb(6); spa = rb(6); an = rb(32); sn = rb(32)
-data = min(aa, spa) + max(aa, spa) + min(an, sn) + max(an, sn)
+data = ptk_data = min(aa, spa) + max(aa, spa) + min(an, sn) + max(an, sn)
 ptk = prf(pmk, b'Pairwise key expansion', data, 384)
 for n, v in (('ptk_pmk', pmk), ('ptk_aa', aa), ('ptk_spa', spa), ('ptk_an', an), ('ptk_sn', sn), ('ptk_out', ptk)): arr(n, v)
 # EAPOL-Key message 3 with a valid MIC
@@ -43,10 +43,11 @@ arr('uw_kek', kek)
 # CCMP: (header, payload) pairs; AAD and nonce built here from the 802.11 rules, independently of the C code
 def ccmp(tk, hdr, pn, data):
     fc0, fc1 = hdr[0], hdr[1]; qos = fc0 & 0x80 and (fc0 & 0x0C) == 8; four = (fc1 & 3) == 3
-    aad = bytes([fc0 & 0x8F, (fc1 & 0xC7) | 0x40]) + hdr[4:22] + bytes([hdr[22] & 0x0F, 0]) + (hdr[24:30] if four else b'')
+    mg = (fc0 & 0x0C) == 0                                    # management frame (802.11w): subtype kept in the AAD, Management bit in the nonce flags
+    aad = bytes([fc0 if mg else fc0 & 0x8F, (fc1 & 0xC7) | 0x40]) + hdr[4:22] + bytes([hdr[22] & 0x0F, 0]) + (hdr[24:30] if four else b'')
     tid = 0
     if qos: q = 24 + (6 if four else 0); aad += bytes([hdr[q] & 0x0F, 0]); tid = hdr[q] & 0x0F
-    nonce = bytes([tid]) + hdr[10:16] + pn.to_bytes(6, 'big')
+    nonce = bytes([tid | (0x10 if mg else 0)]) + hdr[10:16] + pn.to_bytes(6, 'big')
     ct = AESCCM(tk, tag_length=8).encrypt(nonce, data, aad)
     ch = bytes([pn & 255, (pn >> 8) & 255, 0, 0x20, (pn >> 16) & 255, (pn >> 24) & 255, (pn >> 32) & 255, (pn >> 40) & 255])
     return ch + ct
@@ -55,5 +56,31 @@ for i, (qos, four, n, pn) in enumerate([(0, 0, 0, 1), (0, 0, 1, 2), (0, 0, 15, 3
     fc0 = 0x88 if qos else 0x08; fc1 = 0x03 if four else 0x01
     hdr = bytes([fc0, fc1 | 0x08 | 0x10]) + bytes(2) + rb(6) + rb(6) + rb(6) + bytes([0x35, 0x12]) + (rb(6) if four else b'') + (bytes([0x05, 0]) if qos else b'')
     data = rb(n); arr('cc_hdr%d' % i, hdr); arr('cc_pt%d' % i, data); arr('cc_ct%d' % i, ccmp(tk, hdr, pn, data)); out.append('static const uint64_t cc_pn%d = 0x%xULL;' % (i, pn)); cases.append(i)
+hdr = bytes([0xc0, 0x00]) + bytes(2) + rb(6) + rb(6) + rb(6) + bytes([0x50, 0x02]); data = (7).to_bytes(2, 'little')   # protected unicast deauthentication
+arr('cc_hdr8', hdr); arr('cc_pt8', data); arr('cc_ct8', ccmp(tk, hdr, 9, data)); out.append('static const uint64_t cc_pn8 = 9ULL;')
 out.append('#define N_CC %d' % len(cases))
+# --- PMF / WPA3: AES-CMAC (RFC 4493 key and message, lengths 0 / 16 / 40 / 64), KDF-SHA256 PTK, CMAC EAPOL MIC, BIP-CMAC-128
+from cryptography.hazmat.primitives.cmac import CMAC
+from cryptography.hazmat.primitives.ciphers import algorithms
+def cmac(k, d): c = CMAC(algorithms.AES(k)); c.update(d); return c.finalize()
+ck = bytes.fromhex('2b7e151628aed2a6abf7158809cf4f3c'); cm = bytes.fromhex('6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710')
+arr('cmac_key', ck); arr('cmac_msg', cm)
+for i, n in enumerate((0, 16, 40, 64)): arr('cmac_out%d' % i, cmac(ck, cm[:n])); out.append('#define CMAC_LEN%d %d' % (i, n))
+def kdf(k, label, ctx, bits):
+    r = b''; i = 1
+    while len(r) * 8 < bits: r += hmac.new(k, i.to_bytes(2, 'little') + label + ctx + bits.to_bytes(2, 'little'), hashlib.sha256).digest(); i += 1
+    return r[:bits // 8]
+arr('ptk256_out', kdf(pmk, b'Pairwise key expansion', ptk_data, 384))
+kck2 = kdf(pmk, b'Pairwise key expansion', ptk_data, 384)[:16]
+body2 = bytes([2]) + (0x13cb).to_bytes(2, 'big') + body[3:]
+fr2 = bytes([2, 3]) + len(body2).to_bytes(2, 'big') + body2
+fr2 = fr2[:81] + bytes(16) + fr2[97:]; fr2 = fr2[:81] + cmac(kck2, fr2) + fr2[97:]
+arr('eapol_kck2', kck2); arr('eapol_frame2', fr2)
+igtk = rb(16); ipn = 0x0000123456
+hdr = bytes([0xc0, 0x00, 0, 0]) + b'\xff' * 6 + rb(6); hdr = hdr + hdr[10:16] + bytes([0x40, 0x01])
+mmie_head = bytes([76, 16, 4, 0]) + ipn.to_bytes(6, 'little')
+bodyb = (7).to_bytes(2, 'little') + mmie_head
+aad = bytes([hdr[0], hdr[1] & ~0x38 & 255]) + hdr[4:22]
+mic = cmac(igtk, aad + bodyb + bytes(8))[:8]
+arr('bip_igtk', igtk); arr('bip_frame', hdr + bodyb + mic); out.append('static const uint64_t bip_ipn = 0x%xULL;' % ipn)
 open(os.path.join(os.path.dirname(__file__), '..', '..', 'components', 'wifi', 'test_apps', 'wpa_unit', 'vectors.h'), 'w').write('\n'.join(out) + '\n')
