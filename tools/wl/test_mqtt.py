@@ -16,6 +16,7 @@ def check(c, msg):
 def field(line, k): m = re.search(r'\b' + k + r' (-?\d+)', line); return int(m.group(1)) if m else -99
 
 p = Peer(); box = Peer(_board('BOX3', '')); p.reboot(); box.reboot(); time.sleep(3)
+import atexit; atexit.register(lambda: box.cmd('wifi_stop'))   # never leave the BOX-3 a station: after an AP restart it keeps its old address and collides with the next suite's DHCP lease
 p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6'); time.sleep(1); p.cmd('mqtt_broker')
 n = Ndf(ready='http_unit ready', timeout=20)
 r = n.cmd('up T', 40)[-1]; check(r.startswith('up rc 0'), 'joined (%s)' % r)

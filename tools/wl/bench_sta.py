@@ -8,6 +8,7 @@ from ndf import Ndf
 R = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 RATE = os.environ.get('AP_RATE', '0')                        # the AP's fixed PHY rate code for both stations (0 = 1 Mbit/s, 3 = 11 Mbit/s CCK)
 p = Peer(); box = Peer(_board('BOX3', ''))
+import atexit; atexit.register(lambda: box.cmd('wifi_stop'))   # never leave the BOX-3 a station: after an AP restart it keeps its old address and collides with the next suite's DHCP lease
 for pw in ('-', 'secret123'):
     p.reboot(); box.reboot(); p.cmd('wifi_stop'); box.cmd('wifi_stop'); p.cmd('wifi_ap T %s 6 %s' % (pw, RATE)); time.sleep(1); p.cmd('tcp_echo 8')
     n = Ndf(ready='ip_unit ready', timeout=20); n.cmd('up T' + ('' if pw == '-' else ' ' + pw), 40)

@@ -8,6 +8,7 @@ from peer import Peer, _board, ap_bssid
 from ndf import Ndf
 pw = sys.argv[1] if len(sys.argv) > 1 else None
 box = Peer(_board('BOX3', '')); peer = Peer(); time.sleep(4)
+import atexit; atexit.register(lambda: box.cmd('wifi_stop'))   # never leave the BOX-3 a station: after an AP restart it keeps its old address and collides with the next suite's DHCP lease
 res = {}
 def bcn_stats(mon, bssid, ms=8000):
     mon.cmd('wifi_stop'); mon.cmd('wifi_mon 6'); l = mon.cmd('wifi_bcn %s 64 %d' % (bssid, ms), ms // 1000 + 10)[-1]

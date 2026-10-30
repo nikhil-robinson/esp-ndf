@@ -15,6 +15,7 @@ def check(c, msg):
     if not c: fail.append(msg)
 
 p = Peer(); box = Peer(_board('BOX3', '')); p.reboot(); box.reboot(); time.sleep(3)
+import atexit; atexit.register(lambda: box.cmd('wifi_stop'))   # never leave the BOX-3 a station: after an AP restart it keeps its old address and collides with the next suite's DHCP lease
 p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6'); time.sleep(1)
 p.cmd('dns_serve %s %s' % (NAME, ADDR)); p.cmd('sntp_serve %d' % T0); t_set = time.time()
 n = Ndf(ready='ip_unit ready')

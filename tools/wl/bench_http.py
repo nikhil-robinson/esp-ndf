@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from peer import Peer, _board
 from ndf import Ndf
 peer = Peer(); box = Peer(_board('BOX3', '')); time.sleep(4)
+import atexit; atexit.register(lambda: box.cmd('wifi_stop'))   # never leave the BOX-3 a station: after an AP restart it keeps its old address and collides with the next suite's DHCP lease
 def cmd_out(c):
     try: return peer.cmd(c, 300)
     except RuntimeError as e: return str(e).split('\n')[1:]
