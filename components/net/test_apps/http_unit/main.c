@@ -8,6 +8,7 @@
 #include "net.h"
 #include "http.h"
 #include "ws.h"
+#include "mqtt.h"
 #include "lwip/stats.h"
 #include <stdlib.h>
 #include <string.h>
@@ -18,6 +19,10 @@ extern const char _flash_rodata_start[];
 static void ws_echo(int id, int op, const uint8_t *p, unsigned n) { if (op != WS_CLOSE) ws_send(id, op, p, n); }
 static volatile unsigned wc_got, wc_len; static volatile int wc_closed;
 static void ws_cl(int id, int op, const uint8_t *p, unsigned n) { if (op == WS_CLOSE) wc_closed = 1; else { wc_len = n; wc_got++; } }
+/* MQTT: count messages, keep the last one */
+static volatile unsigned mq_got, mq_len; static char mq_topic[64], mq_last[64]; static int mq_retain;
+static void mq_cb(const char *t, unsigned tl, const uint8_t *p, unsigned n, int qos, int retain)
+{ mq_got++; mq_len = n; mq_retain = retain; unsigned k = tl < 63 ? tl : 63; memcpy(mq_topic, t, k); mq_topic[k] = 0; k = n < 63 ? n : 63; memcpy(mq_last, p, k); mq_last[k] = 0; }
 static int h_hello(const http_req_t *q, http_resp_t *r) { r->body = (const uint8_t *)"hello"; r->len = 5; return 0; }
 static int h_big(const http_req_t *q, http_resp_t *r) { r->body = (const uint8_t *)_flash_rodata_start; r->len = 65536; r->ctype = "application/octet-stream"; return 0; }   /* 64 KB of constant flash data */
 
@@ -60,6 +65,32 @@ int main(void)
             int ping = !rc && !ws_send(WS_CLIENT, WS_PING, "p", 1);
             if (!rc) { ws_close(WS_CLIENT, 1000); uint32_t w0 = time_ms(); while (!wc_closed && time_ms() - w0 < 3000) net_poll(); }
             printf("wsget rc %d connect_ms %lu echoes %u of %u text %d ping %d closed %d echo_ms %lu\n", rc, (unsigned long)(tc - t0), ok, cnt, text, ping, wc_closed, (unsigned long)(td - tc));
+        } else if (!strcmp(v[0], "mqconn") && n > 1) {                 /* mqconn <url> [user pass [id [will_topic]]] */
+            static char u[32], pw[32], id[24], wt[32]; mqtt_cfg_t c = { 0 };
+            if (n > 3) { strncpy(u, v[2], 31); strncpy(pw, v[3], 31); c.user = u; c.pass = pw; }
+            uint32_t t0 = time_ms(); int rc = mqtt_connect(v[1], &c, mq_cb, 5000);
+            printf("mqconn rc %d ms %lu\n", rc, (unsigned long)(time_ms() - t0)); (void)id; (void)wt;
+        } else if (!strcmp(v[0], "mqwill") && n > 2) {                  /* mqwill <url> <will_topic>: connect with a will (QoS 1, "gone") as id "ndf-will" */
+            static char wt[32]; strncpy(wt, v[2], 31); mqtt_cfg_t c = { .client_id = "ndf-will", .will_topic = wt, .will_msg = (const uint8_t *)"gone", .will_len = 4, .will_qos = 1 };
+            printf("mqwill rc %d\n", mqtt_connect(v[1], &c, mq_cb, 5000));
+        } else if (!strcmp(v[0], "mqsub") && n > 2) printf("mqsub %d\n", mqtt_subscribe(v[1], atoi(v[2]), 3000));
+        else if (!strcmp(v[0], "mqunsub") && n > 1) printf("mqunsub %d\n", mqtt_unsubscribe(v[1], 3000));
+        else if (!strcmp(v[0], "mqpub") && n > 3) {                     /* mqpub <topic> <msg> <qos> [retain: as a 4th word is not available, qos 2 = qos 0 retained] */
+            int q = atoi(v[3]); int rc = mqtt_publish(v[1], v[2], (unsigned)strlen(v[2]), q == 2 ? 0 : q, q == 2);
+            uint32_t t0 = time_ms(); while (mqtt_inflight() && time_ms() - t0 < 5000) net_poll();
+            printf("mqpub rc %d acked %d\n", rc, !mqtt_inflight());
+        } else if (!strcmp(v[0], "mqrecv") && n > 1) { uint32_t t0 = time_ms(), ms = (uint32_t)atoi(v[1]); while (time_ms() - t0 < ms) net_poll(); printf("mqrecv got %u topic %s msg %s retain %d conn %d\n", mq_got, mq_topic, mq_last, mq_retain, mqtt_connected()); mq_got = 0; }
+        else if (!strcmp(v[0], "mqdisc")) { mqtt_disconnect(); printf("mqdisc\n"); }
+        else if (!strcmp(v[0], "mqdrop")) { extern void mqtt_test_drop(void); mqtt_test_drop(); printf("mqdrop\n"); }
+        else if (!strcmp(v[0], "mqbench") && n > 3) {                   /* mqbench <url> <n> <bytes|qos>: v[3] = bytes, qos from v[2] sign: as the peer's mqtt_bench */
+            unsigned cnt = (unsigned)atoi(v[2]), sz = (unsigned)atoi(v[3]), ok = 0; int qos = cnt >= 1000 ? 1 : 0; if (qos) cnt -= 1000;   /* n >= 1000: QoS 1, n - 1000 messages */
+            static uint8_t b[NDF_MQTT_BUF]; memset(b, 'm', sizeof b); uint32_t t0 = time_ms(); mq_got = 0;
+            int rc = mqtt_connect(v[1], 0, mq_cb, 5000); uint32_t tc = time_ms();
+            if (!rc) mqtt_subscribe("bench/ndf", qos, 3000);
+            uint32_t ts = time_ms();
+            for (unsigned i = 0; i < cnt && !rc; i++) { unsigned want = mq_got + 1; if (mqtt_publish("bench/ndf", b, sz, qos, 0)) break; uint32_t w = time_ms(); while ((mq_got < want || mqtt_inflight()) && time_ms() - w < 5000) net_poll(); if (mq_got >= want && mq_len == sz) ok++; }
+            uint32_t td = time_ms(); mqtt_disconnect();
+            printf("mqbench rc %d connect_ms %lu echoes %u of %u qos %d rt_ms %lu\n", rc, (unsigned long)(tc - t0), ok, cnt, qos, (unsigned long)(td - ts));
         } else if (!strcmp(v[0], "memused")) printf("memused %u\n", (unsigned)lwip_stats.mem.used);
         else printf("?\n");
         printf("ok\n");

@@ -870,6 +870,19 @@ Ours as client is 11x faster against the same server: `esp_websocket_client` del
 timeout, while ours runs the echo inside net_poll(). As server, ours answers IDF's client 8x faster than IDF's own server does.
 Data: `bench/idf_wl_peer/data/ws_compare.txt`.
 
+## MQTT round trips (esp-ndf `http_unit` on DEVKIT vs esp-mqtt on the BOX-3, test broker on the IDF peer AP, `tools/wl/test_mqtt.py`, 2026-10-31)
+
+20 messages of 100 bytes, each published after the previous one came back through the broker (own subscription).
+
+| | esp-ndf | esp-mqtt | gain |
+|---|---|---|---|
+| connect (TCP + CONNECT / CONNACK) | 10-14 ms | 12-15 ms | - |
+| 20 round trips, QoS 0 | 148 ms | 167 ms | 1.1x |
+| 20 round trips, QoS 1 | 4544 ms | 4618 ms | equal |
+
+The QoS 1 time (about 230 ms per message on both) is the test broker's side (lwIP sockets on the peer), not the clients: open item on the
+test bench, not a client gap. Data: `bench/idf_wl_peer/data/mqtt_compare.txt`.
+
 ## HTTP server (`components/net/test_apps/http_unit` vs ESP-IDF `esp_http_server`, `tools/wl/bench_http.py`, 2026-10-29)
 
 Same IDF client (`esp_http_client`, one connection per request) on the peer's AP "T" (fixed 1 Mbit/s b/g, channel 6); the server is either the esp-ndf board

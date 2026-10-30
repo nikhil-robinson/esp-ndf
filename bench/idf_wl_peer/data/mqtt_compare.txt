@@ -1,0 +1,17 @@
+ok   joined (up rc 0 ip 192.168.4.2)
+ok   CONNECT accepted (mqconn rc 0 ms 30)
+ok   SUBSCRIBE t/+ granted QoS 1
+ok   esp-mqtt publish reaches our wildcard subscription (mqrecv got 1 topic t/a msg hi-from-idf retain 0 conn 1)
+ok   our QoS 1 publish is acknowledged (mqpub rc 0 acked 1)
+ok   retained message delivered on a new subscription with the retain flag (mqrecv got 1 topic r/t msg keep retain 1 conn 1)
+ok   wrong password: CONNACK code 5 (mqconn rc 5 ms 45)
+ok   right password accepted (mqconn rc 0 ms 76)
+ok   CONNECT with a will
+ok   our connection vanishes: the broker publishes the will to an IDF subscriber (mqtt_sub got 1 len 4)
+ok   ours: 20 round trips at QoS 0 and QoS 1 (mqbench rc 0 connect_ms 15 echoes 20 of 20 qos 0 rt_ms 141 | mqbench rc 0 connect_ms 16 echoes 20 of 20 qos 1 rt_ms 4701)
+ok   esp-mqtt: 20 round trips at QoS 0 and QoS 1 (mqtt_bench conn 1 connect_ms 17 echoes 20 of 20 rt_ms 182 | mqtt_bench conn 1 connect_ms 17 echoes 20 of 20 rt_ms 4713)
+     ours QoS0: mqbench rc 0 connect_ms 15 echoes 20 of 20 qos 0 rt_ms 141
+     ours QoS1: mqbench rc 0 connect_ms 16 echoes 20 of 20 qos 1 rt_ms 4701
+     IDF  QoS0: mqtt_bench conn 1 connect_ms 17 echoes 20 of 20 rt_ms 182
+     IDF  QoS1: mqtt_bench conn 1 connect_ms 17 echoes 20 of 20 rt_ms 4713
+mqtt: all passed

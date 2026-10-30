@@ -23,6 +23,8 @@
 #include "lwip/netdb.h"
 #include "esp_sntp.h"
 #include "esp_websocket_client.h"
+#include "mqtt_client.h"
+#include <sys/select.h>
 
 static SemaphoreHandle_t psem;
 static volatile uint32_t p_ok, p_n, p_time_sum;
@@ -364,5 +366,154 @@ static int cmd_ws_get(int argc, char **argv)                                    
     printf("ws_get conn %d connect_ms %d echoes %d of %d text %d echo_ms %d\n", tc - t0 < 5000000, (int)((tc - t0) / 1000), ok, n, text, (int)((td - tc) / 1000));
     return 0;
 }
-const peer_cmd_t cmds_net[] = { { "ws_serve", cmd_ws_serve }, { "ws_get", cmd_ws_get }, { "dns_serve", cmd_dns_serve }, { "sntp_serve", cmd_sntp_serve }, { "dns_get", cmd_dns_get }, { "sntp_get", cmd_sntp_get }, { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
+
+/* --- MQTT: a minimal 3.1.1 broker for the tests (test code, not IDF), and esp-mqtt as the IDF client --- */
+#define MB_CL 4
+static struct mb { int s; uint8_t rx[2100]; unsigned rl; char subs[4][64]; uint8_t sq[4]; char wt[64]; uint8_t wm[128]; unsigned wl; uint8_t wq, up; uint16_t pid; } mb[MB_CL];
+static struct { char t[64]; uint8_t p[256]; unsigned n; } retained[4];
+static int topic_match(const char *f, const char *t)
+{
+    for (;;) {
+        if (*f == '#') return 1;
+        if (*f == '+') { while (*t && *t != '/') t++; f++; }
+        else { if (*f != *t) return 0; if (!*f) return 1; f++; t++; continue; }
+        if (!*f && !*t) return 1;
+        if (*f != *t) return 0;
+    }
+}
+static void mb_send(struct mb *c, const uint8_t *p, unsigned n) { if (c->s >= 0) send(c->s, p, n, 0); }
+static unsigned mb_varint(uint8_t *o, unsigned v) { unsigned n = 0; do { uint8_t b = v & 127; v >>= 7; o[n++] = b | (v ? 128 : 0); } while (v); return n; }
+static void mb_deliver(struct mb *c, const char *t, const uint8_t *p, unsigned n, int qos, int retain)
+{
+    uint8_t h[8]; unsigned tl = strlen(t), rem = 2 + tl + (qos ? 2 : 0) + n, k = 0;
+    h[k++] = 0x30 | (qos ? 2 : 0) | (retain ? 1 : 0); k += mb_varint(h + k, rem);
+    uint8_t *b = malloc(k + rem); if (!b) return; memcpy(b, h, k); b[k++] = tl >> 8; b[k++] = tl; memcpy(b + k, t, tl); k += tl;
+    if (qos) { if (!++c->pid) c->pid = 1; b[k++] = c->pid >> 8; b[k++] = c->pid; }
+    memcpy(b + k, p, n); mb_send(c, b, k + n); free(b);
+}
+static void mb_publish(const char *t, const uint8_t *p, unsigned n, int qos, int retain)
+{
+    if (retain) {
+        int slot = -1; for (int i = 0; i < 4; i++) if (!strcmp(retained[i].t, t) || (slot < 0 && !retained[i].t[0])) { slot = i; if (!strcmp(retained[i].t, t)) break; }
+        if (slot >= 0) { if (n && n <= 256) { strlcpy(retained[slot].t, t, 64); memcpy(retained[slot].p, p, n); retained[slot].n = n; } else if (!n) retained[slot].t[0] = 0; }
+    }
+    for (int i = 0; i < MB_CL; i++) if (mb[i].up) for (int j = 0; j < 4; j++) if (mb[i].subs[j][0] && topic_match(mb[i].subs[j], t)) { mb_deliver(&mb[i], t, p, n, qos < mb[i].sq[j] ? qos : mb[i].sq[j], 0); break; }
+}
+static void mb_drop(struct mb *c, int will) { if (will && c->up && c->wt[0]) mb_publish(c->wt, c->wm, c->wl, c->wq, 0); if (c->s >= 0) close(c->s); memset(c, 0, sizeof *c); c->s = -1; }
+static int mb_str(const uint8_t *p, unsigned n, unsigned *o, char *out, unsigned max) { if (*o + 2 > n) return -1; unsigned l = p[*o] << 8 | p[*o + 1]; if (*o + 2 + l > n || l >= max) return -1; memcpy(out, p + *o + 2, l); out[l] = 0; *o += 2 + l; return (int)l; }
+static void mb_packet(struct mb *c, uint8_t tf, const uint8_t *v, unsigned n)
+{
+    unsigned o = 0; char s1[64], s2[64];
+    switch (tf >> 4) {
+    case 1: {                                                    /* CONNECT */
+        if (mb_str(v, n, &o, s1, sizeof s1) != 4 || strcmp(s1, "MQTT") || o + 4 > n) { mb_drop(c, 0); return; }
+        uint8_t lvl = v[o++], fl = v[o++]; o += 2; (void)lvl;
+        uint8_t rc = 0; char id[64], pw[64] = "";
+        if (mb_str(v, n, &o, id, sizeof id) < 0) { mb_drop(c, 0); return; }
+        if (fl & 4) { if (mb_str(v, n, &o, c->wt, sizeof c->wt) < 0 || o + 2 > n) { mb_drop(c, 0); return; } c->wl = v[o] << 8 | v[o + 1]; o += 2; if (c->wl > sizeof c->wm || o + c->wl > n) { mb_drop(c, 0); return; } memcpy(c->wm, v + o, c->wl); o += c->wl; c->wq = (fl >> 3) & 1; }
+        if (fl & 0x80) { if (mb_str(v, n, &o, s2, sizeof s2) < 0) { mb_drop(c, 0); return; } if (fl & 0x40 && mb_str(v, n, &o, pw, sizeof pw) < 0) { mb_drop(c, 0); return; } if (strcmp(pw, "secret")) rc = 5; }
+        if (!strcmp(id, "reject")) rc = 2;
+        uint8_t a[4] = { 0x20, 2, 0, rc }; mb_send(c, a, 4);
+        if (rc) mb_drop(c, 0); else c->up = 1;
+        return; }
+    case 8: case 10: {                                           /* SUBSCRIBE, UNSUBSCRIBE */
+        if (!c->up || n < 2) { mb_drop(c, 0); return; }
+        uint16_t pid = v[0] << 8 | v[1]; o = 2; uint8_t ack[16] = { (tf >> 4) == 8 ? 0x90 : 0xB0, 2, pid >> 8, pid }; unsigned al = 4;
+        while (o < n && al < sizeof ack) {
+            if (mb_str(v, n, &o, s1, sizeof s1) <= 0) { mb_drop(c, 0); return; }
+            if ((tf >> 4) == 8) {
+                if (o >= n) { mb_drop(c, 0); return; }
+                int q = v[o++] & 3 ? 1 : 0, slot = -1; for (int j = 0; j < 4; j++) if (!c->subs[j][0] || !strcmp(c->subs[j], s1)) { slot = j; break; }
+                if (slot < 0) ack[al++] = 0x80; else { strlcpy(c->subs[slot], s1, 64); c->sq[slot] = q; ack[al++] = q; }
+            } else for (int j = 0; j < 4; j++) if (!strcmp(c->subs[j], s1)) c->subs[j][0] = 0;
+        }
+        ack[1] = al - 2; mb_send(c, ack, al);
+        if ((tf >> 4) == 8) for (int r = 0; r < 4; r++) if (retained[r].t[0]) for (int j = 0; j < 4; j++) if (c->subs[j][0] && topic_match(c->subs[j], retained[r].t)) { mb_deliver(c, retained[r].t, retained[r].p, retained[r].n, c->sq[j], 1); break; }
+        return; }
+    case 3: {                                                    /* PUBLISH */
+        int qos = (tf >> 1) & 3; char t[64];
+        if (!c->up || mb_str(v, n, &o, t, sizeof t) <= 0 || qos == 3) { mb_drop(c, 0); return; }
+        if (qos) { if (o + 2 > n) { mb_drop(c, 0); return; } uint8_t a[4] = { 0x40, 2, v[o], v[o + 1] }; o += 2; mb_send(c, a, 4); }
+        mb_publish(t, v + o, n - o, qos ? 1 : 0, tf & 1);
+        return; }
+    case 4: return;                                              /* PUBACK from a subscriber */
+    case 12: { uint8_t a[2] = { 0xD0, 0 }; mb_send(c, a, 2); return; }   /* PINGREQ */
+    case 14: mb_drop(c, 0); return;                              /* DISCONNECT: no will */
+    default: mb_drop(c, 1); return;
+    }
+}
+static void mb_task(void *a)
+{
+    int ls = socket(AF_INET, SOCK_STREAM, 0), one = 1; setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    struct sockaddr_in me = { .sin_family = AF_INET, .sin_port = htons(1883) }; bind(ls, (struct sockaddr *)&me, sizeof me); listen(ls, 4);
+    for (int i = 0; i < MB_CL; i++) mb[i].s = -1;
+    for (;;) {
+        fd_set rs; FD_ZERO(&rs); FD_SET(ls, &rs); int mx = ls;
+        for (int i = 0; i < MB_CL; i++) if (mb[i].s >= 0) { FD_SET(mb[i].s, &rs); if (mb[i].s > mx) mx = mb[i].s; }
+        if (select(mx + 1, &rs, 0, 0, 0) <= 0) continue;
+        if (FD_ISSET(ls, &rs)) { int s = accept(ls, 0, 0); int i = 0; while (i < MB_CL && mb[i].s >= 0) i++; if (i == MB_CL) close(s); else { memset(&mb[i], 0, sizeof mb[i]); mb[i].s = s; setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &one, sizeof one); } }
+        for (int i = 0; i < MB_CL; i++) {
+            struct mb *c = &mb[i]; if (c->s < 0 || !FD_ISSET(c->s, &rs)) continue;
+            int r = recv(c->s, c->rx + c->rl, sizeof c->rx - c->rl, 0);
+            if (r <= 0) { mb_drop(c, 1); continue; }
+            c->rl += r;
+            for (;;) {
+                if (c->rl < 2) break;
+                unsigned rem = 0, k = 1, sh = 0; while (k < c->rl && k < 5) { rem |= (c->rx[k] & 127) << sh; sh += 7; if (!(c->rx[k++] & 128)) break; }
+                if (k >= 5 && (c->rx[4] & 128)) { mb_drop(c, 1); break; }
+                if (c->rx[k - 1] & 128 || k + rem > c->rl) { if (k + rem > sizeof c->rx) mb_drop(c, 1); break; }
+                mb_packet(c, c->rx[0], c->rx + k, rem); if (c->s < 0) break;
+                memmove(c->rx, c->rx + k + rem, c->rl - k - rem); c->rl -= k + rem;
+            }
+        }
+    }
+}
+static int cmd_mqtt_broker(int argc, char **argv) { static int up; if (!up) up = xTaskCreate(mb_task, "mqttb", 6144, 0, 5, 0) == pdPASS; return up ? 0 : -2; }
+
+static volatile int mq_conn, mq_got, mq_len; static esp_mqtt_client_handle_t mq;
+static void mq_ev(void *a, esp_event_base_t b, int32_t id, void *d)
+{
+    esp_mqtt_event_handle_t e = d;
+    if (id == MQTT_EVENT_CONNECTED) mq_conn = 1; else if (id == MQTT_EVENT_DISCONNECTED) mq_conn = 0;
+    else if (id == MQTT_EVENT_DATA && e->current_data_offset + e->data_len == e->total_data_len) { mq_len = e->total_data_len; mq_got++; }
+}
+static int cmd_mqtt_bench(int argc, char **argv)                  /* mqtt_bench <uri> <n> <bytes> <qos>: subscribe, n publish -> own echo round trips */
+{
+    if (argc < 5) return -1;
+    int n = atoi(argv[2]), sz = atoi(argv[3]), qos = atoi(argv[4]), ok = 0; mq_conn = mq_got = 0;
+    esp_mqtt_client_config_t c = { .broker.address.uri = argv[1] };
+    int64_t t0 = esp_timer_get_time();
+    mq = esp_mqtt_client_init(&c); esp_mqtt_client_register_event(mq, ESP_EVENT_ANY_ID, mq_ev, 0); esp_mqtt_client_start(mq);
+    while (!mq_conn && esp_timer_get_time() - t0 < 5000000) vTaskDelay(1);
+    int64_t tc = esp_timer_get_time();
+    esp_mqtt_client_subscribe(mq, "bench/idf", qos); vTaskDelay(pdMS_TO_TICKS(200));
+    char *b = malloc(sz + 1); memset(b, 'm', sz);
+    int64_t ts = esp_timer_get_time();
+    for (int i = 0; i < n && mq_conn; i++) { int want = mq_got + 1; esp_mqtt_client_publish(mq, "bench/idf", b, sz, qos, 0); int64_t w = esp_timer_get_time(); while (mq_got < want && esp_timer_get_time() - w < 5000000) vTaskDelay(1); if (mq_got >= want && mq_len == sz) ok++; }
+    int64_t td = esp_timer_get_time();
+    esp_mqtt_client_stop(mq); esp_mqtt_client_destroy(mq); free(b);
+    printf("mqtt_bench conn %d connect_ms %d echoes %d of %d rt_ms %d\n", tc - t0 < 5000000, (int)((tc - t0) / 1000), ok, n, (int)((td - ts) / 1000));
+    return 0;
+}
+static int cmd_mqtt_sub(int argc, char **argv)                    /* mqtt_sub <uri> <topic> <ms>: an IDF subscriber, counts what arrives */
+{
+    if (argc < 4) return -1;
+    mq_conn = mq_got = 0; esp_mqtt_client_config_t c = { .broker.address.uri = argv[1] }; int64_t t0 = esp_timer_get_time();
+    mq = esp_mqtt_client_init(&c); esp_mqtt_client_register_event(mq, ESP_EVENT_ANY_ID, mq_ev, 0); esp_mqtt_client_start(mq);
+    while (!mq_conn && esp_timer_get_time() - t0 < 5000000) vTaskDelay(1);
+    esp_mqtt_client_subscribe(mq, argv[2], 1); vTaskDelay(pdMS_TO_TICKS(atoi(argv[3])));
+    esp_mqtt_client_stop(mq); esp_mqtt_client_destroy(mq);
+    printf("mqtt_sub got %d len %d\n", mq_got, mq_len); return 0;
+}
+static int cmd_mqtt_pub(int argc, char **argv)                    /* mqtt_pub <uri> <topic> <msg> <qos> [retain]: one message from an IDF client */
+{
+    if (argc < 5) return -1;
+    mq_conn = 0; esp_mqtt_client_config_t c = { .broker.address.uri = argv[1] }; int64_t t0 = esp_timer_get_time();
+    mq = esp_mqtt_client_init(&c); esp_mqtt_client_register_event(mq, ESP_EVENT_ANY_ID, mq_ev, 0); esp_mqtt_client_start(mq);
+    while (!mq_conn && esp_timer_get_time() - t0 < 5000000) vTaskDelay(1);
+    int id = esp_mqtt_client_publish(mq, argv[2], argv[3], 0, atoi(argv[4]), argc > 5 ? atoi(argv[5]) : 0);
+    vTaskDelay(pdMS_TO_TICKS(500)); esp_mqtt_client_stop(mq); esp_mqtt_client_destroy(mq);
+    printf("mqtt_pub conn %d id %d\n", mq_conn || id >= 0, id); return 0;
+}
+const peer_cmd_t cmds_net[] = { { "mqtt_broker", cmd_mqtt_broker }, { "mqtt_bench", cmd_mqtt_bench }, { "mqtt_pub", cmd_mqtt_pub }, { "mqtt_sub", cmd_mqtt_sub }, { "ws_serve", cmd_ws_serve }, { "ws_get", cmd_ws_get }, { "dns_serve", cmd_dns_serve }, { "sntp_serve", cmd_sntp_serve }, { "dns_get", cmd_dns_get }, { "sntp_get", cmd_sntp_get }, { "ping", cmd_ping }, { "udp_echo", cmd_udp_echo }, { "tcp_echo", cmd_tcp_echo }, { "tcp_send", cmd_tcp_send },
                                 { "iperf_tx", cmd_iperf_tx }, { "iperf_rx", cmd_iperf_rx }, { "http_get", cmd_http_get }, { "http_raw", cmd_http_raw }, { "http_serve", cmd_http_serve }, { "https_get", cmd_https_get }, { "tls_prims", cmd_tls_prims }, { "https_serve", cmd_https_serve }, { 0 } };
