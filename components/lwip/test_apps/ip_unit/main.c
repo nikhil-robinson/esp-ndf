@@ -56,20 +56,21 @@ static void do_ping(unsigned n)
 }
 
 /* --- udp echo --- */
-static unsigned udp_ok, udp_bad, udp_lost, udp_len, udp_got;
+static unsigned udp_ok, udp_bad, udp_lost, udp_len, udp_got, udp_late;
 static unsigned udp_seq;
 static uint8_t udp_pat(unsigned i, unsigned k) { return (uint8_t)(i * 31 + k); }
 static void udp_recv_cb(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
     unsigned want = udp_len; int good = p->tot_len == want;
     for (unsigned k = 0; good && k < want; k++) if (pbuf_get_at(p, (u16_t)k) != udp_pat(udp_seq, k)) good = 0;
-    if (good) udp_ok++; else udp_bad++;
-    udp_got = 1; pbuf_free(p);
+    if (!good) { unsigned pl = p->tot_len, pi = udp_seq ? udp_seq - 1 : 0; int late = pl == 1 + (pi * 37) % 1400; for (unsigned k = 0; late && k < pl; k++) if (pbuf_get_at(p, (u16_t)k) != udp_pat(pi, k)) late = 0;
+      pbuf_free(p); if (late) { udp_late++; return; } udp_bad++; udp_got = 1; return; }   /* the previous datagram's echo, late or repeated: not corruption */
+    udp_ok++; udp_got = 1; pbuf_free(p);
 }
 static void do_udp(unsigned port, unsigned n)
 {
     struct udp_pcb *u = udp_new(); udp_recv(u, udp_recv_cb, 0); udp_bind(u, IP_ADDR_ANY, 0);
-    udp_ok = udp_bad = udp_lost = 0;
+    udp_ok = udp_bad = udp_lost = udp_late = 0;
     for (unsigned i = 0; i < n; i++) {
         udp_seq = i; udp_len = 1 + (i * 37) % 1400; udp_got = 0;
         struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, (u16_t)udp_len, PBUF_RAM); if (!p) { udp_lost++; continue; }
@@ -79,7 +80,7 @@ static void do_udp(unsigned port, unsigned n)
         if (!udp_got) udp_lost++;
     }
     udp_remove(u);
-    printf("udp sent %u ok %u lost %u corrupt %u\n", n, udp_ok, udp_lost, udp_bad);
+    printf("udp sent %u ok %u lost %u corrupt %u late %u\n", n, udp_ok, udp_lost, udp_bad, udp_late);
 }
 
 /* --- tcp echo --- */

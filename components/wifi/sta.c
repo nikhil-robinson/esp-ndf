@@ -13,7 +13,7 @@ void (*wifi_eth_rx)(const uint8_t *frame, unsigned n);
 
 enum { DOWN, AUTHING, ASSOCING, HANDSHAKE, UP };
 static struct {
-    uint8_t me[6], bssid[6], chan, state; uint16_t seq, last_seq, beacon_tu;
+    uint8_t me[6], bssid[6], chan, state; uint16_t seq, beacon_tu, rx_sc[9];   /* rx_sc: last sequence control (sequence | fragment) received per TID 0..7, [8] non-QoS: the duplicate cache (802.11-2020 10.3.2.14) */
     uint32_t last_beacon, last_tx;
     wifi_ap_t *out; unsigned max, n; const char *want;       /* scan collection; want = only this SSID (join) */
     uint8_t secure;                                          /* WPA2 network */
@@ -245,8 +245,9 @@ static void on_frame(const wifi_rx_t *r)
     default: break;
     }
     if (s.state < HANDSHAKE || (f[0] & 0x0C) != 0x08) return;
-    if ((f[1] & 0x08) && sq == s.last_seq) return;           /* retransmission of a frame we have seen (no hardware ACK yet) */
-    s.last_seq = sq;
+    { unsigned tid = (f[0] & 0x80) ? f[24] & 7 : 8; uint16_t sc = (uint16_t)(f[22] | f[23] << 8);   /* a retry with the sequence control we already have for that TID: the AP missed our ACK */
+      if ((f[1] & 0x08) && sc == s.rx_sc[tid]) return;
+      s.rx_sc[tid] = sc; }
     static uint8_t eth[1600];
     if (f[1] & 0x40) {                                       /* CCMP */
         unsigned hl = 24 + ((f[0] & 0x80) ? 2 : 0), grp = f[4] & 1, tid = (f[0] & 0x80) ? f[24] & 7 : 0; uint64_t pn;
@@ -355,7 +356,7 @@ int wifi_sta_join(const char *ssid, const char *pass, uint32_t timeout_ms)
         uint32_t w = s.comeback_ms; s.comeback_ms = 0; pump(w); rc = step(s.secure ? HANDSHAKE : UP, b_assoc, 100);
     }
     if (rc) { down(); return -1; }
-    s.last_seq = 0xFFFF;
+    memset(s.rx_sc, 0xFF, sizeof s.rx_sc);
     if (s.secure) {
         uint32_t h0 = time_ms();
         while (s.state == HANDSHAKE && time_ms() - h0 < 3000) pump(2);

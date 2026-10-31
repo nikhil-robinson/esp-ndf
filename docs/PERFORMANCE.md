@@ -810,18 +810,21 @@ Same air, the sniffer (BOX-3) timestamps beacons with the radio's own clock; the
 The AP schedules beacons on a fixed 102.4 ms grid from the microsecond timer (a late beacon does not move the next ones); the IDF softAP
 runs them from a FreeRTOS timer task. Raw data: `bench/idf_wl_peer/data/ap_compare.txt`.
 
-## Wi-Fi station HT receive, same board (BOX-3; IDF peer image vs esp-ndf `ip_unit`, AP = IDF on C9:48 pinned HT20, 2026-10-31)
+## Wi-Fi station HT receive, same board (BOX-3; IDF peer image vs esp-ndf `ip_unit`, AP = IDF on C9:48, 2026-10-31)
 
-64 KB TCP echo, two runs per MCS. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt` and the commit message.
+64 KB TCP echo. Fixes: IDF's 802.11n receive registers (same-board 11b/g/n vs 11b/g diff) and the per-rate TX digital gain
+table restored after the receive replay (the replay carried IDF's idle values: the AP heard us far below IDF, and every
+higher MCS failed through our lost ACKs, not reception).
 
-| AP rate | esp-ndf | ESP-IDF |
+| AP | esp-ndf | ESP-IDF |
 |---|---|---|
-| MCS0-4 | 121-187 ms | 119-214 ms (one 499) |
-| MCS5 | 4253-5750 ms | 127-142 ms |
-| MCS6 | 5787-17759 ms | 131-140 ms |
-| MCS7 | 19-39 s | stalls (link limit) |
+| pinned HT20 MCS0-6 | 94-166 ms | 119-214 ms |
+| pinned HT20 MCS7 | stalls | stalls (link limit) |
+| unpinned HT20 | 122-151 ms | - |
+| unpinned HT40 (IDF AP default), 8 runs | median 145 ms | 135-179 ms |
 
-Equal up to MCS4; the 64-QAM HT rates are an open gap (legacy 54 Mbit/s 64-QAM is fine). HT40 is not received yet.
+Open: 40 MHz frames are not received (AP pinned at an HT40 rate: 8-13 s); the AP still reports a lower RSSI for us (-51 vs
+-26 dBm) on some frame type. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt`.
 
 ## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
 

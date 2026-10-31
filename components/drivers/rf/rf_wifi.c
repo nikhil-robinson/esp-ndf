@@ -135,6 +135,12 @@ int rf_wifi_rx_init(void)
 #ifndef NO_HT_RX
     for (unsigned i = 0; i < sizeof ht_rx / sizeof ht_rx[0]; i++) *(volatile uint32_t *)ht_rx[i].a = ht_rx[i].v;
 #endif
+    /* TX digital gain per rate (0x60006014..30, written by IDF's rom_set_tx_dig_gain): the receive replay above carries IDF's idle values (about 10 dB
+     * lower); the engine transmits from this state, so the transmit values of the TX register set go back in (the AP heard us 20 dB below IDF) */
+#ifndef NO_TX_GAIN
+    for (unsigned i = 0; i < sizeof rf_wifi_tx_regs / sizeof rf_wifi_tx_regs[0]; i++)
+        if (rf_wifi_tx_regs[i].addr >= 0x60006014u && rf_wifi_tx_regs[i].addr <= 0x60006030u) *(volatile uint32_t *)rf_wifi_tx_regs[i].addr = rf_wifi_tx_regs[i].value;
+#endif
     for (int i = 0; i < WRX_N; i++) {
         rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED;
         rx_desc[i][1] = (uint32_t)rx_buf[i];
