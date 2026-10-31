@@ -4,7 +4,9 @@ coded) forced after rx start, against GFSK at rate:dev:len frames from D0. Print
 Run from tools/ with PYTHONPATH=."""
 import rfhost
 tx = rfhost.Board(rfhost.D0); rx = rfhost.Board(rfhost.C948)
-for rate, dev, ln, gap in ((500, 125, 8, 100), (500, 250, 8, 100), (250, 62, 2, 20), (250, 125, 2, 20), (1000, 250, 20, 100), (2000, 500, 20, 100)):
+import sys
+CASES = ((500, 125, 8, 100), (500, 250, 8, 100), (250, 62, 2, 20), (250, 125, 2, 20), (1000, 250, 20, 100), (2000, 500, 20, 100))
+for rate, dev, ln, gap in CASES[int(sys.argv[1]) if len(sys.argv) > 1 else 0:]:   # argv[1]: first case to run (resume)
     print('gfsk %d kbit/s dev %d len %d:' % (rate, dev, ln), tx.cmd('gfsk 2440 %d %d %d 200 %d' % (rate, dev, ln, gap), timeout=30)[0], flush=True)
     for eng in (0, 1):
         for m in range(16):

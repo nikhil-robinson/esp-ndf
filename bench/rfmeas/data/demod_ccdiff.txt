@@ -1,0 +1,55 @@
+0x6001106c 0:00004981 1:04004981 2:08004981 3:08004981
+0x60011070 0:cd000002 1:c5000012 2:c5000002 3:e7000002
+0x60011088 0:00015e38 1:00015f38 2:00015f38 3:00015f38
+0x600110b0 0:ebf633b8 1:e7ea3bac 2:e4ea3ba9 3:e9ee19d0
+0x6001cc5c 0:00007d00 1:00000a00 2:00001000 3:00006f00
+0x6001cc88 0:00202b6e 1:00205b50 2:002007e4 3:00302aa8
+0x6001cca8 0:7d109ef0 1:c5906760 2:d8f0e3c0 3:11009680
+0x6001ccac 0:00000c73 1:00000afe 2:00000fbe 3:00000125
+0x6001ccb8 0:28450e84 1:27d68f7d 2:27ca207c 3:27304c73
+0x6001ccbc 0:07fccb47 1:000046a0 2:000068a0 3:000059b0
+0x6001ccc0 0:0020a25c 1:0020c90b 2:0020f08e 3:00208f0d
+0x6001ccc4 0:0005d50e 1:000a6af5 2:000d17e2 3:0006390f
+0x6001ccd0 0:8ce34d08 1:8ce34d08 2:ace34d08 3:8ce34d08
+['gfsk 13600']
+baseline 1M dev 100: (0, 221)
+differing 0x6001CCxx words from rate 1 (first 8): (0, 214)
+  0x6001106c = 04004981: good 0 crcbad 220
+  0x60011070 = c5000012: good 0 crcbad 215
+  0x60011088 = 00015f38: good 0 crcbad 222
+  0x600110b0 = e7ea3bac: good 0 crcbad 218
+  0x6001cc5c = 00000a00: good 0 crcbad 221
+  0x6001cc88 = 00205b50: good 0 crcbad 223
+  0x6001cca8 = c5906760: good 0 crcbad 213
+  0x6001ccac = 00000afe: good 0 crcbad 214
+  0x6001ccb8 = 27d68f7d: good 0 crcbad 216
+  0x6001ccbc = 000046a0: good 0 crcbad 220
+  0x6001ccc0 = 0020c90b: good 0 crcbad 223
+  0x6001ccc4 = 000a6af5: good 0 crcbad 220
+differing 0x6001CCxx words from rate 2 (first 8): (0, 224)
+  0x6001106c = 08004981: good 0 crcbad 219
+  0x60011070 = c5000002: good 0 crcbad 223
+  0x60011088 = 00015f38: good 0 crcbad 219
+  0x600110b0 = e4ea3ba9: good 0 crcbad 219
+  0x6001cc5c = 00001000: good 0 crcbad 218
+  0x6001cc88 = 002007e4: good 0 crcbad 221
+  0x6001cca8 = d8f0e3c0: good 0 crcbad 220
+  0x6001ccac = 00000fbe: good 0 crcbad 224
+  0x6001ccb8 = 27ca207c: good 0 crcbad 217
+  0x6001ccbc = 000068a0: good 0 crcbad 221
+  0x6001ccc0 = 0020f08e: good 0 crcbad 222
+  0x6001ccc4 = 000d17e2: good 0 crcbad 224
+  0x6001ccd0 = ace34d08: good 0 crcbad 215
+differing 0x6001CCxx words from rate 3 (first 8): (0, 220)
+  0x6001106c = 08004981: good 0 crcbad 222
+  0x60011070 = e7000002: good 0 crcbad 226
+  0x60011088 = 00015f38: good 0 crcbad 219
+  0x600110b0 = e9ee19d0: good 0 crcbad 222
+  0x6001cc5c = 00006f00: good 0 crcbad 222
+  0x6001cc88 = 00302aa8: good 0 crcbad 223
+  0x6001cca8 = 11009680: good 0 crcbad 217
+  0x6001ccac = 00000125: good 0 crcbad 219
+  0x6001ccb8 = 27304c73: good 0 crcbad 222
+  0x6001ccbc = 000059b0: good 0 crcbad 224
+  0x6001ccc0 = 00208f0d: good 0 crcbad 222
+  0x6001ccc4 = 0006390f: good 0 crcbad 221

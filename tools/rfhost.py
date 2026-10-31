@@ -3,8 +3,9 @@
    b = Board(port); b.cmd('init'); b.cmd('meas 8192 2e6')  -> list of result lines"""
 import serial, time
 
-C948 = '/dev/serial/by-path/pci-0000:05:00.3-usb-0:2:1.0-port0'   # CH340 UART (both boards on CH340: by physical port)
-D0 = '/dev/serial/by-path/pci-0000:05:00.4-usb-0:1:1.0-port0'   # C9:D0 (moved to port 1 on 2026-10-22)
+import os
+C948 = os.environ.get('RF_C948', '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_24:58:7C:E2:C9:48-if00')   # USB-JTAG console since 2026-10-24 (was CH340)
+D0 = os.environ.get('RF_D0', '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_debug_unit_24:58:7C:E2:C9:D0-if00')
 
 
 class Board:
