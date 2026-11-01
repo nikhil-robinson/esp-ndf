@@ -42,7 +42,13 @@ static int tx(unsigned len) { s.last_tx = time_ms(); return wifi_mac_tx(fb, len)
 static uint16_t next_seq(void) { return s.seq++ & 0xFFF; }
 
 static void zero(void *p, unsigned n) { volatile uint8_t *q = p; while (n--) *q++ = 0; }
-static void down(void) { wifi_mac_clear_keys(); s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); zero(&k.igtk, sizeof k.igtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = k.mgmt_pn = k.ipn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_igtk = k.have_replay = k.msg1_seen = 0; }
+extern uint32_t sta_n_addba;
+#ifndef NDF_WIFI_BA_RX
+#define NDF_WIFI_BA_RX 1                                     /* 0 = decline every ADDBA request (status 37): the AP sends single frames */
+#endif
+#define BA_WIN 16                                            /* receive window offered to the AP (IDF's default receive window is as small as 6) */
+static struct { uint8_t on, tid; } ba[8];                    /* hardware receive block-ack sessions (wifi_mac_ba_add) */
+static void down(void) { for (unsigned i = 0; i < 8; i++) { ba[i].on = 0; wifi_mac_ba_del(i); } wifi_mac_clear_keys(); s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); zero(&k.igtk, sizeof k.igtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = k.mgmt_pn = k.ipn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_igtk = k.have_replay = k.msg1_seen = 0; }
 
 static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt, unsigned rate);
 static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt) { return send_eth_rate(dst, ethertype, p, n, encrypt, data_rate); }
@@ -179,6 +185,22 @@ static void mgmt_tx(uint8_t fc0, const uint8_t *body, unsigned bl, int protect) 
     else memcpy(fb + n, body, bl);
     if (l > 0) { s.last_tx = time_ms(); wifi_mac_tx_rate(fb, n + (unsigned)l, WIFI_RATE_1M); }
 }
+/* Block ack (category 3), receive side: ADDBA request -> response + a hardware session (IDF ic_add_rx_ba); DELBA ends it. Our window is 16 frames
+ * and no A-MSDU in an A-MPDU subframe, the same as IDF's default receive window (ESP_WIFI_RX_BA_WIN 6 and up). */
+static void ba_action(const uint8_t *f, unsigned len)
+{
+    if (f[25] == 0 && len >= 33) {                               /* ADDBA request: dialog f[26], params f[27..28], timeout f[29..30], start sequence f[31..32] */
+        unsigned tid = f[27] >> 2 & 15, i;
+        for (i = 0; i < 8; i++) if (ba[i].on && ba[i].tid == tid) break;
+        if (i == 8) for (i = 0; i < 8 && ba[i].on; i++) ;
+        uint8_t b[9] = { 3, 1, f[26], 0, 0, (uint8_t)(2 | tid << 2), BA_WIN >> 2, 0, 0 };   /* immediate policy, our tid, window BA_WIN (bits 15:6), no timeout */
+        if (i == 8 || !NDF_WIFI_BA_RX) { i = 8; b[3] = 37; }                                  /* status 37: request declined, no free session */
+        mgmt_tx(0xD0, b, 9, s.pmf && k.keys);
+        if (i < 8) { ba[i].on = 1; ba[i].tid = (uint8_t)tid; wifi_mac_ba_add(i, s.bssid, tid, (f[31] | f[32] << 8) >> 4, BA_WIN); sta_n_addba++; }
+    } else if (f[25] == 2 && len >= 29) {                        /* DELBA: parameter set f[26..27], bits 15:12 = tid */
+        for (unsigned i = 0; i < 8; i++) if (ba[i].on && ba[i].tid == f[27] >> 4) { ba[i].on = 0; wifi_mac_ba_del(i); }
+    }
+}
 static void sa_query_reply(const uint8_t *tid) { uint8_t b[4] = { 8, 1, tid[0], tid[1] }; mgmt_tx(0xD0, b, 4, 1); }
 static void pump(uint32_t ms);
 static void leave(void)                                      /* deauthenticate (reason 3, leaving) before dropping an up link, as IDF does: a PMF AP would otherwise keep us */
@@ -270,7 +292,7 @@ static void on_frame(const wifi_rx_t *r)
         down();
         return;
     case 0xD0:                                               /* action: SA Query request (category 8, action 0) from our AP, protected */
-        if (len >= 26 && f[24] == 3 && f[25] == 0 && !memcmp(f + 4, s.me, 6)) sta_n_addba++;
+        if (len >= 26 && f[24] == 3 && !memcmp(f + 4, s.me, 6) && !memcmp(f + 10, s.bssid, 6) && (!s.pmf || !k.keys || mgmt_ok(r))) { ba_action(f, len); return; }
         if (!s.pmf || !k.keys || memcmp(f + 10, s.bssid, 6) || !mgmt_ok(r)) return;
         if (len >= 24 + 4 && f[24] == 8 && f[25] == 0) sa_query_reply(f + 26);
         return;

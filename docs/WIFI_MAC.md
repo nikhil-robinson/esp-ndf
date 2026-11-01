@@ -89,3 +89,13 @@ Next: hardware CCMP on transmit (IDF's path) instead of software CCMP + the cryp
 - **TX parameter RAM**: the engine path does not run the TX register set, so the zeroing of `0x600342e0..0x600343fc` moved to `rf_wifi_rx_init` (zero, then the parameter words of the TX set). Without it, stale contents (they survive resets) made the AP deauthenticate us right after association.
 - **WMM** in the association request (as an IDF station): the AP sends QoS data, one TID per queue.
 
+
+## Receive block ack (A-MPDU), 2026-11-02
+
+Session registers (IDF `hal_agreement_add_rx_ba` / `_del_rx_ba` / `hal_ba_session_store`, `bench/wifi_regs/data/idf_hal_rx_ba.dis`): 8 blocks at
+`0x60033274 - 36 * i`: +0 control (`tid << 12 | 0xc0000005` active, bit 31 set while rewriting), +4 peer address 4..5 (and bits 17:16 = interface), +8 peer
+address 0..3, +12 window size << 13 | start sequence, +16 / +20 the received bitmap. With a session the MAC answers the peer's A-MPDU with a block ack itself.
+Station: `ba_action` in `sta.c` answers ADDBA (category 3 action 0) with status 0, immediate policy, window 16 (`NDF_WIFI_BA_RX=0` declines with 37) and
+DELBA ends the session; the AP only asks when it has A-MPDU TX on and the frame is QoS data with TID < 6 (IDF `ieee80211_encap_esfbuf` -> `ieee80211_ampdu_enable`).
+Transmit side, from IDF `ppAssembleAMPDU` / `mac_tx_set_htsig`: bit 22 (+19) of the TX header word 0 marks an aggregate; bits 23:22 of the per-queue words
+`0x60034310` / `0x60034314` carry the position of the MPDU in it (1 = single frame). Not built yet.

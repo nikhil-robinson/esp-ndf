@@ -141,3 +141,22 @@ void wifi_mac_clear_keys(void)
     volatile uint8_t *z = (volatile uint8_t *)keys; for (unsigned i = 0; i < sizeof keys; i++) z[i] = 0;
     R32(0x60033814) = 0; R32(0x60033800) = 0x30000;
 }
+
+/* Receive block-ack sessions: 8 register blocks at 0x60033274 - 36 * i (IDF hal_agreement_add_rx_ba / _del_rx_ba, bench/wifi_regs/data/idf_hal_rx_ba.dis):
+ * +0 control (tid << 12 | 0xc0000005 = active; bit 31 stops updates while the block is rewritten), +4 / +8 peer address, +12 window size << 13 | start sequence,
+ * +16 / +20 the received-frame bitmap the MAC answers block-ack requests and A-MPDUs from */
+#define BA(i) (0x60033274u - 36u * (i))
+void wifi_mac_ba_add(unsigned i, const uint8_t ta[6], unsigned tid, unsigned ssn, unsigned win)
+{
+    if (i >= 8) return;
+    R32(BA(i) + 8) = ta[0] | ta[1] << 8 | ta[2] << 16 | (uint32_t)ta[3] << 24;
+    R32(BA(i) + 4) = ta[4] | ta[5] << 8;
+    R32(BA(i) + 12) = (win & 127) << 13 | (ssn & 0xFFF);
+    R32(BA(i)) &= 0x7FFFFFFFu; R32(BA(i) + 16) = 0; R32(BA(i) + 20) = 0;
+    R32(BA(i)) = (tid << 12 & 0xFFFF) | 0xC0000005u;
+}
+void wifi_mac_ba_del(unsigned i)
+{
+    if (i >= 8) return;
+    R32(BA(i)) &= 0x7FFFFFFFu; R32(BA(i) + 16) = 0; R32(BA(i) + 20) = 0; R32(BA(i)) |= 0x80000000u; R32(BA(i)) = 0;
+}

@@ -844,6 +844,22 @@ The RSSI the AP reports, same DEVKIT: esp-ndf -20 dBm, IDF -18 dBm (10 samples e
 -51 vs -26 was the TX gain table above. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt`, `ht40_ap_20mhz_station_box3.txt`,
 `ht40_receive_box3.txt`, `rssi_same_devkit.txt`.
 
+## Wi-Fi station receive block ack / A-MPDU (BOX-3, AP = IDF on C9:48 with A-MPDU on, 2026-11-02)
+
+The AP's A-MPDU TX was off in the peer image until the station could answer ADDBA (`CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=y` now). The station
+answers the AP's ADDBA request (window 16, immediate) and programs one of the MAC's 8 receive block-ack sessions (IDF `hal_agreement_add_rx_ba`,
+`bench/wifi_regs/data/idf_hal_rx_ba.dis`); the MAC then acknowledges A-MPDUs and block-ack requests itself. `tools/wl/test_ba.py`: ADDBA 1, 42 frames
+received inside A-MPDUs, 256 KB echo intact.
+
+| 64 KB TCP echo, channel 6 busy | median | range |
+|---|---|---|
+| esp-ndf, block ack on | 502 ms | 400-981 |
+| esp-ndf, ADDBA declined | 590 ms | 493-818 (one 1680) |
+| ESP-IDF station | 880 ms | 694-1564 |
+
+Against IDF about 1.7x; against ourselves without the session the 64 KB gain is inside the noise and the 256 KB echo shows none (1946 vs 2055 ms median):
+the echo is limited by our transmit side, not by receiving single frames. Data: `bench/idf_wl_peer/data/ba_rx_compare.txt`. Transmit aggregation is the open part.
+
 ## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
 
 Time from the join call to an IP address (both include the 1 s DHCP wait; ours also includes radio init and the scan).

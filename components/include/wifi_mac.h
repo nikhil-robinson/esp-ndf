@@ -24,3 +24,7 @@ void wifi_mac_stats(uint32_t *rx, uint32_t *rx_drop, uint32_t *tx, uint32_t *tx_
 void wifi_mac_set_key(unsigned kind, const uint8_t ta[6], const uint8_t key[16], unsigned key_id);
 void wifi_mac_clear_key(unsigned kind);                     /* kinds 0..7: the access point keeps one pairwise key per station (key id 0) */
 void wifi_mac_clear_keys(void);
+
+/* Receive block-ack session i (0..7): the MAC acknowledges the peer's A-MPDUs and block-ack requests for that peer and TID itself. */
+void wifi_mac_ba_add(unsigned i, const uint8_t ta[6], unsigned tid, unsigned ssn, unsigned win);
+void wifi_mac_ba_del(unsigned i);

@@ -15,5 +15,5 @@ for ap in sys.argv[1:]:
     if 'rc 0' not in u: print('AP "%s"' % ap, u, flush=True); n.close(); continue
     tt = []
     for _ in range(5):
-        r = n.cmd('tcp 192.168.4.1 8 65536', 90)[-1]; m = re.search(r'in (\d+) ms', r); tt.append(int(m.group(1)) if m and 'bad 0' in r else -1)
-    print('AP "%s"' % ap, sorted(tt), 'cwb40', re.search(r'cwb40 (\d+)', n.cmd('mac')[-1]).group(1), flush=True); n.close()
+        r = n.cmd('tcp 192.168.4.1 8 %s' % os.environ.get('SIZE', '65536'), 90)[-1]; m = re.search(r'in (\d+) ms', r); tt.append(int(m.group(1)) if m and 'bad 0' in r else -1)
+    m = n.cmd('mac')[-1]; print('AP "%s"' % ap, sorted(tt), 'cwb40', (re.search(r'cwb40 (\d+)', m) or [0, '?'])[1], m.strip(), flush=True); n.close()

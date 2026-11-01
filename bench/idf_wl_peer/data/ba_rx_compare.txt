@@ -1,0 +1,6 @@
+64 KB TCP echo, BOX-3, AP = IDF 5.3.5 on C9:48 ("wifi_ap T - 6 - above", A-MPDU TX and RX enabled in the peer image), 2026-11-02, channel 6 busy (all numbers ms, 5 echoes sorted)
+esp-ndf, receive block ack on (tools/wl/bench_ht_rates.py, addba 1):   [462, 478, 520, 583, 847] [400, 423, 502, 529, 981]
+esp-ndf, ADDBA declined (-DNDF_WIFI_BA_RX=0, addba 0 agg 0):           [545, 575, 590, 643, 818] [493, 562, 586, 628, 1680] [501, 568, 610, 695, 818]   ("6 -")
+ESP-IDF station (tools/wl/bench_ht_rates_idf.py):                      [694, 814, 878, 886, 1339] [785, 797, 939, 958, 1564]
+256 KB echo ("6 -"): ADDBA declined [1874, 1939, 1946, 2215, 2232]; block ack on [1783, 1816, 2055, 2407, 3167]
+Build before today's commits (73c248b) on the same air: [524, 537, 610, 677, 745] [452, 453, 532, 533, 605] - the slower numbers than the 117-174 ms in PERFORMANCE.md are the channel, not a regression.

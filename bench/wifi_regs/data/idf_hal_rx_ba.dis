@@ -1,0 +1,328 @@
+00000028 <hal_agreement_add_rx_ba>:
+  28:	00a136        	entry	a1, 80
+  2b:	745050        	extui	a5, a5, 0, 8
+  2e:	f46060        	extui	a6, a6, 0, 16
+  31:	747070        	extui	a7, a7, 0, 8
+  34:	8179      	s32i.n	a7, a1, 32
+  36:	7169      	s32i.n	a6, a1, 28
+  38:	6159      	s32i.n	a5, a1, 24
+  3a:	050482        	l8ui	a8, a4, 5
+  3d:	742020        	extui	a2, a2, 0, 8
+  40:	5189      	s32i.n	a8, a1, 20
+  42:	040482        	l8ui	a8, a4, 4
+  45:	743030        	extui	a3, a3, 0, 8
+  48:	4189      	s32i.n	a8, a1, 16
+  4a:	030482        	l8ui	a8, a4, 3
+  4d:	ffecd1        	l32r	a13, 0 <hal_agreement_add_rx_ba-0x28> (0 <hal_agreement_add_rx_ba-0x28>)
+			4d: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba
+  50:	3189      	s32i.n	a8, a1, 12
+  52:	020482        	l8ui	a8, a4, 2
+  55:	1b0c      	movi.n	a11, 1
+  57:	2189      	s32i.n	a8, a1, 8
+  59:	010482        	l8ui	a8, a4, 1
+  5c:	02ed      	mov.n	a14, a2
+  5e:	1189      	s32i.n	a8, a1, 4
+  60:	000482        	l8ui	a8, a4, 0
+  63:	03fd      	mov.n	a15, a3
+  65:	0189      	s32i.n	a8, a1, 0
+  67:	3c0c      	movi.n	a12, 3
+  69:	11bb30        	slli	a11, a11, 13
+  6c:	5a0c      	movi.n	a10, 5
+  6e:	ffed81        	l32r	a8, 24 <hal_agreement_add_rx_ba-0x4> (0 <hal_agreement_add_rx_ba-0x28>)
+			6e: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x24
+			6e: R_XTENSA_ASM_EXPAND	wifi_log
+  71:	0008e0        	callx8	a8
+  74:	010482        	l8ui	a8, a4, 1
+  77:	000492        	l8ui	a9, a4, 0
+  7a:	118880        	slli	a8, a8, 8
+  7d:	208890        	or	a8, a8, a9
+  80:	020492        	l8ui	a9, a4, 2
+  83:	01e250        	slli	a14, a2, 27
+  86:	119900        	slli	a9, a9, 16
+  89:	209980        	or	a9, a9, a8
+  8c:	c0ee20        	sub	a14, a14, a2
+  8f:	030482        	l8ui	a8, a4, 3
+  92:	f0ee20        	subx8	a14, a14, a2
+  95:	ffdb21        	l32r	a2, 4 <hal_agreement_add_rx_ba-0x24> (6003327c <hal_agreement_add_rx_ba+0x60033254>)
+			95: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x4
+  98:	018880        	slli	a8, a8, 24
+  9b:	a02e20        	addx4	a2, a14, a2
+  9e:	208890        	or	a8, a8, a9
+  a1:	0020c0        	memw
+  a4:	0289      	s32i.n	a8, a2, 0
+  a6:	320c      	movi.n	a2, 3
+  a8:	112200        	slli	a2, a2, 16
+  ab:	113300        	slli	a3, a3, 16
+  ae:	103320        	and	a3, a3, a2
+  b1:	050422        	l8ui	a2, a4, 5
+  b4:	040482        	l8ui	a8, a4, 4
+  b7:	112280        	slli	a2, a2, 8
+  ba:	202280        	or	a2, a2, a8
+  bd:	203320        	or	a3, a3, a2
+  c0:	ffd221        	l32r	a2, 8 <hal_agreement_add_rx_ba-0x20> (60033278 <hal_agreement_add_rx_ba+0x60033250>)
+			c0: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x8
+  c3:	117730        	slli	a7, a7, 13
+  c6:	a02e20        	addx4	a2, a14, a2
+  c9:	0020c0        	memw
+  cc:	0239      	s32i.n	a3, a2, 0
+  ce:	7fa022        	movi	a2, 127
+  d1:	112230        	slli	a2, a2, 13
+  d4:	107720        	and	a7, a7, a2
+  d7:	ffcd21        	l32r	a2, c <hal_agreement_add_rx_ba-0x1c> (60033280 <hal_agreement_add_rx_ba+0x60033258>)
+			d7: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0xc
+  da:	b46060        	extui	a6, a6, 0, 12
+  dd:	a02e20        	addx4	a2, a14, a2
+  e0:	207760        	or	a7, a7, a6
+  e3:	0020c0        	memw
+  e6:	0279      	s32i.n	a7, a2, 0
+  e8:	ffca21        	l32r	a2, 10 <hal_agreement_add_rx_ba-0x18> (60033274 <hal_agreement_add_rx_ba+0x6003324c>)
+			e8: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x10
+  eb:	ffca41        	l32r	a4, 14 <hal_agreement_add_rx_ba-0x14> (7fffffff <hal_agreement_add_rx_ba+0x7fffffd7>)
+			eb: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x14
+  ee:	a02e20        	addx4	a2, a14, a2
+  f1:	0020c0        	memw
+  f4:	0238      	l32i.n	a3, a2, 0
+  f6:	118540        	slli	a8, a5, 12
+  f9:	103340        	and	a3, a3, a4
+  fc:	0020c0        	memw
+  ff:	0239      	s32i.n	a3, a2, 0
+ 101:	ffc531        	l32r	a3, 18 <hal_agreement_add_rx_ba-0x10> (60033284 <hal_agreement_add_rx_ba+0x6003325c>)
+			101: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x18
+ 104:	040c      	movi.n	a4, 0
+ 106:	a03e30        	addx4	a3, a14, a3
+ 109:	0020c0        	memw
+ 10c:	0349      	s32i.n	a4, a3, 0
+ 10e:	ffc331        	l32r	a3, 1c <hal_agreement_add_rx_ba-0xc> (60033288 <hal_agreement_add_rx_ba+0x60033260>)
+			10e: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x1c
+ 111:	f48080        	extui	a8, a8, 0, 16
+ 114:	a0ee30        	addx4	a14, a14, a3
+ 117:	ffc231        	l32r	a3, 20 <hal_agreement_add_rx_ba-0x8> (c0000005 <hal_agreement_add_rx_ba+0xbfffffdd>)
+			117: R_XTENSA_SLOT0_OP	.text.hal_agreement_add_rx_ba+0x20
+ 11a:	0020c0        	memw
+ 11d:	0e49      	s32i.n	a4, a14, 0
+ 11f:	208830        	or	a8, a8, a3
+ 122:	0020c0        	memw
+ 125:	0289      	s32i.n	a8, a2, 0
+ 127:	f01d      	retw.n
+0000001c <hal_agreement_clr_rx_ba>:
+  1c:	006136        	entry	a1, 48
+  1f:	742020        	extui	a2, a2, 0, 8
+  22:	743030        	extui	a3, a3, 0, 8
+  25:	f44040        	extui	a4, a4, 0, 16
+  28:	745050        	extui	a5, a5, 0, 8
+  2b:	fff5d1        	l32r	a13, 0 <hal_agreement_clr_rx_ba-0x1c> (0 <hal_agreement_clr_rx_ba-0x1c>)
+			2b: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba
+  2e:	1b0c      	movi.n	a11, 1
+  30:	02ed      	mov.n	a14, a2
+  32:	1159      	s32i.n	a5, a1, 4
+  34:	0149      	s32i.n	a4, a1, 0
+  36:	03fd      	mov.n	a15, a3
+  38:	3c0c      	movi.n	a12, 3
+  3a:	11bb30        	slli	a11, a11, 13
+  3d:	5a0c      	movi.n	a10, 5
+  3f:	fff681        	l32r	a8, 18 <hal_agreement_clr_rx_ba-0x4> (0 <hal_agreement_clr_rx_ba-0x1c>)
+			3f: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0x18
+			3f: R_XTENSA_ASM_EXPAND	wifi_log
+  42:	0008e0        	callx8	a8
+  45:	7fa092        	movi	a9, 127
+  48:	01e250        	slli	a14, a2, 27
+  4b:	115530        	slli	a5, a5, 13
+  4e:	119930        	slli	a9, a9, 13
+  51:	c0ee20        	sub	a14, a14, a2
+  54:	b44040        	extui	a4, a4, 0, 12
+  57:	ffeb81        	l32r	a8, 4 <hal_agreement_clr_rx_ba-0x18> (60033274 <hal_agreement_add_rx_ba+0x6003324c>)
+			57: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0x4
+  5a:	105590        	and	a5, a5, a9
+  5d:	f0ee20        	subx8	a14, a14, a2
+  60:	205540        	or	a5, a5, a4
+  63:	ffe941        	l32r	a4, 8 <hal_agreement_clr_rx_ba-0x14> (60033280 <hal_agreement_add_rx_ba+0x60033258>)
+			63: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0x8
+  66:	020c      	movi.n	a2, 0
+  68:	a08e80        	addx4	a8, a14, a8
+  6b:	0020c0        	memw
+  6e:	0829      	s32i.n	a2, a8, 0
+  70:	a04e40        	addx4	a4, a14, a4
+  73:	0020c0        	memw
+  76:	0459      	s32i.n	a5, a4, 0
+  78:	ffe541        	l32r	a4, c <hal_agreement_clr_rx_ba-0x10> (60033284 <hal_agreement_add_rx_ba+0x6003325c>)
+			78: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0xc
+  7b:	113340        	slli	a3, a3, 12
+  7e:	a04e40        	addx4	a4, a14, a4
+  81:	0020c0        	memw
+  84:	0429      	s32i.n	a2, a4, 0
+  86:	ffe241        	l32r	a4, 10 <hal_agreement_clr_rx_ba-0xc> (60033288 <hal_agreement_add_rx_ba+0x60033260>)
+			86: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0x10
+  89:	f43030        	extui	a3, a3, 0, 16
+  8c:	a0ee40        	addx4	a14, a14, a4
+  8f:	0020c0        	memw
+  92:	0e29      	s32i.n	a2, a14, 0
+  94:	ffe021        	l32r	a2, 14 <hal_agreement_clr_rx_ba-0x8> (c0000005 <hal_agreement_add_rx_ba+0xbfffffdd>)
+			94: R_XTENSA_SLOT0_OP	.text.hal_agreement_clr_rx_ba+0x14
+  97:	203320        	or	a3, a3, a2
+  9a:	0020c0        	memw
+  9d:	0839      	s32i.n	a3, a8, 0
+  9f:	f01d      	retw.n
+00000018 <hal_agreement_del_rx_ba>:
+  18:	004136        	entry	a1, 32
+  1b:	74e020        	extui	a14, a2, 0, 8
+  1e:	012250        	slli	a2, a2, 27
+  21:	fff781        	l32r	a8, 0 <hal_agreement_del_rx_ba-0x18> (60033274 <hal_agreement_add_rx_ba+0x6003324c>)
+			21: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba
+  24:	c022e0        	sub	a2, a2, a14
+  27:	f022e0        	subx8	a2, a2, a14
+  2a:	1132e0        	slli	a3, a2, 2
+  2d:	a02280        	addx4	a2, a2, a8
+  30:	0020c0        	memw
+  33:	02f8      	l32i.n	a15, a2, 0
+  35:	fff3d1        	l32r	a13, 4 <hal_agreement_del_rx_ba-0x14> (0 <hal_agreement_del_rx_ba-0x18>)
+			35: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba+0x4
+  38:	1b0c      	movi.n	a11, 1
+  3a:	34fcf0        	extui	a15, a15, 12, 4
+  3d:	03a0c2        	movi	a12, 3
+  40:	11bb30        	slli	a11, a11, 13
+  43:	05a0a2        	movi	a10, 5
+  46:	fff381        	l32r	a8, 14 <hal_agreement_del_rx_ba-0x4> (0 <hal_agreement_del_rx_ba-0x18>)
+			46: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba+0x14
+			46: R_XTENSA_ASM_EXPAND	wifi_log
+  49:	0008e0        	callx8	a8
+  4c:	0020c0        	memw
+  4f:	0288      	l32i.n	a8, a2, 0
+  51:	ffed91        	l32r	a9, 8 <hal_agreement_del_rx_ba-0x10> (7fffffff <hal_agreement_add_rx_ba+0x7fffffd7>)
+			51: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba+0x8
+  54:	108890        	and	a8, a8, a9
+  57:	ffed91        	l32r	a9, c <hal_agreement_del_rx_ba-0xc> (60033284 <hal_agreement_add_rx_ba+0x6003325c>)
+			57: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba+0xc
+  5a:	0020c0        	memw
+  5d:	0289      	s32i.n	a8, a2, 0
+  5f:	939a      	add.n	a9, a3, a9
+  61:	080c      	movi.n	a8, 0
+  63:	0020c0        	memw
+  66:	0989      	s32i.n	a8, a9, 0
+  68:	ffea91        	l32r	a9, 10 <hal_agreement_del_rx_ba-0x8> (60033288 <hal_agreement_add_rx_ba+0x60033260>)
+			68: R_XTENSA_SLOT0_OP	.text.hal_agreement_del_rx_ba+0x10
+  6b:	339a      	add.n	a3, a3, a9
+  6d:	0020c0        	memw
+  70:	0389      	s32i.n	a8, a3, 0
+  72:	0020c0        	memw
+  75:	0238      	l32i.n	a3, a2, 0
+  77:	f97c      	movi.n	a9, -1
+  79:	019910        	slli	a9, a9, 31
+  7c:	203390        	or	a3, a3, a9
+  7f:	0020c0        	memw
+  82:	0239      	s32i.n	a3, a2, 0
+  84:	0020c0        	memw
+  87:	0289      	s32i.n	a8, a2, 0
+  89:	f01d      	retw.n
+00000008 <hal_ba_session_restore>:
+   8:	004136        	entry	a1, 32
+   b:	fffd81        	l32r	a8, 0 <hal_ba_session_restore-0x8> (60033274 <hal_agreement_add_rx_ba+0x6003324c>)
+			b: R_XTENSA_SLOT0_OP	.text.hal_ba_session_restore
+   e:	fffdd1        	l32r	a13, 4 <hal_ba_session_restore-0x4> (7fffffff <hal_agreement_add_rx_ba+0x7fffffd7>)
+			e: R_XTENSA_SLOT0_OP	.text.hal_ba_session_restore+0x4
+  11:	090c      	movi.n	a9, 0
+  13:	8b0c      	movi.n	a11, 8
+  15:	598b76        	loop	a11, 72 <hal_ba_session_restore+0x6a>
+			15: R_XTENSA_SLOT0_OP	.text.hal_ba_session_restore+0x72
+  18:	0020c0        	memw
+  1b:	08a8      	l32i.n	a10, a8, 0
+  1d:	04cad6        	bgez	a10, 6d <hal_ba_session_restore+0x65>
+			1d: R_XTENSA_SLOT0_OP	.text.hal_ba_session_restore+0x6d
+  20:	0020c0        	memw
+  23:	08a8      	l32i.n	a10, a8, 0
+  25:	fe7c      	movi.n	a14, -1
+  27:	10aad0        	and	a10, a10, a13
+  2a:	0020c0        	memw
+  2d:	08a9      	s32i.n	a10, a8, 0
+  2f:	a29a      	add.n	a10, a2, a9
+  31:	0020c0        	memw
+  34:	38c8      	l32i.n	a12, a8, 12
+  36:	0aa8      	l32i.n	a10, a10, 0
+  38:	11ee40        	slli	a14, a14, 12
+  3b:	10cce0        	and	a12, a12, a14
+  3e:	b4a0a0        	extui	a10, a10, 0, 12
+  41:	20aac0        	or	a10, a10, a12
+  44:	0020c0        	memw
+  47:	38a9      	s32i.n	a10, a8, 12
+  49:	a39a      	add.n	a10, a3, a9
+  4b:	0aa8      	l32i.n	a10, a10, 0
+  4d:	fc7c      	movi.n	a12, -1
+  4f:	0020c0        	memw
+  52:	48a9      	s32i.n	a10, a8, 16
+  54:	a49a      	add.n	a10, a4, a9
+  56:	0aa8      	l32i.n	a10, a10, 0
+  58:	01cc10        	slli	a12, a12, 31
+  5b:	0020c0        	memw
+  5e:	58a9      	s32i.n	a10, a8, 20
+  60:	0020c0        	memw
+  63:	08a8      	l32i.n	a10, a8, 0
+  65:	20aac0        	or	a10, a10, a12
+  68:	0020c0        	memw
+  6b:	08a9      	s32i.n	a10, a8, 0
+  6d:	dcc882        	addi	a8, a8, -36
+  70:	994b      	addi.n	a9, a9, 4
+  72:	f01d      	retw.n
+00000004 <hal_ba_session_store>:
+   4:	004136        	entry	a1, 32
+   7:	fffe81        	l32r	a8, 0 <hal_ba_session_store-0x4> (60033274 <hal_agreement_add_rx_ba+0x6003324c>)
+			7: R_XTENSA_SLOT0_OP	.text.hal_ba_session_store
+   a:	090c      	movi.n	a9, 0
+   c:	8a0c      	movi.n	a10, 8
+   e:	2b8a76        	loop	a10, 3d <hal_ba_session_store+0x39>
+			e: R_XTENSA_SLOT0_OP	.text.hal_ba_session_store+0x3d
+  11:	0020c0        	memw
+  14:	08b8      	l32i.n	a11, a8, 0
+  16:	01ebd6        	bgez	a11, 38 <hal_ba_session_store+0x34>
+			16: R_XTENSA_SLOT0_OP	.text.hal_ba_session_store+0x38
+  19:	0020c0        	memw
+  1c:	38b8      	l32i.n	a11, a8, 12
+  1e:	c29a      	add.n	a12, a2, a9
+  20:	b5b4b0        	extui	a11, a11, 20, 12
+  23:	0cb9      	s32i.n	a11, a12, 0
+  25:	0020c0        	memw
+  28:	68c8      	l32i.n	a12, a8, 24
+  2a:	b39a      	add.n	a11, a3, a9
+  2c:	0bc9      	s32i.n	a12, a11, 0
+  2e:	0020c0        	memw
+  31:	78c8      	l32i.n	a12, a8, 28
+  33:	b49a      	add.n	a11, a4, a9
+  35:	006bc2        	s32i	a12, a11, 0
+  38:	dcc882        	addi	a8, a8, -36
+  3b:	994b      	addi.n	a9, a9, 4
+  3d:	f01d      	retw.n
+0000000c <hal_mac_tx_get_blockack>:
+   c:	004136        	entry	a1, 32
+   f:	b4af82        	movi	a8, -76
+  12:	742020        	extui	a2, a2, 0, 8
+  15:	822280        	mull	a2, a2, a8
+  18:	fffa81        	l32r	a8, 0 <hal_mac_tx_get_blockack-0xc> (60034334 <mac_last_rxbuf_init+0x600342c4>)
+			18: R_XTENSA_SLOT0_OP	.wifi0iram.7
+  1b:	828a      	add.n	a8, a2, a8
+  1d:	0020c0        	memw
+  20:	0898      	l32i.n	a9, a8, 0
+  22:	349c90        	extui	a9, a9, 12, 4
+  25:	004392        	s8i	a9, a3, 0
+  28:	0020c0        	memw
+  2b:	0888      	l32i.n	a8, a8, 0
+  2d:	b48080        	extui	a8, a8, 0, 12
+  30:	015382        	s16i	a8, a3, 2
+  33:	fff481        	l32r	a8, 4 <hal_mac_tx_get_blockack-0x8> (60034328 <mac_last_rxbuf_init+0x600342b8>)
+			33: R_XTENSA_SLOT0_OP	.wifi0iram.7+0x4
+  36:	828a      	add.n	a8, a2, a8
+  38:	0020c0        	memw
+  3b:	0888      	l32i.n	a8, a8, 0
+  3d:	1389      	s32i.n	a8, a3, 4
+  3f:	fff281        	l32r	a8, 8 <hal_mac_tx_get_blockack-0x4> (60034324 <mac_last_rxbuf_init+0x600342b4>)
+			3f: R_XTENSA_SLOT0_OP	.wifi0iram.7+0x8
+  42:	228a      	add.n	a2, a2, a8
+  44:	0020c0        	memw
+  47:	0228      	l32i.n	a2, a2, 0
+  49:	2329      	s32i.n	a2, a3, 8
+  4b:	020c      	movi.n	a2, 0
+  4d:	f01d      	retw.n
+00000004 <hal_mac_rx_set_base>:
+   4:	004136        	entry	a1, 32
+   7:	fffe81        	l32r	a8, 0 <hal_mac_rx_set_base-0x4> (60033088 <mac_last_rxbuf_init+0x60033018>)
+			7: R_XTENSA_SLOT0_OP	.wifislprxiram.12
+   a:	0020c0        	memw
+   d:	0829      	s32i.n	a2, a8, 0
+   f:	f01d      	retw.n
