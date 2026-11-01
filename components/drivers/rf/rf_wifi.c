@@ -25,8 +25,13 @@ static uint8_t ch_sec;                                       /* rf_wifi_set_bw *
 
 extern void rf_tone_off(void);
 
-static __attribute__((aligned(16))) uint8_t  tx_frame[4096];   /* 4095 = the 12-bit descriptor length; an A-MPDU is built here */
+static __attribute__((aligned(16))) uint8_t  tx_frame[8192];   /* one frame, or the MPDUs of an A-MPDU (each with its 8-byte header), back to back */
 static __attribute__((aligned(16))) uint32_t tx_desc[4];
+#define AGG_MAX 8
+#define AGG_Q 2
+static __attribute__((aligned(16))) uint32_t agg_desc[AGG_MAX][4];
+uint32_t rf_agg_st[16];                                     /* aggregate exchanges by result: queue status 0 = block ack, 15 = the engine never finished */
+static unsigned agg_plen, agg_n; static uint8_t agg_peer[6]; static uint16_t agg_seq;
 static __attribute__((aligned(16))) uint32_t rx_desc[WRX_N][4];
 static __attribute__((aligned(16))) uint8_t  rx_buf[WRX_N][WRX_BUF];
 
@@ -67,47 +72,79 @@ void rf_wifi_set_rate(unsigned r) { tx_rate = (uint8_t)r; }
 
 uint8_t *rf_wifi_tx_buffer(void) { return tx_frame; }       /* build the frame here and pass the same pointer to rf_wifi_tx: no copy */
 
+/* A-MPDU as IDF hands it to the MAC (JTAG capture of an IDF station's aggregate, bench/wifi_regs/data/idf_ampdu_tx_2.json): no delimiters, padding or FCS in software.
+ * Per MPDU one descriptor and one buffer = 8-byte header (word 0 = MPDU length with FCS | sequence low byte << 16, word 1 = 0) + the frame without FCS;
+ * descriptor word 0 = owner | 29 | (last: EOF) | size << 12 | length, length = frame + 16, size = length - 4, word 2 = next descriptor (0 at the end), word 3 =
+ * 0x004c2108 for the first of several, 0x004c3008 for a lone one, 0x00042008 after. PLCP1 / HT-SIG carry the on-air A-MPDU length: per MPDU 4 delimiter +
+ * the MPDU with FCS, padded to 4 (not after the last). Frames: f[i] without FCS, len[i] bytes, QoS data with the same receiver. */
+int rf_wifi_agg_prepare(const uint8_t *const *f, const uint16_t *len, unsigned n)
+{
+    if (!n || n > AGG_MAX) return RF_ERR_RANGE;
+    unsigned off = 0, plen = 0;
+    for (unsigned i = 0; i < n; i++) {
+        unsigned l = len[i];
+        if (l < 26 || off + 8 + l + 8 > sizeof tx_frame) return RF_ERR_RANGE;
+        uint8_t *b = tx_frame + off; unsigned seq = (f[i][22] | f[i][23] << 8) >> 4;
+        uint32_t h0 = (l + 4) | (seq & 0xFF) << 16; memcpy(b, &h0, 4); memset(b + 4, 0, 4); memcpy(b + 8, f[i], l);
+        uint32_t *d = agg_desc[i]; unsigned dl = l + 16;
+        d[0] = 0xA0000000u | (i + 1 == n ? 0x40000000u : 0) | (uint32_t)(dl - 4) << 12 | dl;
+        d[1] = (uint32_t)b; d[2] = i + 1 == n ? 0 : (uint32_t)agg_desc[i + 1]; d[3] = n == 1 ? 0x004c3008u : i == 0 ? 0x004c2108u : 0x00042008u;
+        off = (off + 8 + l + 8 + 3) & ~3u; plen += 4 + l + 4; if (i + 1 < n) plen = (plen + 3) & ~3u;
+    }
+    memcpy(agg_peer, f[0] + 4, 6); agg_seq = (uint16_t)((f[0][22] | f[0][23] << 8) >> 4); agg_n = n; agg_plen = plen;
+    return (int)plen;
+}
+
 /* Transmit through the MAC's frame-exchange engine from the receive state, as IDF does (no TX register replay): the MAC senses the air, sends,
  * and for a unicast frame waits for the ACK itself. Configuration and result bits read from IDF at a unicast start (JTAG, docs/WIFI_MAC.md):
  * start word bits 31:30 = go, 22:21 always, 24 = a response (ACK) is expected; events 0x60033c3c bit 7 = done, bit 14 = response received,
  * bit 19 = response timeout. Returns 1 = acknowledged (or no ACK expected), 0 = no ACK, < 0 = error. */
 int rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags)
 {
-    int want_ack = flags & RF_TX_ACK;
+    int want_ack = flags & RF_TX_ACK, aggf = flags & RF_TX_AGG;
+    unsigned q = aggf ? AGG_Q : 0;                              /* hardware queue: an aggregate goes through queue 2 as in IDF (its QoS queue: CONF, PTI and timeout of its own) */
+#define QR(a) ((a) - 76u * q)                               /* a register of queue 0's PMD block, for queue q */
+    if (aggf) len = agg_plen;                                   /* rf_wifi_agg_prepare built the chain */
     if (len < 10 || len > sizeof tx_frame) return RF_ERR_RANGE;
-    if (frame != tx_frame) memcpy(tx_frame, frame, len);
+    if (!aggf && frame != tx_frame) memcpy(tx_frame, frame, len);
     *(volatile uint32_t *)0x60033d08 = 0;                     /* an older exchange that never finished is dropped */
     *(volatile uint32_t *)0x60033c40 = 0xFFFFFFFFu;           /* events: write-1-to-clear */
-    tx_desc[0] = 0xC0000000u | ((uint32_t)len << 12) | len;
-    tx_desc[1] = (uint32_t)tx_frame; tx_desc[2] = (uint32_t)tx_desc; tx_desc[3] = 0;
+    if (!aggf) { tx_desc[0] = 0xC0000000u | ((uint32_t)len << 12) | len; tx_desc[1] = (uint32_t)tx_frame; tx_desc[2] = (uint32_t)tx_desc; tx_desc[3] = 0; }
     for (unsigned i = 0; i < sizeof wifi_tx_cfg / sizeof wifi_tx_cfg[0]; i++) *(volatile uint32_t *)wifi_tx_cfg[i][0] = wifi_tx_cfg[i][1];
     /* 0x60034314 bits 13:6 = rate class of the expected response, as IDF's mac_tx_set_plcp1 sets it: the DSSS rate itself, 11 for legacy OFDM,
      * 11 / 9 for HT (IDF: 0x004002e0 for a 6 Mbit/s frame). The configuration above was captured from a DSSS frame (0). */
     unsigned resp = tx_rate < 8 ? tx_rate : tx_rate < 16 ? 11u : ((tx_rate & ~8u) - 16u < 3 ? 11u : 9u);
-    *(volatile uint32_t *)0x60034314 = (*(volatile uint32_t *)0x60034314 & ~0x3FC0u) | resp << 6;
+    *(volatile uint32_t *)QR(0x60034314) = (*(volatile uint32_t *)QR(0x60034314) & ~0x3FC0u) | resp << 6;
     /* PLCP1 / HT-SIG as IDF's mac_tx_set_plcp1 / mac_tx_set_htsig build them (libpp disassembly, bench/wifi_regs/data/idf_hal_rx_ba.dis neighbours): rate codes 16.. are
      * HT (MCS = code & 7): PLCP1 bit 25 = HT, HT-SIG = MCS | length << 8 | 0x07 << 24 (0x0f << 24 with the aggregation bit set) */
     int ht = tx_rate >= 16 && tx_rate < 24, agg = ht && (flags & RF_TX_AGG);
-    *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12 | (ht ? 1u << 25 : 0);      /* PLCP1: length, rate */
-    *(volatile uint32_t *)0x60034300 = ht ? ((tx_rate & 7u) | (uint32_t)len << 8 | (agg ? 0x0f000000u : 0x07000000u)) : 0x6400;               /* HTSIG */
-    uint32_t dur = want_ack ? (tx_rate ? 44u : 314u) : 0;      /* duration (NAV) the MAC writes into the frame: SIFS + ACK (mac_tx_set_duration) */
-    *(volatile uint32_t *)0x60034318 = dur | dur << 16;
+    *(volatile uint32_t *)QR(0x600342f8) = (len & 0xFFF) | (uint32_t)tx_rate << 12 | (ht ? 1u << 25 : 0);      /* PLCP1: length (12 bits), rate */
+    *(volatile uint32_t *)QR(0x60034300) = ht ? ((tx_rate & 7u) | (uint32_t)len << 8 | (agg ? 0x0f000000u : 0x07000000u)) : 0x6400;               /* HTSIG */
+    if (q) *(volatile uint32_t *)(0x60033d04 - 8u * q) = 0x23002560;                       /* queue 2 CONF: AIFS / CW and the longer response timeout (0x560) */
+    if (agg) {                                                /* block-ack state of queue 0 as IDF programs it (q2 block of the capture, same offsets + 152): receiver, start sequence, empty bitmap */
+        *(volatile uint32_t *)QR(0x6003432c) = 0x009f0000u | agg_peer[4] | agg_peer[5] << 8; *(volatile uint32_t *)QR(0x60034330) = agg_peer[0] | agg_peer[1] << 8 | agg_peer[2] << 16 | (uint32_t)agg_peer[3] << 24;
+        *(volatile uint32_t *)QR(0x60034334) = agg_seq; *(volatile uint32_t *)QR(0x60034328) = 0; *(volatile uint32_t *)QR(0x60034324) = 0;
+        *(volatile uint32_t *)QR(0x600342fc) = 0x00122220; *(volatile uint32_t *)QR(0x60034310) = (tx_rate & 7u) << 28 | 0x400000u | (len & 0xFFFF);   /* PTI and rate / length words of IDF's aggregate queue */
+    }
+    uint32_t dur = want_ack ? (agg ? 48u : tx_rate ? 44u : 314u) : 0;      /* duration (NAV) the MAC writes into the frame: SIFS + ACK (mac_tx_set_duration) */
+    *(volatile uint32_t *)QR(0x60034318) = dur | dur << 16;
     uint32_t ic = *(volatile uint32_t *)0x60033800;
     if (!(flags & RF_TX_HWCRYPT)) *(volatile uint32_t *)0x60033800 = ic & ~0x103u;   /* a frame encrypted in software (or plain): the engine must not encrypt it */
-    *(volatile uint32_t *)0x60033d08 = ((uint32_t)tx_desc & 0xFFFFF) | 0xC0600000u | (want_ack ? (agg ? 0x02000000u : 0x01000000u) : 0);   /* bits 25:24 = the response expected: 1 ACK, 2 block ack (ROM mac_tx_set_plcp0: header bit 19, set by ppAssembleAMPDU) */
+    *(volatile uint32_t *)(0x60033d08 - 8u * q) = agg ? (((uint32_t)agg_desc & 0xFFFFF) | 0xC2600000u | (agg_n > 1 ? 0x08000000u : 0)) : (((uint32_t)tx_desc & 0xFFFFF) | 0xC0600000u | (want_ack ? 0x01000000u : 0));   /* bits 25:24 = the response expected: 1 ACK, 2 block ack (ROM mac_tx_set_plcp0: header bit 19, set by ppAssembleAMPDU) */
     /* Completion as IDF's lmacProcessTxComplete decides it: 0x60033cb0 bits 3:0 = queues done; the queue's status word (0x60034320 for queue 0)
      * bits 15:12 = result (0 success, else RTS / CTS / ACK timeout / TX error); the done bit is cleared by setting it in 0x60033cac. */
     uint32_t t0 = ccount(), done = 0, st = 0;
     while (ccount() - t0 < 240000u * 30) {                   /* 30 ms: airtime at 1 Mbit/s + backoff + ACK timeout */
-        done = *(volatile uint32_t *)0x60033cb0 & 1;
+        done = *(volatile uint32_t *)0x60033cb0 >> q & 1;
         if (done || (*(volatile uint32_t *)0x60033cac & 0x10000)) break;
     }
-    st = (*(volatile uint32_t *)0x60034320 >> 12) & 0xF;
-    ba_ssc = (uint16_t)(*(volatile uint32_t *)0x60034334 & 0xFFF); ba_bm[0] = *(volatile uint32_t *)0x60034328; ba_bm[1] = *(volatile uint32_t *)0x60034324;   /* hal_mac_tx_get_blockack, queue 0 */
-    *(volatile uint32_t *)0x60033cac = done ? 1 : *(volatile uint32_t *)0x60033cac;
-    *(volatile uint32_t *)0x60033d08 = 0;                     /* queue idle again */
+    st = (*(volatile uint32_t *)QR(0x60034320) >> 12) & 0xF;
+    ba_ssc = (uint16_t)(*(volatile uint32_t *)QR(0x60034334) & 0xFFF); ba_bm[0] = *(volatile uint32_t *)QR(0x60034328); ba_bm[1] = *(volatile uint32_t *)QR(0x60034324);   /* hal_mac_tx_get_blockack */
+    *(volatile uint32_t *)0x60033cac = done ? 1u << q : *(volatile uint32_t *)0x60033cac;
+    *(volatile uint32_t *)(0x60033d08 - 8u * q) = 0;                     /* queue idle again */
     *(volatile uint32_t *)0x60033800 = ic;
     *(volatile uint32_t *)0x60033c40 = 0xFFFFFFFFu;
+    if (aggf) rf_agg_st[done ? st : 15]++;
     if (!done) return want_ack ? 0 : RF_ERR_TIMEOUT;          /* no completion: the ACK timed out (or the medium never freed) */
     return st == 0;
 }

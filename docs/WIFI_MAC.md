@@ -106,13 +106,16 @@ Transmit side, from IDF `ppAssembleAMPDU` / `mac_tx_set_htsig`: bit 22 (+19) of 
 `MCS | length << 8 | 0x07 << 24` (IDF `mac_tx_set_plcp1` / `mac_tx_set_htsig`, libpp disassembly). Before, every HT rate lost all its ACKs (ping 10 sent, 0 received at 0x10 / 0x13 / 0x17);
 now ping 10/10 at MCS0 and MCS7 (avg 12.2 / 6.0 ms against 13.9 ms at 12 Mbit/s legacy, `ip_unit` `rate 0x17`, 10 pings each, IDF AP on channel 6).
 
-**A-MPDU transmit: not working, off by default (`NDF_WIFI_AMPDU_TX=0`).** What is built: `wifi_mac_tx_ampdu` (delimiters with CRC-8, MPDUs with FCS, padding), QoS data builder,
-ADDBA request / response (the IDF AP accepts: `addba` agreement made), an aggregation queue in `sta.c`, start word bits 25:24 = 2 (block-ack response; ROM
-`mac_tx_set_plcp0` takes 3 for header bit 20, 2 for bit 19 - set by `ppAssembleAMPDU` - else 1), HT-SIG top byte `0x0f` (aggregation bit; seen in IDF's queue register). Result: the engine
-completes with queue status 4 (no response) and the MPDUs never arrive; the sniffer does not decode them. Both delimiter CRC bit orders tried. Findings from IDF:
-- `ppAssembleAMPDU` only sets header bits 22 and 19 and links the TX infos; there is no byte-level assembly in software, so the MAC inserts delimiters / FCS itself from the descriptors.
-- `mac_tx_set_txop_q` / `hal_mac_fill_hwtxop`: the extra MPDUs of an aggregate are listed in the hardware TXOP list at `0x6003437c - 4 * (15 q + idx - 1)`: descriptor offset (19:0) | (header + payload length) << 20;
-  `0x60034314` bits 27:24 = count, 29:28 = type.
-- A queue-2 capture of an IDF aggregate (one MPDU of 1522 bytes): `0x60034260` PLCP1 `0x020105f2`, HT-SIG `0x0f05f280`, `0x60034278` `0x004005f2`, `0x6003427c` `0x004002e0`.
-Next: capture an IDF aggregate's descriptor + buffer (`bench/wifi_regs/ocd_capture_ampdu.py`, OpenOCD Tcl client `ocd.py`; one halt per stage, a longer halt makes IDF retry the same frame and halt again),
-then build the descriptor chain + TXOP list instead of a software A-MPDU. Channel 6 was too busy for IDF to aggregate at all during the captures; channel 1 worked.
+**A-MPDU transmit works (2026-11-02), opt-in with `NDF_WIFI_AMPDU_TX=1`.** Found by JTAG-capturing an IDF station's aggregates (`bench/wifi_regs/ocd_capture_ampdu.py`, data `idf_ampdu_tx_*.json`; the MAC state after completion in
+`ocd_capture_ba_done.py` / `idf_ampdu_done.json`). The software does not build the A-MPDU: no delimiters, padding or FCS. What the MAC wants (`rf_wifi_agg_prepare`, `rf_wifi_tx_ack` with `RF_TX_AGG`):
+- **Queue 2** (IDF's QoS queue): CONF `0x60033d04 - 16` = `0x23002560` (the longer response timeout), PTI `0x600342fc - 152` = `0x00122220`, `0x60034310 - 152` = `(MCS & 7) << 28 | 0x400000 | A-MPDU length` (`mac_tx_set_htsig`).
+  Single frames through queue 2 also work. Queue 0 was only tried with the wrong start word (no block ack); not retried with the right one.
+- **One descriptor per MPDU**, chained: word 0 = `0xA0000000` (+ `0x40000000` on the last) `| size << 12 | length`, length = frame without FCS + 16, size = length - 4; word 2 = next (0 at the end); word 3 = `0x004c3008` (lone MPDU),
+  `0x004c2108` (first of several), `0x00042008` (the others). Buffer = 8-byte header (word 0 = MPDU length with FCS | sequence low byte << 16, word 1 = 0) + the frame without FCS. Bit 29 of word 0 is required (without it the exchange fails).
+- **PLCP1** `= length & 0xFFF | rate << 12 | 1 << 25`, **HT-SIG** `= MCS | length << 8 | 0x0f << 24` (aggregation bit; required), both with the on-air A-MPDU length = per MPDU 4 delimiter + MPDU with FCS, padded to 4 (not after the last).
+- **Start word** `desc | 0xC2600000 | 0x08000000 (several MPDUs)`: bits 31:30 go, 25 = block-ack response, 22:21 HT. **IDF's captured `0x2c` pattern (bits 19, 18 instead of 22) is its 40 MHz setting; with it a 20 MHz station
+  never gets a block ack** (queue status 1). That one bit pattern was the whole difference after all other registers matched; found by a runtime switch sweep, bisecting the matched registers.
+- Duration `0x60034318 - 152` = 48 (SIFS + block ack). The block-ack result is read as `hal_mac_tx_get_blockack` does (`0x60034334/328/324 - 152`); the MAC fills peer, start sequence and bitmap itself.
+- The TXOP list (`hal_mac_fill_hwtxop`, address `0x6003437c + 60 q - 4 (idx - 1)`) stays empty in IDF's 3-MPDU aggregates: the descriptor chain defines the aggregate.
+Results: `tools/wl/test_ba_tx.py` PASS (MCS5, IDF AP on channel 1: 271 aggregates block-acked, 0 MPDUs lost, 3 x 256 KB echo intact). Queue status per exchange (`mac` command, `aggst`): 0 = block ack, 5 = no/partial response (2-3% at MCS3-5,
+31% at MCS7 on this bench link, where single frames also retry heavily), 2 = rare. Speed: not faster than single frames (docs/PERFORMANCE.md), hence off by default.

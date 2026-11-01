@@ -1,0 +1,7 @@
+TCP upload to the IDF AP's iperf_rx sink, channel 1, BOX-3 station, 2026-11-02 (tools/wl/bench_tcp_up.py; esp-ndf 1 MiB per rep, IDF iperf_tx 5 s per rep)
+esp-ndf, single frames, MCS5 (rate 0x15), 6 reps: median 5527 kbit/s  (min 5213 max 5596)
+esp-ndf, A-MPDU TX on, MCS5, 6 reps:            median 4800 kbit/s  (min 4573 max 5210); aggst 1725 block-acked / 59 status 5 / 30 status 2
+ESP-IDF station (own rate control), 6 reps:     median 3120 kbit/s  (min 2922 max 3478)
+esp-ndf, single frames, MCS7 (0x17), 5 reps:    median 4217 kbit/s  (min 4158 max 4355), 5882 retries for 4334 frames
+esp-ndf, A-MPDU TX on, MCS7, 5 reps:            median  798 kbit/s  (min 671 max 863); 36% of aggregates without block ack (bench link too weak for MCS7)
+256 KB TCP echo (tools/wl/test_ba_tx.py, channel 6, ms per rep): A-MPDU TX off 745 541 498 490 505 453 463 505 446 569 (median 502); on 624 519 609 502 1190 507 1123 783 529 495 (median 564)

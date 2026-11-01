@@ -860,7 +860,21 @@ received inside A-MPDUs, 256 KB echo intact.
 HT transmit (same day): ping at MCS7 avg 6.0 ms against 13.9 ms at the old 12 Mbit/s default (10 pings, `ip_unit` `rate 0x17`); all HT rates lost every ACK before.
 
 Against IDF about 1.7x; against ourselves without the session the 64 KB gain is inside the noise and the 256 KB echo shows none (1946 vs 2055 ms median):
-the echo is limited by our transmit side, not by receiving single frames. Data: `bench/idf_wl_peer/data/ba_rx_compare.txt`. Transmit aggregation is the open part.
+the echo is limited by our transmit side, not by receiving single frames. Data: `bench/idf_wl_peer/data/ba_rx_compare.txt`.
+
+### Transmit: single frames beat IDF, A-MPDU transmit works but adds nothing (2026-11-02)
+
+TCP upload of 1 MiB to the IDF AP's `iperf_rx` sink, channel 1, BOX-3 (`tools/wl/bench_tcp_up.py`, data `bench/idf_wl_peer/data/tcp_up_compare.txt`):
+
+| station | median kbit/s | range |
+|---|---|---|
+| esp-ndf, single frames, MCS5 | 5527 | 5213-5596 |
+| esp-ndf, A-MPDU transmit, MCS5 | 4800 | 4573-5210 |
+| ESP-IDF station (its own rate control) | 3120 | 2922-3478 |
+
+Single-frame transmit is 1.8x the IDF station on the same air. A-MPDU transmit (`NDF_WIFI_AMPDU_TX=1`, 3 MPDUs per aggregate, block ack from the AP) works and is correct (`test_ba_tx.py`) but is 13% slower than our own single frames:
+this stack is not air-limited at 5 Mbit/s (the lwIP window and the per-frame path are), and an aggregate waits for a block ack. At MCS7 the bench link is marginal and a third of the aggregates get no block ack (798 against 4217 kbit/s
+single frames), so aggregation stays off by default. Where it may pay (a faster sender, UDP floods) was not measured.
 
 ## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
 

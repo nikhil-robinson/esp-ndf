@@ -94,7 +94,7 @@ static err_t t_recv(void *a, struct tcp_pcb *p, struct pbuf *q, err_t e)
 }
 static err_t t_conn(void *a, struct tcp_pcb *p, err_t e) { t_state = e ? 3 : 1; return ERR_OK; }
 static void t_err(void *a, err_t e) { t_state = 3; tp = 0; }
-static void do_tcp(unsigned port, uint32_t bytes)
+static void do_tcp(unsigned port, uint32_t bytes, int sink)       /* sink: upload only, done when every byte is acknowledged (peer discards) */
 {
     t_total = bytes; t_sent = t_rcvd = t_bad = 0; t_state = 0;
     tp = tcp_new(); if (!tp) { printf("tcp no pcb\n"); return; }
@@ -104,7 +104,7 @@ static void do_tcp(unsigned port, uint32_t bytes)
     while (t_state == 0 && time_ms() - t0 < 4000) net_poll();
     if (t_state == 1) t1 = time_ms();
     static uint8_t chunk[1460];
-    while (t_state == 1 && t_rcvd < bytes && time_ms() - t1 < 120000) {
+    while (t_state == 1 && (sink ? (t_sent < bytes || tp->unsent || tp->unacked) : t_rcvd < bytes) && time_ms() - t1 < 120000) {
         while (t_sent < bytes) {
             u16_t room = tcp_sndbuf(tp); uint32_t n = bytes - t_sent; if (n > sizeof chunk) n = sizeof chunk; if (n > room) n = room;
             if (!n) break;
@@ -142,10 +142,11 @@ int main(void)
             while (!rc && net_ip(&ip, &gw) && time_ms() - t0 < 8000) net_poll();
             ip4_addr_t a = { ip }, g = { gw }; char ab[16], gb[16];
             printf("up rc %d join_ms %lu total_ms %lu ip %s gw %s\n", rc, (unsigned long)tj, (unsigned long)(time_ms() - t0), ip ? ip4addr_ntoa_r(&a, ab, sizeof ab) : "-", gw ? ip4addr_ntoa_r(&g, gb, sizeof gb) : "-");
-        } else if (!net_on && (!strcmp(v[0], "ping") || !strcmp(v[0], "udp") || !strcmp(v[0], "tcp") || !strcmp(v[0], "stats") || !strcmp(v[0], "dns") || !strcmp(v[0], "sntp"))) printf("not up\n");     /* lwIP is started by a successful up */
+        } else if (!net_on && (!strcmp(v[0], "ping") || !strcmp(v[0], "udp") || !strcmp(v[0], "tcp") || !strcmp(v[0], "tcpup") || !strcmp(v[0], "stats") || !strcmp(v[0], "dns") || !strcmp(v[0], "sntp"))) printf("not up\n");     /* lwIP is started by a successful up */
         else if (!strcmp(v[0], "ping") && n > 2 && !parse_ip(v[1], &peer)) do_ping((unsigned)atoi(v[2]));
         else if (!strcmp(v[0], "udp") && n > 3 && !parse_ip(v[1], &peer)) do_udp((unsigned)atoi(v[2]), (unsigned)atoi(v[3]));
-        else if (!strcmp(v[0], "tcp") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]));
+        else if (!strcmp(v[0], "tcp") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]), 0);
+        else if (!strcmp(v[0], "tcpup") && n > 3 && !parse_ip(v[1], &peer)) do_tcp((unsigned)atoi(v[2]), (uint32_t)atoi(v[3]), 1);
         else if (!strcmp(v[0], "rate") && n > 1) { wifi_set_data_rate(strtoul(v[1], 0, 0)); printf("rate %s\n", v[1]); }
         else if (!strcmp(v[0], "wr") && n > 2) { *(volatile uint32_t *)strtoul(v[1], 0, 0) = strtoul(v[2], 0, 0); printf("wr\n"); }
         else if (!strcmp(v[0], "static") && n > 1) {                  /* static <ip>: after "up": drop DHCP, use this address (netmask /24, gateway .1) */
@@ -157,7 +158,7 @@ int main(void)
             printf("rawarp tx %d\n", wifi_send_eth(bc, 0x0806, a, 28)); pump_ms(600);
         } else if (!strcmp(v[0], "rd") && n > 2) { uint32_t a = strtoul(v[1], 0, 0), c = strtoul(v[2], 0, 0); for (uint32_t i = 0; i < c; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
                 } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
-        } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_agg, n_ampdu, sta_n_agg_tx, sta_n_agg_mpdu, sta_n_agg_miss, sta_ba_dbg[3], sta_n_addba, n_drop_mine, n_mine, n_retry, n_cwb40, n_noack, n_retries_tx; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu cwb40 %lu noack %lu txretries %lu addba %lu agg %lu aggtx %lu mpdu %lu miss %lu ampdu %lu ba %lx %lx %lx\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d, (unsigned long)n_cwb40, (unsigned long)n_noack, (unsigned long)n_retries_tx, (unsigned long)sta_n_addba, (unsigned long)n_agg, (unsigned long)sta_n_agg_tx, (unsigned long)sta_n_agg_mpdu, (unsigned long)sta_n_agg_miss, (unsigned long)n_ampdu, (unsigned long)sta_ba_dbg[0], (unsigned long)sta_ba_dbg[1], (unsigned long)sta_ba_dbg[2]); }
+        } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_agg, n_ampdu, sta_n_agg_tx, sta_n_agg_mpdu, sta_n_agg_miss, sta_ba_dbg[3], sta_n_addba, n_drop_mine, n_mine, n_retry, n_cwb40, n_noack, n_retries_tx; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu cwb40 %lu noack %lu txretries %lu addba %lu agg %lu aggtx %lu mpdu %lu miss %lu ampdu %lu ba %lx %lx %lx\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d, (unsigned long)n_cwb40, (unsigned long)n_noack, (unsigned long)n_retries_tx, (unsigned long)sta_n_addba, (unsigned long)n_agg, (unsigned long)sta_n_agg_tx, (unsigned long)sta_n_agg_mpdu, (unsigned long)sta_n_agg_miss, (unsigned long)n_ampdu, (unsigned long)sta_ba_dbg[0], (unsigned long)sta_ba_dbg[1], (unsigned long)sta_ba_dbg[2]); extern uint32_t rf_agg_st[16]; printf("aggst"); for (int i = 0; i < 16; i++) printf(" %lu", (unsigned long)rf_agg_st[i]); printf("\n"); }
         else if (!strcmp(v[0], "i2crd") && n > 1) { extern uint8_t rf_regi2c_read(uint8_t, uint8_t); uint8_t b = (uint8_t)strtoul(v[1], 0, 0); printf("i2c %02x", b); for (unsigned r = 0; r < 32; r++) printf(" %02x", rf_regi2c_read(b, (uint8_t)r)); printf("\n"); }
         else if (!strcmp(v[0], "dns") && n > 1) { uint32_t t0 = time_us(), ip = 0; int rc = net_dns(v[1], &ip, 5000); ip4_addr_t a = { ip }; char b[16]; printf("dns rc %d ip %s us %lu\n", rc, rc ? "-" : ip4addr_ntoa_r(&a, b, sizeof b), (unsigned long)(time_us() - t0)); }
         else if (!strcmp(v[0], "sntp") && n > 1 && !parse_ip(v[1], &peer)) { uint32_t t0 = time_us(), rtt = 0; int rc = net_sntp(ip4_addr_get_u32(&peer), 3000, &rtt); struct timeval tv; gettimeofday(&tv, 0); printf("sntp rc %d us %lu rtt %lu time %lld.%06ld\n", rc, (unsigned long)(time_us() - t0), (unsigned long)rtt, (long long)tv.tv_sec, (long)tv.tv_usec); }

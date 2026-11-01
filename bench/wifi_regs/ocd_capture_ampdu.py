@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'tools', 
 from ocd import Ocd
 from peer import Peer, _board
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 1
-AMP, TXOP, TXEN = 0x420d1f1c + 3, 0x420a7fb8 + 3, 0x4038a734   # ppAssembleAMPDU, mac_tx_set_txop_q (after their entry), hal_mac_txq_enable: nm of bench/idf_wl_peer/build/idf_wl_peer.elf
+AMP, TXOP, TXEN = 0x420d1f1c + 3, 0x420a7fb8 + 3, 0x4038a734 + 3   # ppAssembleAMPDU, mac_tx_set_txop_q (after their entry), hal_mac_txq_enable: nm of bench/idf_wl_peer/build/idf_wl_peer.elf
 RG = ((0x60033c00, 0x60033e00), (0x60034200, 0x60034500))
 ap = Peer(); box = Peer(_board('BOX3', '')); ap.reboot(); ap.cmd('wifi_stop'); ap.cmd('wifi_ap T - %s -' % os.environ.get('CH', '6')); time.sleep(1); ap.cmd('tcp_echo 8')
 def halted(o, bp, ms=8000):
@@ -25,15 +25,17 @@ with Ocd('30:30:F9:5A:C1:10') as o:
     n = tries = 0
     while n < N and tries < int(os.environ.get('TRIES', 60)):
         tries += 1
-        if not halted(o, AMP): print('no assemble', flush=True); o.cmd('resume'); continue
+        if not os.environ.get('NOAMP') and not halted(o, AMP): print('no assemble', flush=True); o.cmd('resume'); continue
         if not halted(o, TXEN): print('no txq_enable', flush=True); o.cmd('resume'); continue
         qi = o.reg('a2'); ht = o.mdw(0x60034300 - 76 * qi, 1)[0]
-        if ht >> 24 != 0x0f: print('queue', qi, 'htsig %08x' % ht, flush=True); o.cmd('resume'); continue          # not an aggregate (HT-SIG aggregation bit)
-        d = {'regs': {k: o.reg(k) for k in ('pc', 'a2', 'a3')}, 'mac': {'%08x' % lo: o.mdw(lo, (hi - lo) // 4) for lo, hi in RG}}
-        q = o.mdw(0x60033d08 - 8 * qi, 1)[0]; dp = 0x3fc00000 | (q & 0xFFFFF); d['start'] = q; d['desc'] = []; seen = set()      # queue 2 start word = 0x60033d08 - 2 * 8
+        if (ht >> 24) & 0x7f != 0x0f: o.cmd('resume'); continue          # not an aggregate (HT-SIG aggregation bit)
+        d = {'qi': qi, 'htsig': ht, 'regs': {k: o.reg(k) for k in ('pc', 'a2', 'a3')}, 'mac': {'%08x' % lo: o.mdw(lo, (hi - lo) // 4) for lo, hi in RG}}
+        q = o.mdw(0x60033d08 - 8 * qi, 1)[0]; print('hit q%d start %08x plcp1 %08x htsig %08x txop %08x' % (qi, q, o.mdw(0x600342f8 - 76 * qi, 1)[0], ht, o.mdw(0x60034314 - 76 * qi, 1)[0]), flush=True)
+        if q == 0: o.cmd('resume'); continue
+        dp = 0x3fc00000 | (q & 0xFFFFF); d['start'] = q; d['desc'] = []; seen = set()      # queue 2 start word = 0x60033d08 - 2 * 8
         while dp not in seen and len(seen) < 16:
-            seen.add(dp); ds = o.mdw(dp, 4); buf = o.mdw(ds[1], 480) if ds and 0x3fc00000 <= ds[1] < 0x3fd00000 else []
-            d['desc'].append({'addr': dp, 'words': ds, 'buf': buf}); dp = ds[2] if ds else 0
+            seen.add(dp); ds = o.mdw(dp, 4); ext = o.mdw(dp, 24); buf = o.mdw(ds[1], 480) if ds and 0x3fc00000 <= ds[1] < 0x3fd00000 else []
+            d['desc'].append({'addr': dp, 'words': ds, 'ext': ext, 'buf': buf}); dp = ds[2] if ds else 0
         json.dump(d, open(os.path.join(os.path.dirname(__file__), 'data', 'idf_ampdu_tx_%d.json' % n), 'w'))
         print('capture', n, 'start %08x' % d['start'], 'desc', len(d['desc']), 'tries', tries, flush=True); n += 1
         o.cmd('resume')

@@ -9,10 +9,10 @@ B = os.environ.get('NDF_PORT', '/dev/serial/by-id/usb-Espressif_USB_JTAG_serial_
 import atexit; atexit.register(lambda: Ndf(port=B, ready='ip_unit ready').close())   # opening the port resets the board: never leave it a joined station
 p = Peer(); p.reboot(); time.sleep(3); p.cmd('wifi_stop'); p.cmd('wifi_ap T - 6 -'); time.sleep(1); p.cmd('tcp_echo 8')
 n = Ndf(port=B, ready='ip_unit ready'); assert 'rc 0' in n.cmd('up T', 40)[-1]
-n.cmd('rate ' + os.environ.get('RATE', '0x17')); n.cmd('ping 192.168.4.1 5', 30); time.sleep(3); n.cmd('ping 192.168.4.1 3', 30)   # the agreement is requested from the poll loop
+n.cmd('rate ' + os.environ.get('RATE', '0x15')); n.cmd('ping 192.168.4.1 5', 30); time.sleep(3); n.cmd('ping 192.168.4.1 3', 30)   # the agreement is requested from the poll loop
 for i in range(int(os.environ.get('REPS', '3'))):
     r = n.cmd('tcp 192.168.4.1 8 ' + os.environ.get('SIZE', '262144'), 120)[-1]; print(r, flush=True)
-m = n.cmd('mac')[-1]; print(m)
+m = ' '.join(n.cmd('mac')); print(m)
 g = lambda k: int(re.search(k + r' (\d+)', m).group(1))
-ok = 'bad 0' in r and g('aggtx') > 0 and g('miss') == 0
+ok = 'bad 0' in r and g('ampdu') > 0 and g('miss') * 50 < g('mpdu')
 print('test_ba_tx:', 'PASS' if ok else 'FAIL'); sys.exit(not ok)

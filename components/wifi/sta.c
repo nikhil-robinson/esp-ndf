@@ -187,12 +187,12 @@ static void mgmt_tx(uint8_t fc0, const uint8_t *body, unsigned bl, int protect) 
     if (l > 0) { s.last_tx = time_ms(); wifi_mac_tx_rate(fb, n + (unsigned)l, WIFI_RATE_1M); }
 }
 #ifndef NDF_WIFI_AMPDU_TX
-#define NDF_WIFI_AMPDU_TX 0                                  /* 1 = ask the AP for a transmit block-ack agreement and aggregate (EXPERIMENTAL, see docs/WIFI_MAC.md: the MAC never reports the block ack) */
+#define NDF_WIFI_AMPDU_TX 0                                  /* 1 = ask the AP for a transmit block-ack agreement and aggregate TCP segments into A-MPDUs. Works (tools/wl/test_ba_tx.py) but is not faster than single frames on this stack (docs/PERFORMANCE.md), so off */
 #endif
 /* --- transmit block ack (originator, TID 0): an ADDBA request to the AP, then the data frames queued during one poll go out as one A-MPDU. Open networks and HT rates
  * only (software CCMP per MPDU is not built); sequence numbers of TID 0 data come from tb.seq. --- */
 #define AGG_MAX 3
-#define AGG_BYTES 3900                                       /* the descriptor length is 12 bits; delimiters and padding included */
+#define AGG_BYTES 4600                                       /* on-air A-MPDU bytes, as IDF sends 3 full-size MPDUs (4570) */
 #define AGG_WIN 8
 static struct { uint8_t on, dialog; uint16_t seq, len[AGG_MAX]; uint32_t t_req; unsigned n, bytes; uint8_t f[AGG_MAX][1600]; } tb;
 uint32_t sta_n_agg_tx, sta_n_agg_mpdu, sta_n_agg_miss, sta_ba_dbg[3];
@@ -200,9 +200,7 @@ static int is_ht(unsigned r) { return r >= 16 && r < 24; }
 static void agg_flush(void)
 {
     unsigned n = tb.n; tb.n = tb.bytes = 0;
-#ifndef NDF_AGG_NODELIM
     if (n == 1) { s.last_tx = time_ms(); wifi_mac_tx_rate(tb.f[0], tb.len[0], data_rate); return; }
-#endif
     for (unsigned tries = 0; n && tries < 4; tries++) {
         const uint8_t *fp[AGG_MAX]; uint16_t ln[AGG_MAX]; uint16_t ssc = 0; uint32_t bm[2] = { 0, 0 };
         for (unsigned i = 0; i < n; i++) { fp[i] = tb.f[i]; ln[i] = tb.len[i]; }

@@ -161,8 +161,9 @@ int  rf_wifi_set_bw(unsigned sec40);            /* 0 = 20 MHz, 1 = 40 MHz with t
 int  rf_wifi_set_channel(unsigned ch);           /* 1..13, applied at the next tx_init / rx_init */
 int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
 #define RF_TX_ACK     1                             /* unicast: wait for the ACK */
-#define RF_TX_AGG     4                             /* the buffer is an A-MPDU (delimiters, MPDUs, padding) at an HT rate: HT-SIG aggregation bit; the response is a block ack (rf_wifi_ba) */
+#define RF_TX_AGG     4                             /* transmit the chain built by rf_wifi_agg_prepare as an A-MPDU at an HT rate: HT-SIG aggregation bit; the response is a block ack (rf_wifi_ba) */
 #define RF_TX_HWCRYPT 2                             /* protected frame with its CCMP header and plaintext: the MAC encrypts it with the key-table slot of the receiver (IDF's path) */
+int  rf_wifi_agg_prepare(const uint8_t *const *f, const uint16_t *len, unsigned n);   /* queue n MPDUs (no FCS, QoS data, same receiver) for RF_TX_AGG; returns the on-air A-MPDU length */
 int  rf_wifi_ba(uint16_t *ssc, uint32_t bitmap[2]);          /* block ack the MAC received for the last RF_TX_AGG transmission: start sequence, bitmap (bit 0 of word 0 = start) */
 int  rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags);   /* through the MAC frame-exchange engine, from the receive state: 1 acknowledged, 0 no ACK, < 0 error */
 uint8_t *rf_wifi_tx_buffer(void);                /* the frame buffer rf_wifi_tx sends from (1600 B): build in place, pass this pointer */
