@@ -102,7 +102,11 @@ static void drain(void)
 {
     for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) {
         if (!(EM16(d) & 0x8000)) continue;
-        if (EM16(d + 2) & 0x000F) {               /* RX status [3:0]: sync, RX time, length, CRC error (bit 6 etc. are normal flags) */
+        /* RX status [3:0]: sync, RX time, length, CRC error. In a connection also bit 5 (NESN error) and bit 6 (SN error: the central resent a PDU
+         * we already have), as ROM r_lld_con_rx drops them (mask 0x66 + bits 0, 3; bench/rfmeas/data/rom_lld_con_rx.dis): delivered, a resent
+         * ATT request was answered twice and the 2nd answer met the client's next request (NimBLE EBADDATA, discovery failed 1 in ~30 connections).
+         * While advertising, bit 6 is a normal flag. */
+        if (EM16(d + 2) & (conn_on ? 0x006F : 0x000F)) {
             st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
         }
         uint32_t n = (q_head + 1) % Q_N;

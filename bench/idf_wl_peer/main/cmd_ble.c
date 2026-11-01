@@ -196,14 +196,15 @@ static int cmd_disc(int argc, char **argv)
 {
     if (conn == BLE_HS_CONN_HANDLE_NONE) return -1;
     nsvc = 0; op_begin();
-    if (ble_gattc_disc_all_svcs(conn, svc_cb, NULL) || wait_op()) return -2;
+    int rc;
+    if ((rc = ble_gattc_disc_all_svcs(conn, svc_cb, NULL)) || (rc = wait_op())) { printf("disc svcs rc %d\n", rc); return -2; }   /* rc: NimBLE start error, ATT status, or -9 = no answer in 8 s */
     for (int i = 0; i < nsvc; i++) {
         nchr = 0; cur_end = svc_list[i].e; op_begin();
-        if (ble_gattc_disc_all_chrs(conn, svc_list[i].s, svc_list[i].e, chr_cb, NULL) || wait_op()) return -3;
+        if ((rc = ble_gattc_disc_all_chrs(conn, svc_list[i].s, svc_list[i].e, chr_cb, NULL)) || (rc = wait_op())) { printf("disc chrs %u-%u rc %d\n", svc_list[i].s, svc_list[i].e, rc); return -3; }
         for (int k = 0; k < nchr; k++) {
             uint16_t end = k + 1 < nchr ? chr_list[k + 1].val - 2 : cur_end;
             op_begin();
-            if (end > chr_list[k].val && (ble_gattc_disc_all_dscs(conn, chr_list[k].val, end, dsc_cb, NULL) || wait_op())) return -4;
+            if (end > chr_list[k].val && ((rc = ble_gattc_disc_all_dscs(conn, chr_list[k].val, end, dsc_cb, NULL)) || (rc = wait_op()))) { printf("disc dscs rc %d\n", rc); return -4; }
         }
     }
     return 0;

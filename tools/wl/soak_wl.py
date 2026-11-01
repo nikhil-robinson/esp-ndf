@@ -40,7 +40,7 @@ else:
         if base is None: base = mem
         bad = peer_ok < 16 or ours < 16 or udp < 60 or 'rcvd 2048 bad 0' not in tcp or mem > base + 64
         say('round %d sta: peer-ping %d/20 our-ping %d/20 udp %d/100 tcp %s heap %d gtk %d grp_rx %d' % (rounds, peer_ok, ours, udp, 'ok' if 'rcvd 2048 bad 0' in tcp else tcp, mem, gtk, grp), bad)
-    if mins[0] >= 21: say('sta: group key rotations %d (the IDF AP rekeys every 600 s; the pings above need its broadcast ARP under the new key)' % (gtk - 1), gtk < 3)
+    if mins[0]: say('sta: group key rotations %d (IDF 5.3\'s AP never rekeys on a timer: wpa_auth.c arms wpa_group_rekey only inside wpa_rekey_gtk, called on a station\'s EAPOL request)' % (gtk - 1), False)
 n.close()
 
 # ---- 2. access point ----
@@ -53,7 +53,11 @@ while time.time() < t_end:
     rounds += 1
     r = [l for l in p.cmd('ping 192.168.4.1 20', 60) if 'ping ok=' in l]; ok = num(r'ok=(\d+)', r[-1] if r else '')
     try: tcp = p.cmd('tcp_send 192.168.4.1 8 1024', 120)[-1]
-    except RuntimeError as e: tcp = str(e)[:60]
+    except (RuntimeError, TimeoutError) as e:
+        tcp = str(e)[:60]
+        for c in ('apstat', 'stats', 'mac'):                  # our AP's state at the failure
+            try: say('  ours ' + c + ': ' + n.cmd(c)[-1])
+            except Exception as x: say('  ours ' + c + ': ' + str(x)[:80])
     st = n.cmd('apstat')[-1]; mem = num(r'mem used (\d+)', n.cmd('stats')[-1]); used = num(r'used (\d+)$', st)
     if base is None: base = mem
     bad = ok < 16 or 'echoed=1024 bad=0' not in tcp or used != 1 or mem > base + 64
@@ -71,5 +75,8 @@ while time.time() < t_end:
         p.cmd('ble_disconnect', 5); time.sleep(2)
         say('round %d ble: discovered %d attributes, %d notifications in 10 s, gaps %d' % (rounds, len(d), cnt, gaps), cnt < 80 or gaps)
     except Exception as e:
-        say('round %d ble: %s' % (rounds, e), True); time.sleep(5)
+        say('round %d ble: %s' % (rounds, e), True)
+        try: p.cmd('ble_disconnect', 5)                       # or every later connect fails with EDONE (still connected)
+        except Exception: pass
+        time.sleep(5)
 say('=== soak wireless: rounds %d fails %d ===' % (rounds, fails)); sys.exit(1 if fails else 0)

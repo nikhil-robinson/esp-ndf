@@ -1,0 +1,300 @@
+
+/home/nikhil/.espressif/tools/esp-rom-elfs/20240305/esp32s3_rev0_rom.elf:     file format elf32-xtensa-le
+
+
+Disassembly of section .bt_text:
+
+4001a820 <r_lld_con_rx>:
+4001a820:	006136        	entry	a1, 48
+4001a823:	fbfd31        	l32r	a3, 40019818 <r_lld_adv_coex_check_ext_adv_synced+0x60>
+4001a826:	742020        	extui	a2, a2, 0, 8
+4001a829:	a03230        	addx4	a3, a2, a3
+4001a82c:	0129      	s32i.n	a2, a1, 0
+4001a82e:	0328      	l32i.n	a2, a3, 0
+4001a830:	b37c      	movi.n	a3, -5
+4001a832:	421242        	l16ui	a4, a2, 132
+4001a835:	b1a961        	l32r	a6, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001a838:	103430        	and	a3, a4, a3
+4001a83b:	425232        	s16i	a3, a2, 132
+4001a83e:	0138      	l32i.n	a3, a1, 0
+4001a840:	905330        	addx2	a5, a3, a3
+4001a843:	1135c0        	slli	a3, a5, 4
+4001a846:	c05350        	sub	a5, a3, a5
+4001a849:	1155f0        	slli	a5, a5, 1
+4001a84c:	50c552        	addi	a5, a5, 80
+4001a84f:	1159      	s32i.n	a5, a1, 4
+4001a851:	003e46        	j	4001a94e <r_lld_con_rx+0x12e>
+4001a854:	00          	.byte 00
+4001a855:	eb8f31        	l32r	a3, 40015694 <r_lld_adv_end+0xb8>
+4001a858:	af1171        	l32r	a7, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001a85b:	0338      	l32i.n	a3, a3, 0
+4001a85d:	0798      	l32i.n	a9, a7, 0
+4001a85f:	b44e41        	l32r	a4, 40007998 <r_rf_rw_v9_le_disable+0x20>
+4001a862:	d80332        	l8ui	a3, a3, 216
+4001a865:	2f2992        	l32i	a9, a9, 188
+4001a868:	20a440        	or	a10, a4, a4
+4001a86b:	a03330        	addx4	a3, a3, a3
+4001a86e:	0009e0        	callx8	a9
+4001a871:	1133e0        	slli	a3, a3, 2
+4001a874:	932b      	addi.n	a9, a3, 2
+4001a876:	a9aa      	add.n	a10, a9, a10
+4001a878:	001a92        	l16ui	a9, a10, 0
+4001a87b:	07a8      	l32i.n	a10, a7, 0
+4001a87d:	f45090        	extui	a5, a9, 0, 16
+4001a880:	2f2ab2        	l32i	a11, a10, 188
+4001a883:	04ad      	mov.n	a10, a4
+4001a885:	000be0        	callx8	a11
+4001a888:	434b      	addi.n	a4, a3, 4
+4001a88a:	a4aa      	add.n	a10, a4, a10
+4001a88c:	001a42        	l16ui	a4, a10, 0
+4001a88f:	f44040        	extui	a4, a4, 0, 16
+4001a892:	046507        	bbci	a5, 0, 4001a89a <r_lld_con_rx+0x7a>
+4001a895:	0b0c      	movi.n	a11, 0
+4001a897:	002846        	j	4001a93c <r_lld_con_rx+0x11c>
+4001a89a:	06a8      	l32i.n	a10, a6, 0
+4001a89c:	20b220        	or	a11, a2, a2
+4001a89f:	e72ac2        	l32i	a12, a10, 0x39c
+4001a8a2:	0021a2        	l32i	a10, a1, 0
+4001a8a5:	000ce0        	callx8	a12
+4001a8a8:	e9e537        	bbsi	a5, 3, 4001a895 <r_lld_con_rx+0x75>
+4001a8ab:	1422a2        	l32i	a10, a2, 80
+4001a8ae:	1662a2        	s32i	a10, a2, 88
+4001a8b1:	66a0a2        	movi	a10, 102
+4001a8b4:	0205a7        	bnone	a5, a10, 4001a8ba <r_lld_con_rx+0x9a>
+4001a8b7:	001fc6        	j	4001a93a <r_lld_con_rx+0x11a>
+4001a8ba:	0a1c      	movi.n	a10, 16
+4001a8bc:	1095a0        	and	a9, a5, a10
+4001a8bf:	299c      	beqz.n	a9, 4001a8d5 <r_lld_con_rx+0xb5>
+4001a8c1:	421242        	l16ui	a4, a2, 132
+4001a8c4:	80a032        	movi	a3, 128
+4001a8c7:	203430        	or	a3, a4, a3
+4001a8ca:	425232        	s16i	a3, a2, 132
+4001a8cd:	230c      	movi.n	a3, 2
+4001a8cf:	8f4232        	s8i	a3, a2, 143
+4001a8d2:	001906        	j	4001a93a <r_lld_con_rx+0x11a>
+4001a8d5:	07a8      	l32i.n	a10, a7, 0
+4001a8d7:	14c040        	extui	a12, a4, 0, 2
+4001a8da:	2f2ab2        	l32i	a11, a10, 188
+4001a8dd:	036192        	s32i	a9, a1, 12
+4001a8e0:	21c9      	s32i.n	a12, a1, 8
+4001a8e2:	00a4a2        	movi	a10, 0x400
+4001a8e5:	000be0        	callx8	a11
+4001a8e8:	1158      	l32i.n	a5, a1, 4
+4001a8ea:	3198      	l32i.n	a9, a1, 12
+4001a8ec:	aa5a      	add.n	a10, a10, a5
+4001a8ee:	001aa2        	l16ui	a10, a10, 0
+4001a8f1:	21c8      	l32i.n	a12, a1, 8
+4001a8f3:	41d840        	srli	a13, a4, 8
+4001a8f6:	140c      	movi.n	a4, 1
+4001a8f8:	4c52a2        	s16i	a10, a2, 152
+4001a8fb:	8394c0        	moveqz	a9, a4, a12
+4001a8fe:	89fc      	bnez.n	a9, 4001a93a <r_lld_con_rx+0x11a>
+4001a900:	8394d0        	moveqz	a9, a4, a13
+4001a903:	39fc      	bnez.n	a9, 4001a93a <r_lld_con_rx+0x11a>
+4001a905:	0b5db6        	bltui	a13, 5, 4001a914 <r_lld_con_rx+0xf4>
+4001a908:	421242        	l16ui	a4, a2, 132
+4001a90b:	056457        	bbci	a4, 5, 4001a914 <r_lld_con_rx+0xf4>
+4001a90e:	fccdd2        	addi	a13, a13, -4
+4001a911:	f4d0d0        	extui	a13, a13, 0, 16
+4001a914:	0648      	l32i.n	a4, a6, 0
+4001a916:	01a8      	l32i.n	a10, a1, 0
+4001a918:	e52442        	l32i	a4, a4, 0x394
+4001a91b:	02bd      	mov.n	a11, a2
+4001a91d:	0004e0        	callx8	a4
+4001a920:	0a4d      	mov.n	a4, a10
+4001a922:	4adc      	bnez.n	a10, 4001a93a <r_lld_con_rx+0x11a>
+4001a924:	0778      	l32i.n	a7, a7, 0
+4001a926:	b41ca1        	l32r	a10, 40007998 <r_rf_rw_v9_le_disable+0x20>
+4001a929:	2f2772        	l32i	a7, a7, 188
+4001a92c:	12c332        	addi	a3, a3, 18
+4001a92f:	0007e0        	callx8	a7
+4001a932:	a3aa      	add.n	a10, a3, a10
+4001a934:	0020c0        	memw
+4001a937:	005a42        	s16i	a4, a10, 0
+4001a93a:	1b0c      	movi.n	a11, 1
+4001a93c:	0638      	l32i.n	a3, a6, 0
+4001a93e:	02ad      	mov.n	a10, a2
+4001a940:	e42332        	l32i	a3, a3, 0x390
+4001a943:	0003e0        	callx8	a3
+4001a946:	0638      	l32i.n	a3, a6, 0
+4001a948:	aa2332        	l32i	a3, a3, 0x2a8
+4001a94b:	0003e0        	callx8	a3
+4001a94e:	0638      	l32i.n	a3, a6, 0
+4001a950:	01a8      	l32i.n	a10, a1, 0
+4001a952:	a92332        	l32i	a3, a3, 0x2a4
+4001a955:	0003e0        	callx8	a3
+4001a958:	ef9a56        	bnez	a10, 4001a855 <r_lld_con_rx+0x35>
+4001a95b:	f01d      	retw.n
+4001a95d:	000000        	ill
+
+4001a960 <r_lld_con_tx>:
+4001a960:	00a136        	entry	a1, 80
+4001a963:	fbad31        	l32r	a3, 40019818 <r_lld_adv_coex_check_ext_adv_synced+0x60>
+4001a966:	742020        	extui	a2, a2, 0, 8
+4001a969:	a03230        	addx4	a3, a2, a3
+4001a96c:	0338      	l32i.n	a3, a3, 0
+4001a96e:	112280        	slli	a2, a2, 8
+4001a971:	8e0352        	l8ui	a5, a3, 142
+4001a974:	900342        	l8ui	a4, a3, 144
+4001a977:	b05550        	addx8	a5, a5, a5
+4001a97a:	554a      	add.n	a5, a5, a4
+4001a97c:	140c      	movi.n	a4, 1
+4001a97e:	204240        	or	a4, a2, a4
+4001a981:	4149      	s32i.n	a4, a1, 16
+4001a983:	745050        	extui	a5, a5, 0, 8
+4001a986:	aec541        	l32r	a4, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001a989:	008446        	j	4001ab9e <r_lld_con_tx+0x23e>
+4001a98c:	0478      	l32i.n	a7, a4, 0
+4001a98e:	06ad      	mov.n	a10, a6
+4001a990:	2f2772        	l32i	a7, a7, 188
+4001a993:	0007e0        	callx8	a7
+4001a996:	0498      	l32i.n	a9, a4, 0
+4001a998:	752b      	addi.n	a7, a5, 2
+4001a99a:	a7aa      	add.n	a10, a7, a10
+4001a99c:	001a82        	l16ui	a8, a10, 0
+4001a99f:	2f2992        	l32i	a9, a9, 188
+4001a9a2:	06ad      	mov.n	a10, a6
+4001a9a4:	f42080        	extui	a2, a8, 0, 16
+4001a9a7:	554b      	addi.n	a5, a5, 4
+4001a9a9:	0009e0        	callx8	a9
+4001a9ac:	a5aa      	add.n	a10, a5, a10
+4001a9ae:	001a52        	l16ui	a5, a10, 0
+4001a9b1:	148020        	extui	a8, a2, 0, 2
+4001a9b4:	f45050        	extui	a5, a5, 0, 16
+4001a9b7:	0ab816        	beqz	a8, 4001aa66 <r_lld_con_tx+0x106>
+4001a9ba:	2638b6        	bltui	a8, 3, 4001a9e4 <r_lld_con_tx+0x84>
+4001a9bd:	023826        	beqi	a8, 3, 4001a9c3 <r_lld_con_tx+0x63>
+4001a9c0:	002886        	j	4001aa66 <r_lld_con_tx+0x106>
+4001a9c3:	b14661        	l32r	a6, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001a9c6:	05ad      	mov.n	a10, a5
+4001a9c8:	0668      	l32i.n	a6, a6, 0
+4001a9ca:	3e2662        	l32i	a6, a6, 248
+4001a9cd:	0006e0        	callx8	a6
+4001a9d0:	aeb551        	l32r	a5, 400064a4 <r_aes_ccm_xor_128_msb+0x38>
+4001a9d3:	ffa0c2        	movi	a12, 255
+4001a9d6:	0558      	l32i.n	a5, a5, 0
+4001a9d8:	41b8      	l32i.n	a11, a1, 16
+4001a9da:	392552        	l32i	a5, a5, 228
+4001a9dd:	0ca2a2        	movi	a10, 0x20c
+4001a9e0:	002386        	j	4001aa72 <r_lld_con_tx+0x112>
+4001a9e3:	00          	.byte 00
+4001a9e4:	0488      	l32i.n	a8, a4, 0
+4001a9e6:	06ad      	mov.n	a10, a6
+4001a9e8:	2f2882        	l32i	a8, a8, 188
+4001a9eb:	0008e0        	callx8	a8
+4001a9ee:	a7aa      	add.n	a10, a7, a10
+4001a9f0:	001a62        	l16ui	a6, a10, 0
+4001a9f3:	746860        	extui	a6, a6, 8, 8
+4001a9f6:	0f56b6        	bltui	a6, 5, 4001aa09 <r_lld_con_tx+0xa9>
+4001a9f9:	421382        	l16ui	a8, a3, 132
+4001a9fc:	0c6867        	bbci	a8, 6, 4001aa0c <r_lld_con_tx+0xac>
+4001a9ff:	fcc662        	addi	a6, a6, -4
+4001aa02:	f46060        	extui	a6, a6, 0, 16
+4001aa05:	0000c6        	j	4001aa0c <r_lld_con_tx+0xac>
+4001aa08:	00          	.byte 00
+4001aa09:	068616        	beqz	a6, 4001aa75 <r_lld_con_tx+0x115>
+4001aa0c:	a328      	l32i.n	a2, a3, 40
+4001aa0e:	e2cc      	bnez.n	a2, 4001aa20 <r_lld_con_tx+0xc0>
+4001aa10:	0498      	l32i.n	a9, a4, 0
+4001aa12:	fb82b1        	l32r	a11, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001aa15:	022992        	l32i	a9, a9, 8
+4001aa18:	06a7c2        	movi	a12, 0x706
+4001aa1b:	02ad      	mov.n	a10, a2
+4001aa1d:	0009e0        	callx8	a9
+4001aa20:	565a      	add.n	a5, a6, a5
+4001aa22:	031262        	l16ui	a6, a2, 6
+4001aa25:	949060        	extui	a9, a6, 0, 10
+4001aa28:	021262        	l16ui	a6, a2, 4
+4001aa2b:	696a      	add.n	a6, a9, a6
+4001aa2d:	442567        	blt	a5, a6, 4001aa75 <r_lld_con_tx+0x115>
+4001aa30:	ae9d51        	l32r	a5, 400064a4 <r_aes_ccm_xor_128_msb+0x38>
+4001aa33:	28c3a2        	addi	a10, a3, 40
+4001aa36:	0568      	l32i.n	a6, a5, 0
+4001aa38:	102662        	l32i	a6, a6, 64
+4001aa3b:	0006e0        	callx8	a6
+4001aa3e:	c368      	l32i.n	a6, a3, 48
+4001aa40:	049267        	bne	a2, a6, 4001aa48 <r_lld_con_tx+0xe8>
+4001aa43:	00a062        	movi	a6, 0
+4001aa46:	c369      	s32i.n	a6, a3, 48
+4001aa48:	b12561        	l32r	a6, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001aa4b:	0212a2        	l16ui	a10, a2, 4
+4001aa4e:	0668      	l32i.n	a6, a6, 0
+4001aa50:	342662        	l32i	a6, a6, 208
+4001aa53:	0006e0        	callx8	a6
+4001aa56:	0558      	l32i.n	a5, a5, 0
+4001aa58:	ffa0c2        	movi	a12, 255
+4001aa5b:	392552        	l32i	a5, a5, 228
+4001aa5e:	41b8      	l32i.n	a11, a1, 16
+4001aa60:	0ea2a2        	movi	a10, 0x20e
+4001aa63:	0002c6        	j	4001aa72 <r_lld_con_tx+0x112>
+4001aa66:	0458      	l32i.n	a5, a4, 0
+4001aa68:	fb6db1        	l32r	a11, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001aa6b:	2558      	l32i.n	a5, a5, 8
+4001aa6d:	26a7c2        	movi	a12, 0x726
+4001aa70:	0a0c      	movi.n	a10, 0
+4001aa72:	0005e0        	callx8	a5
+4001aa75:	0468      	l32i.n	a6, a4, 0
+4001aa77:	e86451        	l32r	a5, 40014c08 <r_lld_legacy_adv_dynamic_pti_get+0x7c>
+4001aa7a:	2f2662        	l32i	a6, a6, 188
+4001aa7d:	05ad      	mov.n	a10, a5
+4001aa7f:	0006e0        	callx8	a6
+4001aa82:	0468      	l32i.n	a6, a4, 0
+4001aa84:	87aa      	add.n	a8, a7, a10
+4001aa86:	2f2662        	l32i	a6, a6, 188
+4001aa89:	05ad      	mov.n	a10, a5
+4001aa8b:	9189      	s32i.n	a8, a1, 36
+4001aa8d:	0006e0        	callx8	a6
+4001aa90:	a7aa      	add.n	a10, a7, a10
+4001aa92:	001a52        	l16ui	a5, a10, 0
+4001aa95:	9188      	l32i.n	a8, a1, 36
+4001aa97:	f46050        	extui	a6, a5, 0, 16
+4001aa9a:	f56c      	movi.n	a5, -17
+4001aa9c:	105650        	and	a5, a6, a5
+4001aa9f:	0020c0        	memw
+4001aaa2:	005852        	s16i	a5, a8, 0
+4001aaa5:	9203a2        	l8ui	a10, a3, 146
+4001aaa8:	aa0b      	addi.n	a10, a10, -1
+4001aaaa:	7490a0        	extui	a9, a10, 0, 8
+4001aaad:	924392        	s8i	a9, a3, 146
+4001aab0:	0d4956        	bnez	a9, 4001ab88 <r_lld_con_tx+0x228>
+4001aab3:	0458      	l32i.n	a5, a4, 0
+4001aab5:	8e0362        	l8ui	a6, a3, 142
+4001aab8:	2f2552        	l32i	a5, a5, 188
+4001aabb:	014192        	s8i	a9, a1, 1
+4001aabe:	004192        	s8i	a9, a1, 0
+4001aac1:	a199      	s32i.n	a9, a1, 40
+4001aac3:	907660        	addx2	a7, a6, a6
+4001aac6:	00a4a2        	movi	a10, 0x400
+4001aac9:	0005e0        	callx8	a5
+4001aacc:	1157c0        	slli	a5, a7, 4
+4001aacf:	c05570        	sub	a5, a5, a7
+4001aad2:	ae7471        	l32r	a7, 400064a4 <r_aes_ccm_xor_128_msb+0x38>
+4001aad5:	1155f0        	slli	a5, a5, 1
+4001aad8:	0778      	l32i.n	a7, a7, 0
+4001aada:	aa5a      	add.n	a10, a10, a5
+4001aadc:	001aa2        	l16ui	a10, a10, 0
+4001aadf:	782772        	l32i	a7, a7, 0x1e0
+4001aae2:	06bd      	mov.n	a11, a6
+4001aae4:	01dd      	mov.n	a13, a1
+4001aae6:	c11b      	addi.n	a12, a1, 1
+4001aae8:	44a0a0        	extui	a10, a10, 0, 5
+4001aaeb:	0007e0        	callx8	a7
+4001aaee:	0488      	l32i.n	a8, a4, 0
+4001aaf0:	0101b2        	l8ui	a11, a1, 1
+4001aaf3:	f7bb61        	l32r	a6, 400189e0 <r_lld_adv_start_init_evt_param+0x6a0>
+4001aaf6:	2f2882        	l32i	a8, a8, 188
+4001aaf9:	00a4a2        	movi	a10, 0x400
+4001aafc:	0961b2        	s32i	a11, a1, 36
+4001aaff:	000672        	l8ui	a7, a6, 0
+4001ab02:	000162        	l8ui	a6, a1, 0
+4001ab05:	0008e0        	callx8	a8
+4001ab08:	aa5a      	add.n	a10, a10, a5
+4001ab0a:	001a82        	l16ui	a8, a10, 0
+4001ab0d:	91b8      	l32i.n	a11, a1, 36
+4001ab0f:	448080        	extui	a8, a8, 0, 5
+4001ab12:	8189      	s32i.n	a8, a1, 32
+4001ab14:	048070        	extui	a8, a7, 0, 1
+4001ab17:	118860        	slli	a8, a8, 10
+4001ab1a:	5189      	s32i.n	a8, a1, 20
+4001ab1c:	048170        	extui	a8, a7, 1, 1
+4001ab1f:	70          	.byte 0x70

@@ -1,0 +1,146 @@
+
+/home/nikhil/.espressif/tools/esp-rom-elfs/20240305/esp32s3_rev0_rom.elf:     file format elf32-xtensa-le
+
+
+Disassembly of section .bt_text:
+
+4001b720 <r_lld_con_tx_isr>:
+4001b720:	004136        	entry	a1, 32
+4001b723:	f83d81        	l32r	a8, 40019818 <r_lld_adv_coex_check_ext_adv_synced+0x60>
+4001b726:	742020        	extui	a2, a2, 0, 8
+4001b729:	a08280        	addx4	a8, a2, a8
+4001b72c:	08b8      	l32i.n	a11, a8, 0
+4001b72e:	ab9c      	beqz.n	a11, 4001b74c <r_lld_con_tx_isr+0x2c>
+4001b730:	adeb31        	l32r	a3, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001b733:	02ad      	mov.n	a10, a2
+4001b735:	002382        	l32i	a8, a3, 0
+4001b738:	ee2882        	l32i	a8, a8, 0x3b8
+4001b73b:	0008e0        	callx8	a8
+4001b73e:	0338      	l32i.n	a3, a3, 0
+4001b740:	02ad      	mov.n	a10, a2
+4001b742:	f42332        	l32i	a3, a3, 0x3d0
+4001b745:	0003e0        	callx8	a3
+4001b748:	f01d      	retw.n
+4001b74a:	00          	.byte 00
+4001b74b:	00          	.byte 00
+4001b74c:	ab5431        	l32r	a3, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001b74f:	fff3d1        	l32r	a13, 4001b71c <r_lld_con_rx_isr+0x34>
+4001b752:	0338      	l32i.n	a3, a3, 0
+4001b754:	f832c1        	l32r	a12, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001b757:	3338      	l32i.n	a3, a3, 12
+4001b759:	02ad      	mov.n	a10, a2
+4001b75b:	0003e0        	callx8	a3
+4001b75e:	f01d      	retw.n
+4001b760:	f0 09 00 00 	
+4001b764:	09 0a 00 00 	
+
+4001b768 <r_lld_con_frm_skip_isr>:
+4001b768:	004136        	entry	a1, 32
+4001b76b:	f82b31        	l32r	a3, 40019818 <r_lld_adv_coex_check_ext_adv_synced+0x60>
+4001b76e:	742020        	extui	a2, a2, 0, 8
+4001b771:	a03230        	addx4	a3, a2, a3
+4001b774:	0338      	l32i.n	a3, a3, 0
+4001b776:	08a316        	beqz	a3, 4001b804 <r_lld_con_frm_skip_isr+0x9c>
+4001b779:	add841        	l32r	a4, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001b77c:	002452        	l32i	a5, a4, 0
+4001b77f:	9925a2        	l32i	a10, a5, 0x264
+4001b782:	000ae0        	callx8	a10
+4001b785:	8f0382        	l8ui	a8, a3, 143
+4001b788:	0a5d      	mov.n	a5, a10
+4001b78a:	880b      	addi.n	a8, a8, -1
+4001b78c:	748080        	extui	a8, a8, 0, 8
+4001b78f:	1228b6        	bltui	a8, 2, 4001b7a5 <r_lld_con_frm_skip_isr+0x3d>
+4001b792:	ab4281        	l32r	a8, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001b795:	fff2c1        	l32r	a12, 4001b760 <r_lld_con_tx_isr+0x40>
+4001b798:	0888      	l32i.n	a8, a8, 0
+4001b79a:	f820b1        	l32r	a11, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001b79d:	2888      	l32i.n	a8, a8, 8
+4001b79f:	00a0a2        	movi	a10, 0
+4001b7a2:	0008e0        	callx8	a8
+4001b7a5:	0488      	l32i.n	a8, a4, 0
+4001b7a7:	1b0c      	movi.n	a11, 1
+4001b7a9:	06d882        	addmi	a8, a8, 0x600
+4001b7ac:	2e2882        	l32i	a8, a8, 184
+4001b7af:	03ad      	mov.n	a10, a3
+4001b7b1:	0008e0        	callx8	a8
+4001b7b4:	8f0382        	l8ui	a8, a3, 143
+4001b7b7:	112866        	bnei	a8, 2, 4001b7cc <r_lld_con_frm_skip_isr+0x64>
+4001b7ba:	0438      	l32i.n	a3, a4, 0
+4001b7bc:	6c1c      	movi.n	a12, 22
+4001b7be:	c82332        	l32i	a3, a3, 0x320
+4001b7c1:	1b0c      	movi.n	a11, 1
+4001b7c3:	02ad      	mov.n	a10, a2
+4001b7c5:	0003e0        	callx8	a3
+4001b7c8:	f01d      	retw.n
+4001b7ca:	00          	.byte 00
+4001b7cb:	00          	.byte 00
+4001b7cc:	122382        	l32i	a8, a3, 72
+4001b7cf:	192322        	l32i	a2, a3, 100
+4001b7d2:	0c0c      	movi.n	a12, 0
+4001b7d4:	882a      	add.n	a8, a8, a2
+4001b7d6:	e5cb21        	l32r	a2, 40014f04 <r_lld_legacy_adv_dynamic_pti_process+0x2c4>
+4001b7d9:	05bd      	mov.n	a11, a5
+4001b7db:	102820        	and	a2, a8, a2
+4001b7de:	126322        	s32i	a2, a3, 72
+4001b7e1:	3f1322        	l16ui	a2, a3, 126
+4001b7e4:	160382        	l8ui	a8, a3, 22
+4001b7e7:	221b      	addi.n	a2, a2, 1
+4001b7e9:	3f5322        	s16i	a2, a3, 126
+4001b7ec:	ef6921        	l32r	a2, 40017590 <r_lld_adv_pkt_rx+0xb0>
+4001b7ef:	8e03a2        	l8ui	a10, a3, 142
+4001b7f2:	090222        	l8ui	a2, a2, 9
+4001b7f5:	282a      	add.n	a2, a8, a2
+4001b7f7:	164322        	s8i	a2, a3, 22
+4001b7fa:	0428      	l32i.n	a2, a4, 0
+4001b7fc:	ea2222        	l32i	a2, a2, 0x3a8
+4001b7ff:	000406        	j	4001b813 <r_lld_con_frm_skip_isr+0xab>
+4001b802:	00          	.byte 00
+4001b803:	00          	.byte 00
+4001b804:	ab2621        	l32r	a2, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001b807:	ffd7c1        	l32r	a12, 4001b764 <r_lld_con_tx_isr+0x44>
+4001b80a:	0228      	l32i.n	a2, a2, 0
+4001b80c:	f804b1        	l32r	a11, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001b80f:	2228      	l32i.n	a2, a2, 8
+4001b811:	03ad      	mov.n	a10, a3
+4001b813:	0002e0        	callx8	a2
+4001b816:	f01d      	retw.n
+4001b818:	80 8d f1 3f 	
+4001b81c:	ae 0a 00 00 	
+
+4001b820 <r_lld_con_frm_cbk>:
+4001b820:	004136        	entry	a1, 32
+4001b823:	744040        	extui	a4, a4, 0, 8
+4001b826:	02bd      	mov.n	a11, a2
+4001b828:	03ad      	mov.n	a10, a3
+4001b82a:	3a54f6        	bgeui	a4, 5, 4001b868 <r_lld_con_frm_cbk+0x48>
+4001b82d:	fffa81        	l32r	a8, 4001b818 <r_lld_con_frm_skip_isr+0xb0>
+4001b830:	74a030        	extui	a10, a3, 0, 8
+4001b833:	a04480        	addx4	a4, a4, a8
+4001b836:	0488      	l32i.n	a8, a4, 0
+4001b838:	ada941        	l32r	a4, 40006edc <r_rw_crypto_aes_s1+0x2c>
+4001b83b:	0448      	l32i.n	a4, a4, 0
+4001b83d:	0008a0        	jx	a8
+4001b840:	d72442        	l32i	a4, a4, 0x35c
+4001b843:	0c0c      	movi.n	a12, 0
+4001b845:	000106        	j	4001b84d <r_lld_con_frm_cbk+0x2d>
+4001b848:	d72442        	l32i	a4, a4, 0x35c
+4001b84b:	1c0c      	movi.n	a12, 1
+4001b84d:	0004e0        	callx8	a4
+4001b850:	f01d      	retw.n
+4001b852:	e92442        	l32i	a4, a4, 0x3a4
+4001b855:	000086        	j	4001b85b <r_lld_con_frm_cbk+0x3b>
+4001b858:	f02442        	l32i	a4, a4, 0x3c0
+4001b85b:	0004e0        	callx8	a4
+4001b85e:	f01d      	retw.n
+4001b860:	d82442        	l32i	a4, a4, 0x360
+4001b863:	0004e0        	callx8	a4
+4001b866:	f01d      	retw.n
+4001b868:	ab0d81        	l32r	a8, 4000649c <r_aes_ccm_xor_128_msb+0x30>
+4001b86b:	ffecd1        	l32r	a13, 4001b81c <r_lld_con_frm_skip_isr+0xb4>
+4001b86e:	0888      	l32i.n	a8, a8, 0
+4001b870:	f7ebc1        	l32r	a12, 4001981c <r_lld_adv_coex_check_ext_adv_synced+0x64>
+4001b873:	3888      	l32i.n	a8, a8, 12
+4001b875:	04bd      	mov.n	a11, a4
+4001b877:	0008e0        	callx8	a8
+4001b87a:	f01d      	retw.n
+4001b87c:	de 0a 00 00 	
