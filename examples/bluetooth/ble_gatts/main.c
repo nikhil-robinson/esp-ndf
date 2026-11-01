@@ -14,9 +14,16 @@
 
 static uint8_t val[16];
 static uint32_t counter;
-static volatile uint64_t burst_until; static volatile uint8_t burst_big, burst_len;   /* 0xB6 [len]: notifications of the full ATT MTU, or of len bytes */                            /* writing 0xB5 to 0xFFF1 starts 5 s of notifications as fast as the link takes them */
+static volatile uint64_t burst_until; static volatile uint8_t privacy_req;
+static volatile uint8_t burst_big, burst_len;   /* 0xB6 [len]: notifications of the full ATT MTU, or of len bytes */                            /* writing 0xB5 to 0xFFF1 starts 5 s of notifications as fast as the link takes them */
 static int rd_val(uint8_t *o, uint16_t max) { (void)max; memcpy(o, val, sizeof val); return sizeof val; }
-static int wr_val(const uint8_t *in, uint16_t n) { if (n && (in[0] == 0xB5 || in[0] == 0xB6)) { burst_until = time_us() + 5000000ull; burst_big = in[0] == 0xB6; burst_len = n > 1 ? in[1] : 0; } memset(val, 0, sizeof val); memcpy(val, in, n > sizeof val ? sizeof val : n); return 0; }
+static int wr_val(const uint8_t *in, uint16_t n)
+{
+    if (n && (in[0] == 0xB5 || in[0] == 0xB6)) { burst_until = time_us() + 5000000ull; burst_big = in[0] == 0xB6; burst_len = n > 1 ? in[1] : 0; }
+    else if (n && in[0] == 0xB7) privacy_req = 1;                  /* 0xB7: advertise with resolvable private addresses (renewed every 5 s) from the next disconnect; 0xB8: the static address again */
+    else if (n && in[0] == 0xB8) privacy_req = 2;
+    memset(val, 0, sizeof val); memcpy(val, in, n > sizeof val ? sizeof val : n); return 0;
+}
 static int rd_cnt(uint8_t *o, uint16_t max) { (void)max; memcpy(o, &counter, 4); return 4; }
 static gatt_chr_t chrs[2] = { { 0xFFF1, GATT_P_READ | GATT_P_WRITE, rd_val, wr_val, 0 }, { 0xFFF2, GATT_P_READ | GATT_P_NOTIFY, rd_cnt, 0, 0 } };
 
@@ -39,6 +46,7 @@ int main(void)
     uint32_t next = 0, sec = 0, sent = 0, fail = 0;
     for (;;) {
         gatt_poll(burst_until > time_us() ? 1000 : 20000);
+        if (privacy_req) { if (privacy_req == 1) { uint8_t irk[16]; smp_local_irk(irk); printf("privacy on, irk"); for (int q = 0; q < 16; q++) printf(" %02x", irk[q]); printf("\n"); } gatts_set_privacy(privacy_req == 1 ? 5000 : 0); privacy_req = 0; }
         if (burst_until > time_us() && (gatts_subscribed(&chrs[1]) & 1))
             for (int k = 0; k < 8; k++) { uint8_t pl[GATT_MTU] = { 0 }; uint32_t c = counter + 1; memcpy(pl, &c, 4); if (gatts_notify(&chrs[1], pl, burst_big ? (burst_len && burst_len < att_mtu() - 3 ? burst_len : att_mtu() - 3) : 4)) break; counter = c; sent++; }
         uint32_t now = time_us() / 100000;                      /* 10 Hz */

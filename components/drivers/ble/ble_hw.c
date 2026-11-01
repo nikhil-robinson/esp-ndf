@@ -647,6 +647,13 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
     }
 }
 
+void ble_hw_set_adva(const uint8_t adva[6])      /* new advertiser address while advertising: the core reads it at the start of each event (a rotation does not restart the advertising) */
+{
+    uint32_t ps = irq_lock();
+    for (int k = 0; k < 3; k++) EM16(CS0 + 6 + 2 * k) = adva[2 * k] | adva[2 * k + 1] << 8;
+    memcpy(own_addr, adva, 6);
+    irq_unlock(ps);
+}
 int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *data, unsigned len, uint32_t interval_us)
 {
     if (len > 31) return -1;

@@ -52,7 +52,7 @@ static int gap_ev(struct ble_gap_event *e, void *a)
         scan_seen++;
         if (scan_filter[0] && !strstr(nm, scan_filter)) break;
         scan_match++;
-        if (scan_match <= 3) printf("adv %02x:%02x:%02x:%02x:%02x:%02x type %d rssi %d name %s\n", e->disc.addr.val[5], e->disc.addr.val[4], e->disc.addr.val[3], e->disc.addr.val[2], e->disc.addr.val[1], e->disc.addr.val[0], e->disc.event_type, e->disc.rssi, nm);
+        if (scan_match <= 3) printf("adv %02x:%02x:%02x:%02x:%02x:%02x type %d rssi %d name %s atype %d\n", e->disc.addr.val[5], e->disc.addr.val[4], e->disc.addr.val[3], e->disc.addr.val[2], e->disc.addr.val[1], e->disc.addr.val[0], e->disc.event_type, e->disc.rssi, nm, e->disc.addr.type);
         break;
     }
     case BLE_GAP_EVENT_MTU: printf("event mtu %d\n", e->mtu.value); break;

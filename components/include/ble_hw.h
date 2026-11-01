@@ -26,6 +26,7 @@ void ble_hw_scan(uint8_t chan);        /* continuous passive scan on one adverti
 void ble_hw_stop(void);
 /* Advertise ADV_NONCONN_IND (AdvA + up to 31 bytes AdvData) from the core every interval_us on one channel. */
 void ble_hw_adv_type(uint8_t type);   /* before ble_hw_adv: 0 ADV_IND (connectable), 2 ADV_NONCONN_IND (default) */
+void ble_hw_set_adva(const uint8_t adva[6]);                 /* change the advertiser address of a running advertisement (random type stays) */
 int  ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *data, unsigned len, uint32_t interval_us);
 int  ble_hw_read(ble_hw_pkt_t *p);     /* 1 and the oldest PDU, or 0 when none; also services the core */
 int  ble_hw_wait(ble_hw_pkt_t *p, uint32_t timeout_us);   /* sleep (waiti) until a PDU or the timeout */

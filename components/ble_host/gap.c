@@ -2,6 +2,8 @@
 #include "gatt.h"
 #include "ble_hw.h"
 #include "smp.h"
+#include "rng.h"
+#include "sys.h"
 #include <string.h>
 
 static const char *dev_name;
@@ -26,6 +28,8 @@ int gatts_init(const char *name)
     return gatts_add_service(0x1801, 0, 0);
 }
 
+static uint8_t adv_d[31], adv_n, adv_addr[6]; static uint32_t adv_iv_us;                  /* what gatts_advertise set up, for the address rotation */
+static uint32_t rotate_ms, rotate_at;                                                    /* privacy: new resolvable private address every rotate_ms (0 = off, static address) */
 int gatts_advertise(const uint8_t addr[6], uint32_t interval_us)
 {
     uint8_t d[31]; unsigned n = 0, nl = strlen(dev_name);
@@ -33,7 +37,20 @@ int gatts_advertise(const uint8_t addr[6], uint32_t interval_us)
     d[n++] = 2; d[n++] = 1; d[n++] = 6;                        /* flags: LE general discoverable, no BR/EDR */
     d[n++] = (uint8_t)(nl + 1); d[n++] = 9; memcpy(d + n, dev_name, nl); n += nl;
     ble_hw_adv_type(0);                                        /* ADV_IND: connectable */
+    memcpy(adv_d, d, n); adv_n = (uint8_t)n; memcpy(adv_addr, addr, 6); adv_iv_us = interval_us;
     return ble_hw_adv(37, addr, 1, d, n, interval_us);         /* static random address */
+}
+
+/* Privacy: advertise with a resolvable private address, hash(IRK, prand) | prand, renewed every rotate_ms while no link is up (a fresh one after each link). The bonded
+ * central resolves it with the IRK we gave it in the pairing; the static address stays our identity address. */
+void gatts_set_privacy(uint32_t ms) { rotate_ms = ms; rotate_at = 0; }
+static void rotate_adva(void)
+{
+    uint8_t irk[16], a[6], pr[3];
+    smp_local_irk(irk);
+    rng_fill(pr, 3); pr[2] = (uint8_t)((pr[2] & 0x3F) | 0x40);            /* top two bits 01: resolvable */
+    smp_ah(irk, pr, a); memcpy(a + 3, pr, 3);
+    ble_hw_set_adva(a);
 }
 
 static uint8_t pend[GATT_MTU]; static unsigned pend_n;         /* one response that did not fit the TX queue yet */
@@ -101,6 +118,10 @@ void gatt_poll(uint32_t wait_us)
         got = ble_hw_read(&p);
     }
     int c = ble_hw_connected();
+    if (rotate_ms && !c) {                                     /* privacy: renew the advertising address */
+        uint32_t now = (uint32_t)(time_us() / 1000);
+        if (was || !rotate_at || (int32_t)(now - rotate_at) >= 0) { rotate_adva(); rotate_at = now + rotate_ms; }
+    }
     if (c && !was) { uint8_t peer[7], own[7]; ble_hw_conn_addrs(peer, own); smp_connected(peer, own); }
     if (!c && was) { gatt_reset(); rx_need = 0; smp_disconnected(); }                               /* link lost: subscriptions off (ble_hw resumes advertising) */
     was = c;

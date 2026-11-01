@@ -67,5 +67,6 @@ import subprocess
 ndf.close()
 if subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'test_ble_link.py')]).returncode: fail.append('ble_link (connection update, 2M PHY)')
 if subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'test_ble_pair.py')]).returncode: fail.append('ble_pair (pairing, encryption, bonds)')
+if subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'test_ble_privacy.py')]).returncode: fail.append('ble_privacy (resolvable private addresses)')
 print('PASS gatts' if not fail else 'FAIL gatts: %s' % fail)
 sys.exit(1 if fail else 0)

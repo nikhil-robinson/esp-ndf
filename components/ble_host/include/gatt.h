@@ -36,6 +36,7 @@ void att_indication_start(void);                                                
 
 /* radio side (gap.c): */
 int  gatts_init(const char *device_name);                                       /* GAP (0x1800: device name) + GATT (0x1801) services; call before your own */
+void gatts_set_privacy(uint32_t rotate_ms);                                    /* after gatts_advertise: advertise with a resolvable private address, renewed every rotate_ms (0 = the static address again) */
 int  gatts_advertise(const uint8_t addr[6], uint32_t interval_us);              /* connectable advertising of the device name; re-advertises by itself after a disconnect */
 void gatt_poll(uint32_t wait_us);                                               /* main loop: sleep up to wait_us for a PDU, then drain the link layer: ATT, LL control, L2CAP signalling */
 int  gatts_notify(const gatt_chr_t *c, const uint8_t *v, unsigned n);          /* 0 sent; < 0 not connected / not subscribed / n > MTU - 3 / link busy */
