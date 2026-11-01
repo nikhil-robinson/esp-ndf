@@ -1,0 +1,6 @@
+# third-board view (IDF peer on the BOX-3, wifi_sniffta ch 6, 20 MHz) while the AP pings the DEVKIT station 300 x (tools/wl/sniff_sta_acks.py), 2026-11-01
+esp-ndf 6 - above: from_first 301 from_retry 46 acks_to 341 | our MAC: txretries 48 -> the AP acknowledged nearly every attempt
+esp-ndf 6 - above: from_first 301 from_retry 36 acks_to 335 | txretries 36
+esp-ndf 6 - 20:    from_first 302 from_retry 2  acks_to 302 frames_to 528 to_retry 246 | our MAC: to-me 305 retries 139
+IDF     6 - 20:    from_first 302 from_retry 1174 acks_to 302 frames_to 1009 to_retry 721 (IDF station in modem sleep: not comparable)
+IDF     6 - above: from_first 3 from_retry 379 acks_to 372 frames_to 312 to_retry 305

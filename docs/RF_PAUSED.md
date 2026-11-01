@@ -46,9 +46,10 @@ API and findings: `docs/RF_API.md`. Lab wording rule: plain engineering wording,
 - Transmit output drifts about +1 dB over 2 minutes.
 - 1M long packets at 2460/2480 MHz at −71/−74 dBm fail the 5 % CRC limit in `rf_pkt_test` (sensitivity margin; failing in the baseline too).
 
-## Wi-Fi 40 MHz (HT40) receive — open, 2026-11-01
+## Wi-Fi 40 MHz (HT40) receive — done 2026-11-01
 
-Shipped instead: we advertise 20 MHz only (HT Capabilities 0x012c), so an HT40 AP serves us at 20 MHz (docs/PERFORMANCE.md).
+**Solved:** the missing piece was SYSCON 0x6002600c bit 2 (ROM `rom_bb_bss_cbw40_dig`), outside the captured ranges; secondary below adds
+0x6001cc0c bit 0 (`rom_bb_bss_cbw40`). Now in `rf_wifi.c` (`rf_wifi_set_bw`, `NDF_WIFI_HT40`), results in docs/PERFORMANCE.md. The notes below are the path there.
 What is known about IDF's HT40 station state (same board, BOX-3, `bench/wifi_regs/diff_idf_sta.py`):
 - LO at the 40 MHz centre, channel + 10 MHz: regi2c 0x63 words 3..5 equal ours at 2447 MHz; 0x62 words 1/5 are the VCO cap (per chip).
 - Stable HT40-vs-HT20 differences besides the LO: FE 0x60006100 / 0x60006124, BB 0x6001cc10 / cc14 / cc48 / ccb0 / ccd0 bit 29,
@@ -58,6 +59,6 @@ What is known about IDF's HT40 station state (same board, BOX-3, `bench/wifi_reg
   our broadcast probe is heard by the AP, but 20 MHz frames 10 MHz below the LO mostly fail to decode (frames per 3 s: 45-56 vs 335 at
   20 MHz; 0 of 50 unicast frames); authentication fails. Adding IDF's whole HT40 FE/BB state (31 words) or IDF's regi2c blocks
   0x64/0x69/0x6a/0x6b/0x6d: no gain. The analog filter (0x67) is the same in IDF's two modes and within one code of ours.
-- Next step: read the HT40 path in libphy (`chip_v7_set_chan`, `chip_v7_set_chan_offset`, `chip_v7_set_chan_misc`, `phy_chan_filt_set`
+- (Superseded) next step was: read the HT40 path in libphy (`chip_v7_set_chan`, `chip_v7_set_chan_offset`, `chip_v7_set_chan_misc`, `phy_chan_filt_set`
   writes 0x6001cd04/cd08 bit 28 + 0x6001c074, `set_channel_rfpll_freq`) to find what our captures miss (registers that only exist while
   receiving, or writes outside the captured ranges). Expected gain on this bench: none (at 20 MHz we already beat IDF against HT40 APs).

@@ -157,16 +157,18 @@ int main(void)
             printf("rawarp tx %d\n", wifi_send_eth(bc, 0x0806, a, 28)); pump_ms(600);
         } else if (!strcmp(v[0], "rd") && n > 2) { uint32_t a = strtoul(v[1], 0, 0), c = strtoul(v[2], 0, 0); for (uint32_t i = 0; i < c; i++) printf("%08x %08x\n", (unsigned)(a + 4 * i), (unsigned)*(volatile uint32_t *)(a + 4 * i));
                 } else if (!strcmp(v[0], "hw")) { const uint8_t *h = net_netif()->hwaddr; printf("hw %02x:%02x:%02x:%02x:%02x:%02x len %d\n", h[0], h[1], h[2], h[3], h[4], h[5], net_netif()->hwaddr_len);
-        } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d); }
+        } else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry, n_cwb40, n_noack, n_retries_tx; printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu cwb40 %lu noack %lu txretries %lu\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b, (unsigned long)c, (unsigned long)d, (unsigned long)n_cwb40, (unsigned long)n_noack, (unsigned long)n_retries_tx); }
         else if (!strcmp(v[0], "i2crd") && n > 1) { extern uint8_t rf_regi2c_read(uint8_t, uint8_t); uint8_t b = (uint8_t)strtoul(v[1], 0, 0); printf("i2c %02x", b); for (unsigned r = 0; r < 32; r++) printf(" %02x", rf_regi2c_read(b, (uint8_t)r)); printf("\n"); }
         else if (!strcmp(v[0], "dns") && n > 1) { uint32_t t0 = time_us(), ip = 0; int rc = net_dns(v[1], &ip, 5000); ip4_addr_t a = { ip }; char b[16]; printf("dns rc %d ip %s us %lu\n", rc, rc ? "-" : ip4addr_ntoa_r(&a, b, sizeof b), (unsigned long)(time_us() - t0)); }
         else if (!strcmp(v[0], "sntp") && n > 1 && !parse_ip(v[1], &peer)) { uint32_t t0 = time_us(), rtt = 0; int rc = net_sntp(ip4_addr_get_u32(&peer), 3000, &rtt); struct timeval tv; gettimeofday(&tv, 0); printf("sntp rc %d us %lu rtt %lu time %lld.%06ld\n", rc, (unsigned long)(time_us() - t0), (unsigned long)rtt, (long long)tv.tv_sec, (long)tv.tv_usec); }
+        else if (!strcmp(v[0], "chan") && n > 1) { extern int wifi_mac_set_channel(uint8_t); printf("chan rc %d\n", wifi_mac_set_channel((uint8_t)atoi(v[1]))); }   /* chan n: listen on channel n (diagnostic, also before up) */
         else if (!strcmp(v[0], "link")) { uint32_t t0 = time_ms(); while (time_ms() - t0 < (n > 1 ? (uint32_t)atoi(v[1]) : 0)) net_poll(); printf("link %d\n", wifi_sta_up()); }   /* link [ms]: poll for ms, then the station state */
         else if (!strcmp(v[0], "i2cwr") && n > 3) { extern void rf_regi2c_write(uint8_t, uint8_t, uint8_t); rf_regi2c_write((uint8_t)strtoul(v[1], 0, 0), (uint8_t)strtoul(v[2], 0, 0), (uint8_t)strtoul(v[3], 0, 0)); printf("i2cwr\n"); }
         else if (!strcmp(v[0], "pbuswr") && n > 3) { extern void rf_pbus_write(uint8_t, uint8_t, uint16_t); rf_pbus_write((uint8_t)atoi(v[1]), (uint8_t)atoi(v[2]), (uint16_t)strtoul(v[3], 0, 0)); printf("pbuswr\n"); }   /* RF pbus row / column (diagnostic) */
-        else if (!strcmp(v[0], "stats"))
-            printf("stats link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
-                   (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max, (unsigned)lwip_stats.memp[MEMP_PBUF_POOL]->err);
+        else if (!strcmp(v[0], "stats")) {
+            uint32_t gk, gr; wifi_sta_stats(&gk, &gr);
+            printf("stats gtk %u grp_rx %u link xmit %u rx %u drop %u memerr %u ip drop %u tcp xmit %u mem used %u max %u pbuf pool err %u\n", (unsigned)gk, (unsigned)gr, lwip_stats.link.xmit, lwip_stats.link.recv, lwip_stats.link.drop, lwip_stats.link.memerr, lwip_stats.ip.drop, lwip_stats.tcp.xmit,
+                   (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max, (unsigned)lwip_stats.memp[MEMP_PBUF_POOL]->err); }
         else printf("?\n");
         printf("ok\n");
     }

@@ -1,0 +1,10 @@
+# BOX-3 (IDF station) pings esp-ndf ip_unit on the DEVKIT through the IDF AP on C9:48, ch 6 HT40, 2 x 200 (tools/wl/probe_relay_ping.py), 2026-11-01
+# before the fix: the duplicate cache took sequence numbers from every data frame heard, also the AP's frames to the BOX-3 (in 40 MHz mode decodable)
+ping ok=143 of 200   MAC frames to us 202 -> lwIP link rx 146
+ping ok=151 of 200
+# duplicate cache compiled out (A/B):
+ping ok=200 of 200
+ping ok=200 of 200
+# fix (sta.c on_frame: only our AP's frames to us / to a group reach the cache and the stack):
+ping ok=200 of 200
+ping ok=200 of 200

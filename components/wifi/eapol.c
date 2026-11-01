@@ -12,7 +12,7 @@ int eapol_key_parse(const uint8_t *f, unsigned n, eapol_key_t *k)
     if (body < KEY_BODY || 4 + body > n || f[4] != 2) return -1;                      /* RSN descriptor */
     k->info = (uint16_t)(f[5] << 8 | f[6]); k->key_len = (uint16_t)(f[7] << 8 | f[8]);
     k->replay = 0; for (int i = 0; i < 8; i++) k->replay = k->replay << 8 | f[9 + i];
-    k->nonce = f + 17; k->mic = f + 81; k->data_len = (uint16_t)(f[97] << 8 | f[98]); k->data = f + 99;
+    k->nonce = f + 17; k->rsc = f + 65; k->mic = f + 81; k->data_len = (uint16_t)(f[97] << 8 | f[98]); k->data = f + 99;
     if (99u + k->data_len > 4 + body) return -1;                                      /* key data past the frame */
     return 0;
 }

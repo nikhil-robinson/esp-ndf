@@ -157,6 +157,7 @@ void rf_pkt_stop(void);
  * Our own code builds the frame, drives the MAC TX/RX descriptor path, and brings up the calibrated
  * carrier and front end. init once, then tx/rx. See docs/PENDING.md and bench/rfmeas/wifi_tx_42.txt. */
 void rf_wifi_set_rate(unsigned rate);            /* IDF rate code for the next rf_wifi_tx (0 = 1 Mbit/s DSSS) */
+int  rf_wifi_set_bw(unsigned sec40);            /* 0 = 20 MHz, 1 = 40 MHz with the secondary channel above, 3 = below (NDF_WIFI_HT40); next rx_init */
 int  rf_wifi_set_channel(unsigned ch);           /* 1..13, applied at the next tx_init / rx_init */
 int  rf_wifi_tx_init(void);                      /* carrier + TX front end on, replay the TX config */
 #define RF_TX_ACK     1                             /* unicast: wait for the ACK */

@@ -1,0 +1,7 @@
+# IDF ws_serve on the DEVKIT (IDF station), IDF client on the BOX-3, IDF AP ch 6 HT40, 2026-11-01
+ws_get conn 1 connect_ms 40 echoes 20 of 20 text 1 echo_ms 7475
+ws_get conn 1 connect_ms 31 echoes 20 of 20 text 1 echo_ms 7948
+ws_get conn 1 connect_ms 20 echoes 20 of 20 text 1 echo_ms 8128
+ws_get conn 1 connect_ms 17 echoes 20 of 20 text 1 echo_ms 7408
+ws_get conn 1 connect_ms 55 echoes 20 of 20 text 1 echo_ms 7362
+ws_get conn 1 connect_ms 42 echoes 20 of 20 text 1 echo_ms 7419

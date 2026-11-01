@@ -10,6 +10,10 @@
 #include "rf_wifi_regs.h"
 
 static uint32_t ch_khz = 2437000u;                           /* channel 6 until rf_wifi_set_channel */
+#ifndef NDF_WIFI_HT40
+#define NDF_WIFI_HT40 1                                      /* 40 MHz receive when the AP runs 40 MHz (and advertised in our HT Capabilities) */
+#endif
+static uint8_t ch_sec;                                       /* rf_wifi_set_bw */
 #define WIFI_CH_KHZ   ch_khz
 #ifndef NDF_WIFI_RX_BUFS
 #define NDF_WIFI_RX_BUFS 11
@@ -42,6 +46,7 @@ static void replay(const rf_reg_t *r, unsigned n)
     for (unsigned i = 0; i < n; i++) *(volatile uint32_t *)r[i].addr = r[i].value;
 }
 
+int rf_wifi_set_bw(unsigned sec40) { if (sec40 && sec40 != 1 && sec40 != 3) return RF_ERR_RANGE; ch_sec = NDF_WIFI_HT40 ? (uint8_t)sec40 : 0; return RF_OK; }
 int rf_wifi_set_channel(unsigned ch) { if (ch < 1 || ch > 13) return RF_ERR_RANGE; ch_khz = 2412000u + 5000u * (ch - 1); return RF_OK; }   /* takes effect at the next tx_init / rx_init */
 
 int rf_wifi_tx_init(void)
@@ -75,6 +80,10 @@ int rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags)
     tx_desc[0] = 0xC0000000u | ((uint32_t)len << 12) | len;
     tx_desc[1] = (uint32_t)tx_frame; tx_desc[2] = (uint32_t)tx_desc; tx_desc[3] = 0;
     for (unsigned i = 0; i < sizeof wifi_tx_cfg / sizeof wifi_tx_cfg[0]; i++) *(volatile uint32_t *)wifi_tx_cfg[i][0] = wifi_tx_cfg[i][1];
+    /* 0x60034314 bits 13:6 = rate class of the expected response, as IDF's mac_tx_set_plcp1 sets it: the DSSS rate itself, 11 for legacy OFDM,
+     * 11 / 9 for HT (IDF: 0x004002e0 for a 6 Mbit/s frame). The configuration above was captured from a DSSS frame (0). */
+    unsigned resp = tx_rate < 8 ? tx_rate : tx_rate < 16 ? 11u : ((tx_rate & ~8u) - 16u < 3 ? 11u : 9u);
+    *(volatile uint32_t *)0x60034314 = (*(volatile uint32_t *)0x60034314 & ~0x3FC0u) | resp << 6;
     *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12;      /* PLCP1: length, rate */
     *(volatile uint32_t *)0x60034300 = 0x6400;               /* HTSIG */
     uint32_t dur = want_ack ? (tx_rate ? 44u : 314u) : 0;      /* duration (NAV) the MAC writes into the frame: SIFS + ACK (mac_tx_set_duration) */
@@ -141,6 +150,18 @@ int rf_wifi_rx_init(void)
     for (unsigned i = 0; i < sizeof rf_wifi_tx_regs / sizeof rf_wifi_tx_regs[0]; i++)
         if (rf_wifi_tx_regs[i].addr >= 0x60006014u && rf_wifi_tx_regs[i].addr <= 0x60006030u) *(volatile uint32_t *)rf_wifi_tx_regs[i].addr = rf_wifi_tx_regs[i].value;
 #endif
+    /* 40 MHz (rf_wifi_set_bw), as IDF's HT40 station sets it (bench/wifi_regs/data/idf_box3_ht40_vs_ht20*.json; ROM rom_bb_bss_cbw40 and _dig):
+     * LO at the 40 MHz centre (channel +-10 MHz), SYSCON 0x6002600c bit 2 (40 MHz baseband clock), 0x6001cc0c bit 0 = secondary below, and IDF's
+     * HT40 values of FE 0x600060c0, 0x60034268 bit 7, 0x6001ccd0 bit 29 (ht_rx above holds the rest). The replay does not cover these: cleared at 20 MHz.
+     * 0x60033400 bits 1:0 = where 20 MHz frames go out (ROM rom_mac_tx_chan_offset): 3 = primary below the centre, 1 = above it, 0 = 20 MHz (IDF HT20: 0xc1800004). */
+    volatile uint32_t *syscon_bw = (volatile uint32_t *)0x6002600c, *bss = (volatile uint32_t *)0x6001cc0c, *txp = (volatile uint32_t *)0x60034268, *ccd0 = (volatile uint32_t *)0x6001ccd0,
+                      *txoff = (volatile uint32_t *)0x60033400;
+    if (ch_sec) {
+        rc = rf_set_freq_khz(ch_sec == 1 ? WIFI_CH_KHZ + 10000u : WIFI_CH_KHZ - 10000u); if (rc) return rc;
+        *syscon_bw |= 1u << 2; *bss = (*bss & ~1u) | (ch_sec == 3); *txp |= 1u << 7; *ccd0 |= 1u << 29;
+        *(volatile uint32_t *)0x600060c0 = 0xb0f78413u;
+        *txoff = (*txoff & ~3u) | (ch_sec == 1 ? 3u : 1u);
+    } else { *syscon_bw &= ~(1u << 2); *bss &= ~1u; *txp &= ~(1u << 7); *ccd0 &= ~(1u << 29); *txoff &= ~3u; }
     for (int i = 0; i < WRX_N; i++) {
         rx_desc[i][0] = rx_desc[i][3] = WRX_OWNED;
         rx_desc[i][1] = (uint32_t)rx_buf[i];

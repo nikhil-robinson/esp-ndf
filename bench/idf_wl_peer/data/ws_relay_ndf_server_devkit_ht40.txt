@@ -1,0 +1,10 @@
+# IDF ws_get on the BOX-3 -> IDF AP C9:48 ch 6 HT40 -> esp-ndf http_unit WebSocket server on the DEVKIT (tools/wl/probe_ws_relay.py 6 "T - 6"), 2026-11-01
+# sibling: ws_relay_idf_server_devkit_ht40.txt (IDF ws_serve on the DEVKIT: 20 of 20, 7362-8128 ms)
+before the fix (40 MHz build): echoes 9/0/0 of 20 (conn 0 = TCP connect failed within 5 s); 20 MHz-only build: 20 of 20, 470-1584 ms
+after the fix:
+ws_get conn 1 connect_ms 18 echoes 20 of 20 text 1 echo_ms 534
+ws_get conn 1 connect_ms 12 echoes 20 of 20 text 1 echo_ms 482
+ws_get conn 1 connect_ms 15 echoes 20 of 20 text 1 echo_ms 460
+ws_get conn 1 connect_ms 13 echoes 20 of 20 text 1 echo_ms 436
+ws_get conn 1 connect_ms 14 echoes 20 of 20 text 1 echo_ms 493
+ws_get conn 1 connect_ms 13 echoes 20 of 20 text 1 echo_ms 526

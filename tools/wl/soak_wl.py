@@ -36,10 +36,11 @@ else:
         ours = num(r'recv (\d+)', n.cmd('ping 192.168.4.1 20', 60)[-1])
         udp = num(r'ok (\d+)', n.cmd('udp 192.168.4.1 7 100', 300)[-1])
         tcp = n.cmd('tcp 192.168.4.1 8 2048', 200)[-1]
-        mem = num(r'mem used (\d+)', n.cmd('stats')[-1])
+        st = n.cmd('stats')[-1]; mem = num(r'mem used (\d+)', st); gtk = num(r'gtk (\d+)', st); grp = num(r'grp_rx (\d+)', st)
         if base is None: base = mem
         bad = peer_ok < 16 or ours < 16 or udp < 60 or 'rcvd 2048 bad 0' not in tcp or mem > base + 64
-        say('round %d sta: peer-ping %d/20 our-ping %d/20 udp %d/100 tcp %s heap %d' % (rounds, peer_ok, ours, udp, 'ok' if 'rcvd 2048 bad 0' in tcp else tcp, mem), bad)
+        say('round %d sta: peer-ping %d/20 our-ping %d/20 udp %d/100 tcp %s heap %d gtk %d grp_rx %d' % (rounds, peer_ok, ours, udp, 'ok' if 'rcvd 2048 bad 0' in tcp else tcp, mem, gtk, grp), bad)
+    if mins[0] >= 21: say('sta: group key rotations %d (the IDF AP rekeys every 600 s; the pings above need its broadcast ARP under the new key)' % (gtk - 1), gtk < 3)
 n.close()
 
 # ---- 2. access point ----

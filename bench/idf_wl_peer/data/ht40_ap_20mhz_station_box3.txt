@@ -1,0 +1,18 @@
+# BOX-3 same board, 64 KB TCP echo ms (5 each), AP = IDF on C9:48 ch6; esp-ndf ip_unit with HT cap 0x012c (20 MHz only), 2026-11-01
+esp-ndf:
+AP "" [117, 118, 121, 126, 137]
+AP "0x10" [151, 157, 169, 172, 181]
+AP "0x14" [94, 98, 106, 108, 115]
+AP "- 20" [135, 137, 147, 149, 173]
+AP "0x17" first [124, 165, 173, 188, 12043], then:
+AP "0x17" [17895, 24391, 28707, 33020, 37335]
+0x17 up rc -1 join_ms 1590 total_ms 1590 ip - gw -
+AP "0x17" [18843, 25397, 29713, 34031, 38349]
+AP "0x17 20" [19388, 25901, 30219, 34534, 38849]
+0x17 20 up rc -1 join_ms 1582 total_ms 1582 ip - gw -
+ESP-IDF (bench/idf_wl_peer on the same BOX-3, -1 = no echo):
+IDF AP "" [536, 537, 655, 723, 808]
+IDF AP "0x10" [244, 312, 313, 325, 397]
+IDF AP "0x14" [388, 396, 420, 536, 538]
+IDF AP "0x17" [-1, 155, 245, 290, 193317]
+IDF AP "0x17 20" [-1, -1, -1, -1, -1]

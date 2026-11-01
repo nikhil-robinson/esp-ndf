@@ -25,7 +25,7 @@ int  ccmp_encrypt(const uint8_t tk[16], const uint8_t *hdr, unsigned hl, uint64_
 int  ccmp_decrypt(const uint8_t tk[16], const uint8_t *hdr, unsigned hl, uint8_t *body, unsigned total, uint64_t *pn_out);          /* data length (in place at body + 8), -1 = bad MIC / malformed */
 
 /* EAPOL-Key (802.1X, descriptor type 2). Offsets inside the EAPOL frame. */
-typedef struct { uint16_t info, key_len, data_len; uint64_t replay; const uint8_t *nonce, *mic, *data; } eapol_key_t;
+typedef struct { uint16_t info, key_len, data_len; uint64_t replay; const uint8_t *nonce, *rsc /* key RSC, 8 bytes LE */, *mic, *data; } eapol_key_t;
 #define EAPOL_INFO_MIC     0x0100
 #define EAPOL_INFO_PAIRWISE 0x0008
 #define EAPOL_INFO_ACK     0x0080

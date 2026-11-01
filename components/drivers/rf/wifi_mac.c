@@ -13,7 +13,7 @@
 #define R32(a) (*(volatile uint32_t *)(a))
 
 static uint8_t my[6], chan = 6, buf[MAXF];
-uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack;
+uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack, n_cwb40, n_agg, n_mine40, n_retry40;   /* n_mine40 / n_retry40: frames to us that were 40 MHz wide, and those with the retry bit */   /* n_agg: frames that were part of an A-MPDU (word 1 bit 27, IDF aggregation) */   /* n_cwb40: frames received 40 MHz wide (control word 1 bit 7, IDF cwb) */
 static uint32_t n_rx, n_drop, n_tx, n_fail;
 
 #define NKEYS 8                                              /* key-table slots 4..4+NKEYS-1: the station uses two, the access point one per station */
@@ -37,9 +37,11 @@ int wifi_mac_init(const uint8_t mac[6])
     return listen();
 }
 
-int wifi_mac_set_channel(uint8_t ch)
+int wifi_mac_set_channel(uint8_t ch) { return wifi_mac_set_channel_bw(ch, 0); }
+int wifi_mac_set_channel_bw(uint8_t ch, uint8_t sec40)
 {
     int rc = rf_wifi_set_channel(ch); if (rc) return rc;
+    rc = rf_wifi_set_bw(sec40); if (rc) return rc;
     chan = ch;
     return listen();
 }
@@ -85,8 +87,8 @@ int wifi_mac_rx(wifi_rx_t *r, uint32_t timeout_ms)
          * noise floor and dropped every OFDM frame.) */
         if (l < 14 || (h[11] >> 24)) { n_drop++; if (l >= 10 && !memcmp(buf + 4, my, 6)) n_drop_mine++; continue; }
         r->data = buf; r->len = (uint16_t)(l - 4); r->rssi = (int8_t)(h[0] & 0xFF); r->rate = (h[0] >> 8) & 0x1F; r->chan = chan; r->hw_decrypted = (uint8_t)rf_wifi_rx_decrypted();
-        n_rx++;
-        if (!memcmp(buf + 4, my, 6)) { n_mine++; if (buf[1] & 8) n_retry++; }
+        n_rx++; n_cwb40 += (h[1] >> 7) & 1; n_agg += (h[1] >> 27) & 1;
+        if (!memcmp(buf + 4, my, 6)) { n_mine++; if (buf[1] & 8) n_retry++; if ((h[1] >> 7) & 1) { n_mine40++; if (buf[1] & 8) n_retry40++; } }
         return 1;
     } while ((ccount() - t0) / 240000u < timeout_ms);
     return 0;

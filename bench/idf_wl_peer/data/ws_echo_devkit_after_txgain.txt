@@ -1,0 +1,15 @@
+     ours -> IDF server: wsget rc 0 connect_ms 27 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 1639
+     IDF  -> IDF server: ws_get conn 1 connect_ms 21 echoes 20 of 20 text 1 echo_ms 4798
+     IDF  -> our server: ws_get conn 1 connect_ms 19 echoes 20 of 20 text 1 echo_ms 1843
+     ours -> IDF server: wsget rc 0 connect_ms 19 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 457
+     IDF  -> IDF server: ws_get conn 1 connect_ms 17 echoes 20 of 20 text 1 echo_ms 5000
+     IDF  -> our server: ws_get conn 1 connect_ms 20 echoes 20 of 20 text 1 echo_ms 494
+     ours -> IDF server: wsget rc 0 connect_ms 26 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 535
+     IDF  -> IDF server: ws_get conn 1 connect_ms 22 echoes 20 of 20 text 1 echo_ms 4896
+     IDF  -> our server: ws_get conn 1 connect_ms 41 echoes 20 of 20 text 1 echo_ms 750
+     ours -> IDF server: wsget rc 0 connect_ms 28 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 536
+     IDF  -> IDF server: ws_get conn 1 connect_ms 16 echoes 20 of 20 text 1 echo_ms 4898
+     IDF  -> our server: ws_get conn 1 connect_ms 20 echoes 20 of 20 text 1 echo_ms 3301
+     ours -> IDF server: wsget rc 0 connect_ms 21 echoes 20 of 20 text 1 ping 1 closed 1 echo_ms 514
+     IDF  -> IDF server: ws_get conn 1 connect_ms 19 echoes 20 of 20 text 1 echo_ms 4998
+     IDF  -> our server: ws_get conn 1 connect_ms 18 echoes 20 of 20 text 1 echo_ms 499

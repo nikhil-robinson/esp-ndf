@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 typedef struct { uint8_t bssid[6], chan; int8_t rssi; char ssid[33]; uint8_t sec; /* 0 open, 1 other privacy (WEP, WPA), 2 WPA2 / WPA3 (RSN element) */ uint16_t beacon_tu;
+                 uint8_t sec40;   /* HT Operation: 40 MHz with the secondary channel 1 = above, 3 = below; 0 = 20 MHz only */
                  uint16_t akm, rsn_caps; /* RSN: bit n = AKM suite 00-0f-ac:n (2 PSK, 6 PSK-SHA256, 8 SAE); capabilities (0x80 MFPC, 0x40 MFPR) */ } wifi_ap_t;
 
 /* --- pure helpers (ie.c, frame.c) --- */
@@ -15,6 +16,7 @@ unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bss
 unsigned wifi_build_deauth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t reason, uint16_t seq);
 unsigned wifi_build_null(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t seq);   /* null data frame, to DS */
 unsigned wifi_build_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq);
+int      wifi_amsdu_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], unsigned *off, uint8_t *eth, unsigned max);   /* next A-MSDU subframe as Ethernet; *off = 0 first; 0 = end, -1 = malformed */
 int      wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uint8_t *eth, unsigned max);   /* from-DS data frame -> 14-byte header + payload; length, -1 = not for us / malformed */
 
 /* access point side: all pure, frames without FCS */
@@ -40,6 +42,7 @@ int  wifi_scan(wifi_ap_t *out, unsigned max, unsigned *n);                 /* ac
 int  wifi_sta_join(const char *ssid, const char *pass /* NULL = open */, uint32_t timeout_ms);   /* 0 joined, -1 not found / timeout / refused, -2 network security not supported, -3 4-way handshake failed (wrong passphrase) */
 void wifi_set_data_rate(unsigned rate);                                    /* PHY rate code for data frames (WIFI_RATE_*; default 12 Mbit/s) */
 int  wifi_sta_up(void);                                                    /* 1 while associated */
+void wifi_sta_stats(uint32_t *gtk_updates, uint32_t *grp_rx);             /* group keys installed (rekeys included), protected group frames accepted */
 void wifi_poll(void);                                                      /* rx dispatch, beacon timeout, deauth */
 int  wifi_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n);   /* 0 sent */
 extern void (*wifi_eth_rx)(const uint8_t *frame, unsigned n);              /* 14-byte Ethernet header + payload */

@@ -39,7 +39,14 @@ unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bss
     o[n++] = 10; o[n++] = 0;                                      /* listen interval */
     n += ssid_ie(o + n, ssid); n += rates_ie(o + n);
     if (rsn) { memcpy(o + n, rsn, 2u + rsn[1]); n += 2u + rsn[1]; }
-    static const uint8_t ht[] = { 45, 26, 0x6e, 0x11, 0x00, 0xff, 0,0,0,0,0,0,0,0,0,0,0, 0x01, 0,0,0,0,0,0,0,0,0,0 };   /* HT capabilities as an IDF station sends them (captured): 0x116e, MCS 0-7, Tx MCS set defined */
+#ifndef NDF_WIFI_HT_CAP                                   /* HT Capabilities Info: 40 MHz receive (rf_wifi.c, NDF_WIFI_HT40) or 20 MHz only; SM power save off, SGI20, RX STBC 1 */
+#if !defined NDF_WIFI_HT40 || NDF_WIFI_HT40
+#define NDF_WIFI_HT_CAP 0x116e                                /* as IDF: + 40 MHz, SGI40, DSSS/CCK in 40 MHz */
+#else
+#define NDF_WIFI_HT_CAP 0x012c
+#endif
+#endif
+    static const uint8_t ht[] = { 45, 26, NDF_WIFI_HT_CAP & 0xff, NDF_WIFI_HT_CAP >> 8, 0x00, 0xff, 0,0,0,0,0,0,0,0,0,0,0, 0x01, 0,0,0,0,0,0,0,0,0,0 };   /* MCS 0-7, Tx MCS set defined */
     memcpy(o + n, ht, sizeof ht); n += sizeof ht;
     static const uint8_t wmm[] = { 0xdd, 7, 0x00, 0x50, 0xf2, 2, 0, 1, 0 };   /* WMM information element: a QoS station, so the AP sends QoS data with one TID per queue (as to an IDF station) */
     memcpy(o + n, wmm, sizeof wmm); n += sizeof wmm;
@@ -76,6 +83,25 @@ int wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uin
     eth[12] = f[h + 6]; eth[13] = f[h + 7];
     memcpy(eth + 14, f + h + 8, n);
     return (int)(14 + n);
+}
+
+/* A-MSDU (QoS control bit 7 of a from-DS data frame): subframes of destination, source, big-endian length, then LLC/SNAP + payload, each
+ * padded to a multiple of 4 bytes. *off = 0 for the first call; returns the next subframe as Ethernet in eth, 0 after the last, -1 malformed.
+ * A first subframe addressed to AA:AA:03:00:00:00 is refused: that is a plain frame's LLC header whose (unprotected) A-MSDU bit was flipped
+ * (FragAttacks, CVE-2020-24588; the check Linux makes). */
+int wifi_amsdu_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], unsigned *off, uint8_t *eth, unsigned max)
+{
+    if (len < 26 || (f[0] & 0x8C) != 0x88 || (f[1] & 0x03) != 0x02 || (f[1] & 0x40) || !(f[24] & 0x80) || memcmp(f + 10, bssid, 6)) return -1;
+    unsigned p = 26 + *off;
+    if (p >= len) return *off ? 0 : -1;
+    if (len - p < 14 + 8) return -1;
+    if (!*off && !memcmp(f + p, "\xAA\xAA\x03\0\0\0", 6)) return -1;
+    unsigned l = (unsigned)(f[p + 12] << 8 | f[p + 13]);
+    if (l < 8 || p + 14 + l > len || memcmp(f + p + 14, "\xAA\xAA\x03\0\0\0", 6) || 14 + l - 8 > max) return -1;
+    memcpy(eth, f + p, 12); eth[12] = f[p + 20]; eth[13] = f[p + 21];
+    memcpy(eth + 14, f + p + 22, l - 8);
+    *off += (14 + l + 3) & ~3u;
+    return (int)(14 + l - 8);
 }
 
 /* --- access point side --- */

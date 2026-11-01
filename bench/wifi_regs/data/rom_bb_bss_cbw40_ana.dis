@@ -1,0 +1,43 @@
+40035dc4 <rom_bb_bss_cbw40_ana>:
+40035dc4:	004136        	entry	a1, 32
+40035dc7:	fff881        	l32r	a8, 40035da8 <rom_pbus_set_dco+0x48> (60006100 <SPIMEM0+0x3100>)
+40035dca:	fff891        	l32r	a9, 40035dac <rom_pbus_set_dco+0x4c> (fffeffff <xthals_hw_configid0+0x3d0e0001>)
+40035dcd:	0020c0        	memw
+40035dd0:	08a8      	l32i.n	a10, a8, 0
+40035dd2:	109a90        	and	a9, a10, a9
+40035dd5:	0020c0        	memw
+40035dd8:	0899      	s32i.n	a9, a8, 0
+40035dda:	0020c0        	memw
+40035ddd:	08a8      	l32i.n	a10, a8, 0
+40035ddf:	fff491        	l32r	a9, 40035db0 <rom_pbus_set_dco+0x50> (fff7ffff <xthals_hw_configid0+0x3d070001>)
+40035de2:	109a90        	and	a9, a10, a9
+40035de5:	0020c0        	memw
+40035de8:	0899      	s32i.n	a9, a8, 0
+40035dea:	0020c0        	memw
+40035ded:	08a8      	l32i.n	a10, a8, 0
+40035def:	fff191        	l32r	a9, 40035db4 <rom_pbus_set_dco+0x54> (fff9ffff <xthals_hw_configid0+0x3d090001>)
+40035df2:	109a90        	and	a9, a10, a9
+40035df5:	f29c      	beqz.n	a2, 40035e18 <rom_bb_bss_cbw40_ana+0x54>
+40035df7:	fff0a1        	l32r	a10, 40035db8 <rom_pbus_set_dco+0x58> (20000 <xthals_release_major+0x1d120>)
+40035dfa:	2099a0        	or	a9, a9, a10
+40035dfd:	0020c0        	memw
+40035e00:	0899      	s32i.n	a9, a8, 0
+40035e02:	0020c0        	memw
+40035e05:	08a8      	l32i.n	a10, a8, 0
+40035e07:	ffed91        	l32r	a9, 40035dbc <rom_pbus_set_dco+0x5c> (ffcfffff <xthals_hw_configid0+0x3cdf0001>)
+40035e0a:	10aa90        	and	a10, a10, a9
+40035e0d:	ffec91        	l32r	a9, 40035dc0 <rom_pbus_set_dco+0x60> (100000 <xthals_release_major+0xfd120>)
+40035e10:	209a90        	or	a9, a10, a9
+40035e13:	000446        	j	40035e28 <rom_bb_bss_cbw40_ana+0x64>
+40035e16:	00          	.byte	00
+40035e17:	00          	.byte	00
+40035e18:	0020c0        	memw
+40035e1b:	0899      	s32i.n	a9, a8, 0
+40035e1d:	0020c0        	memw
+40035e20:	08a8      	l32i.n	a10, a8, 0
+40035e22:	ffe691        	l32r	a9, 40035dbc <rom_pbus_set_dco+0x5c> (ffcfffff <xthals_hw_configid0+0x3cdf0001>)
+40035e25:	109a90        	and	a9, a10, a9
+40035e28:	0020c0        	memw
+40035e2b:	0899      	s32i.n	a9, a8, 0
+40035e2d:	f01d      	retw.n
+

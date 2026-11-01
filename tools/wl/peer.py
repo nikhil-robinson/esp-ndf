@@ -50,6 +50,6 @@ class Peer:
                 if l == 'ok': return out
                 if l.startswith('err'): raise RuntimeError(f'peer: {line!r} -> {l}' + ''.join('\n' + o for o in out))   # the output printed before the error stays readable
                 if l: out.append(l)
-        raise TimeoutError(f'peer: no answer to {line!r} in {timeout} s')
+        raise TimeoutError(f'peer: no answer to {line!r} in {timeout} s' + ''.join('\n' + o for o in out[-20:]) + ('\n' + buf.decode(errors='replace')[-500:] if buf else ''))
 
     def close(self): self.s.close()

@@ -1,0 +1,27 @@
+40039034 <rom_mac_tx_chan_offset>:
+40039034:	004136        	entry	a1, 32
+40039037:	742020        	extui	a2, a2, 0, 8
+4003903a:	fffd81        	l32r	a8, 40039030 <rom_cbw2040_cfg+0x24> (60033400 <_iram1_text_end+0x12300>)
+4003903d:	0c2266        	bnei	a2, 2, 4003904d <rom_mac_tx_chan_offset+0x19>
+40039040:	0020c0        	memw
+40039043:	0828      	l32i.n	a2, a8, 0
+40039045:	390c      	movi.n	a9, 3
+40039047:	209290        	or	a9, a2, a9
+4003904a:	000786        	j	4003906c <rom_mac_tx_chan_offset+0x38>
+4003904d:	c97c      	movi.n	a9, -4
+4003904f:	113266        	bnei	a2, 3, 40039064 <rom_mac_tx_chan_offset+0x30>
+40039052:	0020c0        	memw
+40039055:	0828      	l32i.n	a2, a8, 0
+40039057:	1a0c      	movi.n	a10, 1
+40039059:	109290        	and	a9, a2, a9
+4003905c:	2099a0        	or	a9, a9, a10
+4003905f:	000246        	j	4003906c <rom_mac_tx_chan_offset+0x38>
+40039062:	00          	.byte	00
+40039063:	00          	.byte	00
+40039064:	0020c0        	memw
+40039067:	0828      	l32i.n	a2, a8, 0
+40039069:	109290        	and	a9, a2, a9
+4003906c:	0020c0        	memw
+4003906f:	0899      	s32i.n	a9, a8, 0
+40039071:	f01d      	retw.n
+	...

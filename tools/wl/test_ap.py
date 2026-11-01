@@ -15,7 +15,7 @@ def check(c, msg):
     if not c: fail.append(msg)
 
 p = Peer(); p.reboot()
-box = Peer(_board('BOX3', '')); time.sleep(4)
+box = Peer(_board('BOX3', '')); box.reboot(); time.sleep(3)
 n = Ndf(ready='ap_unit ready', timeout=20)
 p.cmd('wifi_stop')
 st = n.cmd('start %s%s' % (SSID, ' ' + PASS if PASS else ''), 10)[-1]

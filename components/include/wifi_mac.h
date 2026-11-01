@@ -8,7 +8,8 @@
 typedef struct { const uint8_t *data; uint16_t len; int8_t rssi; uint8_t rate; uint8_t chan; uint8_t hw_decrypted; } wifi_rx_t;   /* hw_decrypted: protected frame already decrypted and MIC-checked by the MAC: CCMP header still in place, MIC gone */
 
 int  wifi_mac_init(const uint8_t mac[6]);                   /* rf_init done by the caller; starts listening on channel 6 */
-int  wifi_mac_set_channel(uint8_t ch);                      /* 1..13 */
+int  wifi_mac_set_channel(uint8_t ch);                      /* 1..13, 20 MHz */
+int  wifi_mac_set_channel_bw(uint8_t ch, uint8_t sec40);    /* 40 MHz with the secondary channel above (1) / below (3), 0 = 20 MHz */
 #define WIFI_RATE_1M  0x0                                   /* IDF wifi_phy_rate_t codes; measured: 6M 0xB, 9M 0xF, 12M 0xA, 18M 0xE, 24M 0x9, 36M 0xD work; 48M 0x8 and 54M 0xC are not heard */
 #define WIFI_RATE_6M  0xB
 #define WIFI_RATE_12M 0xA

@@ -1,0 +1,56 @@
+40039074 <rom_bb_bss_cbw40>:
+40039074:	004136        	entry	a1, 32
+40039077:	f13331        	l32r	a3, 40035544 <rom_chip_i2c_readReg_org+0x48> (3fcef3d4 <rom_phyFuns>)
+4003907a:	742020        	extui	a2, a2, 0, 8
+4003907d:	002382        	l32i	a8, a3, 0
+40039080:	02ad      	mov.n	a10, a2
+40039082:	1a2882        	l32i	a8, a8, 104
+40039085:	0008e0        	callx8	a8
+40039088:	0388      	l32i.n	a8, a3, 0
+4003908a:	182882        	l32i	a8, a8, 96
+4003908d:	f2cc      	bnez.n	a2, 400390a0 <rom_bb_bss_cbw40+0x2c>
+4003908f:	02ad      	mov.n	a10, a2
+40039091:	0008e0        	callx8	a8
+40039094:	0338      	l32i.n	a3, a3, 0
+40039096:	02ad      	mov.n	a10, a2
+40039098:	742332        	l32i	a3, a3, 0x1d0
+4003909b:	0003e0        	callx8	a3
+4003909e:	f01d      	retw.n
+400390a0:	1a0c      	movi.n	a10, 1
+400390a2:	0008e0        	callx8	a8
+400390a5:	0388      	l32i.n	a8, a3, 0
+400390a7:	232200        	sext	a2, a2, 7
+400390aa:	192882        	l32i	a8, a8, 100
+400390ad:	141266        	bnei	a2, 1, 400390c5 <rom_bb_bss_cbw40+0x51>
+400390b0:	20a220        	or	a10, a2, a2
+400390b3:	0008e0        	callx8	a8
+400390b6:	0328      	l32i.n	a2, a3, 0
+400390b8:	0a0c      	movi.n	a10, 0
+400390ba:	742222        	l32i	a2, a2, 0x1d0
+400390bd:	0002e0        	callx8	a2
+400390c0:	000906        	j	400390e8 <rom_bb_bss_cbw40+0x74>
+400390c3:	00          	.byte	00
+400390c4:	00          	.byte	00
+400390c5:	0a0c      	movi.n	a10, 0
+400390c7:	0008e0        	callx8	a8
+400390ca:	0338      	l32i.n	a3, a3, 0
+400390cc:	1a0c      	movi.n	a10, 1
+400390ce:	742332        	l32i	a3, a3, 0x1d0
+400390d1:	0003e0        	callx8	a3
+400390d4:	103266        	bnei	a2, 3, 400390e8 <rom_bb_bss_cbw40+0x74>
+400390d7:	fb3431        	l32r	a3, 40037da8 <rom_wifi_track_tx_power+0x1c> (6001cc0c <RTCCNTL+0x14c0c>)
+400390da:	120c      	movi.n	a2, 1
+400390dc:	0020c0        	memw
+400390df:	0388      	l32i.n	a8, a3, 0
+400390e1:	202820        	or	a2, a8, a2
+400390e4:	000346        	j	400390f5 <rom_bb_bss_cbw40+0x81>
+400390e7:	00          	.byte	00
+400390e8:	fb3031        	l32r	a3, 40037da8 <rom_wifi_track_tx_power+0x1c> (6001cc0c <RTCCNTL+0x14c0c>)
+400390eb:	e27c      	movi.n	a2, -2
+400390ed:	0020c0        	memw
+400390f0:	0388      	l32i.n	a8, a3, 0
+400390f2:	102820        	and	a2, a8, a2
+400390f5:	0020c0        	memw
+400390f8:	0329      	s32i.n	a2, a3, 0
+400390fa:	f01d      	retw.n
+

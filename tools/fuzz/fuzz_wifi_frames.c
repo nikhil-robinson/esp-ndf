@@ -16,10 +16,14 @@ int main(int argc, char **argv)
     const uint8_t me[6] = { 2, 0x4e, 0x44, 0x46, 0, 2 }, ap_[6] = { 0x30, 0x30, 0xf9, 0x5a, 0xc1, 0x11 };
 
     /* beacon vector: SSID "T", DS channel 11, privacy bit set, interval 100 TU */
-    uint8_t b[64] = { 0x80 }; memcpy(b + 16, ap_, 6); b[32] = 100; b[34] = 0x11;
+    uint8_t b[80] = { 0x80 }; memcpy(b + 16, ap_, 6); b[32] = 100; b[34] = 0x11;
     uint8_t *ie = b + 36; ie[0] = 0; ie[1] = 1; ie[2] = 'T'; ie[3] = 3; ie[4] = 1; ie[5] = 11;
     wifi_ap_t ap;
     CHECK(wifi_parse_beacon(b, 36 + 6, &ap) == 0 && !strcmp(ap.ssid, "T") && ap.chan == 11 && ap.sec == 1 && ap.beacon_tu == 100 && !memcmp(ap.bssid, ap_, 6));
+    ie[6] = 61; ie[7] = 22; ie[8] = 11;                      /* HT Operation: secondary offset (bits 1:0) + STA channel width (bit 2) -> sec40 */
+    static const uint8_t ht_op[][2] = { { 0x05, 1 }, { 0x07, 3 }, { 0x01, 0 }, { 0x04, 0 }, { 0x06, 0 } };   /* above, below, no width bit, no offset, reserved offset */
+    for (unsigned t = 0; t < 5; t++) { ie[9] = ht_op[t][0]; CHECK(wifi_parse_beacon(b, 36 + 8 + 22, &ap) == 0 && ap.sec40 == ht_op[t][1]); }
+    memset(ie + 6, 0, 24);
     CHECK(wifi_parse_beacon(b, 36 + 5, &ap) == -1);          /* the DS element runs past the frame: rejected */
     ie[1] = 33; CHECK(wifi_parse_beacon(b, 64, &ap) == -1);  /* SSID longer than 32 */
     ie[1] = 1; b[0] = 0x40; CHECK(wifi_parse_beacon(b, 42, &ap) == -1);   /* a probe request is not a beacon */
@@ -50,6 +54,21 @@ int main(int argc, char **argv)
     int e = wifi_data_to_eth(d, n, ap_, eth, sizeof eth);
     CHECK(e == 14 + 4 && !memcmp(eth, me, 6) && !memcmp(eth + 6, dst, 6) && eth[12] == 0x08 && eth[13] == 0x06 && !memcmp(eth + 14, pl, 4));
     CHECK(wifi_data_to_eth(d, n, me, eth, sizeof eth) == -1);        /* transmitter is not our AP */
+    {   /* A-MSDU: QoS data from DS, two subframes (payload 4 and 2 bytes, the first padded to 4), the parser walks them and stops */
+        uint8_t m[128] = { 0x88, 0x02 }; memcpy(m + 4, me, 6); memcpy(m + 10, ap_, 6); m[24] = 0x80;
+        unsigned p = 26, off = 0; int e2;
+        for (unsigned k = 0; k < 2; k++) {
+            unsigned pl_n = k ? 2 : 4; memcpy(m + p, me, 6); memcpy(m + p + 6, dst, 6); m[p + 12] = 0; m[p + 13] = (uint8_t)(8 + pl_n);
+            memcpy(m + p + 14, "\xAA\xAA\x03\0\0\0\x08\x00", 8); memset(m + p + 22, 0x40 + k, pl_n); p += (14 + 8 + pl_n + 3) & ~3u;
+        }
+        unsigned mlen = p;                                           /* the last subframe is 24 bytes: no padding */
+        e2 = wifi_amsdu_to_eth(m, mlen, ap_, &off, eth, sizeof eth); CHECK(e2 == 18 && !memcmp(eth, me, 6) && !memcmp(eth + 6, dst, 6) && eth[12] == 8 && eth[14] == 0x40 && off == 28);
+        e2 = wifi_amsdu_to_eth(m, mlen, ap_, &off, eth, sizeof eth); CHECK(e2 == 16 && eth[14] == 0x41 && eth[15] == 0x41);
+        CHECK(wifi_amsdu_to_eth(m, mlen, ap_, &off, eth, sizeof eth) == 0);
+        off = 28; CHECK(wifi_amsdu_to_eth(m, mlen - 1, ap_, &off, eth, sizeof eth) == -1);   /* second subframe runs past the frame */
+        off = 0; memcpy(m + 26, "\xAA\xAA\x03\0\0\0", 6); CHECK(wifi_amsdu_to_eth(m, mlen, ap_, &off, eth, sizeof eth) == -1);   /* flipped A-MSDU bit on a plain frame (CVE-2020-24588) */
+        m[24] = 0; off = 0; CHECK(wifi_amsdu_to_eth(m, mlen, ap_, &off, eth, sizeof eth) == -1);   /* no A-MSDU bit */
+    }
     CHECK(wifi_data_to_eth(d, n, ap_, eth, 15) == -1);               /* output too small */
     d[1] |= 0x40; CHECK(wifi_data_to_eth(d, n, ap_, eth, sizeof eth) == -1);   /* protected frame: not for the open path */
 
@@ -76,6 +95,8 @@ int main(int argc, char **argv)
         wifi_ap_t a; if (!wifi_parse_beacon(buf, len, &a)) { CHECK(strlen(a.ssid) <= 32); }
         if (len > 24 && (rnd() & 1)) { buf[0] = (rnd() & 1) ? 0x08 : 0x88; buf[1] = 0x02; memcpy(buf + 10, ap_, 6); if (len > 32 && (rnd() & 1)) memcpy(buf + 24, "\xAA\xAA\x03\0\0\0", 6); }
         int r = wifi_data_to_eth(buf, len, ap_, out, sizeof out); CHECK(r == -1 || (r >= 14 && r <= (int)sizeof out));
+        if (len > 26 && (rnd() & 1)) { buf[0] = 0x88; buf[1] = 0x02; memcpy(buf + 10, ap_, 6); buf[24] |= 0x80; }   /* A-MSDU walk: every subframe fits, the offset only grows, it ends */
+        { unsigned off = 0, prev = 0; int e3, steps = 0; while ((e3 = wifi_amsdu_to_eth(buf, len, ap_, &off, out, sizeof out)) > 0 && steps++ < 64) { CHECK(e3 >= 14 && e3 <= (int)sizeof out && off > prev); prev = off; } CHECK(steps < 64); }
         if (len > 24 && (rnd() & 1)) { buf[0] = (rnd() & 1) ? 0x08 : 0x88; buf[1] = 0x01; memcpy(buf + 4, ap_, 6); if (len > 32 && (rnd() & 1)) memcpy(buf + 24, "\xAA\xAA\x03\0\0\0", 6); }
         r = wifi_ap_data_to_eth(buf, len, ap_, out, sizeof out); CHECK(r == -1 || (r >= 14 && r <= (int)sizeof out));
         const uint8_t *v; wifi_ie_find(buf, len, (uint8_t)rnd(), &v);

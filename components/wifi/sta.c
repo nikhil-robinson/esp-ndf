@@ -21,6 +21,7 @@ static struct {
     uint8_t sae_st, token[64], token_len, token_new;        /* SAE: 0 commit sent, 1 confirm sent, 2 confirmed, 3 failed; anti-clogging token from the AP */
     uint8_t rsn[2 + 26 + 18];                                     /* the RSN element we send (association request, message 2) */
     uint32_t comeback_ms;                                    /* association refused with status 30: retry after this */
+    uint32_t gtk_updates, grp_rx;                            /* group keys installed, group-addressed frames accepted (wifi_sta_stats) */
 } s;
 static struct {                                              /* WPA2 state; wiped when the link goes down */
     uint8_t pmk[32], ptk[48], anonce[32], snonce[32], gtk[16], gtk_id, igtk[16];
@@ -90,15 +91,24 @@ static void hs_send(uint16_t info, uint64_t replay, const uint8_t *nonce, const 
     send_eth_rate(s.bssid, 0x888E, e, 4 + body, 0, WIFI_RATE_1M);       /* the handshake at 1 Mbit/s: the AP misses 12 Mbit/s frames now and then (measured: 6 of 6 joins instead of about half) */
 }
 
-static int take_gtk(const uint8_t *d, unsigned n)                /* GTK KDE (and with PMF the IGTK KDE) inside the unwrapped key data; 0 = found and stored */
+static int take_gtk(const uint8_t *d, unsigned n, const uint8_t *rsc)   /* GTK KDE (and with PMF the IGTK KDE) inside the unwrapped key data; 0 = found and stored.
+                                                                          * A key already installed is not reinstalled (its packet numbers stay: no replay through a
+                                                                          * repeated message, KRACK); a new GTK starts at the key RSC of the message, not at 0. */
 {
     int gtk = 0, igtk = 0;
     for (unsigned i = 0; i + 2 <= n; ) {
         unsigned l = d[i + 1];
         if (i + 2 + l > n) return -1;
-        if (d[i] == 0xdd && l >= 6 + 16 && !memcmp(d + i + 2, "\x00\x0f\xac\x01", 4)) { memcpy(k.gtk, d + i + 8, 16); k.gtk_id = d[i + 6] & 3; k.have_gtk = gtk = 1; memset(k.rx_pn[1], 0, sizeof k.rx_pn[1]); }
+        if (d[i] == 0xdd && l >= 6 + 16 && !memcmp(d + i + 2, "\x00\x0f\xac\x01", 4)) {
+            if (!k.have_gtk || memcmp(k.gtk, d + i + 8, 16)) {
+                uint64_t pn = 0; for (int j = 5; j >= 0; j--) pn = pn << 8 | rsc[j];            /* the RSC is the next PN the AP sends: accept from there */
+                memcpy(k.gtk, d + i + 8, 16); k.gtk_id = d[i + 6] & 3; for (int t = 0; t < 8; t++) k.rx_pn[1][t] = pn ? pn - 1 : 0; s.gtk_updates++;
+            }
+            k.have_gtk = gtk = 1;
+        }
         if (d[i] == 0xdd && l >= 4 + 8 + 16 && !memcmp(d + i + 2, "\x00\x0f\xac\x09", 4)) {      /* IGTK KDE: key id 2, IPN 6, IGTK 16 */
-            memcpy(k.igtk, d + i + 14, 16); k.ipn = 0; for (int j = 5; j >= 0; j--) k.ipn = k.ipn << 8 | d[i + 8 + j]; k.have_igtk = igtk = 1;
+            if (!k.have_igtk || memcmp(k.igtk, d + i + 14, 16)) { memcpy(k.igtk, d + i + 14, 16); k.ipn = 0; for (int j = 5; j >= 0; j--) k.ipn = k.ipn << 8 | d[i + 8 + j]; }
+            k.have_igtk = igtk = 1;
         }
         if (d[i] == 0xdd && l == 0) break;                                                /* padding */
         i += 2 + l;
@@ -127,14 +137,14 @@ static void eapol_rx(const uint8_t *f, unsigned n)
         if (!(e.info & EAPOL_INFO_INSTALL) || memcmp(e.nonce, k.anonce, 32)) return;  /* a different ANonce than message 1 is an attack or a restart */
         if (k.keys) { hs_send(0x030a, e.replay, 0, 0, 0); return; }                  /* retransmitted message 3: message 4 was lost */
         uint8_t kd[WPA_UNWRAP_MAX]; int kl = aes_unwrap(KEK, e.data, e.data_len, kd);
-        if (kl < 0 || take_gtk(kd, (unsigned)kl)) { zero(kd, sizeof kd); return; }    /* nothing installed on a bad message 3 */
+        if (kl < 0 || take_gtk(kd, (unsigned)kl, e.rsc)) { zero(kd, sizeof kd); return; }    /* nothing installed on a bad message 3 */
         k.replay = e.replay; hs_send(0x030a, e.replay, 0, 0, 0);
         wifi_mac_set_key(0, s.bssid, TK, 0); wifi_mac_set_key(1, s.bssid, k.gtk, k.gtk_id);
         k.keys = 1; k.tx_pn = 0; memset(k.rx_pn, 0, sizeof k.rx_pn); s.state = UP; s.last_beacon = time_ms();
         zero(kd, sizeof kd);
     } else if (s.state == UP) {                                                       /* group key update */
         uint8_t kd[WPA_UNWRAP_MAX]; int kl = aes_unwrap(KEK, e.data, e.data_len, kd);
-        if (kl < 0 || take_gtk(kd, (unsigned)kl)) { zero(kd, sizeof kd); return; }
+        if (kl < 0 || take_gtk(kd, (unsigned)kl, e.rsc)) { zero(kd, sizeof kd); return; }
         wifi_mac_set_key(1, s.bssid, k.gtk, k.gtk_id);
         k.replay = e.replay; hs_send(0x0302, e.replay, 0, 0, 0);
         zero(kd, sizeof kd);
@@ -202,11 +212,32 @@ static void sae_rx(const uint8_t *f, unsigned len)
     else if (st) s.sae_st = 3;                               /* refused (unknown group, H2E only, ...) */
 }
 
+uint32_t sta_n_amsdu, sta_n_sub, sta_n_bad, sta_n_dup, sta_n_addba;   /* diagnostics: A-MSDUs, their subframes, data frames refused, duplicates, ADDBA requests */
+static void deliver_eth(uint8_t *eth, int n, int protected_)
+{
+    if (n < 14 || !memcmp(eth + 6, s.me, 6)) return;         /* the AP repeats our own broadcasts back to us */
+    if (!protected_ && s.secure && (eth[12] != 0x88 || eth[13] != 0x8E)) return;   /* on a protected network only EAPOL may arrive in the clear */
+    if (!protected_ && eth[12] == 0x88 && eth[13] == 0x8E) { eapol_rx(eth + 14, (unsigned)n - 14); return; }
+    if (wifi_eth_rx) wifi_eth_rx(eth, (unsigned)n);
+}
+static void deliver(const uint8_t *f, unsigned len, int protected_)   /* a from-DS data frame (decrypted when protected_): one Ethernet frame, or each A-MSDU subframe */
+{
+    static uint8_t eth[1600];
+    if ((f[0] & 0x80) && (f[24] & 0x80)) {                   /* QoS with A-MSDU present: 802.11n stations must receive these (IDF's AP sends them) */
+        unsigned off = 0; int n; sta_n_amsdu++;
+        while ((n = wifi_amsdu_to_eth(f, len, s.bssid, &off, eth, sizeof eth)) > 0) { sta_n_sub++; deliver_eth(eth, n, protected_); }
+        if (n < 0) sta_n_bad++;
+        return;
+    }
+    int n = wifi_data_to_eth(f, len, s.bssid, eth, sizeof eth);
+    if (n < 14 && (f[0] & 0x40) == 0) sta_n_bad++;   /* null data frames carry nothing */
+    deliver_eth(eth, n, protected_);
+}
+
 static void on_frame(const wifi_rx_t *r)
 {
     const uint8_t *f = r->data; unsigned len = r->len;
     if (len < 24) return;
-    uint16_t sq = (uint16_t)((f[22] | f[23] << 8) >> 4);
     switch (f[0]) {
     case 0x80: case 0x50: {                                  /* beacon, probe response */
         wifi_ap_t ap;
@@ -239,16 +270,20 @@ static void on_frame(const wifi_rx_t *r)
         down();
         return;
     case 0xD0:                                               /* action: SA Query request (category 8, action 0) from our AP, protected */
+        if (len >= 26 && f[24] == 3 && f[25] == 0 && !memcmp(f + 4, s.me, 6)) sta_n_addba++;
         if (!s.pmf || !k.keys || memcmp(f + 10, s.bssid, 6) || !mgmt_ok(r)) return;
         if (len >= 24 + 4 && f[24] == 8 && f[25] == 0) sa_query_reply(f + 26);
         return;
     default: break;
     }
     if (s.state < HANDSHAKE || (f[0] & 0x0C) != 0x08) return;
-    { unsigned tid = (f[0] & 0x80) ? f[24] & 7 : 8; uint16_t sc = (uint16_t)(f[22] | f[23] << 8);   /* a retry with the sequence control we already have for that TID: the AP missed our ACK */
-      if ((f[1] & 0x08) && sc == s.rx_sc[tid]) return;
+    /* Only our AP's frames to us or to a group: the receiver hears every station of the BSS (in 40 MHz mode also the other stations' 40 MHz frames),
+     * and the AP numbers its frames per receiver, so another station's sequence numbers in the duplicate cache dropped new frames of ours (a station
+     * relayed through the AP lost a quarter of its pings, tools/wl/test_ws.py stalled) */
+    if (memcmp(f + 10, s.bssid, 6) || (!(f[4] & 1) && memcmp(f + 4, s.me, 6))) return;
+    if (!(f[4] & 1)) { unsigned tid = (f[0] & 0x80) ? f[24] & 7 : 8; uint16_t sc = (uint16_t)(f[22] | f[23] << 8);   /* unicast: a retry with the sequence control we already have for that TID: the AP missed our ACK */
+      if ((f[1] & 0x08) && sc == s.rx_sc[tid]) { sta_n_dup++; return; }
       s.rx_sc[tid] = sc; }
-    static uint8_t eth[1600];
     if (f[1] & 0x40) {                                       /* CCMP */
         unsigned hl = 24 + ((f[0] & 0x80) ? 2 : 0), grp = f[4] & 1, tid = (f[0] & 0x80) ? f[24] & 7 : 0; uint64_t pn;
         if (!k.keys || memcmp(f + 10, s.bssid, 6) || (grp && !k.have_gtk) || len > 1600) return;
@@ -262,18 +297,12 @@ static void on_frame(const wifi_rx_t *r)
             d = ccmp_decrypt(grp ? k.gtk : TK, pl, hl, pl + hl, len - hl, &pn);
         }
         if (d < 0 || pn <= k.rx_pn[grp][tid]) return;        /* bad MIC or a replayed packet number */
-        k.rx_pn[grp][tid] = pn;
+        k.rx_pn[grp][tid] = pn; s.grp_rx += grp;
         memmove(pl + hl, pl + hl + 8, (unsigned)d); pl[1] &= (uint8_t)~0x40;
-        int n = wifi_data_to_eth(pl, hl + (unsigned)d, s.bssid, eth, sizeof eth);
-        if (n > 0 && !memcmp(eth + 6, s.me, 6)) return;      /* the AP repeats our own broadcasts back to us */
-        if (n > 0 && wifi_eth_rx) wifi_eth_rx(eth, (unsigned)n);
+        deliver(pl, hl + (unsigned)d, 1);
         return;
     }
-    int n = wifi_data_to_eth(f, len, s.bssid, eth, sizeof eth);
-    if (n < 14 || !memcmp(eth + 6, s.me, 6)) return;
-    if (s.secure && (eth[12] != 0x88 || eth[13] != 0x8E)) return;      /* on a protected network only EAPOL may arrive in the clear */
-    if (eth[12] == 0x88 && eth[13] == 0x8E) { eapol_rx(eth + 14, (unsigned)n - 14); return; }
-    if (wifi_eth_rx) wifi_eth_rx(eth, (unsigned)n);
+    deliver(f, len, 0);
 }
 
 static void pump(uint32_t ms)                                /* dispatch received frames for ms */
@@ -336,7 +365,7 @@ int wifi_sta_join(const char *ssid, const char *pass, uint32_t timeout_ms)
         if (s.akm != 8) { rsn_build(s.akm, s.pmf, 0); wpa_pmk(pass, (const uint8_t *)ssid, (unsigned)strlen(ssid), k.pmk); }
     }
     memcpy(s.bssid, found[i].bssid, 6); s.beacon_tu = found[i].beacon_tu ? found[i].beacon_tu : 100;
-    wifi_mac_set_channel(found[i].chan); s.chan = found[i].chan;
+    wifi_mac_set_channel_bw(found[i].chan, found[i].sec40); s.chan = found[i].chan;
     join_ssid = ssid; s.state = AUTHING;
     if (s.secure && s.akm == 8) {                            /* SAE: commit, the AP's commit, confirm, the AP's confirm (up to 3 commits, anti-clogging token honoured) */
         if (sae_prepare(&sae, s.me, s.bssid, pass, (unsigned)strlen(pass))) { down(); return -1; }
@@ -366,6 +395,7 @@ int wifi_sta_join(const char *ssid, const char *pass, uint32_t timeout_ms)
 }
 
 int wifi_sta_up(void) { return s.state == UP; }
+void wifi_sta_stats(uint32_t *gtk_updates, uint32_t *grp_rx) { *gtk_updates = s.gtk_updates; *grp_rx = s.grp_rx; }
 
 void wifi_poll(void)
 {

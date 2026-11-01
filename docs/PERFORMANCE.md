@@ -821,10 +821,28 @@ higher MCS failed through our lost ACKs, not reception).
 | pinned HT20 MCS0-6 | 94-166 ms | 119-214 ms |
 | pinned HT20 MCS7 | stalls | stalls (link limit) |
 | unpinned HT20 | 122-151 ms | - |
-| unpinned HT40 (IDF AP default), 8 runs | median 145 ms | 135-179 ms |
+| unpinned HT40 (IDF AP default) | 117-137 ms (median 121) | 536-808 ms today, 135-225 ms earlier |
+| HT40 AP pinned MCS0 / MCS4 | 151-181 / 94-115 ms | 244-397 / 388-538 ms |
+| HT40 AP pinned MCS7 | stalls | 1 of 5 hung, 1 of 5 193 s (link limit) |
 
-Open: 40 MHz frames are not received (AP pinned at an HT40 rate: 8-13 s); the AP still reports a lower RSSI for us (-51 vs
--26 dBm) on some frame type. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt`.
+40 MHz receive (2026-11-01, `NDF_WIFI_HT40`, default on): the station follows the AP's HT Operation element (secondary channel above /
+below / none) and we advertise 0x116e as IDF does. Same board, 64 KB echo x5 (`tools/wl/bench_ht_rates.py`, `_idf.py`):
+
+| AP | esp-ndf | 40 MHz frames received | ESP-IDF |
+|---|---|---|---|
+| ch 9 HT40 below, default rate | 119-160 ms | 339 | 124-136 ms |
+| ch 9 HT40 below, MCS7 | 128-138 ms | 327 | 128-313 ms |
+| ch 6 HT40 above, default / MCS0 / MCS4 / MCS7 | 117-174 / 148-236 / 126-160 / 145-191 ms | 282-339 | 1298-1642 / 2450-4548 / 3434-3999 / 446-6571 ms (channel 6 busy at that hour) |
+| ch 6 HT20, default / MCS7 | 162-234 / 167-255 ms (one 1.4 s) | 0 | 899-1448 ms / - |
+| ch 1 HT40, default | 139-178 ms | 327 | 428-815 ms |
+
+How: IDF's station tunes the LO to the 40 MHz centre (regi2c 0x63 words equal ours at channel +-10 MHz) and sets SYSCON 0x6002600c bit 2
+(ROM `rom_bb_bss_cbw40_dig`, outside the earlier register captures: the piece that was missing) and 0x6001cc0c bit 0 for secondary below
+(`rom_bb_bss_cbw40`), plus FE 0x600060c0, 0x60034268 bit 7, 0x6001ccd0 bit 29 and the HT40 words already in `ht_rx`. The ROM functions are in
+`bench/wifi_regs/data/rom_*cbw*.dis`. With 20 MHz only (before), an HT40 AP pinned to an HT40 rate took 8-13 s.
+The RSSI the AP reports, same DEVKIT: esp-ndf -20 dBm, IDF -18 dBm (10 samples each, `tools/wl/rssi_same_board.py`); the earlier
+-51 vs -26 was the TX gain table above. Data: `bench/idf_wl_peer/data/ht20_mcs_idf_box3.txt`, `ht40_ap_20mhz_station_box3.txt`,
+`ht40_receive_box3.txt`, `rssi_same_devkit.txt`.
 
 ## Wi-Fi station join with PMF / WPA3 (DEVKIT esp-ndf `ip_unit` vs IDF 5.3.5 station on the BOX-3, AP = IDF on C9:48, channel 6, 2026-10-30)
 
@@ -869,6 +887,17 @@ our P-256 / X25519 code. Data: `bench/idf_wl_peer/data/tls12_compare.txt`.
 | esp-ndf client -> IDF server | 17 ms | 439 ms |
 | IDF client -> IDF server | 16 ms | 5095 ms |
 | IDF client -> esp-ndf server | 24 ms | 624 ms |
+
+2026-11-01, five runs after the TX gain fix: ours -> IDF 457-1639 ms (median 535), IDF -> IDF 4798-5000 ms, IDF -> ours 494-3301 ms
+(median 750); the 9-45 s runs of 2026-10-31 were the weak transmit (`bench/idf_wl_peer/data/ws_echo_devkit_after_txgain.txt`).
+
+Relayed through an HT40 AP (ch 6, IDF client on the BOX-3 -> AP -> server on the DEVKIT, 6 sessions, `tools/wl/probe_ws_relay.py`): esp-ndf
+server 436-534 ms, IDF `ws_serve` on the same DEVKIT 7362-8128 ms (15x). Before 2026-11-01 ours lost whole messages here with 40 MHz receive on:
+the duplicate cache took sequence numbers from every data frame the radio heard, and in 40 MHz mode that includes the AP's frames to the other
+station, numbered by the AP per receiver, so retries of ours were dropped as duplicates (a relayed ping: 143 of 200 -> 200 of 200). The station
+now passes only its AP's frames to itself or to a group (`components/wifi/sta.c`). With the 3rd board quiet, the AP's 300 pings: 0-2 ms
+round trip, 1-38 transmit retries, nothing unacknowledged at HT20 / HT40 above / below (`ping_sta_loss_devkit.txt`, `relay_ping_devkit.txt`,
+`ws_relay_ndf_server_devkit_ht40.txt`, `sniff_sta_acks_devkit.txt`).
 
 Ours as client is 11x faster against the same server: `esp_websocket_client` delivers through its own task and polls its socket on a
 timeout, while ours runs the echo inside net_poll(). As server, ours answers IDF's client 8x faster than IDF's own server does.

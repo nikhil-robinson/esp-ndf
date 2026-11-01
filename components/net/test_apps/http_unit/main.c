@@ -5,6 +5,7 @@
 #include "sys.h"
 #include "rf.h"
 #include "wifi.h"
+#include "wifi_mac.h"
 #include "net.h"
 #include "http.h"
 #include "ws.h"
@@ -92,6 +93,9 @@ int main(void)
             uint32_t td = time_ms(); mqtt_disconnect();
             printf("mqbench rc %d connect_ms %lu echoes %u of %u qos %d rt_ms %lu\n", rc, (unsigned long)(tc - t0), ok, cnt, qos, (unsigned long)(td - ts));
         } else if (!strcmp(v[0], "memused")) printf("memused %u\n", (unsigned)lwip_stats.mem.used);
+        else if (!strcmp(v[0], "mac")) { uint32_t a, b, c, d; wifi_mac_stats(&a, &b, &c, &d); extern uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack, n_cwb40, n_agg, n_mine40, n_retry40, sta_n_amsdu, sta_n_sub, sta_n_bad, sta_n_dup, sta_n_addba;   /* MAC counters (diagnostic) */
+            printf("mac to-me %lu retries %lu mine-dropped %lu rx %lu noise %lu tx %lu txfail %lu tx-retries %lu noack %lu cwb40 %lu to-me40 %lu retries40 %lu agg %lu amsdu %lu sub %lu bad %lu dup %lu addba %lu | tcp rx %u drop %u chkerr %u err %u ip chkerr %u drop %u link drop %u\n", (unsigned long)n_mine, (unsigned long)n_retry, (unsigned long)n_drop_mine, (unsigned long)a, (unsigned long)b,
+                   (unsigned long)c, (unsigned long)d, (unsigned long)n_retries_tx, (unsigned long)n_noack, (unsigned long)n_cwb40, (unsigned long)n_mine40, (unsigned long)n_retry40, (unsigned long)n_agg, (unsigned long)sta_n_amsdu, (unsigned long)sta_n_sub, (unsigned long)sta_n_bad, (unsigned long)sta_n_dup, (unsigned long)sta_n_addba, lwip_stats.tcp.recv, lwip_stats.tcp.drop, lwip_stats.tcp.chkerr, lwip_stats.tcp.err, lwip_stats.ip.chkerr, lwip_stats.ip.drop, lwip_stats.link.drop); }
         else printf("?\n");
         printf("ok\n");
     }

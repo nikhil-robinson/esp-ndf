@@ -1,0 +1,9 @@
+# IDF AP (C9:48) pings the station on the DEVKIT 300 x (tools/wl/ping_sta_loss.py), 2026-11-01. txretries / noack = our MAC's transmit retries / frames never acknowledged
+# (the early runs had the BOX-3 left joined to the AP by bench_ht_rates.py: extra traffic; the sniffer runs below are without it)
+IDF station: 6 - above 300/300 x3; 6 - 20 300/300 x3
+esp-ndf, BOX-3 left joined: 6 - above 295/293/297 (txretries ~200 per 300, noack = lost pings), 6 - 20 300/300 (txretries 23)
+esp-ndf OFDM rate sweep in 40 MHz mode (BOX-3 left joined): 6M 133 retries/300, 24M 208, 1M DSSS 4
+esp-ndf after the response-rate (0x60034314), TX channel offset (0x60033400) and receive-filter fixes, BOX-3 idle:
+6 - above 300/300 x3 avg 1 ms txretries 24/24/38 noack 0
+9 - below 300/300 x3 avg 0 ms txretries 2/1/2   noack 0
+6 - 20    300/300 x3 avg 2 ms txretries 1/0/2   noack 0
