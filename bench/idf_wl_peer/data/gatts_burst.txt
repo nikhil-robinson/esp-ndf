@@ -4,3 +4,13 @@ esp-ndf, one TX descriptor per event (before)                               14/s
 esp-ndf, 24-descriptor TX chain with the more-data bit, 10-entry RX ring   254/s  (events end after ~10 exchanges: one RX descriptor per PDU)
 esp-ndf, 24-descriptor TX chain, 32-entry RX ring                          457/s  (TX chain full)
 esp-ndf, 48-descriptor TX chain, 48-entry RX ring                          899/s  (45 per event), gaps 0
+
+Final design (RX ring 48 descriptors, TX 48-descriptor chain, byte-ring software queue; commit after 958b6de), same central (IDF NimBLE on the PEER board):
+esp-ndf, 4-byte notifications, 1M PHY                     1024/s   (IDF NimBLE server: 735/s in tools/wl/bench_gatt_burst.py on the same air)   gaps 0
+esp-ndf, 4-byte notifications, 2M PHY                     1015/s   gaps 0
+ESP-IDF server, 244-byte notifications (DLE 251, MTU 247)   359/s = 701 kbit/s payload, gaps 0
+esp-ndf, 244-byte notifications (DLE 251, MTU 247)        148/s = 282 kbit/s payload, gaps 1   <- IDF is 2.5x ahead here
+Why: with 251-byte PDUs the IDF central ends every connection event with our server after 5-6 exchanges (~12.8 ms: 6 central PDUs received, 5 of ours acknowledged), whatever the
+connection interval (20/50/100 ms), the requested connection event length (0.625 ms units 16..768 in ble_connect/ble_update) or the PHY; the same central takes 18 PDUs per event (43 ms) from the
+IDF server. Not found on our side: CS words (+0x1E, +0x20, +0x28, +0x2E), exchange-table words 5-7, core registers 0xE4/0xEC/0xF8/0x2CC/0x330/0x374 set to IDF's values, DLE buffers: all without effect.
+Open: needs an air capture (third board) of both servers' events. Small PDUs are not affected (events of 25 ms with 45 PDUs).

@@ -1,4 +1,4 @@
-/* ATT server and attribute table (Core spec vol 3 parts F and G): 16-bit UUIDs, MTU 23, no prepare/execute write.
+/* ATT server and attribute table (Core spec vol 3 parts F and G): 16-bit UUIDs, MTU 23 up to NDF_GATT_MTU after Exchange MTU, no prepare/execute write.
  * Pure code (no radio): att_handle() takes one ATT PDU and builds the response. Every length is checked first. */
 #include "gatt.h"
 #include <string.h>
@@ -8,12 +8,14 @@ typedef struct { uint8_t kind; uint16_t uuid, end; gatt_chr_t *chr; uint16_t ccc
 static attr_t db[NDF_GATT_MAX_ATTRS];
 static unsigned nattr;
 static uint8_t ind_pending;
+static uint16_t mtu = 23;
 
 enum { E_INVALID_HANDLE = 1, E_READ_NOT_PERM = 2, E_WRITE_NOT_PERM = 3, E_INVALID_PDU = 4, E_NOT_SUPPORTED = 6, E_INVALID_OFFSET = 7,
        E_NOT_FOUND = 0x0A, E_INVALID_LEN = 0x0D, E_UNSUP_GROUP = 0x10 };
 
-void gatt_db_clear(void) { memset(db, 0, sizeof db); nattr = 0; ind_pending = 0; }
-void gatt_reset(void) { for (unsigned i = 0; i < nattr; i++) db[i].cccd = 0; ind_pending = 0; }
+void gatt_db_clear(void) { memset(db, 0, sizeof db); nattr = 0; ind_pending = 0; mtu = 23; }
+void gatt_reset(void) { for (unsigned i = 0; i < nattr; i++) db[i].cccd = 0; ind_pending = 0; mtu = 23; }
+unsigned att_mtu(void) { return mtu; }
 int  att_indication_pending(void) { return ind_pending; }
 void att_indication_start(void) { ind_pending = 1; }
 
@@ -79,11 +81,12 @@ int att_handle(const uint8_t *p, unsigned n, uint8_t *r, unsigned max)
 {
     if (!n || max < GATT_MTU) return 0;
     const uint8_t op = p[0];
-    const unsigned room = GATT_MTU;                                       /* bytes of one response */
-    uint8_t v[64];
+    const unsigned room = mtu;                                            /* bytes of one response */
+    uint8_t v[GATT_MTU];
     switch (op) {
     case 0x02:                                                            /* Exchange MTU */
         if (n != 3) return err(r, op, 0, E_INVALID_PDU);
+        { unsigned c = u16(p + 1); mtu = (uint16_t)(c < 23 ? 23 : c > GATT_MTU ? GATT_MTU : c); }       /* the smaller of the two receive MTUs */
         r[0] = 0x03; put16(r + 1, GATT_MTU); return 3;
 
     case 0x04: case 0x06: case 0x08: case 0x10: {                          /* handle-range requests */
@@ -119,7 +122,7 @@ int att_handle(const uint8_t *p, unsigned n, uint8_t *r, unsigned max)
         for (unsigned h = s; h <= e; h++) {
             const attr_t *a = &db[h - 1];
             if (type_of(a) != t) continue;
-            int k = value(a, v, GATT_MTU - 6);
+            int k = value(a, v, room - 6);
             if (k < 0) { if (o == 2) return err(r, op, (uint16_t)h, (uint8_t)-k); break; }
             if (elen && (unsigned)k + 2 != elen) break;                    /* every entry has the same length */
             if (o + 2 + (unsigned)k > room) break;

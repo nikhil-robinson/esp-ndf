@@ -119,14 +119,14 @@ int gattc_read(uint16_t h, uint8_t *out, unsigned max)
         unsigned k = (unsigned)r - 1;
         if (have + k > max) k = max - have;
         memcpy(out + have, rsp + 1, k); have += k;
-        if ((unsigned)r < GATT_MTU || have >= max) return (int)have;       /* a short PDU ends the value */
+        if ((unsigned)r < att_mtu() || have >= max) return (int)have;       /* a short PDU ends the value */
     }
 }
 
 int gattc_write(uint16_t h, const uint8_t *v, unsigned n, int with_response)
 {
     uint8_t q[GATT_MTU];
-    if (n > GATT_MTU - 3) return -1;
+    if (n > att_mtu() - 3) return -1;
     q[0] = with_response ? 0x12 : 0x52; q[1] = (uint8_t)h; q[2] = (uint8_t)(h >> 8); memcpy(q + 3, v, n);
     if (!with_response) return ble_hw_connected() && gatt_send_att(q, 3 + n) == 0 ? 0 : -1;
     int r = transact(q, 3 + n, 0x13);

@@ -10,13 +10,14 @@ typedef struct {
     uint8_t  chan;             /* advertising channel index (37..39) */
     int8_t   rssi;             /* dBm, as the core reports it */
     uint32_t clkn;             /* core clock at sync, half-slots (312.5 us) */
-    uint8_t  data[37];         /* payload (AdvA first for advertising PDUs) */
+    uint8_t  data[255];        /* payload (AdvA first for advertising PDUs; a connection's data PDU up to 251 bytes after the data length update) */
 } ble_hw_pkt_t;
 
 typedef struct {
     uint32_t events, packets, dropped;   /* scan events run, PDUs received, PDUs lost to a full queue */
     uint32_t aborts, isr_calls, skips, disconnects, tx_pdus, rx_errors;                     /* stuck events aborted by the watchdog */
     uint32_t isr_cycles;                 /* CPU cycles spent in the interrupt handler */
+    uint32_t tx_acked;                   /* data PDUs the core finished sending (descriptor done) */
 } ble_hw_stats_t;
 
 int  ble_hw_init(void);                /* after rf_init_replay(); 0 on success */
@@ -35,8 +36,11 @@ int  ble_hw_connected(void);
 void ble_hw_phy(uint8_t *tx, uint8_t *rx);                  /* PHY of the connection, 0 = 1M, 1 = 2M */
 void ble_hw_csa2(int on);              /* default on: ChSel set, the central may pick CSA#2; 0 forces CSA#1 */
 int  ble_hw_conn_info(uint8_t *csa2, uint16_t *interval);   /* channel selection in use, interval */
-int  ble_hw_tx_free(void);              /* free slots in the TX queue (8 deep) */
-int  ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len);   /* llid 2 L2CAP, 3 LL control; <= 27 bytes */
+void ble_hw_conn_addrs(uint8_t peer[7], uint8_t own[7]);        /* the connection's peer and our address: type (0 public, 1 random) then 6 octets, least significant first */
+void ble_hw_set_enc(int (*ltk)(const uint8_t rand[8], uint16_t ediv, uint8_t ltk[16]), void (*done)(int on));   /* link-layer encryption: key lookup for LL_ENC_REQ (0 = found), and a callback once both directions are encrypted */
+unsigned ble_hw_tx_max(void);           /* largest LL data PDU payload we send: 27, or up to 251 once the central's LL_LENGTH_REQ is accepted and the TX buffers are switched */
+int  ble_hw_tx_free(void);              /* free slots in the TX queue */
+int  ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len);   /* llid 2 L2CAP start, 1 continuation, 3 LL control; <= ble_hw_tx_max() bytes */
 int  ble_hw_ll_control(const ble_hw_pkt_t *p);                       /* answers LL control PDUs; 1 if consumed */
 void ble_hw_debug(uint32_t out[6]);         /* intmask, raw status, ET0 word, clkn, RX desc ptr, ET0 start */
 /* raw packet engine (core test mode, no BLE protocol): continuous packets of preamble + sync + len bytes + CRC.

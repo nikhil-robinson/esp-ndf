@@ -18,7 +18,7 @@ void ble_store_config_init(void);                  /* RAM store of keys (NimBLE 
 #include "../peer.h"
 
 static uint16_t conn = BLE_HS_CONN_HANDLE_NONE;
-static volatile uint32_t nnotif, last_nlen, sub_state, srv_counter, last_val, ngaps; static volatile int have_prev;
+static volatile uint32_t nbytes, notify_len = 4, nnotif, last_nlen, sub_state, srv_counter, last_val, ngaps; static volatile int have_prev;
 static uint16_t notify_handle;
 static volatile int64_t burst_until_us;
 static volatile uint32_t scan_seen, scan_match; static char scan_filter[24];
@@ -40,7 +40,7 @@ static int gap_ev(struct ble_gap_event *e, void *a)
         conn = BLE_HS_CONN_HANDLE_NONE; sub_state = 0; printf("event disconnect %d\n", e->disconnect.reason);
         break;
     case BLE_GAP_EVENT_NOTIFY_RX: {
-        nnotif++; last_nlen = OS_MBUF_PKTLEN(e->notify_rx.om);
+        nnotif++; last_nlen = OS_MBUF_PKTLEN(e->notify_rx.om); nbytes += last_nlen;
         uint32_t v = 0; uint16_t got = 0;
         if (last_nlen >= 4 && !ble_hs_mbuf_to_flat(e->notify_rx.om, &v, 4, &got)) { if (have_prev && v != last_val + 1) ngaps++; last_val = v; have_prev = 1; }
         break;
@@ -97,7 +97,8 @@ static void notify_task(void *a)
         vTaskDelay(burst ? 1 : pdMS_TO_TICKS(100));
         if (conn == BLE_HS_CONN_HANDLE_NONE || !sub_state) continue;
         uint32_t next = srv_counter + 1;                       /* the value advances only when the stack took the notification */
-        struct os_mbuf *om = ble_hs_mbuf_from_flat(&next, 4);
+        uint8_t pl[512] = { 0 }; memcpy(pl, &next, 4);
+        struct os_mbuf *om = ble_hs_mbuf_from_flat(pl, notify_len < 4 ? 4 : notify_len > sizeof pl ? sizeof pl : notify_len);
         if (om && ble_gatts_notify_custom(conn, notify_handle, om) == 0) srv_counter = next;
     }
 }
@@ -145,13 +146,15 @@ static int parse_addr(const char *s, ble_addr_t *a)             /* aa:bb:cc:dd:e
     return 0;
 }
 
-static int cmd_connect(int argc, char **argv)                    /* ble_connect <addr> [type 0 public / 1 random] */
+static int cmd_connect(int argc, char **argv)                    /* ble_connect <addr> [type 0 public / 1 random] [ce_min ce_max] */
 {
     if (ble_start() || argc < 2) return -1;
     ble_addr_t a = { .type = argc > 2 ? atoi(argv[2]) : 1 };
     if (parse_addr(argv[1], &a)) return -2;
     ble_gap_disc_cancel();
-    int rc = ble_gap_connect(own_type, &a, 10000, NULL, gap_ev, NULL);
+    struct ble_gap_conn_params cp = { .scan_itvl = 0x0010, .scan_window = 0x0010, .itvl_min = 24, .itvl_max = 40, .latency = 0, .supervision_timeout = 0x0100,
+                                      .min_ce_len = argc > 3 ? atoi(argv[3]) : 0x0010, .max_ce_len = argc > 4 ? atoi(argv[4]) : 0x0300 };       /* NimBLE's defaults unless ce lengths (0.625 ms) are given */
+    int rc = ble_gap_connect(own_type, &a, 10000, &cp, gap_ev, NULL);
     if (rc) return rc;
     if (!xSemaphoreTake(sem, pdMS_TO_TICKS(12000))) return -3;
     return conn == BLE_HS_CONN_HANDLE_NONE ? -4 : 0;
@@ -253,18 +256,18 @@ static int cmd_sub(int argc, char **argv)                         /* ble_sub <cc
 {
     uint8_t on[2] = { 1, 0 };
     if (conn == BLE_HS_CONN_HANDLE_NONE || argc < 2) return -1;
-    nnotif = 0; ngaps = 0; have_prev = 0; op_begin();
+    nnotif = 0; nbytes = 0; ngaps = 0; have_prev = 0; op_begin();
     if (ble_gattc_write_flat(conn, atoi(argv[1]), on, 2, write_cb, NULL)) return -2;
     return wait_op();
 }
 static int cmd_stats(int argc, char **argv)
 {
-    printf("notifications %u gaps %u last_val %u last_len %u connected %d\n", (unsigned)nnotif, (unsigned)ngaps, (unsigned)last_val, (unsigned)last_nlen, conn != BLE_HS_CONN_HANDLE_NONE);
+    printf("notifications %u gaps %u last_val %u last_len %u connected %d bytes %u\n", (unsigned)nnotif, (unsigned)ngaps, (unsigned)last_val, (unsigned)last_nlen, conn != BLE_HS_CONN_HANDLE_NONE, (unsigned)nbytes);
     return 0;
 }
 static int cmd_gatts_start(int argc, char **argv) { return ble_start(); }       /* the server is always registered; this starts the host */
 
-/* link controls: ble_info | ble_update <itvl_min> <itvl_max> <latency> <timeout> (1.25 ms / 10 ms units) | ble_dle <octets> <time_us> | ble_phy <1 1M, 2 2M, 4 coded> | ble_pair */
+/* link controls: ble_info | ble_update <itvl_min> <itvl_max> <latency> <timeout> [ce_min ce_max] (1.25 ms / 10 ms / 0.625 ms units) | ble_dle <octets> <time_us> | ble_phy <1 1M, 2 2M, 4 coded> | ble_pair */
 static int cmd_info(int argc, char **argv)
 {
     struct ble_gap_conn_desc d; uint8_t tx = 0, rx = 0;
@@ -277,7 +280,7 @@ static int cmd_info(int argc, char **argv)
 static int cmd_update(int argc, char **argv)
 {
     if (conn == BLE_HS_CONN_HANDLE_NONE || argc < 5) return -1;
-    struct ble_gap_upd_params u = { .itvl_min = atoi(argv[1]), .itvl_max = atoi(argv[2]), .latency = atoi(argv[3]), .supervision_timeout = atoi(argv[4]), .min_ce_len = 0, .max_ce_len = 0 };
+    struct ble_gap_upd_params u = { .itvl_min = atoi(argv[1]), .itvl_max = atoi(argv[2]), .latency = atoi(argv[3]), .supervision_timeout = atoi(argv[4]), .min_ce_len = argc > 5 ? atoi(argv[5]) : 0, .max_ce_len = argc > 6 ? atoi(argv[6]) : 0 };      /* ce lengths in 0.625 ms */
     return ble_gap_update_params(conn, &u);
 }
 static int cmd_dle(int argc, char **argv) { return conn == BLE_HS_CONN_HANDLE_NONE || argc < 3 ? -1 : ble_gap_set_data_len(conn, atoi(argv[1]), atoi(argv[2])); }
@@ -296,10 +299,19 @@ static int cmd_pair(int argc, char **argv)
     if (!xSemaphoreTake(sem, pdMS_TO_TICKS(8000))) return -9;
     return enc_status;
 }
-static int cmd_unbond(int argc, char **argv) { ble_store_clear(); return 0; }
+static int mtu_cb(uint16_t c, const struct ble_gatt_error *er, uint16_t mtu, void *a) { op_status = er->status; xSemaphoreGive(sem); return 0; }
+static int cmd_mtu(int argc, char **argv)                                /* ble_mtu <preferred>: ATT Exchange MTU as the client */
+{
+    if (conn == BLE_HS_CONN_HANDLE_NONE || argc < 2) return -1;
+    ble_att_set_preferred_mtu(atoi(argv[1])); op_begin();
+    if (ble_gattc_exchange_mtu(conn, mtu_cb, NULL)) return -2;
+    return wait_op();
+}
+static int cmd_notify_len(int argc, char **argv) { if (argc < 2) return -1; notify_len = atoi(argv[1]); return 0; }      /* ble_notify_len <n>: payload of the built-in server's notifications */
+static int cmd_unbond(int argc, char **argv) { if (ble_start()) return -1; ble_store_clear(); return 0; }
 
 const peer_cmd_t cmds_ble[] = {
-    { "ble_info", cmd_info }, { "ble_update", cmd_update }, { "ble_dle", cmd_dle }, { "ble_phy", cmd_phy }, { "ble_pair", cmd_pair }, { "ble_unbond", cmd_unbond },
+    { "ble_info", cmd_info }, { "ble_mtu", cmd_mtu }, { "ble_notify_len", cmd_notify_len }, { "ble_update", cmd_update }, { "ble_dle", cmd_dle }, { "ble_phy", cmd_phy }, { "ble_pair", cmd_pair }, { "ble_unbond", cmd_unbond },
     { "ble_adv", cmd_adv }, { "ble_adv_stop", cmd_adv_stop }, { "ble_scan", cmd_scan }, { "ble_connect", cmd_connect }, { "ble_disconnect", cmd_disconnect },
     { "ble_disc", cmd_disc }, { "ble_read", cmd_read }, { "ble_write", cmd_write }, { "ble_sub", cmd_sub },
     { "ble_stats", cmd_stats }, { "ble_gatts_start", cmd_gatts_start }, { 0 } };

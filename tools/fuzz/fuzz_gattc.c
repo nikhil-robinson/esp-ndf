@@ -11,6 +11,7 @@ static unsigned rnd(void) { x ^= x << 13; x ^= x >> 7; x ^= x << 17; return (uns
 int ble_hw_connected(void) { return connected; }
 uint64_t time_us(void) { return now_us; }
 int gatt_send_att(const uint8_t *a, unsigned n) { return (a && n <= 23) ? 0 : -1; }
+unsigned att_mtu(void) { return 23; }
 void gatt_poll(uint32_t wait_us)
 {
     static const uint8_t ops[] = { 0x01, 0x03, 0x05, 0x09, 0x0B, 0x0D, 0x11, 0x13, 0x1B, 0x1D, 0x07, 0x0F, 0x17 };

@@ -22,6 +22,8 @@
 #include <string.h>
 #include "../rf/rf_pll.h"
 #include "ble_state.h"
+#include "aes.h"
+#include "rng.h"
 
 #define R32(a)  (*(volatile uint32_t *)(a))
 #define CORE(o) R32(0x60031000u + (o))
@@ -29,8 +31,8 @@
 #define RING0   0x1000u
 #define RING_N  10u                              /* descriptors the vendor image has (advertising / scanning windows use these) */
 #define RING_CN 48u                              /* a connection event: one descriptor per PDU exchanged, so this bounds the PDUs per event (10 held it to ~13) */
-#define RXPAY   0x3000u                          /* EM page pair for the payloads of descriptors 10..RING_CN-1 */
-#define RXPAYSZ 40u
+#define RXPAY   0x3400u                          /* EM pages for the payloads of descriptors 10..RING_CN-1: 10..17 hold a PDU of the data length extension (288 bytes each), 18.. a classic one (40) */
+static uint16_t rx_pay(unsigned k) { return (uint16_t)(RXPAY + 40u * (k - RING_N) + 5); }
 #define INT_END (1u << 5)
 #define INT_SKIP (1u << 8)
 #ifndef BLE_FINE
@@ -45,14 +47,14 @@
 
 static uint32_t em_buf[BLE_EM_WORDS];
 static uint32_t ring_buf[256];                /* EM 0x1000..0x13FF: the RX ring, RING_CN descriptors of 0x14 bytes (the vendor image has 10) */
-static uint32_t rxpay_buf[512];               /* EM 0x3000..0x37FF */
+static uint32_t rxpay_buf[512];               /* EM RXPAY..: payloads of descriptors 10..RING_CN-1, 40 bytes each (a classic PDU of 27 bytes + header) */
 static volatile unsigned ring_n = RING_N;     /* descriptors in use: RING_N while advertising / scanning, RING_CN in a connection */
 static volatile uint8_t scan_chan;            /* 0: stopped */
 static volatile uint32_t last_end;            /* ccount of the last event end (watchdog) */
 static volatile uint8_t adv_on;              /* advertising instead of scanning */
 static uint32_t adv_next, adv_iv;             /* next advert start / interval, half-slots */
 static uint16_t scan_cs[45];                  /* scan control structure, restored by ble_hw_scan */
-static uint32_t tx_buf[512];                  /* EM 0x2400 (page register 7, one 1 KB page): +0 advertising payload, +0x40.. data TX
+static uint32_t tx_buf[1024];                  /* EM 0x2400 (page register 7, one 1 KB page): +0 advertising payload, +0x40.. data TX
                                                 * (raw: up to 255 bytes), +0x200 / +0x300 raw RX buffers */
 #define CS0     0x400u
 #define TXD     0x1400u
@@ -63,10 +65,13 @@ static ble_hw_stats_t st;
 #define CS1     0x45Au                           /* slave connection control structure (CS index 1) */
 #define TXC     0x1440u                          /* first data TX descriptor; the chain is TXD_N descriptors of 16 bytes (EM page 4 holds 0x1400..0x17FF) */
 #define TXCBUF  (TXBUF + 0x40u)
-#define TXD_N   48u
+#define TXD_N   48u                              /* descriptors; a PDU of up to 27 bytes uses the 28-byte slot of its descriptor (TXCBUF + 28 i), a longer one a 256-byte slot of the pool at TXBUF + 0x800 */
+#define TXB_N   8u
+#define TXB(b)  (TXBUF + 0x800u + 256u * (b))
 #define TXDSC(i)  (TXC + 16u * (i))                /* descriptor +0 next (bit 15 = done), +2 header (length << 8 | MD 0x10 | LLID), +4 payload pointer */
-#define TXDBUF(i) (TXCBUF + 28u * (i))               /* payloads of at most 27 bytes */
-static uint8_t tx_first, tx_cnt;                 /* descriptors handed to the core and not yet acknowledged: a ring starting at tx_first */
+#define TXDBUF(i) (TXCBUF + 28u * (i))
+static uint8_t tx_first, tx_cnt, big_first, big_cnt, desc_big[TXD_N];     /* descriptors in flight (ring from tx_first); big payload slots in use (ring from big_first) and which descriptor holds one */
+static uint16_t tx_max_oct = 27;                            /* negotiated octets we may send (the central's receive size); we receive classic 27-byte PDUs only */                 /* descriptors handed to the core and not yet acknowledged: a ring starting at tx_first */
 static volatile uint8_t conn_on;
 static volatile uint8_t term_req;            /* LL_TERMINATE_IND seen: the event-end interrupt ends the link (the core is idle there) */
 static uint8_t own_addr[6];
@@ -81,10 +86,20 @@ static struct {
     uint32_t last_rx_ms;                         /* ms clock of the last PDU from the master */
     uint32_t idx;                                /* exchange-table entry rotation */
 } cn;
-#define TXQ_N 64u
-static struct { uint8_t llid, len, d[27]; } txq[TXQ_N];
+#define TXQ_BYTES 8192u                          /* software TX queue: entries [llid, length, payload...] in a byte ring, so 27-byte and 251-byte PDUs share it */
+static uint8_t txq_buf[TXQ_BYTES];
 static volatile uint32_t txq_head, txq_tail;
+static uint8_t txq_at(uint32_t k) { return txq_buf[(txq_tail + k) % TXQ_BYTES]; }
 static uint8_t init_addr[6];
+static uint8_t peer_addr7[7], own_addr7[7];       /* type + 6 octets (LSO first) of the connected peer and of our advertising address */
+/* link-layer encryption (ROM r_lld_con_enc_key_load / r_lld_con_tx_enc / r_lld_con_rx_enc): key at CS+0x2C, IV at CS+0x3C, packet counters at CS+0x44; CS+2 bit 8 decrypts, bit 9 encrypts */
+static volatile uint8_t enc_notify;               /* LL_START_ENC_RSP answered: tell the host once transmit encryption is on */
+static volatile uint8_t enc_block;               /* LL_START_ENC_REQ queued: no data PDU is accepted until transmit encryption is on, the first encrypted PDU must be LL_START_ENC_RSP */
+static volatile uint8_t enc_tx_pend;                 /* LL_START_ENC_RSP queued: transmit encryption starts at the next event end, together with the first PDU (an empty PDU must not be encrypted) */
+static uint8_t enc_state, tx_enc, rx_enc, mic_fail;     /* enc_state: 0 off, 1 key loaded and receive decryption on, waiting for LL_START_ENC_RSP, 2 both ways on */
+static int (*enc_ltk_cb)(const uint8_t rand[8], uint16_t ediv, uint8_t ltk[16]);
+static void (*enc_done_cb)(int on);
+void ble_hw_set_enc(int (*ltk)(const uint8_t rand[8], uint16_t ediv, uint8_t ltk[16]), void (*done)(int on)) { enc_ltk_cb = ltk; enc_done_cb = done; }
 static uint32_t ms_now(void) { return (uint32_t)(time_us() / 1000); }
 #define Q_N 32u
 static ble_hw_pkt_t q[Q_N];
@@ -101,7 +116,13 @@ static uint32_t em_addr(uint32_t off)
 }
 #define EM16(off) (*(volatile uint16_t *)em_addr(off))
 /* offsets come from descriptors the radio writes: a span must lie inside em_buf before anything is copied */
-static bool em_span_ok(uint32_t off, uint32_t n) { uint32_t a = em_addr(off); return a >= (uint32_t)em_buf && a + n <= (uint32_t)em_buf + sizeof em_buf && a + n >= a; }
+static bool em_span_ok(uint32_t off, uint32_t n)
+{
+    uint32_t a = em_addr(off);
+    const struct { uint32_t b, sz; } r[] = { { (uint32_t)em_buf, sizeof em_buf }, { (uint32_t)ring_buf, sizeof ring_buf }, { (uint32_t)rxpay_buf, sizeof rxpay_buf }, { (uint32_t)tx_buf, sizeof tx_buf } };
+    for (unsigned k = 0; k < 4; k++) if (a >= r[k].b && a + n <= r[k].b + r[k].sz && a + n >= a) return true;
+    return false;
+}
 
 static uint32_t clkn(void)
 {
@@ -118,6 +139,7 @@ static void drain(void)
          * we already have), as ROM r_lld_con_rx drops them (mask 0x66 + bits 0, 3; bench/rfmeas/data/rom_lld_con_rx.dis): delivered, a resent
          * ATT request was answered twice and the 2nd answer met the client's next request (NimBLE EBADDATA, discovery failed 1 in ~30 connections).
          * While advertising, bit 6 is a normal flag. */
+        if (conn_on && (EM16(d + 2) & 0x10)) { mic_fail = 1; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }      /* RX status bit 4: MIC failure (ROM r_lld_con_rx ends the link) */
         if (EM16(d + 2) & (conn_on ? 0x006F : 0x000F)) {
             st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
         }
@@ -129,7 +151,8 @@ static void drain(void)
             uint16_t ph = EM16(d + 4), ch = EM16(d + 6);
             p->hdr0 = ph & 0xFF; p->len = ph >> 8; p->rssi = (int8_t)(ch & 0xFF); p->chan = (ch >> 8) & 0x3F;
             p->clkn = EM16(d + 8) | (uint32_t)EM16(d + 10) << 16;
-            uint32_t len = p->len > 37 ? 37 : p->len;
+            uint32_t len = p->len;
+            if (conn_on && rx_enc && len >= 5) { len -= 4; p->len = (uint8_t)len; }              /* a decrypted PDU's length includes the MIC */
             p->len = len;                                /* consumers see what was copied, never more */
             uint16_t src = EM16(d + 0x12);
             if (em_span_ok(src, len)) memcpy(p->data, (const void *)em_addr(src), len); else { EM16(d) &= 0x7FFF; continue; }
@@ -238,7 +261,8 @@ static void conn_arm(void)                       /* the window of event cn.evt, 
     uint32_t e = 16 * cn.idx;
     EM16(e + 0) = ble_conn_et[0] & ~0x38u;
     EM16(e + 2) = t & 0xFFFF; EM16(e + 4) = (t >> 16) & 0xFFF; EM16(e + 6) = f;
-    EM16(e + 8) = CS1 / 2; EM16(e + 10) = ble_conn_et[5]; EM16(e + 12) = ble_conn_et[6]; EM16(e + 14) = ble_conn_et[7];
+    EM16(e + 8) = CS1 / 2;
+    EM16(e + 10) = ble_conn_et[5]; EM16(e + 12) = ble_conn_et[6]; EM16(e + 14) = ble_conn_et[7];
     CORE(0x24) = RING0;
     CORE(0x18) = 0xFFFFFFFFu;
     CORE(0x100) = 0x80000000u | cn.idx;
@@ -257,7 +281,8 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     EM16(CS1 + 0x0C) = cn.aa & 0xFFFF; EM16(CS1 + 0x0E) = cn.aa >> 16;
     EM16(CS1 + 0x10) = cn.crcinit & 0xFFFF; EM16(CS1 + 0x12) = cn.crcinit >> 16;
     EM16(CS1 + 0x1C) = 0;                        /* no TX descriptor: the core answers with empty PDUs */
-    EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN;
+    EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN; EM16(CS1 + 0x28) = 27;   /* classic length until the central's LL_LENGTH_REQ */
+    big_first = big_cnt = 0; tx_max_oct = 27;
     EM16(CS1 + 0x50) = 0;
     chm_apply(ll + 16);
     /* CONNECT_IND end: advert start + radio ramp (~100 us) + ADV_IND air + 150 us + CONNECT_IND air (352 us) */
@@ -269,24 +294,38 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     cn.last_rx_ms = ms_now();
     q_tail = q_head;                             /* advertising-phase PDUs (incl. the CONNECT_IND) are not link data */
     memcpy(init_addr, p, 6);
+    peer_addr7[0] = (hdr0 >> 6) & 1; memcpy(peer_addr7 + 1, p, 6); own_addr7[0] = (hdr0 >> 7) & 1; memcpy(own_addr7 + 1, p + 6, 6);
+    enc_state = tx_enc = rx_enc = mic_fail = enc_notify = 0; enc_block = 0; enc_tx_pend = 0;
     txq_head = txq_tail = 0;
-    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0;
+    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0; big_first = big_cnt = 0;
     conn_arm();
 }
 
 /* Hand the queued PDUs to the core as one descriptor chain, as ROM r_lld_con_tx_prog does: every descriptor but the last carries the more-data bit and the
  * core sends them back to back inside one connection event. Only at event end (the core is idle) or while nothing is in flight. */
+static void tx_reap(void)
+{
+    while (tx_cnt && ((EM16(TXDSC(tx_first)) & 0x8000) || !EM16(CS1 + 0x1C))) {      /* acknowledged: done bit, or the core's pointer is clear */
+        if (desc_big[tx_first]) { big_first = (big_first + 1) % TXB_N; big_cnt--; }
+        tx_first = (tx_first + 1) % TXD_N; tx_cnt--; st.tx_acked++;
+    }
+    if (!tx_cnt) EM16(CS1 + 0x1C) = 0;
+}
 static void tx_load(void)
 {
-    while (tx_cnt && ((EM16(TXDSC(tx_first)) & 0x8000) || !EM16(CS1 + 0x1C))) { tx_first = (tx_first + 1) % TXD_N; tx_cnt--; }   /* acknowledged: done bit, or the core's pointer is clear */
-    if (!tx_cnt) EM16(CS1 + 0x1C) = 0;
+    tx_reap();
     while (tx_cnt < TXD_N && txq_tail != txq_head) {
-        unsigned i = (tx_first + tx_cnt) % TXD_N, l = txq[txq_tail].len;
-        memcpy((uint8_t *)tx_buf + 0x40 + 28u * i, txq[txq_tail].d, l);
-        EM16(TXDSC(i)) = 0; EM16(TXDSC(i) + 2) = (uint16_t)(l << 8 | txq[txq_tail].llid); EM16(TXDSC(i) + 4) = TXDBUF(i);
+        unsigned l = txq_at(1), llid = txq_at(0), i = (tx_first + tx_cnt) % TXD_N, big = l > 27;
+        if (big && big_cnt == TXB_N) break;                                          /* all long slots busy: next event */
+        unsigned b = (big_first + big_cnt) % TXB_N, ptr = big ? TXB(b) : TXDBUF(i);
+        uint8_t *dst = (uint8_t *)tx_buf + (ptr - TXBUF);
+        for (unsigned k = 0; k < l; k++) dst[k] = txq_at(2 + k);
+        EM16(TXDSC(i)) = 0; EM16(TXDSC(i) + 2) = (uint16_t)((l && tx_enc ? l + 4 : l) << 8 | llid);       /* encrypted: the length field includes the 4-byte MIC the core adds */ EM16(TXDSC(i) + 4) = (uint16_t)ptr;
+        if (big) big_cnt++;
+        desc_big[i] = (uint8_t)big;
         if (tx_cnt) { unsigned p = (i + TXD_N - 1) % TXD_N; EM16(TXDSC(p)) = TXDSC(i); EM16(TXDSC(p) + 2) |= 0x10; }
         else EM16(CS1 + 0x1C) = TXDSC(i);
-        tx_cnt++; txq_tail = (txq_tail + 1) % TXQ_N; st.tx_pdus++;
+        tx_cnt++; txq_tail = (txq_tail + 2 + l) % TXQ_BYTES; st.tx_pdus++;
     }
 }
 
@@ -294,6 +333,7 @@ static void arm_adv(void);
 static void conn_end(void)                       /* link lost or terminated: back to advertising */
 {
     conn_on = 0; ring_n = RING_N;
+    enc_state = tx_enc = rx_enc = enc_notify = enc_block = enc_tx_pend = 0;
     st.disconnects++;
     for (int e = 0; e < 16; e++) EM16(16 * e + 0) = 0x281A;
     adv_on = 1;
@@ -310,6 +350,8 @@ static uint64_t last_sync;
 static uint32_t missed;
 static void conn_next(int got, uint64_t sync)
 {
+    tx_reap();
+    if (enc_tx_pend && !tx_cnt) { EM16(CS1 + 2) |= 0x200; tx_enc = 1; enc_tx_pend = 0; enc_block = 0; }      /* the core is idle and nothing is in flight: encryption on, and the first encrypted PDU is loaded before the next event */
     tx_load();
     if (got) cn.last_rx_ms = ms_now();
     if (ms_now() - cn.last_rx_ms > cn.timeout * 10u) { conn_end(); return; }
@@ -395,7 +437,7 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
-        if (conn_on && term_req) { term_req = 0; drain(); conn_end(); }
+        if (conn_on && (term_req || mic_fail)) { term_req = mic_fail = 0; drain(); conn_end(); }
         else if (conn_on) {
             uint32_t before = st.packets;
             uint64_t sync = 0;                     /* first PDU of the event: CLKN + fine count at sync (RXCLKNSYNC, RXFCNTSYNC[9:0]) */
@@ -465,17 +507,19 @@ static void init_steps(uint32_t m)
         memcpy(tmpl, ring_buf, sizeof tmpl);
         for (unsigned k = 0; k < RING_CN; k++) {
             uint16_t *dd = (uint16_t *)((uint8_t *)ring_buf + k * 0x14);
-            if (k >= RING_N) { memcpy(dd, tmpl, 0x14); dd[9] = (uint16_t)(RXPAY + RXPAYSZ * (k - RING_N) + 5); }
+            if (k >= RING_N) { memcpy(dd, tmpl, 0x14); dd[9] = rx_pay(k); }
             dd[0] = (uint16_t)(k + 1 < RING_CN ? 0x1000 + (k + 1) * 0x14 : 0x1000); dd[1] = 0x9000; dd[2] = 0;
         }
         R32(0x60031204u + 4 * 3) = (0x1000u >> 2) << 18 | (((uint32_t)ring_buf >> 2) & 0x3FFFF);
-        R32(0x60031204u + 4 * 8) = (RXPAY >> 2) << 18 | (((uint32_t)rxpay_buf >> 2) & 0x3FFFF);
-        R32(0x60031204u + 4 * 9) = ((RXPAY + 0x400) >> 2) << 18 | ((((uint32_t)rxpay_buf + 0x400) >> 2) & 0x3FFFF);
+        static const uint8_t rxpage[2] = { 13, 14 };             /* page-map entries for the RX payload region (entries 8 and 11 do not work as payload pages: the link dies in transmit, measured) */
+        for (unsigned k = 0; k < 2; k++) R32(0x60031204u + 4 * rxpage[k]) = ((RXPAY + 0x400u * k) >> 2) << 18 | ((((uint32_t)rxpay_buf + 0x400u * k) >> 2) & 0x3FFFF);
     }
     for (unsigned k = 0; k < sizeof ble_core_regs / sizeof ble_core_regs[0]; k++) CORE(ble_core_regs[k].off) = ble_core_regs[k].val;
     R32(0x60031204u + 4 * 7) = (TXBUF >> 2) << 18 | (((uint32_t)tx_buf >> 2) & 0x3FFFF);   /* EM pages for the TX payloads: 2 KB at TXBUF */
-    R32(0x60031204u + 4 * 10) = ((TXBUF + 0x400) >> 2) << 18 | ((((uint32_t)tx_buf + 0x400) >> 2) & 0x3FFFF);
-    CORE(0x2C4) |= 1u << 7 | 1u << 8 | 1u << 9 | 1u << 10;                      /* page-valid mask (pages 0..31; 0x2C8: 32..47, 0x300: 48..): the core
+    { static const uint8_t txpage[3] = { 10, 9, 12 };                  /* entries 7 and these three: EM 0x2400..0x33FF */                    /* ... the 4 KB TX payload region continues in three more pages */
+      for (unsigned k = 0; k < 3; k++) R32(0x60031204u + 4 * txpage[k]) = ((TXBUF + 0x400u * (k + 1)) >> 2) << 18 | ((((uint32_t)tx_buf + 0x400u * (k + 1)) >> 2) & 0x3FFFF); }
+    R32(0x60031204u + 4 * 8) = (0x4800u >> 2) << 18;                /* the vendor's entry 8 still says 0x2C00, now entry 9's: keep offsets unique, page invalid. (Entries 8 and 11 as payload pages broke the link, measured; entry 11 is not touched at all.) */
+    CORE(0x2C4) |= 1u << 7 | 1u << 9 | 1u << 10 | 1u << 12 | 1u << 13 | 1u << 14;                      /* page-valid mask (pages 0..31; 0x2C8: 32..47, 0x300: 48..): the core
                                                   * ignores a mapped page whose bit is clear (vendor: r_emi_alloc_em_mapping) */
     for (int k = 0; k < 45; k++) scan_cs[k] = EM16(CS0 + 2 * k);
     CORE(0x0C) = 0;
@@ -515,21 +559,24 @@ void ble_hw_scan(uint8_t chan)
 void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; conn_on = 0; }
 
 int ble_hw_connected(void) { return conn_on; }
+unsigned ble_hw_tx_max(void) { return tx_max_oct; }
+void ble_hw_conn_addrs(uint8_t peer[7], uint8_t own[7]) { memcpy(peer, peer_addr7, 7); memcpy(own, own_addr7, 7); }
 void ble_hw_phy(uint8_t *tx, uint8_t *rx) { *tx = cn.phy_tx; *rx = cn.phy_rx; }
 int ble_hw_conn_info(uint8_t *csa2, uint16_t *interval) { *csa2 = cn.csa2; *interval = cn.interval; return conn_on; }
 
 /* queue one LL data PDU (llid 2: L2CAP start, 3: LL control); -1 while the previous one is not acknowledged */
-int ble_hw_tx_free(void) { return (int)((txq_tail + TXQ_N - txq_head - 1) % TXQ_N); }   /* free slots in the TX queue */
+int ble_hw_tx_free(void) { return (int)(((txq_tail + TXQ_BYTES - txq_head - 1) % TXQ_BYTES) / (ble_hw_tx_max() + 2)); }   /* PDUs of the largest size that still fit the TX queue */
 
 int ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len)
 {
-    if (!conn_on || len > 27) return -1;
+    if (!conn_on || len > tx_max_oct || (enc_block && llid != 3)) return -1;
     uint32_t ps = irq_lock();
-    uint32_t n = (txq_head + 1) % TXQ_N;
-    if (n == txq_tail) { irq_unlock(ps); return -1; }     /* queue full */
-    txq[txq_head].llid = llid; txq[txq_head].len = (uint8_t)len; memcpy(txq[txq_head].d, data, len);
-    txq_head = n;
-    if (!tx_cnt) tx_load();                      /* a chain in flight is extended only at event end */
+    if (len + 2 > (txq_tail + TXQ_BYTES - txq_head - 1) % TXQ_BYTES) { irq_unlock(ps); return -1; }     /* queue full */
+    uint32_t h = txq_head;
+    txq_buf[h] = llid; h = (h + 1) % TXQ_BYTES; txq_buf[h] = (uint8_t)len; h = (h + 1) % TXQ_BYTES;
+    for (unsigned k = 0; k < len; k++) { txq_buf[h] = data[k]; h = (h + 1) % TXQ_BYTES; }
+    txq_head = h;
+    if (!tx_cnt && !enc_tx_pend) tx_load();      /* a chain in flight is extended only at event end */
     irq_unlock(ps);
     return 0;
 }
@@ -547,8 +594,8 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
     case 0x01:                                   /* LL_CHANNEL_MAP_IND */
         memcpy(cn.new_chm, d + 1, 5); cn.instant_map = d[6] | d[7] << 8; cn.map_pending = 1; return 1;
     case 0x02: if (conn_on) term_req = 1; return 1;                  /* LL_TERMINATE_IND: ended at the next event end (not from here: the core may have an event armed) */
-    case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP: LE 2M PHY (byte 1 bit 0) */
-        r[0] = 0x09; memset(r + 1, 0, 8); r[2] = 0x01; ble_hw_send(3, r, 9); return 1;
+    case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP: LE encryption (byte 0 bit 0), extended reject (2), LE ping (4), data length extension (5); LE 2M PHY (byte 1 bit 0) */
+        r[0] = 0x09; memset(r + 1, 0, 8); r[1] = 0x35; r[2] = 0x01; ble_hw_send(3, r, 9); return 1;
     case 0x16: r[0] = 0x17; r[1] = 0x03; r[2] = 0x03; ble_hw_send(3, r, 3); return 1;       /* LL_PHY_REQ -> LL_PHY_RSP: 1M and 2M both ways; the central decides in LL_PHY_UPDATE_IND */
     case 0x18:                                   /* LL_PHY_UPDATE_IND: PHY central -> us, us -> central (0 = unchanged), instant */
         if (d[1] || d[2]) {
@@ -559,8 +606,42 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
     case 0x0C:                                   /* LL_VERSION_IND: 5.0, Espressif (0x02E5) */
         r[0] = 0x0C; r[1] = 9; r[2] = 0xE5; r[3] = 0x02; r[4] = 0; r[5] = 0; ble_hw_send(3, r, 6); return 1;
     case 0x12: r[0] = 0x13; ble_hw_send(3, r, 1); return 1;     /* LL_PING_REQ */
-    case 0x14:                                   /* LL_LENGTH_REQ -> 27 bytes, 328 us both ways */
-        r[0] = 0x15; r[1] = 27; r[2] = 0; r[3] = 0x48; r[4] = 0x01; r[5] = 27; r[6] = 0; r[7] = 0x48; r[8] = 0x01; ble_hw_send(3, r, 9); return 1;
+    case 0x14: {                                 /* LL_LENGTH_REQ: the peer's max receive octets d[1..2] set how long a PDU we may send. We send up to 251 (256-byte payload slots) but receive classic
+                                                  * 27-byte PDUs only: the RX ring buffers hold 27 bytes, and a GATT server's traffic toward the central is the big direction. */
+        unsigned prx = d[1] | d[2] << 8;
+        tx_max_oct = (uint16_t)(prx < 27 ? 27 : prx > 251 ? 251 : prx);
+        r[0] = 0x15; r[1] = 27; r[2] = 0; r[3] = 0x48; r[4] = 0x01; r[5] = 251; r[6] = 0; r[7] = 0x48; r[8] = 0x08;       /* LL_LENGTH_RSP: receive 27 octets / 328 us, transmit 251 / 2120 us */
+        ble_hw_send(3, r, 9); return 1;
+    }
+    case 0x03: {                                 /* LL_ENC_REQ: Rand(8) EDIV(2) SKDm(8) IVm(4) -> LL_ENC_RSP (SKDs, IVs), then LL_START_ENC_REQ */
+        uint8_t ltk[16], skd[16], iv[8], sk[16], key[16], pt[16];
+        if (p->len != 23 || enc_state || !enc_ltk_cb || enc_ltk_cb(d + 1, (uint16_t)(d[9] | d[10] << 8), ltk)) {
+            r[0] = 0x11; r[1] = 0x03; r[2] = 0x06; ble_hw_send(3, r, 3); return 1;                  /* LL_REJECT_EXT_IND: PIN or key missing */
+        }
+        memcpy(skd, d + 11, 8); rng_fill(skd + 8, 8); memcpy(iv, d + 19, 4); rng_fill(iv + 4, 4);       /* SKD = SKDm | SKDs, IV = IVm | IVs, least significant first */
+        for (int k = 0; k < 16; k++) { key[k] = ltk[15 - k]; pt[k] = skd[15 - k]; }
+        aes_block(key, 16, true, pt, sk);                                                         /* SK = e(LTK, SKD) (most significant octet first) */
+        uint32_t ps = irq_lock();
+        for (int k = 0; k < 8; k++) {
+#ifdef BLE_SK_LE
+            EM16(CS1 + 0x2C + 2 * k) = (uint16_t)(sk[15 - 2 * k] | sk[14 - 2 * k] << 8);
+#else
+            EM16(CS1 + 0x2C + 2 * k) = (uint16_t)(sk[2 * k] | sk[2 * k + 1] << 8);
+#endif
+        }
+        for (int k = 0; k < 4; k++) EM16(CS1 + 0x3C + 2 * k) = (uint16_t)(iv[2 * k] | iv[2 * k + 1] << 8);
+        for (int k = 0; k < 6; k++) EM16(CS1 + 0x44 + 2 * k) = 0;
+        EM16(CS1 + 2) |= 0x100; rx_enc = 1; enc_state = 1;
+        irq_unlock(ps);
+        r[0] = 0x04; memcpy(r + 1, skd + 8, 8); memcpy(r + 9, iv + 4, 4); ble_hw_send(3, r, 13);
+        r[0] = 0x05; ble_hw_send(3, r, 1); enc_block = 1; return 1;       /* from here only LL control until the encryption runs: the central expects every PDU of ours encrypted */
+    }
+    case 0x06:                                   /* LL_START_ENC_RSP (received decrypted): encrypt our direction and answer */
+        if (enc_state != 1) return 1;
+        enc_tx_pend = 1; enc_state = 2; enc_notify = 1;                                       /* the host hears of it (enc_done_cb) once the encrypted direction runs, ble_hw_read */
+        r[0] = 0x06; ble_hw_send(3, r, 1);
+        return 1;
+    case 0x0A: r[0] = 0x11; r[1] = 0x0A; r[2] = 0x1A; ble_hw_send(3, r, 3); return 1;       /* LL_PAUSE_ENC_REQ: a new key mid-link is not supported */
     case 0x07: case 0x09: case 0x0D: case 0x13: case 0x15: return 1;   /* responses / reject: nothing to do */
     default: r[0] = 0x07; r[1] = d[0]; ble_hw_send(3, r, 2); return 1; /* LL_UNKNOWN_RSP */
     }
@@ -602,6 +683,7 @@ int ble_hw_adv(uint8_t chan, const uint8_t adva[6], int random, const uint8_t *d
 
 int ble_hw_read(ble_hw_pkt_t *p)
 {
+    if (enc_notify && tx_enc) { enc_notify = 0; if (enc_done_cb) enc_done_cb(1); }      /* main-loop context: the host may queue its identity keys now */
     service();
     if (scan_chan && !adv_on && ccount() - last_end > 240000u * 50) {   /* no event end for 50 ms: re-arm (a lost start) */
         uint32_t ps = irq_lock();

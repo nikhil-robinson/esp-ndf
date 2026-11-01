@@ -30,7 +30,15 @@ int main(int argc, char **argv)
     gatt_db_clear();
     if (gatts_add_service(0xFFF0, chrs, 2)) { puts("FAIL add_service"); return 1; }
     if (chrs[0].handle != 3 || chrs[1].handle != 5) { printf("FAIL handles %u %u\n", chrs[0].handle, chrs[1].handle); return 1; }
-    t("mtu", "02f700", "031700");
+    t("mtu", "02f700", "03f700");                                  /* the server answers its own receive MTU; the smaller of the two applies */
+    if (att_mtu() != GATT_MTU) { printf("FAIL mtu in use %u\n", att_mtu()); fails++; }
+    gatt_reset();
+    t("mtu small", "020a00", "03f700");                            /* a client below 23 still gets 23 */
+    if (att_mtu() != 23) { printf("FAIL mtu in use %u after a small request\n", att_mtu()); fails++; }
+    t("mtu 100", "026400", "03f700");
+    if (att_mtu() != 100) { printf("FAIL mtu in use %u after 100\n", att_mtu()); fails++; }
+    gatt_reset();                                                  /* a new connection: back to 23 */
+    if (att_mtu() != 23) { printf("FAIL mtu in use %u after reset\n", att_mtu()); fails++; }
     t("services", "100100ffff0028", "11060100060 0f0ff");
     t("chars", "080100ffff0328", "0907020 00a0300f1ff0400120500f2ff");
     t("find info", "0405000600", "05010500f2ff06000229");

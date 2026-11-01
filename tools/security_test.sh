@@ -12,6 +12,8 @@ gcc $F tools/fuzz/fuzz_msc.c components/drivers/usb/usb_msc.c -o $O/msc
 gcc $F tools/test_pfs.c components/drivers/storage/pfs.c components/lib/crc32.c -o $O/pfs
 gcc $F -Icomponents/ble_host/include tools/fuzz/test_att.c components/ble_host/att.c -o $O/att
 gcc $F -Icomponents/ble_host/include -DHOST_FUZZ tools/fuzz/fuzz_gattc.c components/ble_host/gattc.c -o $O/gattc
+gcc $F -Icomponents/ble_host/include tools/fuzz/test_smp.c components/ble_host/smp_crypto.c -lcrypto -o $O/smp
+gcc $F -Icomponents/ble_host/include -Itools tools/fuzz/fuzz_smp.c components/ble_host/smp.c components/ble_host/smp_crypto.c components/lib/ecc.c components/lib/p256_comb.c -lcrypto -o $O/fuzz_smp
 gcc $F -Icomponents/wifi/include tools/fuzz/fuzz_wifi_frames.c components/wifi/ie.c components/wifi/frame.c -o $O/wififr
 gcc $F -Icomponents/wifi/include -Icomponents/drivers/rf tools/fuzz/fuzz_ap.c components/wifi/ap.c components/wifi/frame.c components/wifi/ie.c components/wifi/wpa_sha1.c components/wifi/eapol.c components/wifi/wpa_ccmp.c -o $O/ap
 gcc $F -Icomponents/net/include tools/fuzz/fuzz_mqtt.c components/net/mqtt_pkt.c -o $O/mqtt
@@ -29,6 +31,8 @@ $O/msc $((300000 * K)) 7
 $O/pfs $((20000 * K)) 7
 $O/att $((300000 * K)) 7
 $O/gattc $((20000 * K)) 7
+$O/smp
+$O/fuzz_smp $((100000 * K)) 7
 $O/wififr $((300000 * K)) 7
 $O/eapol $((300000 * K)) 7
 $O/ap $((100000 * K)) 7

@@ -1,9 +1,11 @@
 /* Radio side of the GATT server: advertising, the main-loop poll, notifications. Uses ble_hw (the S3's link-layer core). */
 #include "gatt.h"
 #include "ble_hw.h"
+#include "smp.h"
 #include <string.h>
 
 static const char *dev_name;
+static int smp_send(const uint8_t *p, unsigned n);
 static gatt_chr_t gap_chr[1];
 
 static int name_read(uint8_t *o, uint16_t max)
@@ -16,6 +18,7 @@ static int name_read(uint8_t *o, uint16_t max)
 
 int gatts_init(const char *name)
 {
+    smp_init(smp_send); ble_hw_set_enc(smp_ltk, smp_encrypted);
     gatt_db_clear();
     dev_name = name;
     gap_chr[0] = (gatt_chr_t){ 0x2A00, GATT_P_READ, name_read, 0, 0 };
@@ -36,29 +39,54 @@ int gatts_advertise(const uint8_t addr[6], uint32_t interval_us)
 static uint8_t pend[GATT_MTU]; static unsigned pend_n;         /* one response that did not fit the TX queue yet */
 static int l2cap_att(const uint8_t *att, unsigned n);
 int gatt_send_att(const uint8_t *att, unsigned n) { return l2cap_att(att, n); }
-static int l2cap_att(const uint8_t *att, unsigned n)          /* one ATT PDU in an L2CAP frame (CID 4) */
+static int l2cap_pdu(unsigned cid, const uint8_t *att, unsigned n)          /* one PDU in an L2CAP frame, fragmented into LL PDUs of at most ble_hw_tx_max() bytes */
 {
-    uint8_t f[27];
-    if (n > 23) return -1;
-    f[0] = (uint8_t)n; f[1] = 0; f[2] = 4; f[3] = 0;
+    uint8_t f[4 + GATT_MTU];
+    if (n > (cid == 4 ? att_mtu() : 65u)) return -1;
+    f[0] = (uint8_t)n; f[1] = (uint8_t)(n >> 8); f[2] = (uint8_t)cid; f[3] = 0;
     memcpy(f + 4, att, n);
-    return ble_hw_send(2, f, 4 + n);
+    unsigned total = 4 + n, mx = ble_hw_tx_max(), frags = (total + mx - 1) / mx;
+    if ((unsigned)ble_hw_tx_free() < frags) return -1;           /* all fragments or none */
+    for (unsigned o = 0; o < total; o += mx)
+        if (ble_hw_send(o ? 1 : 2, f + o, total - o > mx ? mx : total - o)) return -1;
+    return 0;
 }
+static int l2cap_att(const uint8_t *att, unsigned n) { return l2cap_pdu(4, att, n); }
+static int smp_send(const uint8_t *p, unsigned n) { return l2cap_pdu(6, p, n); }
 
 static void l2cap(const uint8_t *d, unsigned len)
 {
     if (len < 4) return;
     unsigned l = d[0] | d[1] << 8, cid = d[2] | d[3] << 8;
-    if (l + 4 > len) return;                                   /* a fragmented SDU: not used at MTU 23 */
+    if (l + 4 > len) return;
     if (cid == 4 && l && (d[4] & 1)) gattc_rx(d + 4, l);        /* odd ATT opcodes (responses, errors, notifications) belong to the client */
     else if (cid == 4) {
         uint8_t r[GATT_MTU];
         int rl = att_handle(d + 4, l, r, sizeof r);
         if (rl > 0 && l2cap_att(r, (unsigned)rl) < 0 && !pend_n) { memcpy(pend, r, (unsigned)rl); pend_n = (unsigned)rl; }
-    } else if (cid == 5 && l >= 1) {                           /* L2CAP signalling: command reject (not understood) */
+    } else if (cid == 6) smp_rx(d + 4, l);
+    else if (cid == 5 && l >= 1) {                           /* L2CAP signalling: command reject (not understood) */
         uint8_t r[10] = { 6, 0, 5, 0, 0x01, 0, 2, 0, 0, 0 };
         r[5] = l >= 2 ? d[5] : 0;                              /* the request's identifier */
         ble_hw_send(2, r, 10);
+    }
+}
+
+/* LL data PDUs to L2CAP frames: llid 2 starts one, llid 1 continues it (reassembled up to one frame of 4 + GATT_MTU bytes) */
+static uint8_t rx_f[4 + GATT_MTU]; static unsigned rx_have, rx_need;
+static void ll_data(const ble_hw_pkt_t *p)
+{
+    unsigned llid = p->hdr0 & 3;
+    if (llid == 2) {
+        if (p->len < 4) { rx_need = 0; return; }
+        unsigned need = 4 + (p->data[0] | p->data[1] << 8);
+        if (p->len >= need) { rx_need = 0; l2cap(p->data, p->len); return; }
+        if (need > sizeof rx_f) { rx_need = 0; return; }       /* longer than we accept: drop the frame */
+        memcpy(rx_f, p->data, p->len); rx_have = p->len; rx_need = need;
+    } else if (llid == 1 && rx_need && p->len) {
+        if (rx_have + p->len > rx_need) { rx_need = 0; return; }
+        memcpy(rx_f + rx_have, p->data, p->len); rx_have += p->len;
+        if (rx_have == rx_need) { rx_need = 0; l2cap(rx_f, rx_have); }
     }
 }
 
@@ -69,20 +97,21 @@ void gatt_poll(uint32_t wait_us)
     if (pend_n && l2cap_att(pend, pend_n) == 0) pend_n = 0;
     int got = wait_us ? ble_hw_wait(&p, wait_us) : ble_hw_read(&p);
     while (got) {
-        if (ble_hw_connected() && !((p.hdr0 & 3) == 1 && !p.len) && !ble_hw_ll_control(&p) && (p.hdr0 & 3) == 2) l2cap(p.data, p.len);
+        if (ble_hw_connected() && !((p.hdr0 & 3) == 1 && !p.len) && !ble_hw_ll_control(&p) && ((p.hdr0 & 3) == 2 || (p.hdr0 & 3) == 1)) ll_data(&p);
         got = ble_hw_read(&p);
     }
     int c = ble_hw_connected();
-    if (!c && was) gatt_reset();                               /* link lost: subscriptions off (ble_hw resumes advertising) */
+    if (c && !was) { uint8_t peer[7], own[7]; ble_hw_conn_addrs(peer, own); smp_connected(peer, own); }
+    if (!c && was) { gatt_reset(); rx_need = 0; smp_disconnected(); }                               /* link lost: subscriptions off (ble_hw resumes advertising) */
     was = c;
 }
 
 static int send_value(uint8_t op, int bit, const gatt_chr_t *c, const uint8_t *v, unsigned n)
 {
     uint8_t a[GATT_MTU];
-    if (!ble_hw_connected() || n > GATT_MTU - 3) return -1;
+    if (!ble_hw_connected() || n > att_mtu() - 3) return -1;
     if (!(gatts_subscribed(c) & bit)) return -2;
-    if (ble_hw_tx_free() < 3) return -4;                         /* keep slots free for ATT responses */
+    if (ble_hw_tx_free() < 3 + (int)((4 + 3 + n) / ble_hw_tx_max())) return -4;       /* keep slots free for ATT responses */
     a[0] = op; a[1] = (uint8_t)c->handle; a[2] = (uint8_t)(c->handle >> 8); memcpy(a + 3, v, n);
     return l2cap_att(a, 3 + n) < 0 ? -3 : 0;
 }
