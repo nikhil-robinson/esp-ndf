@@ -13,6 +13,8 @@
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include "host/ble_store.h"
+void ble_store_config_init(void);                  /* RAM store of keys (NimBLE example code declares it the same way) */
 #include "../peer.h"
 
 static uint16_t conn = BLE_HS_CONN_HANDLE_NONE;
@@ -24,7 +26,7 @@ static uint8_t srv_val[16];
 static SemaphoreHandle_t sem;
 static int started, synced;
 static uint8_t own_type;
-static volatile int op_status;
+static volatile int op_status, enc_status = -1;
 
 static int gap_ev(struct ble_gap_event *e, void *a)
 {
@@ -54,6 +56,12 @@ static int gap_ev(struct ble_gap_event *e, void *a)
         break;
     }
     case BLE_GAP_EVENT_MTU: printf("event mtu %d\n", e->mtu.value); break;
+    case BLE_GAP_EVENT_CONN_UPDATE: printf("event conn_update status %d\n", e->conn_update.status); break;
+    case BLE_GAP_EVENT_PHY_UPDATE_COMPLETE: printf("event phy status %d tx %d rx %d\n", e->phy_updated.status, e->phy_updated.tx_phy, e->phy_updated.rx_phy); break;
+    case BLE_GAP_EVENT_ENC_CHANGE: enc_status = e->enc_change.status; printf("event enc status %d\n", e->enc_change.status); xSemaphoreGive(sem); break;
+    case BLE_GAP_EVENT_REPEAT_PAIRING: {                     /* the other side lost its bond: forget ours and pair again */
+        struct ble_gap_conn_desc d; ble_gap_conn_find(e->repeat_pairing.conn_handle, &d); ble_store_util_delete_peer(&d.peer_id_addr); return BLE_GAP_REPEAT_PAIRING_RETRY; }
+    case BLE_GAP_EVENT_IDENTITY_RESOLVED: printf("event identity resolved\n"); break;
     default: break;
     }
     return 0;
@@ -103,7 +111,9 @@ static int ble_start(void)
     sem = xSemaphoreCreateBinary();
     if (nimble_port_init()) return -1;
     ble_hs_cfg.sync_cb = on_sync;
-    ble_svc_gap_init(); ble_svc_gatt_init();
+    ble_hs_cfg.sm_io_cap = BLE_HS_IO_NO_INPUT_OUTPUT; ble_hs_cfg.sm_bonding = 1; ble_hs_cfg.sm_sc = 1; ble_hs_cfg.sm_mitm = 0;      /* Just Works, LE Secure Connections, bonding */
+    ble_hs_cfg.sm_our_key_dist = ble_hs_cfg.sm_their_key_dist = BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID;
+    ble_svc_gap_init(); ble_svc_gatt_init(); ble_store_config_init();
     ble_gatts_count_cfg(svcs); ble_gatts_add_svcs(svcs);
     ble_svc_gap_device_name_set("PEER");
     nimble_port_freertos_init(host_task);
@@ -254,7 +264,42 @@ static int cmd_stats(int argc, char **argv)
 }
 static int cmd_gatts_start(int argc, char **argv) { return ble_start(); }       /* the server is always registered; this starts the host */
 
+/* link controls: ble_info | ble_update <itvl_min> <itvl_max> <latency> <timeout> (1.25 ms / 10 ms units) | ble_dle <octets> <time_us> | ble_phy <1 1M, 2 2M, 4 coded> | ble_pair */
+static int cmd_info(int argc, char **argv)
+{
+    struct ble_gap_conn_desc d; uint8_t tx = 0, rx = 0;
+    if (conn == BLE_HS_CONN_HANDLE_NONE || ble_gap_conn_find(conn, &d)) return -1;
+    ble_gap_read_le_phy(conn, &tx, &rx);
+    printf("info itvl %u lat %u to %u txphy %u rxphy %u enc %d auth %d bonded %d keysize %u role %d\n", d.conn_itvl, d.conn_latency, d.supervision_timeout, tx, rx,
+           d.sec_state.encrypted, d.sec_state.authenticated, d.sec_state.bonded, d.sec_state.key_size, d.role);
+    return 0;
+}
+static int cmd_update(int argc, char **argv)
+{
+    if (conn == BLE_HS_CONN_HANDLE_NONE || argc < 5) return -1;
+    struct ble_gap_upd_params u = { .itvl_min = atoi(argv[1]), .itvl_max = atoi(argv[2]), .latency = atoi(argv[3]), .supervision_timeout = atoi(argv[4]), .min_ce_len = 0, .max_ce_len = 0 };
+    return ble_gap_update_params(conn, &u);
+}
+static int cmd_dle(int argc, char **argv) { return conn == BLE_HS_CONN_HANDLE_NONE || argc < 3 ? -1 : ble_gap_set_data_len(conn, atoi(argv[1]), atoi(argv[2])); }
+static int cmd_phy(int argc, char **argv)
+{
+    if (conn == BLE_HS_CONN_HANDLE_NONE || argc < 2) return -1;
+    int m = atoi(argv[1]);
+    return ble_gap_set_prefered_le_phy(conn, m, m, 0);
+}
+static int cmd_pair(int argc, char **argv)
+{
+    if (conn == BLE_HS_CONN_HANDLE_NONE) return -1;
+    enc_status = -1; op_begin();
+    int rc = ble_gap_security_initiate(conn);
+    if (rc) return rc;
+    if (!xSemaphoreTake(sem, pdMS_TO_TICKS(8000))) return -9;
+    return enc_status;
+}
+static int cmd_unbond(int argc, char **argv) { ble_store_clear(); return 0; }
+
 const peer_cmd_t cmds_ble[] = {
+    { "ble_info", cmd_info }, { "ble_update", cmd_update }, { "ble_dle", cmd_dle }, { "ble_phy", cmd_phy }, { "ble_pair", cmd_pair }, { "ble_unbond", cmd_unbond },
     { "ble_adv", cmd_adv }, { "ble_adv_stop", cmd_adv_stop }, { "ble_scan", cmd_scan }, { "ble_connect", cmd_connect }, { "ble_disconnect", cmd_disconnect },
     { "ble_disc", cmd_disc }, { "ble_read", cmd_read }, { "ble_write", cmd_write }, { "ble_sub", cmd_sub },
     { "ble_stats", cmd_stats }, { "ble_gatts_start", cmd_gatts_start }, { 0 } };

@@ -27,7 +27,10 @@
 #define CORE(o) R32(0x60031000u + (o))
 #define SRC_RWBLE 8
 #define RING0   0x1000u
-#define RING_N  10u
+#define RING_N  10u                              /* descriptors the vendor image has (advertising / scanning windows use these) */
+#define RING_CN 48u                              /* a connection event: one descriptor per PDU exchanged, so this bounds the PDUs per event (10 held it to ~13) */
+#define RXPAY   0x3000u                          /* EM page pair for the payloads of descriptors 10..RING_CN-1 */
+#define RXPAYSZ 40u
 #define INT_END (1u << 5)
 #define INT_SKIP (1u << 8)
 #ifndef BLE_FINE
@@ -41,12 +44,15 @@
 #endif
 
 static uint32_t em_buf[BLE_EM_WORDS];
+static uint32_t ring_buf[256];                /* EM 0x1000..0x13FF: the RX ring, RING_CN descriptors of 0x14 bytes (the vendor image has 10) */
+static uint32_t rxpay_buf[512];               /* EM 0x3000..0x37FF */
+static volatile unsigned ring_n = RING_N;     /* descriptors in use: RING_N while advertising / scanning, RING_CN in a connection */
 static volatile uint8_t scan_chan;            /* 0: stopped */
 static volatile uint32_t last_end;            /* ccount of the last event end (watchdog) */
 static volatile uint8_t adv_on;              /* advertising instead of scanning */
 static uint32_t adv_next, adv_iv;             /* next advert start / interval, half-slots */
 static uint16_t scan_cs[45];                  /* scan control structure, restored by ble_hw_scan */
-static uint32_t tx_buf[256];                  /* EM 0x2400 (page register 7, one 1 KB page): +0 advertising payload, +0x40.. data TX
+static uint32_t tx_buf[512];                  /* EM 0x2400 (page register 7, one 1 KB page): +0 advertising payload, +0x40.. data TX
                                                 * (raw: up to 255 bytes), +0x200 / +0x300 raw RX buffers */
 #define CS0     0x400u
 #define TXD     0x1400u
@@ -55,8 +61,12 @@ static ble_hw_stats_t st;
 
 /* ---- connection (slave) ---------------------------------------------------------------------- */
 #define CS1     0x45Au                           /* slave connection control structure (CS index 1) */
-#define TXC     0x1440u                          /* our data TX descriptor */
+#define TXC     0x1440u                          /* first data TX descriptor; the chain is TXD_N descriptors of 16 bytes (EM page 4 holds 0x1400..0x17FF) */
 #define TXCBUF  (TXBUF + 0x40u)
+#define TXD_N   48u
+#define TXDSC(i)  (TXC + 16u * (i))                /* descriptor +0 next (bit 15 = done), +2 header (length << 8 | MD 0x10 | LLID), +4 payload pointer */
+#define TXDBUF(i) (TXCBUF + 28u * (i))               /* payloads of at most 27 bytes */
+static uint8_t tx_first, tx_cnt;                 /* descriptors handed to the core and not yet acknowledged: a ring starting at tx_first */
 static volatile uint8_t conn_on;
 static volatile uint8_t term_req;            /* LL_TERMINATE_IND seen: the event-end interrupt ends the link (the core is idle there) */
 static uint8_t own_addr[6];
@@ -65,13 +75,13 @@ static struct {
     uint16_t interval, latency, timeout, evt, instant_upd, instant_map;
     uint8_t  csa2, hop, last_unmapped, chm[5], nused, used[37], upd_pending, map_pending, new_chm[5];
     uint16_t new_interval, new_latency, new_timeout, new_winoff; uint8_t new_winsize;
+    uint16_t instant_phy; uint8_t phy_pending, new_tx_phy, new_rx_phy, phy_tx, phy_rx;   /* PHY indices: 0 = 1M, 1 = 2M */
     uint64_t anchor;                             /* half-us: start of the window of the next event */
     uint32_t win;                                /* half-us: window length */
     uint32_t last_rx_ms;                         /* ms clock of the last PDU from the master */
     uint32_t idx;                                /* exchange-table entry rotation */
 } cn;
-static volatile uint8_t tx_busy;
-#define TXQ_N 8u
+#define TXQ_N 64u
 static struct { uint8_t llid, len, d[27]; } txq[TXQ_N];
 static volatile uint32_t txq_head, txq_tail;
 static uint8_t init_addr[6];
@@ -82,6 +92,8 @@ static volatile uint32_t q_head, q_tail;
 
 static uint32_t em_addr(uint32_t off)
 {
+    if (off >= 0x1000 && off < 0x1400) return (uint32_t)ring_buf + off - 0x1000;
+    if (off >= RXPAY && off < RXPAY + 0x800) return (uint32_t)rxpay_buf + off - RXPAY;
     unsigned b = 0;
     for (unsigned k = 0; k < sizeof ble_em_segs / sizeof ble_em_segs[0]; k++)
         if (ble_em_segs[k].em_off <= off && ble_em_segs[k].em_off >= ble_em_segs[b].em_off) b = k;
@@ -100,7 +112,7 @@ static uint32_t clkn(void)
 
 static void drain(void)
 {
-    for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) {
+    for (uint32_t d = RING0; d < RING0 + ring_n * 0x14; d += 0x14) {
         if (!(EM16(d) & 0x8000)) continue;
         /* RX status [3:0]: sync, RX time, length, CRC error. In a connection also bit 5 (NESN error) and bit 6 (SN error: the central resent a PDU
          * we already have), as ROM r_lld_con_rx drops them (mask 0x66 + bits 0, 3; bench/rfmeas/data/rom_lld_con_rx.dis): delivered, a resent
@@ -240,12 +252,12 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     cn.crcinit = ll[4] | ll[5] << 8 | ll[6] << 16;
     uint8_t winsize = ll[7]; uint16_t winoff = ll[8] | ll[9] << 8;
     cn.interval = ll[10] | ll[11] << 8; cn.latency = ll[12] | ll[13] << 8; cn.timeout = ll[14] | ll[15] << 8;
-    cn.hop = ll[21] & 0x1F; cn.last_unmapped = 0; cn.evt = 0; cn.upd_pending = cn.map_pending = 0;
+    cn.hop = ll[21] & 0x1F; cn.last_unmapped = 0; cn.evt = 0; cn.upd_pending = cn.map_pending = cn.phy_pending = 0; cn.phy_tx = cn.phy_rx = 0;
     for (int k = 0; k < 45; k++) EM16(CS1 + 2 * k) = ble_conn_cs[k];
     EM16(CS1 + 0x0C) = cn.aa & 0xFFFF; EM16(CS1 + 0x0E) = cn.aa >> 16;
     EM16(CS1 + 0x10) = cn.crcinit & 0xFFFF; EM16(CS1 + 0x12) = cn.crcinit >> 16;
     EM16(CS1 + 0x1C) = 0;                        /* no TX descriptor: the core answers with empty PDUs */
-    EM16(CS1 + 0x20) = RING_N;
+    EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN;
     EM16(CS1 + 0x50) = 0;
     chm_apply(ll + 16);
     /* CONNECT_IND end: advert start + radio ramp (~100 us) + ADV_IND air + 150 us + CONNECT_IND air (352 us) */
@@ -258,29 +270,30 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     q_tail = q_head;                             /* advertising-phase PDUs (incl. the CONNECT_IND) are not link data */
     memcpy(init_addr, p, 6);
     txq_head = txq_tail = 0;
-    adv_on = 0; conn_on = 1; tx_busy = 0;
+    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0;
     conn_arm();
 }
 
-static void tx_load(void)                        /* next queued PDU into the descriptor once the core is done with the last */
+/* Hand the queued PDUs to the core as one descriptor chain, as ROM r_lld_con_tx_prog does: every descriptor but the last carries the more-data bit and the
+ * core sends them back to back inside one connection event. Only at event end (the core is idle) or while nothing is in flight. */
+static void tx_load(void)
 {
-    if (tx_busy && !(EM16(TXC) & 0x8000) && EM16(CS1 + 0x1C)) return;   /* still in flight */
-    tx_busy = 0;
-    if (txq_tail == txq_head) return;
-    memcpy((uint8_t *)tx_buf + 0x40, txq[txq_tail].d, txq[txq_tail].len);
-    EM16(TXC) = 0;
-    EM16(TXC + 2) = (uint16_t)(txq[txq_tail].len << 8 | txq[txq_tail].llid);
-    EM16(TXC + 4) = TXCBUF;
-    EM16(CS1 + 0x1C) = TXC;
-    txq_tail = (txq_tail + 1) % TXQ_N;
-    tx_busy = 1;
-    st.tx_pdus++;
+    while (tx_cnt && ((EM16(TXDSC(tx_first)) & 0x8000) || !EM16(CS1 + 0x1C))) { tx_first = (tx_first + 1) % TXD_N; tx_cnt--; }   /* acknowledged: done bit, or the core's pointer is clear */
+    if (!tx_cnt) EM16(CS1 + 0x1C) = 0;
+    while (tx_cnt < TXD_N && txq_tail != txq_head) {
+        unsigned i = (tx_first + tx_cnt) % TXD_N, l = txq[txq_tail].len;
+        memcpy((uint8_t *)tx_buf + 0x40 + 28u * i, txq[txq_tail].d, l);
+        EM16(TXDSC(i)) = 0; EM16(TXDSC(i) + 2) = (uint16_t)(l << 8 | txq[txq_tail].llid); EM16(TXDSC(i) + 4) = TXDBUF(i);
+        if (tx_cnt) { unsigned p = (i + TXD_N - 1) % TXD_N; EM16(TXDSC(p)) = TXDSC(i); EM16(TXDSC(p) + 2) |= 0x10; }
+        else EM16(CS1 + 0x1C) = TXDSC(i);
+        tx_cnt++; txq_tail = (txq_tail + 1) % TXQ_N; st.tx_pdus++;
+    }
 }
 
 static void arm_adv(void);
 static void conn_end(void)                       /* link lost or terminated: back to advertising */
 {
-    conn_on = 0;
+    conn_on = 0; ring_n = RING_N;
     st.disconnects++;
     for (int e = 0; e < 16; e++) EM16(16 * e + 0) = 0x281A;
     adv_on = 1;
@@ -320,6 +333,10 @@ static void conn_next(int got, uint64_t sync)
         if (cn.win > 2u * 1250u * 4u) cn.win = 2u * 1250u * 4u;
     }
     if (cn.map_pending && cn.evt == cn.instant_map) { cn.map_pending = 0; chm_apply(cn.new_chm); }
+    if (cn.phy_pending && cn.evt == cn.instant_phy) {            /* PHY update: ROM r_lld_con_evt_start_cbk writes the new PHYs to CS+4, bits 1:0 transmit, 3:2 receive */
+        cn.phy_pending = 0; cn.phy_tx = cn.new_tx_phy; cn.phy_rx = cn.new_rx_phy;
+        EM16(CS1 + 4) = (uint16_t)((EM16(CS1 + 4) & ~0xFu) | cn.phy_tx | cn.phy_rx << 2);
+    }
     uint64_t now = now_hu();
     while ((int64_t)(cn.anchor - now) < 2 * 1000) {        /* never schedule into the past: skip whole events */
         cn.anchor += 2u * 1250u * cn.interval; cn.evt++; if (!cn.csa2) csa1_next();
@@ -383,7 +400,7 @@ static void service(void)
             uint32_t before = st.packets;
             uint64_t sync = 0;                     /* first PDU of the event: CLKN + fine count at sync (RXCLKNSYNC, RXFCNTSYNC[9:0]) */
             uint32_t best = 0xFFFFFFFF;
-            for (uint32_t d = RING0; d < RING0 + RING_N * 0x14; d += 0x14) if ((EM16(d) & 0x8000) && !(EM16(d + 2) & 0x000F)) {
+            for (uint32_t d = RING0; d < RING0 + ring_n * 0x14; d += 0x14) if ((EM16(d) & 0x8000) && !(EM16(d + 2) & 0x000F)) {
                 uint32_t ck = EM16(d + 8) | (uint32_t)EM16(d + 10) << 16;
                 if (ck < best) { best = ck; sync = (uint64_t)ck * 625u + (624u - (EM16(d + 0x0C) & 0x3FF)); }
             }
@@ -441,9 +458,24 @@ static void init_steps(uint32_t m)
         uint32_t a = (uint32_t)em_buf + ble_em_segs[k].pos;
         R32(0x60031204u + 4 * i + (i > 47 ? 28 : 0)) = ((uint32_t)ble_em_segs[k].em_off >> 2) << 18 | ((a >> 2) & 0x3FFFF);
     }
+    {   /* RX ring of RING_CN descriptors in its own page; payloads of the extra ones in rxpay_buf (two pages at RXPAY) */
+        uint32_t rpos = 0, tmpl[5];
+        for (unsigned k = 0; k < sizeof ble_em_segs / sizeof ble_em_segs[0]; k++) if (ble_em_segs[k].em_off == 0x1000) rpos = ble_em_segs[k].pos;
+        memcpy(ring_buf, (const uint8_t *)em_buf + rpos, 10 * 0x14);
+        memcpy(tmpl, ring_buf, sizeof tmpl);
+        for (unsigned k = 0; k < RING_CN; k++) {
+            uint16_t *dd = (uint16_t *)((uint8_t *)ring_buf + k * 0x14);
+            if (k >= RING_N) { memcpy(dd, tmpl, 0x14); dd[9] = (uint16_t)(RXPAY + RXPAYSZ * (k - RING_N) + 5); }
+            dd[0] = (uint16_t)(k + 1 < RING_CN ? 0x1000 + (k + 1) * 0x14 : 0x1000); dd[1] = 0x9000; dd[2] = 0;
+        }
+        R32(0x60031204u + 4 * 3) = (0x1000u >> 2) << 18 | (((uint32_t)ring_buf >> 2) & 0x3FFFF);
+        R32(0x60031204u + 4 * 8) = (RXPAY >> 2) << 18 | (((uint32_t)rxpay_buf >> 2) & 0x3FFFF);
+        R32(0x60031204u + 4 * 9) = ((RXPAY + 0x400) >> 2) << 18 | ((((uint32_t)rxpay_buf + 0x400) >> 2) & 0x3FFFF);
+    }
     for (unsigned k = 0; k < sizeof ble_core_regs / sizeof ble_core_regs[0]; k++) CORE(ble_core_regs[k].off) = ble_core_regs[k].val;
-    R32(0x60031204u + 4 * 7) = (TXBUF >> 2) << 18 | (((uint32_t)tx_buf >> 2) & 0x3FFFF);   /* EM page for the TX payload */
-    CORE(0x2C4) |= 1u << 7;                      /* page-valid mask (pages 0..31; 0x2C8: 32..47, 0x300: 48..): the core
+    R32(0x60031204u + 4 * 7) = (TXBUF >> 2) << 18 | (((uint32_t)tx_buf >> 2) & 0x3FFFF);   /* EM pages for the TX payloads: 2 KB at TXBUF */
+    R32(0x60031204u + 4 * 10) = ((TXBUF + 0x400) >> 2) << 18 | ((((uint32_t)tx_buf + 0x400) >> 2) & 0x3FFFF);
+    CORE(0x2C4) |= 1u << 7 | 1u << 8 | 1u << 9 | 1u << 10;                      /* page-valid mask (pages 0..31; 0x2C8: 32..47, 0x300: 48..): the core
                                                   * ignores a mapped page whose bit is clear (vendor: r_emi_alloc_em_mapping) */
     for (int k = 0; k < 45; k++) scan_cs[k] = EM16(CS0 + 2 * k);
     CORE(0x0C) = 0;
@@ -483,6 +515,7 @@ void ble_hw_scan(uint8_t chan)
 void ble_hw_stop(void) { scan_chan = 0; adv_on = 0; conn_on = 0; }
 
 int ble_hw_connected(void) { return conn_on; }
+void ble_hw_phy(uint8_t *tx, uint8_t *rx) { *tx = cn.phy_tx; *rx = cn.phy_rx; }
 int ble_hw_conn_info(uint8_t *csa2, uint16_t *interval) { *csa2 = cn.csa2; *interval = cn.interval; return conn_on; }
 
 /* queue one LL data PDU (llid 2: L2CAP start, 3: LL control); -1 while the previous one is not acknowledged */
@@ -496,7 +529,7 @@ int ble_hw_send(uint8_t llid, const uint8_t *data, unsigned len)
     if (n == txq_tail) { irq_unlock(ps); return -1; }     /* queue full */
     txq[txq_head].llid = llid; txq[txq_head].len = (uint8_t)len; memcpy(txq[txq_head].d, data, len);
     txq_head = n;
-    tx_load();
+    if (!tx_cnt) tx_load();                      /* a chain in flight is extended only at event end */
     irq_unlock(ps);
     return 0;
 }
@@ -514,8 +547,15 @@ int ble_hw_ll_control(const ble_hw_pkt_t *p)
     case 0x01:                                   /* LL_CHANNEL_MAP_IND */
         memcpy(cn.new_chm, d + 1, 5); cn.instant_map = d[6] | d[7] << 8; cn.map_pending = 1; return 1;
     case 0x02: if (conn_on) term_req = 1; return 1;                  /* LL_TERMINATE_IND: ended at the next event end (not from here: the core may have an event armed) */
-    case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP, no features */
-        r[0] = 0x09; memset(r + 1, 0, 8); ble_hw_send(3, r, 9); return 1;
+    case 0x08: case 0x0E:                        /* LL_FEATURE_REQ / LL_PERIPHERAL_FEATURE_REQ -> LL_FEATURE_RSP: LE 2M PHY (byte 1 bit 0) */
+        r[0] = 0x09; memset(r + 1, 0, 8); r[2] = 0x01; ble_hw_send(3, r, 9); return 1;
+    case 0x16: r[0] = 0x17; r[1] = 0x03; r[2] = 0x03; ble_hw_send(3, r, 3); return 1;       /* LL_PHY_REQ -> LL_PHY_RSP: 1M and 2M both ways; the central decides in LL_PHY_UPDATE_IND */
+    case 0x18:                                   /* LL_PHY_UPDATE_IND: PHY central -> us, us -> central (0 = unchanged), instant */
+        if (d[1] || d[2]) {
+            cn.new_rx_phy = d[1] ? (d[1] & 2 ? 1 : 0) : cn.phy_rx; cn.new_tx_phy = d[2] ? (d[2] & 2 ? 1 : 0) : cn.phy_tx;
+            cn.instant_phy = d[3] | d[4] << 8; cn.phy_pending = 1;
+        }
+        return 1;
     case 0x0C:                                   /* LL_VERSION_IND: 5.0, Espressif (0x02E5) */
         r[0] = 0x0C; r[1] = 9; r[2] = 0xE5; r[3] = 0x02; r[4] = 0; r[5] = 0; ble_hw_send(3, r, 6); return 1;
     case 0x12: r[0] = 0x13; ble_hw_send(3, r, 1); return 1;     /* LL_PING_REQ */

@@ -1,0 +1,6 @@
+GATT server notification burst (tools/wl/test_gatts.py: IDF NimBLE central subscribes, esp-ndf notifies a 4-byte counter as fast as the link takes it for 5 s; 50 ms connection interval, 1M PHY, ATT MTU 23), 2026-11-02
+IDF NimBLE server (peer image, same central role on the other board)       739 notifications/s  (37 per connection event)
+esp-ndf, one TX descriptor per event (before)                               14/s
+esp-ndf, 24-descriptor TX chain with the more-data bit, 10-entry RX ring   254/s  (events end after ~10 exchanges: one RX descriptor per PDU)
+esp-ndf, 24-descriptor TX chain, 32-entry RX ring                          457/s  (TX chain full)
+esp-ndf, 48-descriptor TX chain, 48-entry RX ring                          899/s  (45 per event), gaps 0

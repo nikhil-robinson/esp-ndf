@@ -61,7 +61,10 @@ check(int(p.cmd('ble_stats')[-1].split()[1]) >= 15, 'notifications after the abr
 p.cmd('ble_sub %d' % cccd[0], 8); p.cmd('ble_write %d b5' % h1, 8); time.sleep(6.5)
 st = p.cmd('ble_stats')[-1].split(); rate = int(st[1]) / 5.0
 print('burst: %s notifications in 5 s = %.0f/s, gaps %s' % (st[1], rate, st[3]))
-check(int(st[3]) == 0 and rate >= 8, 'burst without gaps, one PDU per connection event so far (%.0f/s; IDF NimBLE server: 739/s, Task 4b)' % rate)
+check(int(st[3]) == 0 and rate >= 739, 'burst without gaps, at least IDF NimBLE server speed (%.0f/s; IDF 739/s on the same 50 ms connection, bench/idf_wl_peer/data/gatts_burst.txt)' % rate)
 p.cmd('ble_disconnect', 5)
+import subprocess
+ndf.close()
+if subprocess.run([sys.executable, os.path.join(os.path.dirname(__file__), 'test_ble_link.py')]).returncode: fail.append('ble_link (connection update, 2M PHY)')
 print('PASS gatts' if not fail else 'FAIL gatts: %s' % fail)
 sys.exit(1 if fail else 0)
