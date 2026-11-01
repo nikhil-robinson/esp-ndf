@@ -857,6 +857,8 @@ received inside A-MPDUs, 256 KB echo intact.
 | esp-ndf, ADDBA declined | 590 ms | 493-818 (one 1680) |
 | ESP-IDF station | 880 ms | 694-1564 |
 
+HT transmit (same day): ping at MCS7 avg 6.0 ms against 13.9 ms at the old 12 Mbit/s default (10 pings, `ip_unit` `rate 0x17`); all HT rates lost every ACK before.
+
 Against IDF about 1.7x; against ourselves without the session the 64 KB gain is inside the noise and the 256 KB echo shows none (1946 vs 2055 ms median):
 the echo is limited by our transmit side, not by receiving single frames. Data: `bench/idf_wl_peer/data/ba_rx_compare.txt`. Transmit aggregation is the open part.
 

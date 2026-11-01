@@ -15,6 +15,7 @@ int  wifi_mac_set_channel_bw(uint8_t ch, uint8_t sec40);    /* 40 MHz with the s
 #define WIFI_RATE_12M 0xA
 int  wifi_mac_tx(const uint8_t *frame, unsigned len);       /* frame without FCS (10..1596 B), 1 Mbit/s (DSSS frames over ~1200 B are not heard: use an OFDM rate); 0 when it has been sent, RF_ERR_* otherwise */
 int  wifi_mac_tx_rate(const uint8_t *frame, unsigned len, unsigned rate);
+int  wifi_mac_tx_ampdu(const uint8_t *const *f, const uint16_t *len, unsigned n, unsigned rate, uint16_t *ssc, uint32_t bitmap[2]);   /* n MPDUs (without FCS, unicast, HT rate code 16..23) as one A-MPDU; 0 = block ack received (start sequence, bitmap), RF_ERR_TIMEOUT = none */
 int  wifi_mac_tx_hwcrypt(const uint8_t *frame, unsigned len, unsigned rate);   /* protected frame: header + CCMP header + plaintext + 8 bytes room for the MIC; the MAC encrypts it (key-table slot of the receiver) */
 int  wifi_mac_rx(wifi_rx_t *r, uint32_t timeout_ms);        /* 1 = frame with good FCS (valid until the next call), 0 = none */
 void wifi_mac_stats(uint32_t *rx, uint32_t *rx_drop, uint32_t *tx, uint32_t *tx_fail);   /* rx_drop = flagged as noise / too short */

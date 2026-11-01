@@ -62,6 +62,16 @@ unsigned wifi_build_deauth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[
 
 unsigned wifi_build_null(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t seq) { return hdr(o, 0x48, 0x01, bssid, me, bssid, seq); }   /* keep-alive */
 
+unsigned wifi_build_qos_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq, uint8_t tid)
+{
+    unsigned k = hdr(o, 0x88, 0x01, bssid, me, dst, seq);         /* QoS data, to DS */
+    o[k++] = tid & 15; o[k++] = 0;                                /* QoS control: TID, normal ack policy, no A-MSDU */
+    static const uint8_t snap[6] = { 0xAA, 0xAA, 0x03, 0, 0, 0 };
+    memcpy(o + k, snap, 6); o[k + 6] = (uint8_t)(ethertype >> 8); o[k + 7] = (uint8_t)ethertype;
+    memcpy(o + k + 8, p, n);
+    return k + 8 + n;
+}
+
 unsigned wifi_build_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq)
 {
     unsigned k = hdr(o, 0x08, 0x01, bssid, me, dst, seq);         /* data, to DS */

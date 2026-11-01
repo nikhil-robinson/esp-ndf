@@ -25,7 +25,7 @@ static uint8_t ch_sec;                                       /* rf_wifi_set_bw *
 
 extern void rf_tone_off(void);
 
-static __attribute__((aligned(16))) uint8_t  tx_frame[1600];
+static __attribute__((aligned(16))) uint8_t  tx_frame[4096];   /* 4095 = the 12-bit descriptor length; an A-MPDU is built here */
 static __attribute__((aligned(16))) uint32_t tx_desc[4];
 static __attribute__((aligned(16))) uint32_t rx_desc[WRX_N][4];
 static __attribute__((aligned(16))) uint8_t  rx_buf[WRX_N][WRX_BUF];
@@ -60,7 +60,8 @@ int rf_wifi_tx_init(void)
     return RF_OK;
 }
 
-static uint8_t tx_rate;
+static uint8_t tx_rate; static uint16_t ba_ssc; static uint32_t ba_bm[2];
+int rf_wifi_ba(uint16_t *ssc, uint32_t bitmap[2]) { *ssc = ba_ssc; bitmap[0] = ba_bm[0]; bitmap[1] = ba_bm[1]; return RF_OK; }
 #include "wifi_tx_cfg.h"
 void rf_wifi_set_rate(unsigned r) { tx_rate = (uint8_t)r; }
 
@@ -84,13 +85,16 @@ int rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags)
      * 11 / 9 for HT (IDF: 0x004002e0 for a 6 Mbit/s frame). The configuration above was captured from a DSSS frame (0). */
     unsigned resp = tx_rate < 8 ? tx_rate : tx_rate < 16 ? 11u : ((tx_rate & ~8u) - 16u < 3 ? 11u : 9u);
     *(volatile uint32_t *)0x60034314 = (*(volatile uint32_t *)0x60034314 & ~0x3FC0u) | resp << 6;
-    *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12;      /* PLCP1: length, rate */
-    *(volatile uint32_t *)0x60034300 = 0x6400;               /* HTSIG */
+    /* PLCP1 / HT-SIG as IDF's mac_tx_set_plcp1 / mac_tx_set_htsig build them (libpp disassembly, bench/wifi_regs/data/idf_hal_rx_ba.dis neighbours): rate codes 16.. are
+     * HT (MCS = code & 7): PLCP1 bit 25 = HT, HT-SIG = MCS | length << 8 | 0x07 << 24 (0x0f << 24 with the aggregation bit set) */
+    int ht = tx_rate >= 16 && tx_rate < 24, agg = ht && (flags & RF_TX_AGG);
+    *(volatile uint32_t *)0x600342f8 = len | (uint32_t)tx_rate << 12 | (ht ? 1u << 25 : 0);      /* PLCP1: length, rate */
+    *(volatile uint32_t *)0x60034300 = ht ? ((tx_rate & 7u) | (uint32_t)len << 8 | (agg ? 0x0f000000u : 0x07000000u)) : 0x6400;               /* HTSIG */
     uint32_t dur = want_ack ? (tx_rate ? 44u : 314u) : 0;      /* duration (NAV) the MAC writes into the frame: SIFS + ACK (mac_tx_set_duration) */
     *(volatile uint32_t *)0x60034318 = dur | dur << 16;
     uint32_t ic = *(volatile uint32_t *)0x60033800;
     if (!(flags & RF_TX_HWCRYPT)) *(volatile uint32_t *)0x60033800 = ic & ~0x103u;   /* a frame encrypted in software (or plain): the engine must not encrypt it */
-    *(volatile uint32_t *)0x60033d08 = ((uint32_t)tx_desc & 0xFFFFF) | 0xC0600000u | (want_ack ? 0x01000000u : 0);
+    *(volatile uint32_t *)0x60033d08 = ((uint32_t)tx_desc & 0xFFFFF) | 0xC0600000u | (want_ack ? (agg ? 0x02000000u : 0x01000000u) : 0);   /* bits 25:24 = the response expected: 1 ACK, 2 block ack (ROM mac_tx_set_plcp0: header bit 19, set by ppAssembleAMPDU) */
     /* Completion as IDF's lmacProcessTxComplete decides it: 0x60033cb0 bits 3:0 = queues done; the queue's status word (0x60034320 for queue 0)
      * bits 15:12 = result (0 success, else RTS / CTS / ACK timeout / TX error); the done bit is cleared by setting it in 0x60033cac. */
     uint32_t t0 = ccount(), done = 0, st = 0;
@@ -99,6 +103,7 @@ int rf_wifi_tx_ack(const uint8_t *frame, unsigned len, unsigned flags)
         if (done || (*(volatile uint32_t *)0x60033cac & 0x10000)) break;
     }
     st = (*(volatile uint32_t *)0x60034320 >> 12) & 0xF;
+    ba_ssc = (uint16_t)(*(volatile uint32_t *)0x60034334 & 0xFFF); ba_bm[0] = *(volatile uint32_t *)0x60034328; ba_bm[1] = *(volatile uint32_t *)0x60034324;   /* hal_mac_tx_get_blockack, queue 0 */
     *(volatile uint32_t *)0x60033cac = done ? 1 : *(volatile uint32_t *)0x60033cac;
     *(volatile uint32_t *)0x60033d08 = 0;                     /* queue idle again */
     *(volatile uint32_t *)0x60033800 = ic;

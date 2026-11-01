@@ -15,6 +15,7 @@ unsigned wifi_build_auth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6]
 unsigned wifi_build_assoc_req(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const char *ssid, const uint8_t *rsn, uint16_t seq);   /* rsn: the RSN element to send (id, length, body), NULL = open */
 unsigned wifi_build_deauth(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t reason, uint16_t seq);
 unsigned wifi_build_null(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], uint16_t seq);   /* null data frame, to DS */
+unsigned wifi_build_qos_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq, uint8_t tid);   /* QoS data, to DS, normal ack policy */
 unsigned wifi_build_data(uint8_t *o, const uint8_t me[6], const uint8_t bssid[6], const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, uint16_t seq);
 int      wifi_amsdu_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], unsigned *off, uint8_t *eth, unsigned max);   /* next A-MSDU subframe as Ethernet; *off = 0 first; 0 = end, -1 = malformed */
 int      wifi_data_to_eth(const uint8_t *f, unsigned len, const uint8_t bssid[6], uint8_t *eth, unsigned max);   /* from-DS data frame -> 14-byte header + payload; length, -1 = not for us / malformed */

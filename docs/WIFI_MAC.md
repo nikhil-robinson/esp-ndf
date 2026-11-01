@@ -99,3 +99,20 @@ Station: `ba_action` in `sta.c` answers ADDBA (category 3 action 0) with status 
 DELBA ends the session; the AP only asks when it has A-MPDU TX on and the frame is QoS data with TID < 6 (IDF `ieee80211_encap_esfbuf` -> `ieee80211_ampdu_enable`).
 Transmit side, from IDF `ppAssembleAMPDU` / `mac_tx_set_htsig`: bit 22 (+19) of the TX header word 0 marks an aggregate; bits 23:22 of the per-queue words
 `0x60034310` / `0x60034314` carry the position of the MPDU in it (1 = single frame). Not built yet.
+
+### HT transmit and A-MPDU transmit (2026-11-02)
+
+**HT transmit works** (`rf_wifi_tx_ack`): rate codes 16..23 (MCS0-7) need PLCP1 (`0x600342f8`) bit 25 and the HT-SIG word (`0x60034300`) =
+`MCS | length << 8 | 0x07 << 24` (IDF `mac_tx_set_plcp1` / `mac_tx_set_htsig`, libpp disassembly). Before, every HT rate lost all its ACKs (ping 10 sent, 0 received at 0x10 / 0x13 / 0x17);
+now ping 10/10 at MCS0 and MCS7 (avg 12.2 / 6.0 ms against 13.9 ms at 12 Mbit/s legacy, `ip_unit` `rate 0x17`, 10 pings each, IDF AP on channel 6).
+
+**A-MPDU transmit: not working, off by default (`NDF_WIFI_AMPDU_TX=0`).** What is built: `wifi_mac_tx_ampdu` (delimiters with CRC-8, MPDUs with FCS, padding), QoS data builder,
+ADDBA request / response (the IDF AP accepts: `addba` agreement made), an aggregation queue in `sta.c`, start word bits 25:24 = 2 (block-ack response; ROM
+`mac_tx_set_plcp0` takes 3 for header bit 20, 2 for bit 19 - set by `ppAssembleAMPDU` - else 1), HT-SIG top byte `0x0f` (aggregation bit; seen in IDF's queue register). Result: the engine
+completes with queue status 4 (no response) and the MPDUs never arrive; the sniffer does not decode them. Both delimiter CRC bit orders tried. Findings from IDF:
+- `ppAssembleAMPDU` only sets header bits 22 and 19 and links the TX infos; there is no byte-level assembly in software, so the MAC inserts delimiters / FCS itself from the descriptors.
+- `mac_tx_set_txop_q` / `hal_mac_fill_hwtxop`: the extra MPDUs of an aggregate are listed in the hardware TXOP list at `0x6003437c - 4 * (15 q + idx - 1)`: descriptor offset (19:0) | (header + payload length) << 20;
+  `0x60034314` bits 27:24 = count, 29:28 = type.
+- A queue-2 capture of an IDF aggregate (one MPDU of 1522 bytes): `0x60034260` PLCP1 `0x020105f2`, HT-SIG `0x0f05f280`, `0x60034278` `0x004005f2`, `0x6003427c` `0x004002e0`.
+Next: capture an IDF aggregate's descriptor + buffer (`bench/wifi_regs/ocd_capture_ampdu.py`, OpenOCD Tcl client `ocd.py`; one halt per stage, a longer halt makes IDF retry the same frame and halt again),
+then build the descriptor chain + TXOP list instead of a software A-MPDU. Channel 6 was too busy for IDF to aggregate at all during the captures; channel 1 worked.

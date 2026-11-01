@@ -13,7 +13,7 @@
 #define R32(a) (*(volatile uint32_t *)(a))
 
 static uint8_t my[6], chan = 6, buf[MAXF];
-uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack, n_cwb40, n_agg, n_mine40, n_retry40;   /* n_mine40 / n_retry40: frames to us that were 40 MHz wide, and those with the retry bit */   /* n_agg: frames that were part of an A-MPDU (word 1 bit 27, IDF aggregation) */   /* n_cwb40: frames received 40 MHz wide (control word 1 bit 7, IDF cwb) */
+uint32_t n_drop_mine, n_mine, n_retry, n_retries_tx, n_noack, n_cwb40, n_agg, n_ampdu, n_mine40, n_retry40;   /* n_mine40 / n_retry40: frames to us that were 40 MHz wide, and those with the retry bit */   /* n_agg: frames that were part of an A-MPDU (word 1 bit 27, IDF aggregation) */   /* n_cwb40: frames received 40 MHz wide (control word 1 bit 7, IDF cwb) */
 static uint32_t n_rx, n_drop, n_tx, n_fail;
 
 #define NKEYS 8                                              /* key-table slots 4..4+NKEYS-1: the station uses two, the access point one per station */
@@ -72,6 +72,42 @@ static int tx_frame(const uint8_t *frame, unsigned len, unsigned rate, unsigned 
     if (r < 0) { n_fail++; return r; }
     if (r == 0) { n_noack++; return RF_ERR_TIMEOUT; }
     n_tx++;
+    return RF_OK;
+}
+
+/* A-MPDU (802.11-2016 9.7): per MPDU a 4-byte delimiter (reserved 2 bits, MPDU length 14 bits, CRC-8 over those 16 bits with x^8 + x^2 + x + 1, init 0xff, complemented;
+ * signature 0x4e), the MPDU with its FCS, padding to a multiple of 4 (not after the last). One attempt: the MAC waits for the block ack. */
+static uint8_t delim_crc(uint16_t v)
+{
+    uint8_t c = 0xFF;
+    for (int i = 0; i < 16; i++) { uint8_t m = (uint8_t)(((c >> 7) ^ (v >> i)) & 1); c = (uint8_t)(c << 1); if (m) c ^= 0x07; }
+    c = (uint8_t)~c;
+#ifdef NDF_WIFI_DELIM_CRC_REV
+    uint8_t r = 0; for (int i = 0; i < 8; i++) if (c >> i & 1) r |= (uint8_t)(0x80 >> i); c = r;
+#endif
+    return c;
+}
+int wifi_mac_tx_ampdu(const uint8_t *const *f, const uint16_t *len, unsigned n, unsigned rate, uint16_t *ssc, uint32_t bitmap[2])
+{
+    uint8_t *o = rf_wifi_tx_buffer(); unsigned t = 0;
+    for (unsigned i = 0; i < n; i++) {
+        unsigned l = len[i];
+        if (l < 10 || t + 4 + l + 4 > 4000) return RF_ERR_RANGE;
+#ifdef NDF_AGG_NODELIM
+        if (n == 1) { memcpy(o, f[0], l); uint32_t c1 = crc32_le(0, o, l); for (int k = 0; k < 4; k++) o[l + k] = (uint8_t)(c1 >> 8 * k); t = l + 4; break; }
+#endif
+        uint16_t d = (uint16_t)((l + 4) << 2);
+        o[t] = (uint8_t)d; o[t + 1] = (uint8_t)(d >> 8); o[t + 2] = delim_crc(d); o[t + 3] = 0x4E;
+        memcpy(o + t + 4, f[i], l); uint32_t c = crc32_le(0, o + t + 4, l);
+        for (int k = 0; k < 4; k++) o[t + 4 + l + k] = (uint8_t)(c >> 8 * k);
+        t += 4 + l + 4;
+        if (i + 1 < n) while (t & 3) o[t++] = 0;
+    }
+    rf_wifi_set_rate(rate);
+    int r = rf_wifi_tx_ack(o, t, RF_TX_ACK | RF_TX_AGG);
+    if (r < 0) { n_fail++; return r; }
+    if (r == 0) { n_noack++; return RF_ERR_TIMEOUT; }
+    n_tx++; n_ampdu++; rf_wifi_ba(ssc, bitmap);
     return RF_OK;
 }
 

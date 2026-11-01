@@ -48,7 +48,8 @@ extern uint32_t sta_n_addba;
 #endif
 #define BA_WIN 16                                            /* receive window offered to the AP (IDF's default receive window is as small as 6) */
 static struct { uint8_t on, tid; } ba[8];                    /* hardware receive block-ack sessions (wifi_mac_ba_add) */
-static void down(void) { for (unsigned i = 0; i < 8; i++) { ba[i].on = 0; wifi_mac_ba_del(i); } wifi_mac_clear_keys(); s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); zero(&k.igtk, sizeof k.igtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = k.mgmt_pn = k.ipn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_igtk = k.have_replay = k.msg1_seen = 0; }
+static void agg_reset(void);
+static void down(void) { agg_reset(); for (unsigned i = 0; i < 8; i++) { ba[i].on = 0; wifi_mac_ba_del(i); } wifi_mac_clear_keys(); s.state = DOWN; zero(&k.ptk, sizeof k.ptk); zero(&k.gtk, sizeof k.gtk); zero(&k.igtk, sizeof k.igtk); memset(k.rx_pn, 0, sizeof k.rx_pn); k.tx_pn = k.mgmt_pn = k.ipn = 0; k.have_ptk = k.keys = k.have_gtk = k.have_igtk = k.have_replay = k.msg1_seen = 0; }
 
 static int send_eth_rate(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt, unsigned rate);
 static int send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n, int encrypt) { return send_eth_rate(dst, ethertype, p, n, encrypt, data_rate); }
@@ -185,6 +186,58 @@ static void mgmt_tx(uint8_t fc0, const uint8_t *body, unsigned bl, int protect) 
     else memcpy(fb + n, body, bl);
     if (l > 0) { s.last_tx = time_ms(); wifi_mac_tx_rate(fb, n + (unsigned)l, WIFI_RATE_1M); }
 }
+#ifndef NDF_WIFI_AMPDU_TX
+#define NDF_WIFI_AMPDU_TX 0                                  /* 1 = ask the AP for a transmit block-ack agreement and aggregate (EXPERIMENTAL, see docs/WIFI_MAC.md: the MAC never reports the block ack) */
+#endif
+/* --- transmit block ack (originator, TID 0): an ADDBA request to the AP, then the data frames queued during one poll go out as one A-MPDU. Open networks and HT rates
+ * only (software CCMP per MPDU is not built); sequence numbers of TID 0 data come from tb.seq. --- */
+#define AGG_MAX 3
+#define AGG_BYTES 3900                                       /* the descriptor length is 12 bits; delimiters and padding included */
+#define AGG_WIN 8
+static struct { uint8_t on, dialog; uint16_t seq, len[AGG_MAX]; uint32_t t_req; unsigned n, bytes; uint8_t f[AGG_MAX][1600]; } tb;
+uint32_t sta_n_agg_tx, sta_n_agg_mpdu, sta_n_agg_miss, sta_ba_dbg[3];
+static int is_ht(unsigned r) { return r >= 16 && r < 24; }
+static void agg_flush(void)
+{
+    unsigned n = tb.n; tb.n = tb.bytes = 0;
+#ifndef NDF_AGG_NODELIM
+    if (n == 1) { s.last_tx = time_ms(); wifi_mac_tx_rate(tb.f[0], tb.len[0], data_rate); return; }
+#endif
+    for (unsigned tries = 0; n && tries < 4; tries++) {
+        const uint8_t *fp[AGG_MAX]; uint16_t ln[AGG_MAX]; uint16_t ssc = 0; uint32_t bm[2] = { 0, 0 };
+        for (unsigned i = 0; i < n; i++) { fp[i] = tb.f[i]; ln[i] = tb.len[i]; }
+        s.last_tx = time_ms();
+        int r = wifi_mac_tx_ampdu(fp, ln, n, data_rate, &ssc, bm);
+        sta_n_agg_tx++; sta_n_agg_mpdu += n; if (!sta_ba_dbg[0]) { sta_ba_dbg[0] = ssc | (uint32_t)(r & 0xFF) << 16; sta_ba_dbg[1] = bm[0]; sta_ba_dbg[2] = bm[1]; }
+        unsigned m = 0;
+        for (unsigned i = 0; i < n; i++) {
+            unsigned off = (((tb.f[i][22] | tb.f[i][23] << 8) >> 4) - ssc) & 0xFFF;
+            if (r == 0 && off < 64 && (bm[off >> 5] >> (off & 31) & 1)) continue;          /* acknowledged in the block ack */
+            tb.f[i][1] |= 0x08;                                                            /* retry */
+            if (m != i) { memcpy(tb.f[m], tb.f[i], tb.len[i]); tb.len[m] = tb.len[i]; }
+            m++;
+        }
+        n = m;
+    }
+    sta_n_agg_miss += n;
+}
+static void agg_reset(void) { tb.on = 0; tb.n = tb.bytes = 0; tb.t_req = time_ms() - 1000; }
+static int agg_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n)
+{
+    unsigned need = 4 + 26 + 8 + n + 4 + 3;
+    if (tb.n == AGG_MAX || tb.bytes + need > AGG_BYTES) agg_flush();
+    tb.len[tb.n] = (uint16_t)wifi_build_qos_data(tb.f[tb.n], s.me, s.bssid, dst, ethertype, p, n, tb.seq++ & 0xFFF, 0);
+    tb.bytes += need; tb.n++;
+    return 0;
+}
+static void addba_request(void)
+{
+    tb.t_req = time_ms(); tb.dialog = (uint8_t)(tb.dialog % 250 + 1);
+    uint8_t b[9] = { 3, 0, tb.dialog, 0x02, AGG_WIN << 6 >> 8, 0, 0, (uint8_t)((tb.seq & 0xF) << 4), (uint8_t)(tb.seq >> 4) };     /* immediate, TID 0, window, no timeout, start sequence */
+    b[3] = (uint8_t)(2 | (AGG_WIN << 6 & 0xC0));
+    mgmt_tx(0xD0, b, 9, s.pmf && k.keys);
+}
+
 /* Block ack (category 3), receive side: ADDBA request -> response + a hardware session (IDF ic_add_rx_ba); DELBA ends it. Our window is 16 frames
  * and no A-MSDU in an A-MPDU subframe, the same as IDF's default receive window (ESP_WIFI_RX_BA_WIN 6 and up). */
 static void ba_action(const uint8_t *f, unsigned len)
@@ -197,7 +250,10 @@ static void ba_action(const uint8_t *f, unsigned len)
         if (i == 8 || !NDF_WIFI_BA_RX) { i = 8; b[3] = 37; }                                  /* status 37: request declined, no free session */
         mgmt_tx(0xD0, b, 9, s.pmf && k.keys);
         if (i < 8) { ba[i].on = 1; ba[i].tid = (uint8_t)tid; wifi_mac_ba_add(i, s.bssid, tid, (f[31] | f[32] << 8) >> 4, BA_WIN); sta_n_addba++; }
-    } else if (f[25] == 2 && len >= 29) {                        /* DELBA: parameter set f[26..27], bits 15:12 = tid */
+    } else if (f[25] == 1 && len >= 31) {                        /* ADDBA response to ours: dialog f[26], status f[27..28] */
+        if (f[26] == tb.dialog && !f[27] && !f[28]) tb.on = 1;
+    } else if (f[25] == 2 && len >= 29) {                        /* DELBA: parameter set f[26..27], bit 11 = the sender was the originator, bits 15:12 = tid */
+        if (!(f[27] & 8)) { tb.on = 0; return; }                 /* the AP ends our agreement */
         for (unsigned i = 0; i < 8; i++) if (ba[i].on && ba[i].tid == f[27] >> 4) { ba[i].on = 0; wifi_mac_ba_del(i); }
     }
 }
@@ -423,6 +479,8 @@ void wifi_poll(void)
 {
     pump(0);
     if (s.state != UP) return;
+    if (tb.n) agg_flush();
+    if (NDF_WIFI_AMPDU_TX && !tb.on && !s.secure && is_ht(data_rate) && time_ms() - tb.t_req > 2000) addba_request();
     if (time_ms() - s.last_beacon > 3u * s.beacon_tu * 1024u / 1000u + 1000u) { down(); return; }     /* 3 beacon intervals + 1 s */
     if (time_ms() - s.last_tx > KEEPALIVE_MS && !s.secure) tx(wifi_build_null(fb, s.me, s.bssid, next_seq()));   /* ponytail: a protected link keeps itself alive with traffic; a CCMP null frame is not built yet */
 }
@@ -430,5 +488,6 @@ void wifi_poll(void)
 int wifi_send_eth(const uint8_t dst[6], uint16_t ethertype, const uint8_t *p, unsigned n)
 {
     if (s.state != UP || n > 1500) return -1;
+    if (tb.on && !s.secure && is_ht(data_rate)) return agg_send_eth(dst, ethertype, p, n);
     return send_eth(dst, ethertype, p, n, s.secure);
 }
