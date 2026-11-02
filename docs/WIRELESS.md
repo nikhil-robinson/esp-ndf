@@ -45,7 +45,7 @@ Boards sit side by side at low TX power index; esp-ndf never links IDF code (the
 1. **Wi-Fi transmit engine: solved** (2026-10-29): frames go through the MAC's frame-exchange engine as in IDF (carrier sense, ACK wait, 7 retries); TCP 64 KB 2.3 s open (was 95 s), 15.4 s WPA2. WPA2 still uses software CCMP on transmit (next: the hardware path). Details: [WIFI_MAC.md](WIFI_MAC.md).
 2. ~~GATT server throughput~~ done (T4b above).
 3. **One-hour soak gate not met** (`tools/wl/soak_wl.py`, log `bench/soak/data/wireless.log`, 2026-10-29): station WPA2 25 min / 90 rounds: no UDP or TCP failure, 4 rounds with ping a little below 16/20, heap steady (72 B, one-time 152 B); access point 15 min / 310 rounds: 5 TCP echo failures (1.6 %, the TX-engine item) and 5 rounds where the station was briefly missing from the table, heap flat; BLE GATT server 20 min: 52 clean rounds (>= 94 notifications per 10 s, no gap), then `ble_disc` of the IDF central timed out (the service-discovery request got no answer) and the peer stayed stuck on connect errors until reboot; a rerun failed the same way at round 13. The board kept running and advertising, so this is an intermittent loss of an ATT response near connection start in `ble_hw` (or the peer's central), not yet analysed.
-4. BLE and Wi-Fi do not run at the same time (one radio, no coexistence tuning); power save and the BLE central role are not in v1. WPA3 is station-only (our AP is WPA2).
+4. BLE and Wi-Fi do not run at the same time (one radio, no coexistence tuning); power save is not in v1 (the BLE central role and two simultaneous BLE links are done). WPA3 is station-only (our AP is WPA2).
 
 ## Tests
 
