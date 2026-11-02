@@ -13,5 +13,14 @@ esp-ndf, 244-byte notifications (DLE 251, MTU 247)        148/s = 282 kbit/s pay
 Why: with 251-byte PDUs the IDF central ends every connection event with our server after 5-6 exchanges (~12.8 ms: 6 central PDUs received, 5 of ours acknowledged), whatever the
 connection interval (20/50/100 ms), the requested connection event length (0.625 ms units 16..768 in ble_connect/ble_update) or the PHY; the same central takes 18 PDUs per event (43 ms) from the
 IDF server. Not found on our side: CS words (+0x1E, +0x20, +0x28, +0x2E), exchange-table words 5-7, core registers 0xE4/0xEC/0xF8/0x2CC/0x330/0x374 set to IDF's values, DLE buffers: all without effect.
-Open: needs an air capture (third board) of both servers' events. Small PDUs are not affected (events of 25 ms with 45 PDUs).
+(superseded by the 2026-11-03 SOLVED note below)
 2026-11-03, also without effect: 16 long TX slots instead of 8 (the event carries ~6.7 PDUs either way, so the chain is not the limit) and the CS format word 0x0603 of the IDF server's link (bits 9-10 set once the data length is extended). The air capture is possible now: the esp-ndf central (ble_central) can be the master for our own server, but the open question is the IDF central's decision, so a third board listening on the data channels is still the way.
+
+2026-11-03 SOLVED. The 244-byte gap was two of our own limits, not the IDF central:
+(1) the TX chain was only topped up at the event end (8 long slots = 7-8 PDUs per event): the RX interrupt (core status bit 2) now refills the chain inside the event (ble_hw.c service_, tx_load with `live`);
+(2) CS+0x20 is the longest the event may run in 625 us slots, and ble_hw.c wrote the RX ring size (48) into it: the core ends the event when the exchanges add up to 48 slots = 30 ms (13 PDUs of 251 bytes,
+    30 of 67 bytes, 21 at 2M; 24 -> exactly half). IDF's slave CS has 0x49 (73) at a 50 ms interval. maxev_slots() now gives interval - 7 slots (half the interval while advertising / initiating, shortened
+    to the next other link's event). The earlier "no effect" experiments (CS words, 16 long slots, 0x0603) were all hidden behind the other limit.
+How it was found: per-event trace of the TX chain and the RX ring (13 exchanges, last response unacknowledged, central's last RX descriptor = sync timeout), JTAG dumps of both boards' EM
+(bench/idf_bleprobe/ocd_em_central.py, data/em_central_* / em_server_*: CS word +0x20 0x30 vs 0x49), exchanges x duration = 48 slots for 60 / 150 / 244-byte PDUs and 2M.
+esp-ndf, 244-byte notifications (DLE 251, MTU 247), 1M PHY, 50 ms interval     374/s = 723 kbit/s payload   (IDF server, same run: 368/s = 719 kbit/s)

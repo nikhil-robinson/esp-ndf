@@ -979,3 +979,13 @@ End to end over the air (`tools/wl/test_https.py`, IDF `esp_http_client` / `esp_
 (8 requests in 16.6 s), 64 KB through our records in 40 s; our client to the IDF server GET /hello 1.1 s, chunked 64 KB in 4.9 s. Those are air-limited, not CPU-limited. Raw numbers:
 `bench/idf_wl_peer/data/tls_prims.txt`. RAM: one connection takes a 7 KB `tls_t`; records are limited to 4096 bytes.
 
+
+## BLE GATT notification throughput (esp-ndf `ble_gatts` on DEVKIT vs IDF NimBLE server on the BOX-3, IDF NimBLE central on C9:48, 50 ms interval, 1M PHY, `tools/wl/bench_gatt_burst.py`, 2026-11-03)
+
+| case | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| 244-byte notifications (DLE 251, MTU 247) | 375-382/s = 726-739 kbit/s | 368/s = 719 kbit/s | 1.02-1.04x |
+| 4-byte notifications | 1042-1065/s, gaps 0 | 735/s | 1.4x |
+
+Before: 148/s (282 kbit/s). The core ends an event once the exchanges add up to CS+0x20 slots, and we had put the RX ring size (48) there (30 ms); the TX chain was also only
+refilled at event end. Now the slot limit follows the interval and the RX interrupt refills the chain. Details in `bench/idf_wl_peer/data/gatts_burst.txt`.

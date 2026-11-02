@@ -35,6 +35,7 @@
 static uint16_t rx_pay(unsigned k) { return (uint16_t)(RXPAY + 40u * (k - RING_N) + 5); }
 #define INT_END (1u << 5)
 #define INT_SKIP (1u << 8)
+#define INT_RX   (1u << 2)                       /* a PDU received: inside a connection event, the chain is topped up (tx_load) */
 #ifndef BLE_FINE
 #define BLE_FINE 500                              /* kick-to-start margin, half-us */
 #endif
@@ -405,9 +406,24 @@ void ble_hw_disconnect(void)
 
 
 
+/* CS+0x20 is the longest the event may run, in slots (IDF: 0x49 = 73 at a 50 ms interval); the core ends the event once the exchanges add up to it, whatever the RX ring holds. It was 48 here
+ * (the ring size), which cut 251-byte PDUs after 13 exchanges (30 ms): 148 notifications/s against IDF's 359. Leave the IDF margin before the next anchor; share the air with the other link,
+ * adverts and initiating windows: half the interval. */
+static uint16_t maxev_slots(void)
+{
+    uint32_t iv = 2u * cn.interval, m = iv > 12 ? iv - 7 : iv > 4 ? iv - 2 : 2;
+    if (adv_on || init_on) m = iv / 2 > 4 ? iv / 2 : 4;
+    for (int k = 0; k < BLE_NCONN; k++) if (&conns[k] != C && conns[k].on) {
+        int64_t d = (int64_t)(conns[k].c.anchor - cn.anchor) / 1250;    /* slots to the other link's event (either side of ours) */
+        if (d < 0) d += 2 * conns[k].c.interval;
+        if (d > 2 && (uint32_t)(d - 2) < m) m = (uint32_t)(d - 2);
+    }
+    return (uint16_t)m;
+}
 static void conn_arm(void)                       /* the window of event cn.evt, on its channel */
 {
     EM16(CS1 + 0x16) = (uint16_t)((cn.csa2 ? csa2_ch(cn.evt) : csa1_next()) | (cn.master ? 0xCC00u : 0));      /* fixed channel this event (hardware hopping off); the IDF central keeps 0xCC00 in the upper byte */
+    EM16(CS1 + 0x20) = maxev_slots();
     uint32_t w = cn.win / 2;                     /* RXWINCNTL in us (RXWIDE 0) */
     EM16(CS1 + 0x1A) = (uint16_t)(w > 0x7FFF ? 0x7FFF : w);
     if (cn.master) cn.anchor = (cn.anchor + 624u) / 625u * 625u;      /* the IDF central starts every event on a half-slot boundary (fine time 0x270): ours too */
@@ -441,7 +457,7 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     EM16(CS1 + 0x0C) = cn.aa & 0xFFFF; EM16(CS1 + 0x0E) = cn.aa >> 16;
     EM16(CS1 + 0x10) = cn.crcinit & 0xFFFF; EM16(CS1 + 0x12) = cn.crcinit >> 16;
     EM16(CS1 + 0x1C) = 0;                        /* no TX descriptor: the core answers with empty PDUs */
-    EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN; EM16(CS1 + 0x28) = 27;   /* classic length until the central's LL_LENGTH_REQ */
+    ring_n = RING_CN; EM16(CS1 + 0x28) = 27;   /* classic length until the central's LL_LENGTH_REQ */
     big_first = big_cnt = 0; tx_max_oct = 27;
     EM16(CS1 + 0x50) = 0;
     chm_apply(ll + 16);
@@ -482,7 +498,7 @@ static void mconn_start(const ble_hw_pkt_t *adv)
     for (int k = 0; k < 3; k++) EM16(CS1 + 0x2C + 2 * k) = ic.peer[2 * k] | ic.peer[2 * k + 1] << 8;       /* as the IDF central's connection CS: peer address, and the timing words of the master format */
     EM16(CS1 + 0x32) = 0; EM16(CS1 + 0x34) = IDLE; EM16(CS1 + 0x36) = 0x12; EM16(CS1 + 0x38) = 0x28; EM16(CS1 + 0x3A) = 0x12; EM16(CS1 + 0x3C) = 0x28;
     EM16(IDLE) = 0x8000; EM16(IDLE + 2) = 0x0001; EM16(IDLE + 4) = TXBUF;                  /* the idle descriptor: done, an empty PDU (the IDF central leaves its CS pointing at a finished descriptor) */
-    EM16(CS1 + 0x1C) = IDLE; EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN; EM16(CS1 + 0x28) = 27;
+    EM16(CS1 + 0x1C) = IDLE; ring_n = RING_CN; EM16(CS1 + 0x28) = 27;
     big_first = big_cnt = 0; tx_max_oct = 27;
     EM16(CS1 + 0x50) = 0;
     chm_apply(ll + 16);
@@ -498,18 +514,23 @@ static void mconn_start(const ble_hw_pkt_t *adv)
     adv_on = 0; init_on = 0; conn_on = 1; tx_first = tx_cnt = 0;
 }
 
+static int live;                                 /* tx_load runs inside a connection event: the core owns the chain pointer */
 static void tx_reap(void)
 {
     while (tx_cnt && ((EM16(TXDSC(tx_first)) & 0x8000) || !EM16(CS1 + 0x1C))) {      /* acknowledged: done bit, or the core's pointer is clear */
         if (desc_big[tx_first]) { big_first = (big_first + 1) % TXB_N; big_cnt--; }
         tx_first = (tx_first + 1) % TXD_N; tx_cnt--; st.tx_acked++;
     }
-    if (!tx_cnt) EM16(CS1 + 0x1C) = cn.master ? IDLE : 0;
+    if (!tx_cnt && !live) EM16(CS1 + 0x1C) = cn.master ? IDLE : 0;
 }
 static void tx_load(void)
 {
     tx_reap();
-    while (tx_cnt < TXD_N && txq_tail != txq_head) {
+    while (tx_cnt < TXD_N && txq_tail != txq_head && (tx_cnt || !live)) {
+        if (live) {                                                                  /* inside an event only behind a descriptor the core has not reached: once it finished the last one its pointer is clear, and */
+            uint16_t cur = EM16(CS1 + 0x1C);                                         /* a descriptor linked behind that is never sent (and conn_next would count it as acknowledged) */
+            if (!cur || cur == TXDSC((tx_first + tx_cnt - 1) % TXD_N)) break;
+        }
         unsigned l = txq_at(1), llid = txq_at(0), i = (tx_first + tx_cnt) % TXD_N, big = l > 27;
         if (big && big_cnt == TXB_N) break;                                          /* all long slots busy: next event */
         unsigned b = (big_first + big_cnt) % TXB_N, ptr = big ? TXB(b) : TXDBUF(i);
@@ -635,6 +656,11 @@ static void service_(void)
         raw_kick(); CORE(0x0C) = INT_END | INT_SKIP; return;
     }
     uint32_t raw = CORE(0x14);
+    if ((raw & INT_RX) && !(raw & (INT_END | INT_SKIP))) {      /* PDU inside a connection event: refill the TX chain so a long burst is not cut at its length */
+        CORE(0x18) = INT_RX;
+        if (ev_c && !raw_on) { C = ev_c; live = 1; tx_load(); live = 0; }
+        CORE(0x0C) = BLE_MASK | INT_RX; return;
+    }
 #ifdef BLE_RX_ACK
     if ((raw & (1u << 2)) && !(raw & (INT_END | INT_SKIP))) { CORE(0x18) = 1u << 2; drain(); }   /* PDU inside a long window */
 #endif
@@ -683,7 +709,7 @@ static void service_(void)
         if (nconn_on() || init_on || adv_on) sched();
         st.isr_cycles += ccount() - c0;
     }
-    CORE(0x0C) = BLE_MASK;
+    CORE(0x0C) = BLE_MASK | (nconn_on() ? INT_RX : 0);
 }
 
 /* init steps: 1 LO table, 2 modem clocks / resets released, 4 coex grant, 8 BT sequencer, 16 modem, 32 EM + core */
@@ -806,7 +832,9 @@ static int send_c(uint8_t llid, const uint8_t *data, unsigned len)       /* on C
     txq_buf[h] = llid; h = (h + 1) % TXQ_BYTES; txq_buf[h] = (uint8_t)len; h = (h + 1) % TXQ_BYTES;
     for (unsigned k = 0; k < len; k++) { txq_buf[h] = data[k]; h = (h + 1) % TXQ_BYTES; }
     txq_head = h;
-    if (!tx_cnt && !enc_tx_pend) tx_load();      /* a chain in flight is extended only at event end */
+    /* a chain in flight is extended only at event end (or by the RX interrupt inside the event). An empty chain is started here only while the core is idle: inside an event the core finishes its last
+     * descriptor by writing the chain pointer, which would overwrite the one set here and strand the new chain (the write response of a burst start was lost this way) */
+    if (!tx_cnt && !enc_tx_pend && (int64_t)(cn.anchor - now_hu()) > (int64_t)cn.win + 2 * 3000) tx_load();
     irq_unlock(ps);
     return 0;
 }
