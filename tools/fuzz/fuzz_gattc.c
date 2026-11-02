@@ -9,6 +9,8 @@
 static unsigned long x = 1; static uint64_t now_us; static int connected = 1;
 static unsigned rnd(void) { x ^= x << 13; x ^= x >> 7; x ^= x << 17; return (unsigned)x; }
 int ble_hw_connected(void) { return connected; }
+int ble_hw_selected(void) { return 0; }
+int ble_hw_link_up(int h) { return h == 0 && connected; }
 uint64_t time_us(void) { return now_us; }
 int gatt_send_att(const uint8_t *a, unsigned n) { return (a && n <= 23) ? 0 : -1; }
 unsigned att_mtu(void) { return 23; }

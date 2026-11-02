@@ -2,6 +2,9 @@
  * NDF_GATT_MTU); larger PDUs are fragmented / reassembled in L2CAP. UUIDs are 16-bit. att.c is pure (no radio): att_handle() is what the host fuzzer and tests drive. */
 #pragma once
 #include <stdint.h>
+#ifndef BLE_NCONN
+#define BLE_NCONN 2                                       /* simultaneous links (as ble_hw.h) */
+#endif
 
 #ifndef NDF_GATT_MAX_ATTRS
 #define NDF_GATT_MAX_ATTRS 64              /* attributes in the table (service = 1, characteristic = 2, + 1 with CCCD) */
@@ -28,7 +31,10 @@ typedef struct {
 void gatt_db_clear(void);
 int  gatts_add_service(uint16_t uuid16, gatt_chr_t *chrs, unsigned n);        /* 0 ok, -1 table full; handles are assigned in call order */
 int  att_handle(const uint8_t *pdu, unsigned n, uint8_t *rsp, unsigned max);   /* one ATT PDU in, response out (0 = none); max >= GATT_MTU */
-unsigned att_mtu(void);                                                         /* ATT MTU in use */
+unsigned att_mtu(void);                                                         /* ATT MTU in use on the link att_set_link named */
+int  att_cccd(const gatt_chr_t *c);                                             /* subscription bits of the link att_set_link named (gatts_subscribed does the link lookup) */
+void gatt_link_reset(int k);                                                    /* a link went away: its subscriptions and MTU */
+void att_set_link(int k);                                                       /* link the next att_ call works on */
 void gatt_reset(void);                                                          /* new connection: subscriptions off */
 int  gatts_subscribed(const gatt_chr_t *c);                                     /* bit 0 notifications, bit 1 indications */
 int  att_indication_pending(void);

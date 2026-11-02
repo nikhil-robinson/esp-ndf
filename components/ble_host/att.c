@@ -4,17 +4,21 @@
 #include <string.h>
 
 enum { K_SVC, K_DECL, K_VAL, K_CCCD };
-typedef struct { uint8_t kind; uint16_t uuid, end; gatt_chr_t *chr; uint16_t cccd; } attr_t;
+typedef struct { uint8_t kind; uint16_t uuid, end; gatt_chr_t *chr; uint16_t cccd[BLE_NCONN]; } attr_t;      /* subscriptions per link */
 static attr_t db[NDF_GATT_MAX_ATTRS];
 static unsigned nattr;
 static uint8_t ind_pending;
-static uint16_t mtu = 23;
+static uint16_t mtus[BLE_NCONN] = { 23, 23 };                 /* ATT MTU per link */
+static unsigned att_link;
+void att_set_link(int k) { att_link = (unsigned)(k >= 0 && k < BLE_NCONN ? k : 0); }       /* the link the next call works on (the host sets it from ble_hw_select) */
+#define mtu (mtus[att_link])
 
 enum { E_INVALID_HANDLE = 1, E_READ_NOT_PERM = 2, E_WRITE_NOT_PERM = 3, E_INVALID_PDU = 4, E_NOT_SUPPORTED = 6, E_INVALID_OFFSET = 7,
        E_NOT_FOUND = 0x0A, E_INVALID_LEN = 0x0D, E_UNSUP_GROUP = 0x10 };
 
-void gatt_db_clear(void) { memset(db, 0, sizeof db); nattr = 0; ind_pending = 0; mtu = 23; }
-void gatt_reset(void) { for (unsigned i = 0; i < nattr; i++) db[i].cccd = 0; ind_pending = 0; mtu = 23; }
+void gatt_db_clear(void) { memset(db, 0, sizeof db); nattr = 0; ind_pending = 0; for (int k = 0; k < BLE_NCONN; k++) mtus[k] = 23; }
+void gatt_reset(void) { for (int k = 0; k < BLE_NCONN; k++) gatt_link_reset(k); ind_pending = 0; }
+void gatt_link_reset(int k) { if (k < 0 || k >= BLE_NCONN) return; for (unsigned i = 0; i < nattr; i++) db[i].cccd[k] = 0; mtus[k] = 23; }
 unsigned att_mtu(void) { return mtu; }
 int  att_indication_pending(void) { return ind_pending; }
 void att_indication_start(void) { ind_pending = 1; }
@@ -25,22 +29,22 @@ int gatts_add_service(uint16_t uuid16, gatt_chr_t *chrs, unsigned n)
     for (unsigned i = 0; i < n; i++) need += 2 + ((chrs[i].props & (GATT_P_NOTIFY | GATT_P_INDICATE)) != 0);
     if (nattr + need > NDF_GATT_MAX_ATTRS) return -1;
     unsigned svc = nattr;
-    db[nattr++] = (attr_t){ K_SVC, uuid16, 0, 0, 0 };
+    db[nattr++] = (attr_t){ K_SVC, uuid16, 0, 0, { 0 } };
     for (unsigned i = 0; i < n; i++) {
         gatt_chr_t *c = &chrs[i];
-        db[nattr++] = (attr_t){ K_DECL, 0x2803, 0, c, 0 };
-        db[nattr++] = (attr_t){ K_VAL, c->uuid, 0, c, 0 };
+        db[nattr++] = (attr_t){ K_DECL, 0x2803, 0, c, { 0 } };
+        db[nattr++] = (attr_t){ K_VAL, c->uuid, 0, c, { 0 } };
         c->handle = (uint16_t)nattr;                              /* handle = index + 1 */
-        if (c->props & (GATT_P_NOTIFY | GATT_P_INDICATE)) db[nattr++] = (attr_t){ K_CCCD, 0x2902, 0, c, 0 };
+        if (c->props & (GATT_P_NOTIFY | GATT_P_INDICATE)) db[nattr++] = (attr_t){ K_CCCD, 0x2902, 0, c, { 0 } };
     }
     db[svc].end = (uint16_t)nattr;
     return 0;
 }
 
-int gatts_subscribed(const gatt_chr_t *c)
+int att_cccd(const gatt_chr_t *c)
 {
     if (!(c->props & (GATT_P_NOTIFY | GATT_P_INDICATE)) || c->handle == 0 || c->handle >= nattr) return 0;
-    return db[c->handle].cccd;                                    /* the CCCD is the attribute right after the value (index = handle) */
+    return db[c->handle].cccd[att_link];                                    /* the CCCD is the attribute right after the value (index = handle) */
 }
 
 static uint16_t u16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
@@ -54,7 +58,7 @@ static int value(const attr_t *a, uint8_t *out, unsigned max)
     switch (a->kind) {
     case K_SVC:  put16(out, a->uuid); return 2;
     case K_DECL: out[0] = a->chr->props; put16(out + 1, a->chr->handle); put16(out + 3, a->chr->uuid); return 5;
-    case K_CCCD: put16(out, a->cccd); return 2;
+    case K_CCCD: put16(out, a->cccd[att_link]); return 2;
     default: {
         if (!(a->chr->props & GATT_P_READ) || !a->chr->read) return -E_READ_NOT_PERM;
         int n = a->chr->read(out, (uint16_t)max);
@@ -69,7 +73,7 @@ static int write_attr(attr_t *a, const uint8_t *d, unsigned n)           /* 0 ok
         if (n != 2) return E_INVALID_LEN;
         uint16_t v = u16(d), allowed = (uint16_t)(((a->chr->props & GATT_P_NOTIFY) ? 1 : 0) | ((a->chr->props & GATT_P_INDICATE) ? 2 : 0));
         if (v & ~allowed) return E_WRITE_NOT_PERM;
-        a->cccd = v;
+        a->cccd[att_link] = v;
         return 0;
     }
     if (a->kind != K_VAL || !(a->chr->props & (GATT_P_WRITE | GATT_P_WRITE_NR)) || !a->chr->write) return E_WRITE_NOT_PERM;

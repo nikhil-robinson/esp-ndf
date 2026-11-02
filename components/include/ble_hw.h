@@ -4,10 +4,14 @@
  * received packet (an interrupt) and copies the PDU out. See docs/PHY_STANDALONE.md. */
 #pragma once
 #include <stdint.h>
+#ifndef BLE_NCONN
+#define BLE_NCONN 2            /* simultaneous links */
+#endif
 
 typedef struct {
     uint8_t  hdr0, len;        /* PDU header: type [3:0], TxAdd [6], RxAdd [7]; payload length */
     uint8_t  chan;             /* advertising channel index (37..39) */
+    uint8_t  conn;             /* link a connection's PDU came in on (ble_hw_select index) */
     int8_t   rssi;             /* dBm, as the core reports it */
     uint32_t clkn;             /* core clock at sync, half-slots (312.5 us) */
     uint8_t  data[255];        /* payload (AdvA first for advertising PDUs; a connection's data PDU up to 251 bytes after the data length update) */
@@ -33,7 +37,16 @@ int  ble_hw_wait(ble_hw_pkt_t *p, uint32_t timeout_us);   /* sleep (waiti) until
 void ble_hw_get_stats(ble_hw_stats_t *s);
 /* Connection (slave): after ble_hw_adv_type(0) + ble_hw_adv(), a CONNECT_IND to our address starts the link.
  * Received LL data PDUs arrive through ble_hw_read (hdr0 = LL header byte 0: LLID [1:0]). */
-int  ble_hw_connected(void);
+int  ble_hw_connected(void);                                      /* at least one link is up */
+/* Several links (BLE_NCONN, 2): the functions below that take no handle work on the link ble_hw_select picked (default 0); a received PDU says which link it came in on (ble_hw_pkt_t.conn). A new link
+ * takes the first free slot (ble_hw_last_conn). A central keeps scanning for the next advertiser in the gaps between the events of the links it has; a peripheral keeps advertising for another
+ * central while a slot is free once ble_hw_adv_multi(1). The long PDUs of the data length extension are link 0's. */
+int  ble_hw_conn_count(void);
+int  ble_hw_link_up(int h);
+int  ble_hw_select(int h);                                        /* 0 on success */
+int  ble_hw_selected(void);
+int  ble_hw_last_conn(void);
+void ble_hw_adv_multi(int on);
 /* Central role: initiate a connection to a connectable advertiser (ADV_IND from peer), then run the link as master. Returns 0 when initiating started; ble_hw_connected() turns 1 on success
  * (ble_hw_is_master 1), and the initiating gives up after 15 s. Link supervision and data go through ble_hw_send / ble_hw_read as in the slave role. */
 int  ble_hw_connect(const uint8_t peer[6], int peer_random, const uint8_t own[6], int own_random, uint16_t interval, uint16_t latency, uint16_t timeout);

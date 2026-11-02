@@ -59,6 +59,7 @@ int gatt_send_att(const uint8_t *att, unsigned n) { return l2cap_att(att, n); }
 static int l2cap_pdu(unsigned cid, const uint8_t *att, unsigned n)          /* one PDU in an L2CAP frame, fragmented into LL PDUs of at most ble_hw_tx_max() bytes */
 {
     uint8_t f[4 + GATT_MTU];
+    att_set_link(ble_hw_selected());
     if (n > (cid == 4 ? att_mtu() : 65u)) return -1;
     f[0] = (uint8_t)n; f[1] = (uint8_t)(n >> 8); f[2] = (uint8_t)cid; f[3] = 0;
     memcpy(f + 4, att, n);
@@ -79,6 +80,7 @@ static void l2cap(const uint8_t *d, unsigned len)
     if (cid == 4 && l && (d[4] & 1)) gattc_rx(d + 4, l);        /* odd ATT opcodes (responses, errors, notifications) belong to the client */
     else if (cid == 4) {
         uint8_t r[GATT_MTU];
+        att_set_link(ble_hw_selected());
         int rl = att_handle(d + 4, l, r, sizeof r);
         if (rl > 0 && l2cap_att(r, (unsigned)rl) < 0 && !pend_n) { memcpy(pend, r, (unsigned)rl); pend_n = (unsigned)rl; }
     } else if (cid == 6) smp_rx(d + 4, l);
@@ -90,7 +92,10 @@ static void l2cap(const uint8_t *d, unsigned len)
 }
 
 /* LL data PDUs to L2CAP frames: llid 2 starts one, llid 1 continues it (reassembled up to one frame of 4 + GATT_MTU bytes) */
-static uint8_t rx_f[4 + GATT_MTU]; static unsigned rx_have, rx_need;
+static uint8_t rx_fs[BLE_NCONN][4 + GATT_MTU]; static unsigned rx_haves[BLE_NCONN], rx_needs[BLE_NCONN];       /* per link */
+#define rx_f (rx_fs[p->conn])
+#define rx_have (rx_haves[p->conn])
+#define rx_need (rx_needs[p->conn])
 static void ll_data(const ble_hw_pkt_t *p)
 {
     unsigned llid = p->hdr0 & 3;
@@ -109,24 +114,34 @@ static void ll_data(const ble_hw_pkt_t *p)
 
 void gatt_poll(uint32_t wait_us)
 {
-    static int was;
+    static uint8_t was[BLE_NCONN];
     ble_hw_pkt_t p;
+    const int sel0 = ble_hw_selected();                       /* the application's link; each PDU is handled on the one it came in on */
     if (pend_n && l2cap_att(pend, pend_n) == 0) pend_n = 0;
     int got = wait_us ? ble_hw_wait(&p, wait_us) : ble_hw_read(&p);
     while (got) {
-        if (ble_hw_connected() && !((p.hdr0 & 3) == 1 && !p.len) && !ble_hw_ll_control(&p) && ((p.hdr0 & 3) == 2 || (p.hdr0 & 3) == 1)) ll_data(&p);
+        if (p.conn < BLE_NCONN && !((p.hdr0 & 3) == 1 && !p.len)) {
+            ble_hw_select(p.conn);
+            if (!ble_hw_ll_control(&p) && ((p.hdr0 & 3) == 2 || (p.hdr0 & 3) == 1)) ll_data(&p);
+        }
         got = ble_hw_read(&p);
     }
-    int c = ble_hw_connected();
+    ble_hw_select(sel0);
+    int c = ble_hw_connected(), was_any = 0;
+    for (int k = 0; k < BLE_NCONN; k++) was_any |= was[k];
     if (rotate_ms && !c) {                                     /* privacy: renew the advertising address */
         uint32_t now = (uint32_t)(time_us() / 1000);
-        if (was || !rotate_at || (int32_t)(now - rotate_at) >= 0) { rotate_adva(); rotate_at = now + rotate_ms; }
+        if (was_any || !rotate_at || (int32_t)(now - rotate_at) >= 0) { rotate_adva(); rotate_at = now + rotate_ms; }
     }
-    if (c && !was) { uint8_t peer[7], own[7]; ble_hw_conn_addrs(peer, own); smp_connected(peer, own); }
-    if (!c && was) { gatt_reset(); rx_need = 0; smp_disconnected(); }                               /* link lost: subscriptions off (ble_hw resumes advertising) */
-    was = c;
+    for (int k = 0; k < BLE_NCONN; k++) {
+        int up = ble_hw_link_up(k);
+        if (up && !was[k]) { uint8_t peer[7], own[7]; ble_hw_select(k); ble_hw_conn_addrs(peer, own); smp_connected(peer, own); ble_hw_select(sel0); }
+        if (!up && was[k]) { rx_needs[k] = 0; gatt_link_reset(k); if (!c) { gatt_reset(); smp_disconnected(); } }       /* last link lost: subscriptions off (ble_hw resumes advertising) */
+        was[k] = (uint8_t)up;
+    }
 }
 
+int gatts_subscribed(const gatt_chr_t *c) { att_set_link(ble_hw_selected()); return att_cccd(c); }       /* on the selected link */
 static int send_value(uint8_t op, int bit, const gatt_chr_t *c, const uint8_t *v, unsigned n)
 {
     uint8_t a[GATT_MTU];
@@ -149,9 +164,10 @@ int gatts_indicate(const gatt_chr_t *c, const uint8_t *v, unsigned n)
 int gattc_connect(const uint8_t peer[6], int peer_random, uint32_t timeout_ms)
 {
     static const uint8_t own[6] = { 0xD2, 0xC9, 0xE2, 0x7C, 0x58, 0x24 };             /* our address as a central: public type (the IDF controller accepts it as it is; a random one needs the descriptor and CS flags of ble_hw_adv) */
+    const int n0 = ble_hw_conn_count();
     if (ble_hw_connect(peer, peer_random, own, 0, 40, 0, 400)) return -1;
     uint64_t t0 = time_us();
-    while (!ble_hw_connected() && time_us() - t0 < (uint64_t)timeout_ms * 1000) gatt_poll(1000);
-    if (!ble_hw_connected()) { ble_hw_connect_cancel(); return -2; }
-    return 0;
+    while (ble_hw_conn_count() <= n0 && time_us() - t0 < (uint64_t)timeout_ms * 1000) gatt_poll(1000);
+    if (ble_hw_conn_count() <= n0) { ble_hw_connect_cancel(); return -2; }
+    return ble_hw_last_conn();                                  /* the link it came up on (0 for the first) */
 }

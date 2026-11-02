@@ -43,6 +43,9 @@ int main(void)
     if (!nvs_mount("nvs") && !nvs_open("ble", &bond_h)) smp_set_store(bond_load, bond_save); else printf("no NVS: bonds are kept in RAM only\n");
     printf("service rc %d, handles value %u counter %u\n", gatts_add_service(0xFFF0, chrs, 2), chrs[0].handle, chrs[1].handle);
     printf("advertise rc %d\n", gatts_advertise(addr, 20000));
+#ifdef NDF_GATTS_MULTI
+    ble_hw_adv_multi(1);                                        /* keep advertising while a link slot is free: a second central may connect */
+#endif
     uint32_t next = 0, sec = 0, sent = 0, fail = 0;
     for (;;) {
         gatt_poll(burst_until > time_us() ? 1000 : 20000);
@@ -52,7 +55,16 @@ int main(void)
         uint32_t now = time_us() / 100000;                      /* 10 Hz */
         if (now != next) {
             next = now;
-            if (burst_until <= time_us() && (gatts_subscribed(&chrs[1]) & 1)) { uint32_t c = counter + 1; if (gatts_notify(&chrs[1], (uint8_t *)&c, 4)) fail++; else { counter = c; sent++; } }
+            if (burst_until <= time_us()) {
+                uint32_t c = counter + 1; int took = 0;
+                for (int k = 0; k < BLE_NCONN; k++) {                  /* every link that subscribed gets the notification */
+                    if (!ble_hw_link_up(k)) continue;
+                    ble_hw_select(k);
+                    if (gatts_subscribed(&chrs[1]) & 1) { if (gatts_notify(&chrs[1], (uint8_t *)&c, 4)) fail++; else took++; }
+                }
+                ble_hw_select(0);
+                if (took) { counter = c; sent++; }
+            }
             if (now / 10 != sec) { sec = now / 10; { ble_hw_stats_t st; ble_hw_get_stats(&st); uint8_t cs; uint16_t iv = 0; ble_hw_conn_info(&cs, &iv); printf("t %lu s: %s, notified %lu, not sent %lu, events %lu, disconnects %lu, interval %u x 1.25 ms, tx max %u, mtu %u, tx done %lu, skips %lu\n", (unsigned long)sec, ble_hw_connected() ? "connected" : "advertising", (unsigned long)sent, (unsigned long)fail, (unsigned long)st.events, (unsigned long)st.disconnects, iv, ble_hw_tx_max(), att_mtu(), (unsigned long)st.tx_acked, (unsigned long)st.skips); } }
         }
     }

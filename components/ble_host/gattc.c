@@ -4,6 +4,8 @@
 #include <string.h>
 #ifdef HOST_FUZZ                                        /* tools/fuzz/fuzz_gattc.c supplies these */
 int ble_hw_connected(void);
+int ble_hw_selected(void);
+int ble_hw_link_up(int h);
 uint64_t time_us(void);
 #else
 #include "ble_hw.h"
@@ -14,7 +16,8 @@ uint64_t time_us(void);
 #define ERR(c) (-(0x100 + (c)))
 
 static uint8_t rsp[GATT_MTU]; static volatile unsigned rsp_n;           /* the answer to the request in flight */
-static struct { uint16_t handle; void (*cb)(uint16_t, const uint8_t *, unsigned); } subs[8];
+static struct { uint16_t handle; uint8_t link; void (*cb)(uint16_t, const uint8_t *, unsigned); } subs[8];
+static uint8_t req_link;                                                /* the link the request in flight went out on: the application selects it (ble_hw_select) */
 
 static uint16_t u16(const uint8_t *p) { return (uint16_t)(p[0] | p[1] << 8); }
 
@@ -23,23 +26,25 @@ void gattc_rx(const uint8_t *p, unsigned n)
     if (!n) return;
     if ((p[0] == 0x1B || p[0] == 0x1D) && n >= 3) {                   /* notification / indication: dispatch, confirm */
         uint16_t h = u16(p + 1);
-        for (unsigned i = 0; i < 8; i++) if (subs[i].cb && subs[i].handle == h) { subs[i].cb(h, p + 3, n - 3); break; }
+        for (unsigned i = 0; i < 8; i++) if (subs[i].cb && subs[i].handle == h && subs[i].link == ble_hw_selected()) { subs[i].cb(h, p + 3, n - 3); break; }
         if (p[0] == 0x1D) { uint8_t c = 0x1E; gatt_send_att(&c, 1); }
         return;
     }
+    if (ble_hw_selected() != req_link) return;                          /* another link's response: not for the request in flight */
     if (n <= sizeof rsp && !rsp_n) { memcpy(rsp, p, n); rsp_n = n; }       /* a response: one at a time */
 }
 
 /* send req, wait for its response (opcode want or an error response for req[0]): length in rsp, or a negative code */
 static int transact(const uint8_t *req, unsigned n, uint8_t want)
 {
-    if (!ble_hw_connected()) return -1;
+    if (!ble_hw_link_up(ble_hw_selected())) return -1;
+    req_link = (uint8_t)ble_hw_selected();
     rsp_n = 0;
     uint64_t t0 = time_us();
     while (gatt_send_att(req, n) < 0) { gatt_poll(1000); if (time_us() - t0 > TIMEOUT_US) return -1; }
     while (time_us() - t0 < TIMEOUT_US) {
         gatt_poll(2000);
-        if (!ble_hw_connected()) return -1;
+        if (!ble_hw_link_up(req_link)) return -1;
         if (rsp_n) {
             if (rsp[0] == want) return (int)rsp_n;
             if (rsp[0] == 0x01 && rsp_n >= 5 && rsp[1] == req[0]) return ERR(rsp[4]);
@@ -128,7 +133,7 @@ int gattc_write(uint16_t h, const uint8_t *v, unsigned n, int with_response)
     uint8_t q[GATT_MTU];
     if (n > att_mtu() - 3) return -1;
     q[0] = with_response ? 0x12 : 0x52; q[1] = (uint8_t)h; q[2] = (uint8_t)(h >> 8); memcpy(q + 3, v, n);
-    if (!with_response) return ble_hw_connected() && gatt_send_att(q, 3 + n) == 0 ? 0 : -1;
+    if (!with_response) return ble_hw_link_up(ble_hw_selected()) && gatt_send_att(q, 3 + n) == 0 ? 0 : -1;
     int r = transact(q, 3 + n, 0x13);
     return r < 0 ? r : 0;
 }
@@ -137,9 +142,9 @@ int gattc_subscribe(const gattc_chr_t *c, int indicate, void (*cb)(uint16_t, con
 {
     if (!c->cccd) return ERR(0x0A);
     unsigned i = 0;
-    while (i < 8 && subs[i].cb && subs[i].handle != c->value) i++;
+    while (i < 8 && subs[i].cb && !(subs[i].handle == c->value && subs[i].link == ble_hw_selected())) i++;
     if (i == 8) return -1;
-    subs[i].handle = c->value; subs[i].cb = cb;                              /* before the write: the first notification may follow it at once */
+    subs[i].handle = c->value; subs[i].link = (uint8_t)ble_hw_selected(); subs[i].cb = cb;                              /* before the write: the first notification may follow it at once */
     uint8_t v[2] = { (uint8_t)(indicate ? 2 : 1), 0 };
     int r = gattc_write(c->cccd, v, 2, 1);
     if (r < 0) subs[i].cb = 0;
