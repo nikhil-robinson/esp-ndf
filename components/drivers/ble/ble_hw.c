@@ -60,8 +60,6 @@ static uint32_t tx_buf[1024];                  /* EM 0x2400 (page register 7, on
 #define TXD     0x1400u
 #define TXBUF   0x2400u
 static ble_hw_stats_t st;
-uint32_t ble_hw_idbg[8];                      /* debug: initiating */
-uint32_t ble_hw_evlog[3][24]; unsigned ble_hw_evlog_n;           /* debug: first events of a connection: got, sync (us), anchor (us) */
 
 /* ---- connection (slave) ---------------------------------------------------------------------- */
 #define CS1     0x45Au                           /* slave connection control structure (CS index 1) */
@@ -146,9 +144,8 @@ static void drain(void)
          * While advertising, bit 6 is a normal flag. */
         if (conn_on && (EM16(d + 2) & 0x10)) { mic_fail = 1; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }      /* RX status bit 4: MIC failure (ROM r_lld_con_rx ends the link) */
         if (EM16(d + 2) & (conn_on ? 0x006F : 0x000F)) {
-            st.rx_errors++; ble_hw_idbg[5] = EM16(d + 2) | (uint32_t)EM16(d + 4) << 16; ble_hw_idbg[4] = EM16(d + 6); EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
+            st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
         }
-        ble_hw_idbg[7] = EM16(d + 2) | (uint32_t)EM16(d + 4) << 16;
         uint32_t n = (q_head + 1) % Q_N;
         if (conn_on && cn.evt == 0 && em_span_ok(EM16(d + 0x12), 6) && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
         if (n == q_tail) st.dropped++;
@@ -268,25 +265,12 @@ static struct { uint8_t peer[6], peer_rand, own[6], own_rand, ll[22]; uint32_t t
 static void init_arm(void)
 {
     drain();
-#ifdef BLE_INIT_FIXED_CH
-    uint8_t ch = BLE_INIT_FIXED_CH; init_chan_i++;
-#else
-    uint8_t ch = (uint8_t)(37 + init_chan_i++ % 3);
-#endif
-#ifdef BLE_INIT_HOP
-    EM16(0x416) = (uint16_t)(ch | BLE_INIT_HOP);
-#else
-    EM16(0x416) = ch;
-#endif
+    EM16(0x416) = (uint16_t)(37 + init_chan_i++ % 3);
     /* (+0x2E is not MAXEVTIME in the initiator CS: it is the middle of the peer address) */
     EM16(0x420) = RING_N;
     uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;
     if (cnt > BLE_FINE) f = cnt - BLE_FINE; else { f = cnt + 0x270u - BLE_FINE; t++; }
-#ifdef BLE_INIT_ET0
-    EM16(0) = BLE_INIT_ET0;
-#else
     EM16(0) = 0x5002;
-#endif
     EM16(2) = t & 0xFFFF; EM16(4) = (t >> 16) & 0xFFF; EM16(6) = f;
     EM16(8) = CS0 / 2; EM16(10) = 0x2710; EM16(12) = 0x0C00; EM16(14) = 0x0F00;                 /* a connection leaves entry 0 pointing at its own CS */
     EM16(TXD) = 0; EM16(TXD + 2) = (uint16_t)(34u << 8 | 0x05 | 0x20 | (ic.own_rand ? 0x40 : 0) | (ic.peer_rand ? 0x80 : 0)); EM16(TXD + 4) = TXBUF;     /* CONNECT_IND, ChSel: we do CSA#2 */
@@ -318,31 +302,16 @@ int ble_hw_connect(const uint8_t peer[6], int peer_random, const uint8_t own[6],
     uint8_t crc[3]; rng_fill(crc, 3);
     uint8_t *l = ic.ll;
     l[0] = (uint8_t)aa; l[1] = (uint8_t)(aa >> 8); l[2] = (uint8_t)(aa >> 16); l[3] = (uint8_t)(aa >> 24);
-    memcpy(l + 4, crc, 3); l[7] = 2; l[8] = 12; l[9] = 0;                                     /* WinSize 2 (2.5 ms), WinOffset 12 (15 ms): the initiating event ends after its scan window, our first packet must not be late */
+    memcpy(l + 4, crc, 3); l[7] = 8; l[8] = 12; l[9] = 0;                                     /* WinSize 8 (10 ms). The core overwrites WinOffset on the air (0x24..0x26 slots seen, as with the IDF central: it is computed by hardware and not readable), so the first packet goes out inside every such window */
     l[10] = (uint8_t)interval; l[11] = (uint8_t)(interval >> 8); l[12] = (uint8_t)latency; l[13] = (uint8_t)(latency >> 8); l[14] = (uint8_t)timeout; l[15] = (uint8_t)(timeout >> 8);
     memset(l + 16, 0xFF, 4); l[20] = 0x1F; l[21] = 11;                                        /* all 37 channels, hop 11, SCA 0 (500 ppm) */
     memcpy(tx_buf, l, 22);
     scan_chan = 0; adv_on = 0;
     for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_init_cs[k];
-#ifdef BLE_INIT_WIN
-    EM16(CS0 + 0x1A) = BLE_INIT_WIN;
-#endif
-#ifdef BLE_INIT_C14
-    EM16(CS0 + 0x14) = BLE_INIT_C14;
-#endif
     for (int k = 0; k < 3; k++) EM16(CS0 + 6 + 2 * k) = own[2 * k] | own[2 * k + 1] << 8;
     for (int k = 0; k < 3; k++) EM16(CS0 + 0x2C + 2 * k) = peer[2 * k] | peer[2 * k + 1] << 8;
     EM16(CS0 + 0x32) = (uint16_t)(ic.peer_rand ? 1 : 0);
     EM16(0x14C) = EM16(CS0);
-#ifdef BLE_INIT_REGS
-    CORE(0x0F8) = 0x1221; CORE(0x2CC) = 0x00280028; CORE(0x32C) = 0; CORE(0x368) = 0;
-#endif
-#ifdef BLE_INIT_R160
-    CORE(0x160) = 0;
-#endif
-#ifdef BLE_INIT_MASK
-    CORE(0x0C) = BLE_INIT_MASK;
-#endif
     ic.t_ms = ms_now(); init_on = 1; last_end = ccount();
     init_arm();
     irq_unlock(ps);
@@ -408,7 +377,7 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     peer_addr7[0] = (hdr0 >> 6) & 1; memcpy(peer_addr7 + 1, p, 6); own_addr7[0] = (hdr0 >> 7) & 1; memcpy(own_addr7 + 1, p + 6, 6);
     enc_state = tx_enc = rx_enc = mic_fail = enc_notify = 0; enc_block = 0; enc_tx_pend = 0;
     txq_head = txq_tail = 0;
-    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0; big_first = big_cnt = 0; ble_hw_evlog_n = 0;
+    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0; big_first = big_cnt = 0;
     conn_arm();
 }
 
@@ -438,9 +407,8 @@ static void mconn_start(const ble_hw_pkt_t *adv)
     uint64_t sync_hu = (uint64_t)adv->clkn * 625u;                                            /* half-us; the stamp is at the sync (end of the access address) */
     uint64_t adv_end = sync_hu + 2u * 8u * (2 + adv->len + 3);
     uint64_t ci_end = adv_end + 2u * (150 + 352);
-    cn.anchor = ci_end + 2u * 1250u * (1u + (ll[8] | ll[9] << 8)) + 2u * 300u + 625u;
+    cn.anchor = ci_end + 2u * 1250u * (1u + 0x26u) + 2u * 2000u;                             /* WinOffset 0x24..0x26 on the air, window 10 ms wide: 3 ms into the latest one's window */
     cn.win = 2u * 30u; cn.last_rx_ms = ms_now();
-    ble_hw_idbg[2] = (uint32_t)((cn.anchor - now_hu()) / 2);                                  /* debug: microseconds until the first event (negative = late) */
     q_tail = q_head;
     memcpy(init_addr, ic.peer, 6);
     peer_addr7[0] = ic.peer_rand; memcpy(peer_addr7 + 1, ic.peer, 6); own_addr7[0] = ic.own_rand; memcpy(own_addr7 + 1, ic.own, 6);
@@ -498,7 +466,6 @@ static uint64_t last_sync;
 static uint32_t missed;
 static void conn_next(int got, uint64_t sync)
 {
-    if (ble_hw_evlog_n < 24) { ble_hw_evlog[0][ble_hw_evlog_n] = (uint32_t)got; ble_hw_evlog[1][ble_hw_evlog_n] = (uint32_t)(sync / 2); ble_hw_evlog[2][ble_hw_evlog_n] = (uint32_t)(cn.anchor / 2); ble_hw_evlog_n++; }
     tx_reap();
     if (enc_tx_pend && !tx_cnt) { EM16(CS1 + 2) |= 0x200; tx_enc = 1; enc_tx_pend = 0; enc_block = 0; }      /* the core is idle and nothing is in flight: encryption on, and the first encrypted PDU is loaded before the next event */
     tx_load();
@@ -516,11 +483,11 @@ static void conn_next(int got, uint64_t sync)
     } else if (got && sync && cn.evt > 1 &&
                (int64_t)(sync + iv - SYNC_LEAD - (cn.anchor + iv)) < (int64_t)cn.win &&
                (int64_t)((cn.anchor + iv) - (sync + iv - SYNC_LEAD)) < (int64_t)cn.win) {   /* plausible sync only */
-        last_sync = sync; missed = 0; ble_hw_idbg[6] = (uint32_t)(int32_t)((int64_t)(sync + iv - SYNC_LEAD - (cn.anchor + iv)) / 2); ble_hw_idbg[7]++;
+        last_sync = sync; missed = 0;
         cn.anchor = sync + iv - SYNC_LEAD;
         cn.win = 2u * SYNC_LEAD;
     } else {
-        missed++; ble_hw_idbg[3] = missed;
+        missed++;
         cn.anchor += iv - WIDEN / 2; cn.win += WIDEN;
         if (cn.win > 2u * 1250u * 4u) cn.win = 2u * 1250u * 4u;
     }
@@ -601,15 +568,9 @@ static void service(void)
         }
         else if (init_on) {
             uint32_t h0 = q_head; drain();
-            ble_hw_idbg[4]++; ble_hw_idbg[5] += (q_head + Q_N - h0) % Q_N;
             int hit = -1;
             for (uint32_t k = h0; k != q_head; k = (k + 1) % Q_N) if ((q[k].hdr0 & 0xF) == 0 && q[k].len >= 6 && !memcmp(q[k].data, ic.peer, 6)) hit = (int)k;
-            if (hit >= 0) { ble_hw_idbg[0] = EM16(TXD); ble_hw_idbg[1] = EM16(CS0 + 0x18); ble_hw_idbg[2] = EM16(CS0 + 0x1A); ble_hw_idbg[3]++; ble_hw_idbg[6] = EM16(CS0 + 0x1C) | (uint32_t)EM16(CS0 + 0x20) << 16; }
-#ifdef BLE_INIT_DEBUG_NOCONN
-            if (hit >= 0 && (EM16(TXD) & 0x8000)) { ble_hw_idbg[3]++; init_arm(); }
-#else
             if (hit >= 0 && (EM16(TXD) & 0x8000)) mconn_start(&q[hit]);
-#endif
             else if (ms_now() - ic.t_ms > 15000) init_on = 0;
             else init_arm();
         }

@@ -15,13 +15,11 @@ def check(c, msg):
 for run in range(2):
     try:
         while True:
-            l = ndf.read_until('gattc ', 60)[-1]; print(l)
+            ls = ndf.read_until('gattc ', 60); print('\n'.join(ls[-8:])); l = ls[-1]
             if l.startswith('gattc PASS') or l.startswith('gattc FAIL'): break
         check(l.startswith('gattc PASS'), 'run %d: discovery, read, write and notifications over our master link' % run)
     except TimeoutError as e:
         check(False, 'run %d: no client result (%s)' % (run, str(e)[-120:])); break
-    if run == 0:
-        i = p.cmd('ble_info')[-1]; print(i); check('role 1' in i, 'the peer sees itself as the peripheral (role 1)') if False else None
     ndf.flush(); time.sleep(0.5)
     p.cmd('ble_adv NDF-PEER', 5)           # the peer advertises again after the disconnect
 print('PASS central' if not fail else 'FAIL central: %s' % fail)

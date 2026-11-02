@@ -10,6 +10,7 @@ static int fail(const char *why, int rc) { printf("gattc FAIL %s (%d)\n", why, r
 
 static int run_client(void)
 {
+    nnotif = gaps = 0; have = 0;                                  /* a new connection starts a new count */
     gattc_svc_t s[10]; unsigned ns = 0;
     int rc = gattc_discover(s, 10, &ns);
     if (rc < 0) return fail("discover", rc);

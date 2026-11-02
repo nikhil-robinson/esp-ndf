@@ -4,5 +4,8 @@ COMPONENTS = ble_host
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf $(NDF_PATH)/examples/bluetooth/ble_gattc
 XIP = all
 STACK1_SIZE = 4096
-# work in progress (docs/WIRELESS.md): initiating works against an esp-ndf slave, the master data exchange and the IDF peripheral do not yet; no automatic test until they pass
+TEST_KIND = unit
+TEST_HOST = tools/wl/test_central.py
+TEST_TIMEOUT = 150
+TEST_NOTE = two boards: the IDF peripheral (PEER) hosts the GATT server we query
 include $(NDF_PATH)/make/project.mk

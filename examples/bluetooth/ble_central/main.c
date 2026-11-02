@@ -32,8 +32,6 @@ int main(void)
     static const uint8_t peer[6] = NDF_PEER_ADDR;
     for (;;) {
         printf("initiating rc %d\n", gattc_connect(peer, NDF_PEER_RANDOM, 15000));
-        { ble_hw_stats_t st; ble_hw_get_stats(&st); printf("stats events %lu skips %lu packets %lu isr %lu\n", (unsigned long)st.events, (unsigned long)st.skips, (unsigned long)st.packets, (unsigned long)st.isr_calls); }
-        { extern uint32_t ble_hw_idbg[8]; printf("idbg txd %04x %04x cs0 %04x hits %lu | events %lu pkts %lu last rxstat/hdr %08x cs1c/20 %08x\n", (unsigned)ble_hw_idbg[0], (unsigned)ble_hw_idbg[1], (unsigned)ble_hw_idbg[2], (unsigned long)ble_hw_idbg[3], (unsigned long)ble_hw_idbg[4], (unsigned long)ble_hw_idbg[5], (unsigned)ble_hw_idbg[7], (unsigned)ble_hw_idbg[6]); }
         if (!ble_hw_connected()) { printf("central: not connected\n"); continue; }
         printf("central: connected, master %d\n", ble_hw_is_master());
         uint64_t up = time_us();
