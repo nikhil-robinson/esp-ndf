@@ -144,3 +144,14 @@ int gatts_indicate(const gatt_chr_t *c, const uint8_t *v, unsigned n)
     if (!r) att_indication_start();
     return r;
 }
+
+/* ---- central role: initiate, wait ---- */
+int gattc_connect(const uint8_t peer[6], int peer_random, uint32_t timeout_ms)
+{
+    static const uint8_t own[6] = { 0xD2, 0xC9, 0xE2, 0x7C, 0x58, 0x24 };             /* our address as a central: public type (the IDF controller accepts it as it is; a random one needs the descriptor and CS flags of ble_hw_adv) */
+    if (ble_hw_connect(peer, peer_random, own, 0, 40, 0, 400)) return -1;
+    uint64_t t0 = time_us();
+    while (!ble_hw_connected() && time_us() - t0 < (uint64_t)timeout_ms * 1000) gatt_poll(1000);
+    if (!ble_hw_connected()) { ble_hw_connect_cancel(); return -2; }
+    return 0;
+}

@@ -34,6 +34,12 @@ void ble_hw_get_stats(ble_hw_stats_t *s);
 /* Connection (slave): after ble_hw_adv_type(0) + ble_hw_adv(), a CONNECT_IND to our address starts the link.
  * Received LL data PDUs arrive through ble_hw_read (hdr0 = LL header byte 0: LLID [1:0]). */
 int  ble_hw_connected(void);
+/* Central role: initiate a connection to a connectable advertiser (ADV_IND from peer), then run the link as master. Returns 0 when initiating started; ble_hw_connected() turns 1 on success
+ * (ble_hw_is_master 1), and the initiating gives up after 15 s. Link supervision and data go through ble_hw_send / ble_hw_read as in the slave role. */
+int  ble_hw_connect(const uint8_t peer[6], int peer_random, const uint8_t own[6], int own_random, uint16_t interval, uint16_t latency, uint16_t timeout);
+void ble_hw_connect_cancel(void);
+int  ble_hw_is_master(void);
+void ble_hw_disconnect(void);                                   /* send LL_TERMINATE_IND and end the link once it is acknowledged (either role) */
 void ble_hw_phy(uint8_t *tx, uint8_t *rx);                  /* PHY of the connection, 0 = 1M, 1 = 2M */
 void ble_hw_csa2(int on);              /* default on: ChSel set, the central may pick CSA#2; 0 forces CSA#1 */
 int  ble_hw_conn_info(uint8_t *csa2, uint16_t *interval);   /* channel selection in use, interval */

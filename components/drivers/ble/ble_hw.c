@@ -60,6 +60,8 @@ static uint32_t tx_buf[1024];                  /* EM 0x2400 (page register 7, on
 #define TXD     0x1400u
 #define TXBUF   0x2400u
 static ble_hw_stats_t st;
+uint32_t ble_hw_idbg[8];                      /* debug: initiating */
+uint32_t ble_hw_evlog[3][24]; unsigned ble_hw_evlog_n;           /* debug: first events of a connection: got, sync (us), anchor (us) */
 
 /* ---- connection (slave) ---------------------------------------------------------------------- */
 #define CS1     0x45Au                           /* slave connection control structure (CS index 1) */
@@ -68,11 +70,13 @@ static ble_hw_stats_t st;
 #define TXD_N   48u                              /* descriptors; a PDU of up to 27 bytes uses the 28-byte slot of its descriptor (TXCBUF + 28 i), a longer one a 256-byte slot of the pool at TXBUF + 0x800 */
 #define TXB_N   8u
 #define TXB(b)  (TXBUF + 0x800u + 256u * (b))
+#define IDLE    0x1780u                          /* a finished descriptor for the master's idle events */
 #define TXDSC(i)  (TXC + 16u * (i))                /* descriptor +0 next (bit 15 = done), +2 header (length << 8 | MD 0x10 | LLID), +4 payload pointer */
 #define TXDBUF(i) (TXCBUF + 28u * (i))
 static uint8_t tx_first, tx_cnt, big_first, big_cnt, desc_big[TXD_N];     /* descriptors in flight (ring from tx_first); big payload slots in use (ring from big_first) and which descriptor holds one */
 static uint16_t tx_max_oct = 27;                            /* negotiated octets we may send (the central's receive size); we receive classic 27-byte PDUs only */                 /* descriptors handed to the core and not yet acknowledged: a ring starting at tx_first */
 static volatile uint8_t conn_on;
+static volatile uint8_t term_tx;             /* ble_hw_disconnect: LL_TERMINATE_IND queued, the link ends once it is acknowledged */
 static volatile uint8_t term_req;            /* LL_TERMINATE_IND seen: the event-end interrupt ends the link (the core is idle there) */
 static uint8_t own_addr[6];
 static struct {
@@ -85,6 +89,7 @@ static struct {
     uint32_t win;                                /* half-us: window length */
     uint32_t last_rx_ms;                         /* ms clock of the last PDU from the master */
     uint32_t idx;                                /* exchange-table entry rotation */
+    uint8_t master;                              /* we are the central: we start every event (format 2) and own the anchor */
 } cn;
 #define TXQ_BYTES 8192u                          /* software TX queue: entries [llid, length, payload...] in a byte ring, so 27-byte and 251-byte PDUs share it */
 static uint8_t txq_buf[TXQ_BYTES];
@@ -141,8 +146,9 @@ static void drain(void)
          * While advertising, bit 6 is a normal flag. */
         if (conn_on && (EM16(d + 2) & 0x10)) { mic_fail = 1; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }      /* RX status bit 4: MIC failure (ROM r_lld_con_rx ends the link) */
         if (EM16(d + 2) & (conn_on ? 0x006F : 0x000F)) {
-            st.rx_errors++; EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
+            st.rx_errors++; ble_hw_idbg[5] = EM16(d + 2) | (uint32_t)EM16(d + 4) << 16; ble_hw_idbg[4] = EM16(d + 6); EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue;
         }
+        ble_hw_idbg[7] = EM16(d + 2) | (uint32_t)EM16(d + 4) << 16;
         uint32_t n = (q_head + 1) % Q_N;
         if (conn_on && cn.evt == 0 && em_span_ok(EM16(d + 0x12), 6) && !memcmp((const void *)em_addr(EM16(d + 0x12)), init_addr, 6)) { EM16(d) &= 0x7FFF; EM16(d + 4) = 0; continue; }
         if (n == q_tail) st.dropped++;
@@ -250,19 +256,124 @@ static uint8_t csa2_ch(uint16_t cnt)             /* channel selection #2 (Core 5
     return cn.used[(cn.nused * (uint32_t)e) >> 16];
 }
 
+
+/* ---- central role: initiating and the master connection ----
+ * Reference: the IDF central's structures captured over JTAG (bench/idf_bleprobe/ocd_em_initiator.py, ocd_em_master.py). Initiator CS = format 0x0E (own address at +6, peer
+ * address at +0x2C, its type at +0x32, CONNECT_IND descriptor at +0x1C); the core prepends InitA and AdvA to the 22 bytes of LL data, answers a matching connectable ADV_IND with
+ * the CONNECT_IND 150 us after it and the event ends. The master connection uses the slave's CS with format 2: every event starts with our packet. */
+static const uint16_t ble_init_cs[45] = { 0x060E, 0x0800, 0x2000, 0, 0, 0, 0xBED6, 0x8E89, 0x5555, 0x0055, 0x0040, 0x8025, 0x000B, 0x8010, 0x1400, 0x0026, 0x0010, 0x0028, 0, 0, 0, 0,
+                                          0, 0, 0, 0x0001, 0x1400, 0x0026, 0x0028, 0x0026, 0x0028, 0, 0, 0, 0x001D };
+static volatile uint8_t init_on, init_chan_i;
+static struct { uint8_t peer[6], peer_rand, own[6], own_rand, ll[22]; uint32_t t_ms; } ic;
+static void init_arm(void)
+{
+    drain();
+#ifdef BLE_INIT_FIXED_CH
+    uint8_t ch = BLE_INIT_FIXED_CH; init_chan_i++;
+#else
+    uint8_t ch = (uint8_t)(37 + init_chan_i++ % 3);
+#endif
+#ifdef BLE_INIT_HOP
+    EM16(0x416) = (uint16_t)(ch | BLE_INIT_HOP);
+#else
+    EM16(0x416) = ch;
+#endif
+    /* (+0x2E is not MAXEVTIME in the initiator CS: it is the middle of the peer address) */
+    EM16(0x420) = RING_N;
+    uint32_t t = clkn(), cnt = CORE(0x20) & 0x3FF, f;
+    if (cnt > BLE_FINE) f = cnt - BLE_FINE; else { f = cnt + 0x270u - BLE_FINE; t++; }
+#ifdef BLE_INIT_ET0
+    EM16(0) = BLE_INIT_ET0;
+#else
+    EM16(0) = 0x5002;
+#endif
+    EM16(2) = t & 0xFFFF; EM16(4) = (t >> 16) & 0xFFF; EM16(6) = f;
+    EM16(8) = CS0 / 2; EM16(10) = 0x2710; EM16(12) = 0x0C00; EM16(14) = 0x0F00;                 /* a connection leaves entry 0 pointing at its own CS */
+    EM16(TXD) = 0; EM16(TXD + 2) = (uint16_t)(34u << 8 | 0x05 | 0x20 | (ic.own_rand ? 0x40 : 0) | (ic.peer_rand ? 0x80 : 0)); EM16(TXD + 4) = TXBUF;     /* CONNECT_IND, ChSel: we do CSA#2 */
+    CORE(0x24) = RING0;
+    CORE(0x18) = 0xFFFFFFFFu;
+    CORE(0x100) = 0x80000000u;
+}
+static int aa_ok(uint32_t aa)                    /* Core spec vol 6 part B 2.1.2: usable access address */
+{
+    uint32_t df = aa ^ 0x8E89BED6u;
+    if (!df || !(df & (df - 1))) return 0;                       /* the advertising address or one bit away from it */
+    unsigned run = 1, tr = 0, b8 = 0;
+    for (int i = 1; i < 32; i++) {
+        unsigned x = aa >> i & 1, y = aa >> (i - 1) & 1;
+        if (x == y) { if (++run > 6) return 0; } else { run = 1; tr++; if (i >= 26 && i < 32) b8++; }
+    }
+    if (tr > 24) return 0;
+    unsigned t6 = 0; for (int i = 26; i < 31; i++) t6 += (aa >> i & 1) != (aa >> (i + 1) & 1);
+    if (t6 < 2) return 0;
+    unsigned lo16 = 0; for (int i = 1; i < 16; i++) lo16 += (aa >> i & 1) != (aa >> (i - 1) & 1);
+    return lo16 >= 3;
+}
+int ble_hw_connect(const uint8_t peer[6], int peer_random, const uint8_t own[6], int own_random, uint16_t interval, uint16_t latency, uint16_t timeout)
+{
+    uint32_t ps = irq_lock();
+    if (conn_on || init_on) { irq_unlock(ps); return -1; }
+    memcpy(ic.peer, peer, 6); ic.peer_rand = (uint8_t)(peer_random != 0); memcpy(ic.own, own, 6); ic.own_rand = (uint8_t)(own_random != 0);
+    uint32_t aa; do rng_fill(&aa, 4); while (!aa_ok(aa));
+    uint8_t crc[3]; rng_fill(crc, 3);
+    uint8_t *l = ic.ll;
+    l[0] = (uint8_t)aa; l[1] = (uint8_t)(aa >> 8); l[2] = (uint8_t)(aa >> 16); l[3] = (uint8_t)(aa >> 24);
+    memcpy(l + 4, crc, 3); l[7] = 2; l[8] = 12; l[9] = 0;                                     /* WinSize 2 (2.5 ms), WinOffset 12 (15 ms): the initiating event ends after its scan window, our first packet must not be late */
+    l[10] = (uint8_t)interval; l[11] = (uint8_t)(interval >> 8); l[12] = (uint8_t)latency; l[13] = (uint8_t)(latency >> 8); l[14] = (uint8_t)timeout; l[15] = (uint8_t)(timeout >> 8);
+    memset(l + 16, 0xFF, 4); l[20] = 0x1F; l[21] = 11;                                        /* all 37 channels, hop 11, SCA 0 (500 ppm) */
+    memcpy(tx_buf, l, 22);
+    scan_chan = 0; adv_on = 0;
+    for (int k = 0; k < 45; k++) EM16(CS0 + 2 * k) = ble_init_cs[k];
+#ifdef BLE_INIT_WIN
+    EM16(CS0 + 0x1A) = BLE_INIT_WIN;
+#endif
+#ifdef BLE_INIT_C14
+    EM16(CS0 + 0x14) = BLE_INIT_C14;
+#endif
+    for (int k = 0; k < 3; k++) EM16(CS0 + 6 + 2 * k) = own[2 * k] | own[2 * k + 1] << 8;
+    for (int k = 0; k < 3; k++) EM16(CS0 + 0x2C + 2 * k) = peer[2 * k] | peer[2 * k + 1] << 8;
+    EM16(CS0 + 0x32) = (uint16_t)(ic.peer_rand ? 1 : 0);
+    EM16(0x14C) = EM16(CS0);
+#ifdef BLE_INIT_REGS
+    CORE(0x0F8) = 0x1221; CORE(0x2CC) = 0x00280028; CORE(0x32C) = 0; CORE(0x368) = 0;
+#endif
+#ifdef BLE_INIT_R160
+    CORE(0x160) = 0;
+#endif
+#ifdef BLE_INIT_MASK
+    CORE(0x0C) = BLE_INIT_MASK;
+#endif
+    ic.t_ms = ms_now(); init_on = 1; last_end = ccount();
+    init_arm();
+    irq_unlock(ps);
+    return 0;
+}
+void ble_hw_connect_cancel(void) { init_on = 0; }
+int ble_hw_is_master(void) { return conn_on && cn.master; }
+void ble_hw_disconnect(void)
+{
+    uint8_t t[2] = { 0x02, 0x13 };                               /* LL_TERMINATE_IND, remote user terminated */
+    if (!conn_on) return;
+    uint32_t ps = irq_lock(); enc_block = 0; irq_unlock(ps);
+    if (!ble_hw_send(3, t, 2)) term_tx = 1;
+}
+
+
+
 static void conn_arm(void)                       /* the window of event cn.evt, on its channel */
 {
-    EM16(CS1 + 0x16) = cn.csa2 ? csa2_ch(cn.evt) : csa1_next();              /* fixed channel this event (hardware hopping off) */
+    EM16(CS1 + 0x16) = (uint16_t)((cn.csa2 ? csa2_ch(cn.evt) : csa1_next()) | (cn.master ? 0xCC00u : 0));      /* fixed channel this event (hardware hopping off); the IDF central keeps 0xCC00 in the upper byte */
     uint32_t w = cn.win / 2;                     /* RXWINCNTL in us (RXWIDE 0) */
     EM16(CS1 + 0x1A) = (uint16_t)(w > 0x7FFF ? 0x7FFF : w);
+    if (cn.master) cn.anchor = (cn.anchor + 624u) / 625u * 625u;      /* the IDF central starts every event on a half-slot boundary (fine time 0x270): ours too */
     uint64_t st_hu = cn.anchor;
-    uint32_t t = (uint32_t)(st_hu / 625u), f = 624u - (uint32_t)(st_hu % 625u);
+    uint32_t t = (uint32_t)(st_hu / 625u), f = cn.master ? 0x270u : 624u - (uint32_t)(st_hu % 625u);
     cn.idx = (cn.idx + 1) & 15;
     uint32_t e = 16 * cn.idx;
     EM16(e + 0) = ble_conn_et[0] & ~0x38u;
     EM16(e + 2) = t & 0xFFFF; EM16(e + 4) = (t >> 16) & 0xFFF; EM16(e + 6) = f;
     EM16(e + 8) = CS1 / 2;
-    EM16(e + 10) = ble_conn_et[5]; EM16(e + 12) = ble_conn_et[6]; EM16(e + 14) = ble_conn_et[7];
+    EM16(e + 10) = cn.master ? 0x09F6 : ble_conn_et[5]; EM16(e + 12) = ble_conn_et[6]; EM16(e + 14) = ble_conn_et[7];
     CORE(0x24) = RING0;
     CORE(0x18) = 0xFFFFFFFFu;
     CORE(0x100) = 0x80000000u | cn.idx;
@@ -297,19 +408,55 @@ static void conn_start(const uint8_t *p, uint64_t adv_start_hu, uint8_t hdr0)   
     peer_addr7[0] = (hdr0 >> 6) & 1; memcpy(peer_addr7 + 1, p, 6); own_addr7[0] = (hdr0 >> 7) & 1; memcpy(own_addr7 + 1, p + 6, 6);
     enc_state = tx_enc = rx_enc = mic_fail = enc_notify = 0; enc_block = 0; enc_tx_pend = 0;
     txq_head = txq_tail = 0;
-    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0; big_first = big_cnt = 0;
+    adv_on = 0; conn_on = 1; tx_first = tx_cnt = 0; big_first = big_cnt = 0; ble_hw_evlog_n = 0;
     conn_arm();
 }
 
 /* Hand the queued PDUs to the core as one descriptor chain, as ROM r_lld_con_tx_prog does: every descriptor but the last carries the more-data bit and the
  * core sends them back to back inside one connection event. Only at event end (the core is idle) or while nothing is in flight. */
+/* the CONNECT_IND went out after the matching ADV_IND (adv): start the master connection. The first packet goes out at the start of the transmit window (CONNECT_IND end +
+ * 1.25 ms); the peripheral's window is WinSize wide and it resynchronises on that packet, so a few hundred microseconds of margin on our side do not matter. */
+static void mconn_start(const ble_hw_pkt_t *adv)
+{
+    const uint8_t *ll = ic.ll;
+    cn.master = 1; cn.csa2 = (adv->hdr0 >> 5) & 1;
+    cn.aa = ll[0] | ll[1] << 8 | ll[2] << 16 | (uint32_t)ll[3] << 24; cn.crcinit = ll[4] | ll[5] << 8 | ll[6] << 16;
+    cn.interval = ll[10] | ll[11] << 8; cn.latency = ll[12] | ll[13] << 8; cn.timeout = ll[14] | ll[15] << 8;
+    cn.hop = ll[21] & 0x1F; cn.last_unmapped = 0; cn.evt = 0; cn.upd_pending = cn.map_pending = cn.phy_pending = 0; cn.phy_tx = cn.phy_rx = 0;
+    for (int k = 0; k < 45; k++) EM16(CS1 + 2 * k) = ble_conn_cs[k];
+    EM16(CS1) = 0x0002;                                                                       /* master connection format */
+    for (int k = 0; k < 3; k++) EM16(CS1 + 6 + 2 * k) = ic.own[2 * k] | ic.own[2 * k + 1] << 8;
+    EM16(CS1 + 0x0C) = cn.aa & 0xFFFF; EM16(CS1 + 0x0E) = cn.aa >> 16; EM16(CS1 + 0x10) = cn.crcinit & 0xFFFF; EM16(CS1 + 0x12) = cn.crcinit >> 16;
+    EM16(CS1 + 0x14) = 0x0040; EM16(CS1 + 0x18) = 0x000B;
+    for (int k = 0; k < 3; k++) EM16(CS1 + 0x2C + 2 * k) = ic.peer[2 * k] | ic.peer[2 * k + 1] << 8;       /* as the IDF central's connection CS: peer address, and the timing words of the master format */
+    EM16(CS1 + 0x32) = 0; EM16(CS1 + 0x34) = IDLE; EM16(CS1 + 0x36) = 0x12; EM16(CS1 + 0x38) = 0x28; EM16(CS1 + 0x3A) = 0x12; EM16(CS1 + 0x3C) = 0x28;
+    EM16(IDLE) = 0x8000; EM16(IDLE + 2) = 0x0001; EM16(IDLE + 4) = TXBUF;                  /* the idle descriptor: done, an empty PDU (the IDF central leaves its CS pointing at a finished descriptor) */
+    EM16(CS1 + 0x1C) = IDLE; EM16(CS1 + 0x20) = RING_CN; ring_n = RING_CN; EM16(CS1 + 0x28) = 27;
+    big_first = big_cnt = 0; tx_max_oct = 27;
+    EM16(CS1 + 0x50) = 0;
+    chm_apply(ll + 16);
+    uint64_t sync_hu = (uint64_t)adv->clkn * 625u;                                            /* half-us; the stamp is at the sync (end of the access address) */
+    uint64_t adv_end = sync_hu + 2u * 8u * (2 + adv->len + 3);
+    uint64_t ci_end = adv_end + 2u * (150 + 352);
+    cn.anchor = ci_end + 2u * 1250u * (1u + (ll[8] | ll[9] << 8)) + 2u * 300u + 625u;
+    cn.win = 2u * 30u; cn.last_rx_ms = ms_now();
+    ble_hw_idbg[2] = (uint32_t)((cn.anchor - now_hu()) / 2);                                  /* debug: microseconds until the first event (negative = late) */
+    q_tail = q_head;
+    memcpy(init_addr, ic.peer, 6);
+    peer_addr7[0] = ic.peer_rand; memcpy(peer_addr7 + 1, ic.peer, 6); own_addr7[0] = ic.own_rand; memcpy(own_addr7 + 1, ic.own, 6);
+    enc_state = tx_enc = rx_enc = mic_fail = enc_notify = 0; enc_block = 0; enc_tx_pend = 0;
+    txq_head = txq_tail = 0;
+    adv_on = 0; init_on = 0; conn_on = 1; tx_first = tx_cnt = 0;
+    conn_arm();
+}
+
 static void tx_reap(void)
 {
     while (tx_cnt && ((EM16(TXDSC(tx_first)) & 0x8000) || !EM16(CS1 + 0x1C))) {      /* acknowledged: done bit, or the core's pointer is clear */
         if (desc_big[tx_first]) { big_first = (big_first + 1) % TXB_N; big_cnt--; }
         tx_first = (tx_first + 1) % TXD_N; tx_cnt--; st.tx_acked++;
     }
-    if (!tx_cnt) EM16(CS1 + 0x1C) = 0;
+    if (!tx_cnt) EM16(CS1 + 0x1C) = cn.master ? IDLE : 0;
 }
 static void tx_load(void)
 {
@@ -336,6 +483,7 @@ static void conn_end(void)                       /* link lost or terminated: bac
     enc_state = tx_enc = rx_enc = enc_notify = enc_block = enc_tx_pend = 0;
     st.disconnects++;
     for (int e = 0; e < 16; e++) EM16(16 * e + 0) = 0x281A;
+    if (cn.master) { cn.master = 0; return; }                    /* a central link ends in silence, the application decides what next */
     adv_on = 1;
     adv_next = clkn() + 16;
     arm_adv();
@@ -350,6 +498,7 @@ static uint64_t last_sync;
 static uint32_t missed;
 static void conn_next(int got, uint64_t sync)
 {
+    if (ble_hw_evlog_n < 24) { ble_hw_evlog[0][ble_hw_evlog_n] = (uint32_t)got; ble_hw_evlog[1][ble_hw_evlog_n] = (uint32_t)(sync / 2); ble_hw_evlog[2][ble_hw_evlog_n] = (uint32_t)(cn.anchor / 2); ble_hw_evlog_n++; }
     tx_reap();
     if (enc_tx_pend && !tx_cnt) { EM16(CS1 + 2) |= 0x200; tx_enc = 1; enc_tx_pend = 0; enc_block = 0; }      /* the core is idle and nothing is in flight: encryption on, and the first encrypted PDU is loaded before the next event */
     tx_load();
@@ -358,7 +507,8 @@ static void conn_next(int got, uint64_t sync)
     cn.evt++;
     EM16(CS1 + 0x50) = cn.evt;
     uint64_t iv = 2u * 1250u * cn.interval;
-    if (cn.upd_pending && cn.evt == cn.instant_upd) {           /* connection update: new window at the instant */
+    if (cn.master) cn.anchor += iv;                              /* the central owns the anchor: events follow at the interval */
+    else if (cn.upd_pending && cn.evt == cn.instant_upd) {           /* connection update: new window at the instant */
         cn.upd_pending = 0;
         cn.anchor += iv + 2u * 1250u * cn.new_winoff;
         cn.interval = cn.new_interval; cn.latency = cn.new_latency; cn.timeout = cn.new_timeout;
@@ -366,11 +516,11 @@ static void conn_next(int got, uint64_t sync)
     } else if (got && sync && cn.evt > 1 &&
                (int64_t)(sync + iv - SYNC_LEAD - (cn.anchor + iv)) < (int64_t)cn.win &&
                (int64_t)((cn.anchor + iv) - (sync + iv - SYNC_LEAD)) < (int64_t)cn.win) {   /* plausible sync only */
-        last_sync = sync; missed = 0;
+        last_sync = sync; missed = 0; ble_hw_idbg[6] = (uint32_t)(int32_t)((int64_t)(sync + iv - SYNC_LEAD - (cn.anchor + iv)) / 2); ble_hw_idbg[7]++;
         cn.anchor = sync + iv - SYNC_LEAD;
         cn.win = 2u * SYNC_LEAD;
     } else {
-        missed++;
+        missed++; ble_hw_idbg[3] = missed;
         cn.anchor += iv - WIDEN / 2; cn.win += WIDEN;
         if (cn.win > 2u * 1250u * 4u) cn.win = 2u * 1250u * 4u;
     }
@@ -437,6 +587,7 @@ static void service(void)
         st.events++;
         if (raw & INT_SKIP) st.skips++;
         last_end = c0;
+        if (conn_on && term_tx) { tx_reap(); if (!tx_cnt && txq_tail == txq_head) { term_tx = 0; drain(); conn_end(); goto ended; } }
         if (conn_on && (term_req || mic_fail)) { term_req = mic_fail = 0; drain(); conn_end(); }
         else if (conn_on) {
             uint32_t before = st.packets;
@@ -448,6 +599,20 @@ static void service(void)
             }
             drain(); conn_next(st.packets != before, sync);
         }
+        else if (init_on) {
+            uint32_t h0 = q_head; drain();
+            ble_hw_idbg[4]++; ble_hw_idbg[5] += (q_head + Q_N - h0) % Q_N;
+            int hit = -1;
+            for (uint32_t k = h0; k != q_head; k = (k + 1) % Q_N) if ((q[k].hdr0 & 0xF) == 0 && q[k].len >= 6 && !memcmp(q[k].data, ic.peer, 6)) hit = (int)k;
+            if (hit >= 0) { ble_hw_idbg[0] = EM16(TXD); ble_hw_idbg[1] = EM16(CS0 + 0x18); ble_hw_idbg[2] = EM16(CS0 + 0x1A); ble_hw_idbg[3]++; ble_hw_idbg[6] = EM16(CS0 + 0x1C) | (uint32_t)EM16(CS0 + 0x20) << 16; }
+#ifdef BLE_INIT_DEBUG_NOCONN
+            if (hit >= 0 && (EM16(TXD) & 0x8000)) { ble_hw_idbg[3]++; init_arm(); }
+#else
+            if (hit >= 0 && (EM16(TXD) & 0x8000)) mconn_start(&q[hit]);
+#endif
+            else if (ms_now() - ic.t_ms > 15000) init_on = 0;
+            else init_arm();
+        }
         else if (adv_on) {
             uint64_t adv_start = (uint64_t)adv_next * 625u;          /* this advert started at adv_next (fine 0x270 = slot start) */
             uint32_t h0 = q_head; drain();
@@ -457,6 +622,7 @@ static void service(void)
             if (!connected) { adv_next += adv_iv; arm_adv(); }
         }
         else if (scan_chan) arm(); else drain();
+    ended:
         st.isr_cycles += ccount() - c0;
     }
     CORE(0x0C) = BLE_MASK;

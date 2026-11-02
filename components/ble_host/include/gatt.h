@@ -42,6 +42,9 @@ void gatt_poll(uint32_t wait_us);                                               
 int  gatts_notify(const gatt_chr_t *c, const uint8_t *v, unsigned n);          /* 0 sent; < 0 not connected / not subscribed / n > MTU - 3 / link busy */
 int  gatts_indicate(const gatt_chr_t *c, const uint8_t *v, unsigned n);        /* as notify, one in flight until the central confirms */
 
+/* central role: initiate a connection to a connectable advertiser and wait for it (running gatt_poll); 0 connected, -1 busy, -2 not connected within timeout_ms */
+int gattc_connect(const uint8_t peer[6], int peer_random, uint32_t timeout_ms);
+
 /* ---- GATT client (gattc.c): the same connection, the other role. Calls block (running gatt_poll) until the answer or a 5 s timeout.
  * Return: >= 0 success (length / count), -1 not connected or timeout, -(0x100 + code) an ATT error from the server. */
 typedef struct { uint16_t svc_start, svc_end, uuid16; } gattc_svc_t;                    /* uuid16 = 0 for a 128-bit service */
