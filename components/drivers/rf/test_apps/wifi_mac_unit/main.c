@@ -2,7 +2,7 @@
  *   init | chan <n> | count <ms> <bssid>  (beacons from bssid, other frames, bad-FCS drops) | probe <bssid> <ms>  (broadcast probe request, count probe responses) */
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "rf.h"
 #include "wifi_mac.h"
 #include <stdlib.h>

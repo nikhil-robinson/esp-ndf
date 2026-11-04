@@ -5,7 +5,7 @@
 #include "sys.h"
 #include "irq.h"
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define N 20000
 

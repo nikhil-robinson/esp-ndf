@@ -78,3 +78,5 @@ int __clzdi2(uint64_t x)
 int __ctzsi2(uint32_t x) { return x ? 31 - __clzsi2(x & -x) : 32; }
 int __ctzdi2(uint64_t x) { uint32_t lo = (uint32_t)x; return lo ? __ctzsi2(lo) : 32 + __ctzsi2((uint32_t)(x >> 32)); }
 int __popcountsi2(uint32_t x) { x -= x >> 1 & 0x55555555u; x = (x & 0x33333333u) + (x >> 2 & 0x33333333u); return (int)(((x + (x >> 4)) & 0x0F0F0F0Fu) * 0x01010101u >> 24); }
+uint32_t __bswapsi2(uint32_t x) { return x >> 24 | (x >> 8 & 0xFF00u) | (x << 8 & 0xFF0000u) | x << 24; }
+uint64_t __bswapdi2(uint64_t x) { return (uint64_t)__bswapsi2((uint32_t)x) << 32 | __bswapsi2((uint32_t)(x >> 32)); }

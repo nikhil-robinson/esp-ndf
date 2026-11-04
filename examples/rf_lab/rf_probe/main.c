@@ -1,6 +1,6 @@
 /* Capture while the DAC plays: where does the capture data go? */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <stdint.h>
 #include <math.h>

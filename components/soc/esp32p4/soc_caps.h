@@ -25,6 +25,7 @@
 #endif
 #define SOC_CPENABLE_BOOT           0
 /* crypto engines: the same register layout as the S3 (drivers/crypto/*.c are shared), P4 base addresses; CPU-fed only */
+#define SOC_EFUSE_BASE              0x5012D000u   /* eFuse read registers (same block layout as the S3) */
 #define SOC_AES_BASE                0x50090000u
 #define SOC_SHA_BASE                0x50091000u
 #define SOC_RSA_BASE                0x50092000u

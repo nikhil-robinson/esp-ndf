@@ -1,7 +1,7 @@
 /* Dump engine limits: capture rate per control-bit combination (time to
  * done for n words), playback position registers, config-register effects. */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <stdint.h>
 #include "rf_pll.h"

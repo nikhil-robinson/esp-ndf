@@ -11,7 +11,10 @@ typedef struct { const char *name; uint8_t block; uint16_t pos, bits; } efuse_fi
 static uint32_t base(int block)
 {
     static const uint16_t off[11] = { 0x2C, 0x44, 0x5C, 0x7C, 0x9C, 0xBC, 0xDC, 0xFC, 0x11C, 0x13C, 0x15C };
-    return 0x60007000u + off[block];
+#ifndef SOC_EFUSE_BASE
+#define SOC_EFUSE_BASE 0x60007000u         /* ESP32-S3; the P4 (same block layout) sets it in soc_caps.h */
+#endif
+    return SOC_EFUSE_BASE + off[block];
 }
 
 uint32_t efuse_bits(int block, int pos, int len)

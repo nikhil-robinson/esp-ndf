@@ -4,7 +4,7 @@
 #include "console.h"
 #include "memprot.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 static volatile int hits, hit_bus; static volatile uint32_t hit_addr; static volatile bool hit_wr;
 static void on_viol(int core, int bus, uint32_t addr, bool wr) { (void)core; hits++; hit_bus = bus; hit_addr = addr; hit_wr = wr; }

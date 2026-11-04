@@ -7,7 +7,7 @@
 #include "console.h"
 #include "gptimer.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "heap.h"
 #include <string.h>
 #include <stdlib.h>

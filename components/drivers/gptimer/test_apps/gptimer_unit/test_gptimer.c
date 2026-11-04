@@ -31,6 +31,7 @@ static void periodic(int id, int level, uint32_t hz, bool lat, uint32_t count)
     irq_enable_all();
     uint32_t t0 = ccount();
     while (READ_ONCE(st.n) < 5000 && ccount() - t0 < 240000000) {}   /* 1 s timeout */
+#ifdef __XTENSA__                      /* diagnostic: raw interrupt / enable registers of the CPU */
     if (st.n < 5000) {
         uint32_t pend, ena;
         __asm__ volatile("rsr.interrupt %0; rsr.intenable %1" : "=r"(pend), "=r"(ena));
@@ -38,6 +39,7 @@ static void periodic(int id, int level, uint32_t hz, bool lat, uint32_t count)
                REG(0x6001F000 + (id >> 1) * 0x1000 + 0x24 * (id & 1)),
                REG(0x6001F074 + (id >> 1) * 0x1000), pend, ena, (uint32_t)gpt_get(id));
     }
+#endif
     gpt_stop(id);
     gpt_alarm_off(id);
 }

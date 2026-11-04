@@ -4,7 +4,7 @@
 #include "spin.h"
 #include "irq.h"
 
-#define FROM_CPU_REG(n)  (0x600C0030 + 4 * (n))
+#define FROM_CPU_REG(n)  XC_FROM_CPU_REG(n)
 #define SRC_FROM_CPU(n)  (79 + (n))              /* TRM interrupt table: CPU_INTR_FROM_CPU_0 = 79 */
 
 typedef struct { int (*volatile fn)(void *); void *arg; volatile int ret; } xc_call_t;
@@ -62,6 +62,12 @@ int xc_call(int core, int (*fn)(void *), void *arg, int *ret)
     return 0;
 }
 
+#if SOC_CPU_RISCV
+/* P4: PMU CPU_SW_STALL holds a stall code per core (0x86 stalls, 0xFF runs; core 0 b31:24, core 1 b23:16), IDF cpu_utility_ll */
+#include "soc.h"
+void xc_stall(int core)   { REG_FIELD(PMU_CPU_SW_STALL, core ? 16 : 24, 8, 0x86); }
+void xc_unstall(int core) { REG_FIELD(PMU_CPU_SW_STALL, core ? 16 : 24, 8, 0xFF); }
+#else
 /* stall: 0x86 split over RTC_CNTL OPTIONS0 (c0, 2 bits) and SW_CPU_STALL (c1, 6 bits), as IDF cpu_utility_ll */
 #define OPTIONS0   0x60008000u
 #define SW_STALL   0x600080BCu
@@ -76,3 +82,4 @@ void xc_unstall(int core)
     REG(OPTIONS0) &= ~(3u << (core ? 0 : 2));
     REG(SW_STALL) &= ~(0x3Fu << (core ? 20 : 26));
 }
+#endif

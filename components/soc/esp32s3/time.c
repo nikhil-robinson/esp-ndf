@@ -5,7 +5,7 @@
 #include "soc.h"
 #include "irq.h"
 #include "xcore.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 uint64_t time_ticks(void)
 {

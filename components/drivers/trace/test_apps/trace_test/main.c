@@ -3,7 +3,7 @@
 #include "console.h"
 #include "sys.h"
 #include "trace.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 static uint8_t rec[1020] __attribute__((aligned(4)));
 

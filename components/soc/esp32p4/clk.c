@@ -48,7 +48,7 @@ static uint32_t blk_version(void) { uint32_t r = REG(EFUSE_RD_MAC_SYS_2); return
 /* ---- analog register bus ------------------------------------------------ */
 static void ana_select(uint8_t block)
 {
-    static const struct { uint8_t blk, bit; } sel[] = { { I2C_DIG_REG, 10 }, { I2C_CPLL, 11 }, { I2C_BIAS, 12 } };
+    static const struct { uint8_t blk, bit; } sel[] = { { I2C_DIG_REG, 10 }, { I2C_CPLL, 11 }, { I2C_BIAS, 12 }, { 0x69, 7 } };   /* 0x69 = SAR ADC / TSENS */
     REG(ANA_CONF2) = 0;
     REG(ANA_CONF1) = 0;
     for (unsigned i = 0; i < sizeof sel / sizeof sel[0]; i++) if (sel[i].blk == block) REG_SET(ANA_CONF2, BIT(sel[i].bit));
@@ -75,6 +75,15 @@ static void ana_wr_bits(uint8_t block, uint8_t addr, int msb, int lsb, uint8_t v
 {
     uint8_t m = (uint8_t)(((1u << (msb - lsb + 1)) - 1) << lsb);
     ana_wr(block, addr, (uint8_t)((ana_rd(block, addr) & ~m) | ((v << lsb) & m)));
+}
+
+/* analog register bus for drivers (regi2c.h); the bus clock is switched on first */
+uint8_t regi2c_read(uint8_t block, uint8_t reg) { REG_SET(LPPERI_CLK_EN, BIT(27)); REG_SET(ANA_CLK160M, BIT(0)); return ana_rd(block, reg); }
+void regi2c_write(uint8_t block, uint8_t reg, uint8_t val) { REG_SET(LPPERI_CLK_EN, BIT(27)); REG_SET(ANA_CLK160M, BIT(0)); ana_wr(block, reg, val); }
+void regi2c_write_mask(uint8_t block, uint8_t reg, int msb, int lsb, uint8_t val)
+{
+    REG_SET(LPPERI_CLK_EN, BIT(27)); REG_SET(ANA_CLK160M, BIT(0));
+    ana_wr_bits(block, reg, msb, lsb, val);
 }
 
 static void ana_bus_on(void)

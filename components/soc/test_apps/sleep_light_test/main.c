@@ -11,7 +11,7 @@
 #include "gpio.h"
 #include "system.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #ifndef DRY
 #define DRY 0

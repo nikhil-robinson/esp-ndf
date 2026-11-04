@@ -5,7 +5,7 @@
 #include "gdma.h"
 #include "psram.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 static uint8_t ibuf[65536] __attribute__((aligned(64))), ibuf2[32768] __attribute__((aligned(64)));

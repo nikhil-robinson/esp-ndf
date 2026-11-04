@@ -8,7 +8,7 @@
 #include "flash.h"
 #include "cache.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 #define AREA (flash_size() - 0x100000)

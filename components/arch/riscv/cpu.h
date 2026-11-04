@@ -44,4 +44,7 @@ ALWAYS_INLINE void irq_enable_all(void)
 /* ordering between the cores / with DMA (Xtensa memw) */
 ALWAYS_INLINE void cpu_barrier(void) { __asm__ volatile("fence" ::: "memory"); }
 
+/* sleep until an interrupt */
+ALWAYS_INLINE void cpu_wait_for_irq(void) { __asm__ volatile("wfi"); }
+
 #define COOP_CTX_WORDS 26         /* coop_switch context: ra sp s0-s11 fs0-fs11 */

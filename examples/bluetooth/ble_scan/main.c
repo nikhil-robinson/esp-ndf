@@ -3,7 +3,7 @@
  * Prints the first PDUs, then per second: PDUs received and the CPU share of the interrupt. */
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "ble_hw.h"
 #ifndef SHOW
 #define SHOW 3

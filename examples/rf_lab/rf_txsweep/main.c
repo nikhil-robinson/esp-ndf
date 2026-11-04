@@ -2,7 +2,7 @@
  * +2 MHz tone and steps through field offsets (600 ms each, with a 600 ms
  * "off" marker between fields); the other board logs tone / image / DC. */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <stdint.h>
 #include <math.h>

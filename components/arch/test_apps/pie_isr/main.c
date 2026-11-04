@@ -6,7 +6,7 @@
 #include "dsp.h"
 #include "sys.h"
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define FROM_CPU(n) (0x600C0030u + 4 * (n))
 static int16_t a[4096] __attribute__((aligned(16))), b[4096] __attribute__((aligned(16)));

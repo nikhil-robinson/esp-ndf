@@ -1,6 +1,8 @@
 /* System information and control for the ESP32-P4 (same API as soc/esp32s3/system.c). */
 #include "system.h"
 #include "clk.h"
+#include "efuse.h"
+#include "flash.h"
 #include "console.h"
 #include "soc.h"
 
@@ -32,10 +34,17 @@ const char *sys_reset_cause_str(int c)
     }
 }
 
-/* ponytail: eFuse (revision, MAC) and flash fields stay 0 until the P4 eFuse and flash drivers exist */
 void sys_info(sys_info_t *i)
 {
     *i = (sys_info_t){ .model = "ESP32-P4", .cores = SOC_CPU_CORES };
+    i->rev_major = (uint8_t)(efuse_get("WAFER_VERSION_MAJOR_HI") << 2 | efuse_get("WAFER_VERSION_MAJOR_LO"));
+    i->rev_minor = (uint8_t)efuse_get("WAFER_VERSION_MINOR");
+    i->package = (uint8_t)efuse_get("PKG_VERSION");
+    efuse_mac(i->mac);
+    i->flash_id = flash_jedec_id();
+    i->flash_size = flash_size();
+    i->flash_cached = flash_cached();
+    i->flash_lines = (uint8_t)flash_read_lines();
     i->cpu_hz = clk_cpu_hz();
     i->apb_hz = clk_apb_hz();
     i->reset_cause[0] = (uint8_t)sys_reset_cause(0);
@@ -46,7 +55,10 @@ void sys_print_info(void)
 {
     sys_info_t i;
     sys_info(&i);
-    printf("\nesp-ndf | %s, %d cores | CPU %lu MHz, APB %lu MHz\n", i.model, i.cores, i.cpu_hz / 1000000, i.apb_hz / 1000000);
+    printf("\nesp-ndf | %s rev v%d.%d pkg %d, %d cores, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+           i.model, i.rev_major, i.rev_minor, i.package, i.cores, i.mac[0], i.mac[1], i.mac[2], i.mac[3], i.mac[4], i.mac[5]);
+    printf("        CPU %lu MHz, APB %lu MHz | flash %06lx %lu MB, %s\n", i.cpu_hz / 1000000, i.apb_hz / 1000000,
+           i.flash_id, i.flash_size >> 20, i.flash_cached ? "cached reads" : "SPI1 reads");
     printf("        reset: core0 %s, core1 %s\n", sys_reset_cause_str(i.reset_cause[0]), sys_reset_cause_str(i.reset_cause[1]));
 }
 

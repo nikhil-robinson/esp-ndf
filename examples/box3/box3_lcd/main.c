@@ -3,7 +3,7 @@
 #include "lcd.h"
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 static const lcd_init_cmd_t box3_init[] = {           /* vendor sequence, as the BSP sends it */
     { 0xC8, 3, 0, { 0xFF, 0x93, 0x42 } },

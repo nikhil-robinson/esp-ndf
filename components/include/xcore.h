@@ -104,10 +104,11 @@ static inline void xc_spin_unlock(xc_spin_t *l) { l->owner = 0; xc_barrier(); l-
 int  xc_notify_init(void (*fn)(void *), void *arg, int level);
 /* Interrupt the other core (core = target). */
 #if SOC_CPU_RISCV
-static inline void xc_notify(int core) { REG(0x500E5010 + 4 * core) = 1; }   /* P4 HP_SYSTEM_CPU_INT_FROM_CPU_n */
+#define XC_FROM_CPU_REG(n)  (0x500E5010 + 4 * (n))   /* P4 HP_SYSTEM_CPU_INT_FROM_CPU_n */
 #else
-static inline void xc_notify(int core) { REG(0x600C0030 + 4 * core) = 1; }
+#define XC_FROM_CPU_REG(n)  (0x600C0030 + 4 * (n))   /* S3 SYSTEM_CPU_INTR_FROM_CPU_n */
 #endif
+static inline void xc_notify(int core) { REG(XC_FROM_CPU_REG(core)) = 1; }
 
 /* Cross-core call (esp_ipc_call_blocking): run fn(arg) on core, in its notify interrupt, and wait. The target calls
  * xc_call_init once (shares the notify interrupt: an xc_notify_init handler still runs). fn must be short and must

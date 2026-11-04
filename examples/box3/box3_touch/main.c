@@ -3,7 +3,7 @@
 #include "gt911.h"
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 int main(void)
 {

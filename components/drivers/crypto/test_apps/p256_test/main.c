@@ -3,7 +3,7 @@
 #include "console.h"
 #include "p256.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include "p256/vectors.h"
 

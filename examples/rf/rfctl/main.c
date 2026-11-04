@@ -2,7 +2,7 @@
  * measurements (tools/rf/rfhost.py). Every command answers with result lines and
  * then "ok" (or "err ..."). Frequencies in Hz are in the true spectrum. */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include "tsens.h"
 #include "regi2c.h"

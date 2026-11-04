@@ -4,7 +4,7 @@
 #include "regi2c.h"
 #include "sys.h"
 #include "system.h"
-#include "xtensa.h"
+#include "cpu.h"
 int main(void)
 {
     uint32_t raw = REG(0x60008038u) & 0x3F, bo = REG(0x600080E8u);

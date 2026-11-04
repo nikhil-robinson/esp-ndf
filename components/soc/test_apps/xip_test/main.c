@@ -7,7 +7,7 @@
 #include "sys.h"
 #include "cache.h"
 #include "flash.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 #define XK_ATTR RAM_FN

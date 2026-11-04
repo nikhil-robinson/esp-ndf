@@ -4,9 +4,29 @@
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: the same GP-SPI block (registers at the same offsets); other base, matrix signals, function clock */
+#include "soc.h"
+#define B(h)          ((h) == 2 ? 0x500D0000 : 0x500D1000)
+/* function clock from SPLL 480 MHz (src 4): hs_div 3 -> 160 MHz, mst_div 2 -> 80 MHz, as the S3's 80 MHz PLL clock
+ * (IDF spi_ll_set_clk_source / spi_ll_clk_source_pre_div; HP_SYS_CLKRST PERI_CLK_CTRL116 / 117) */
+static void spi_fclk(int h)
+{
+    if (h == 2) {
+        REG_FIELD(HP_CLKRST_BASE + 0x80, 0, 3, 4);
+        REG_FIELD(HP_CLKRST_BASE + 0x80, 4, 8, 3 - 1);
+        REG_FIELD(HP_CLKRST_BASE + 0x80, 12, 8, 2 - 1);
+    } else {
+        REG_FIELD(HP_CLKRST_BASE + 0x80, 21, 3, 4);
+        REG_FIELD(HP_CLKRST_BASE + 0x84, 0, 8, 3 - 1);
+        REG_FIELD(HP_CLKRST_BASE + 0x84, 8, 8, 2 - 1);
+    }
+}
+#else
 #define B(h)          ((h) == 2 ? 0x60024000 : 0x60025000)
+static void spi_fclk(int h) { (void)h; }
+#endif
 #define CMD(h)        (B(h) + 0x00)   /* b24 usr (start) b23 update */
 #define ADDR(h)       (B(h) + 0x04)
 #define CTRL(h)       (B(h) + 0x08)   /* b5-7 faddr dual/quad/oct b8-10 fcmd b14-16 fread */
@@ -30,8 +50,13 @@
 #define FIFO_RST      (BIT(29) | BIT(30) | BIT(31))
 
 typedef struct { uint8_t clk, mosi, miso, cs; uint8_t io[8]; } sig_t;
+#if SOC_CPU_RISCV
+static const sig_t sig[2] = { { 53, 55, 54, 62, { 55, 54, 57, 56, 58, 59, 60, 61 } },          /* SPI2: D Q WP HD IO4-7 */
+                              { 47, 49, 48, 52, { 49, 48, 51, 50, 0, 0, 0, 0 } } };            /* SPI3: quad only */
+#else
 static const sig_t sig[2] = { { 101, 103, 102, 110, { 103, 102, 105, 104, 106, 107, 108, 109 } },   /* SPI2: D Q WP HD IO4-7 */
                               { 66, 68, 67, 71, { 68, 67, 70, 69, 0, 0, 0, 0 } } };            /* SPI3: quad only */
+#endif
 #define S(h) sig[(h) - 2]
 
 static int dma_ch[2] = { -1, -1 };
@@ -54,6 +79,7 @@ uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t h
         if (div % p == 0 && div / p <= 64) { pre = p; n = div / p; break; }
     if (!pre) return 0;
     periph_enable(h == 2 ? PERIPH_SPI2 : PERIPH_SPI3);
+    spi_fclk(h);
     REG(CLK_GATE(h)) = BIT(0) | BIT(1) | BIT(2);
     REG(SLAVE(h)) = 0;
     REG(CLOCK(h)) = div == 1 ? BIT(31)
@@ -217,6 +243,7 @@ int spi_slave_hd_init(int h, int sclk, int cs, const int8_t io[4], int mode)
     if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (h != 2 && h != 3) return -1;
     periph_enable(h == 2 ? PERIPH_SPI2 : PERIPH_SPI3);
+    spi_fclk(h);
     REG(CLK_GATE(h)) = BIT(0);
     REG(CLOCK(h)) = 0; REG(USER(h)) = 0; REG(CTRL(h)) = 0;
     REG(SLAVE(h)) = BIT(27);
@@ -334,6 +361,7 @@ int spi_slave_init(int h, int sclk, int mosi, int miso, int cs, int mode)
     if (!(h == 2 || h == 3)) return -1;      /* caller index: never past the hardware */
     if (h != 2 && h != 3) return -1;
     periph_enable(h == 2 ? PERIPH_SPI2 : PERIPH_SPI3);
+    spi_fclk(h);
     REG(CLK_GATE(h)) = BIT(0);
     REG(CLOCK(h)) = 0;
     REG(CTRL(h)) = 0;

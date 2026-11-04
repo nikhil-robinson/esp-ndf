@@ -4,7 +4,7 @@
 #include "aes.h"
 #include "rng.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include <stdlib.h>
 

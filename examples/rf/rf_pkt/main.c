@@ -3,7 +3,7 @@
  *   rx mhz rate sync flags gain ms         receive for ms: good / CRC-bad packets, wrong bytes, RSSI, CPU
  *   stop | limits min_khz max_khz */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include "rf.h"
 #include "psram.h"

@@ -2,7 +2,7 @@
  * dump engine at forced gains, then DAC playback + capture together. Same
  * output format as bench/idf_rfrx (vendor and ours on IDF, same board). */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <math.h>
 #include <stdint.h>

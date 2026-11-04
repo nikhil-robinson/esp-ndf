@@ -2,7 +2,7 @@
  * D0 (rf_cal app) sends a tone at 2440 MHz + 1 MHz; C9:48 captures at LO 2440 MHz. */
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "psram.h"
 #include "rf.h"
 #include <math.h>

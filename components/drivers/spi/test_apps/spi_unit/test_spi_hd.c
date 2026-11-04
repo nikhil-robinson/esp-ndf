@@ -83,7 +83,7 @@ static void capture(void)                                /* core 1: sample GPIO_
         prev = ck;
     }
     cap_go = 0;
-    while (1) __asm__ volatile("waiti 0");
+    while (1) cpu_wait_for_irq();
 }
 
 static bool octal(void)
