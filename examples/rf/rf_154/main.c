@@ -1,6 +1,6 @@
 /* 4.3: transmit an IEEE 802.15.4 O-QPSK frame as a DAC waveform (rf.h: rf_154_build + rf_tx_play).
  * The S3 has no 802.15.4 radio; this plays the synthesised baseband on channel 11 (2405 MHz) and
- * loops it. The waveform is built in PSRAM. Verify by IQ capture on the sibling board (tools/rf_154_test.py).
+ * loops it. The waveform is built in PSRAM. Verify by IQ capture on the sibling board (tools/rf/rf_154_test.py).
  *   tx        build the frame and loop the waveform
  *   stop      stop transmitting */
 #include "console.h"

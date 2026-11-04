@@ -1,4 +1,4 @@
-/* rf_pkt: the hardware packet engine (rf.h) driven by line commands, for tools/rf_pkt_test.py (two boards).
+/* rf_pkt: the hardware packet engine (rf.h) driven by line commands, for tools/rf/rf_pkt_test.py (two boards).
  *   send mhz rate sync flags len count     payload 00 01 02 ...; count 0 = continuous; prints packets/s over 1 s
  *   rx mhz rate sync flags gain ms         receive for ms: good / CRC-bad packets, wrong bytes, RSSI, CPU
  *   stop | limits min_khz max_khz */

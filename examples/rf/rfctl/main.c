@@ -1,5 +1,5 @@
 /* rfctl: the radio driven by line commands over the console, for host-scripted
- * measurements (tools/rfhost.py). Every command answers with result lines and
+ * measurements (tools/rf/rfhost.py). Every command answers with result lines and
  * then "ok" (or "err ..."). Frequencies in Hz are in the true spectrum. */
 #include "console.h"
 #include "xtensa.h"

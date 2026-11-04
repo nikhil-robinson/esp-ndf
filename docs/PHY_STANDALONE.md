@@ -516,7 +516,7 @@ All levels are relative dB at the receiving board (no calibrated power meter or 
     - the digital gain bytes 0x60006014..30: a signed attenuator, 0x80 = −25 dB to 0xF0 = 0 dB, about 0.2 dB per step; positive values cost about 2 dB.
   - pbus-memory word 19 (0x0044FFFF) is the TX state's PA enable: only values with bits 7:4 all set transmit.
   - Combined TX + RX response vs frequency: peak around 2380–2420 MHz, −10 dB at about 2320 / 2520 MHz, −35 dB at 2240 / 2700 MHz.
-- **Note:** two sessions came up with no link out of about 30 (cause unknown: TX or RX side). `tools/rfhost.link()` checks the level and re-initialises, logging each case.
+- **Note:** two sessions came up with no link out of about 30 (cause unknown: TX or RX side). `tools/rf/rfhost.link()` checks the level and re-initialises, logging each case.
 - **A.4, where the samples can go** (`examples/rf_lab/rf_dma`):
   - The dump engine writes only SRAM banks 0..2 (0x600C101C[3:0]; bank 3 holds ROM data). It has no descriptor interface and cannot target PSRAM.
   - Moving the stream out:
@@ -539,13 +539,13 @@ All levels are relative dB at the receiving board (no calibrated power meter or 
 - Range offset 0 (DAC 15) saturates near 91 °C, so `tsens_read_c` switches to DAC 7 above 75 °C.
 - After a range change, the first conversion is stale and must be discarded.
 
-**Crystal offset** (D0 against C9:48, `bench/rfmeas/xtal_vs_temp.csv`, `tools/meas_xtal.py`):
+**Crystal offset** (D0 against C9:48, `bench/rfmeas/xtal_vs_temp.csv`, `tools/rf/meas_xtal.py`):
 - The tone frequency comes from the phase slope (`rfctl freq`).
 - D0 reads −2.30 ppm at 84 °C and −1.58 ppm at 113 °C while it transmits, about +0.025 ppm/°C.
 - Trim: offsetting the tune by the measured error leaves about 0.7 kHz at 2.4 GHz.
 
 ### C. Characterisation
-All values are relative, at about 10 cm, with no calibrated instruments. Raw data is in `bench/rfmeas/c_*.csv`, from `tools/meas_c.py`. Hann window, N 16383, RBW 7.3 kHz.
+All values are relative, at about 10 cm, with no calibrated instruments. Raw data is in `bench/rfmeas/c_*.csv`, from `tools/rf/meas_c.py`. Hann window, N 16383, RBW 7.3 kHz.
 
 **LO skirt** (TX and RX LOs combined, so an upper bound on either):
 

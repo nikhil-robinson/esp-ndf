@@ -1143,7 +1143,7 @@ the CPU at 240 MHz while a task runs (scaling happens in its idle task only).
 
 JEDEC c86018, 16 MB, SFDP, quad (QE method 1), suspend 75/7a, 120 MHz: erase / write / read all PASS with data
 checked; with core 1 running flash code during a 64 KB erase + 4 KB write the longest core-1 pause is 215-284 us
-(suspend), no wrong data. bench/flash_box3_result.txt.
+(suspend), no wrong data. bench/data/flash_box3_result.txt.
 
 ## PFS power-safe filesystem vs esp_littlefs (`periph_test` pfs vs `bench/idf_littlefs`, C9:D0, 2026-10-25)
 

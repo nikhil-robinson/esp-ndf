@@ -4,7 +4,7 @@ ADC noise-limited ENOB, PLL lock range on both boards. Writes bench/rfmeas/c_*.c
 Setup as rfhost.link(): D0 sends a +2 MHz DAC tone on a 2437 MHz LO, C9:48 receives on 2436 MHz (tone at +3 MHz)."""
 import math, os, rfhost
 
-OUT = os.path.join(os.path.dirname(__file__), '..', 'bench', 'rfmeas')
+OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'bench', 'rfmeas')
 N = 16383
 RBW = 1.5 * 80e6 / N                               # Hann noise bandwidth
 

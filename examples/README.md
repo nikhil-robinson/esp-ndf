@@ -39,11 +39,11 @@ see [docs/TESTING.md](../docs/TESTING.md).
 | Example | What it shows |
 |---|---|
 | [`rf_154`](rf/rf_154) | 4.3: transmit an IEEE 802.15.4 O-QPSK frame as a DAC waveform (rf.h: rf_154_build + rf_tx_play). |
-| [`rf_cal`](rf/rf_cal) | rf_cal: the calibration store, driven by line commands (tools/rf_cal_test.py). open | close | erase | tone khz offset_khz | dcres (RX DC residual at gain indices... |
-| [`rf_pkt`](rf/rf_pkt) | rf_pkt: the hardware packet engine (rf.h) driven by line commands, for tools/rf_pkt_test.py (two boards). send mhz rate sync flags len count     payload 00 01 02 ...;... |
+| [`rf_cal`](rf/rf_cal) | rf_cal: the calibration store, driven by line commands (tools/rf/rf_cal_test.py). open | close | erase | tone khz offset_khz | dcres (RX DC residual at gain indices... |
+| [`rf_pkt`](rf/rf_pkt) | rf_pkt: the hardware packet engine (rf.h) driven by line commands, for tools/rf/rf_pkt_test.py (two boards). send mhz rate sync flags len count     payload 00 01 02 ...;... |
 | [`rf_test`](rf/rf_test) | Blob-free radio on esp-ndf: our PHY init (replay), PLL, receive with the dump engine at forced gains, then DAC playback + capture together. |
 | [`rf_wifi`](rf/rf_wifi) | 4.2: raw 802.11 over the Wi-Fi MAC from our own code (rf.h: rf_wifi_*), no vendor stack. |
-| [`rfctl`](rf/rfctl) | rfctl: the radio driven by line commands over the console, for host-scripted measurements (tools/rfhost.py). |
+| [`rfctl`](rf/rfctl) | rfctl: the radio driven by line commands over the console, for host-scripted measurements (tools/rf/rfhost.py). |
 | [`rfctl_uart`](rf/rfctl_uart) |  |
 
 ## Radio bring-up and measurement experiments

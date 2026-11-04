@@ -59,7 +59,7 @@ the host serial loop, not the radio). How it works:
 Receive and the firmware API are complete. `components/drivers/rf/rf_wifi.c` +
 `components/drivers/rf/rf_wifi_regs.h` (generated register tables), exposed in `components/include/rf.h`
 as `rf_wifi_tx_init` / `rf_wifi_tx` / `rf_wifi_rx_init` / `rf_wifi_rx`, example
-`examples/rf/rf_wifi`, host driver `tools/rf_wifi_test.py`, documented in
+`examples/rf/rf_wifi`, host driver `tools/rf/rf_wifi_test.py`, documented in
 `docs/RF_API.md`. Firmware-only path (no host replay): 5906/5906 received frames
 were ours, len 100, ~984/s (`bench/rfmeas/wifi_rx_42.txt`). RX ring: descriptors
 word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes length;
@@ -68,7 +68,7 @@ word0/word3 `0x80640000|bufsize` (owner bit 31), MAC clears owner + writes lengt
 ## 4.3 — 802.15.4  (DONE, transmit only)
 
 `components/drivers/rf/rf_154.c` (`rf_154_build` in `rf.h`), `examples/rf/rf_154`,
-`tools/rf_154_test.py`. Synthesises the O-QPSK/DSSS baseband (2 Mchip/s, 32-chip
+`tools/rf/rf_154_test.py`. Synthesises the O-QPSK/DSSS baseband (2 Mchip/s, 32-chip
 PN per 4-bit symbol, half-sine pulse, Q offset half a chip) and plays it at
 40 MS/s via `rf_tx_play` on channel 11. Verified on the sibling board: capture
 IQ, matched-filter, correlate chips vs the PN table — a run of 8 identical

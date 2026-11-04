@@ -1,5 +1,5 @@
 /* Test of the public RF API (components/include/rf.h) on C9:48, with D0 running rfctl as the other end
- * (tools/rf_api_test.py drives both). Prints "STEP n" when the host must act, "PASS"/"FAIL" lines. */
+ * (tools/rf/rf_api_test.py drives both). Prints "STEP n" when the host must act, "PASS"/"FAIL" lines. */
 #include "console.h"
 #include "sys.h"
 #include "xtensa.h"

@@ -1,4 +1,4 @@
-/* rf_cal: the calibration store, driven by line commands (tools/rf_cal_test.py).
+/* rf_cal: the calibration store, driven by line commands (tools/rf/rf_cal_test.py).
  *   open | close | erase | tone khz offset_khz | dcres (RX DC residual at gain indices 0/30/60/90/127, terminated input not needed: mean of 4096 samples) */
 #include "console.h"
 #include "xtensa.h"

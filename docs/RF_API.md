@@ -17,7 +17,7 @@ The public interface to the ESP32-S3 radio in esp-ndf. No vendor blobs. Every ca
 | Samples | `rf_sample_i`, `rf_sample_q`, `rf_sample_word` | 10-bit signed I/Q; `rf_sample_q` corrects the inverted raw Q |
 
 ## Test
-`components/drivers/rf/test_apps/rf_api_test` on C9:48, with D0 running `rfctl`, driven by `tools/rf_api_test.py`.
+`components/drivers/rf/test_apps/rf_api_test` on C9:48, with D0 running `rfctl`, driven by `tools/rf/rf_api_test.py`.
 
 All checks pass:
 - RX sees D0's tone 42 dB above the floor.
@@ -260,7 +260,7 @@ Measured (bench/rfmeas/sched_timing.txt). D0 schedules packets at t0 + k·period
 - **TX DC:** the first `rf_tx_start` runs the TX DC calibration and stores it.
 - **Temperature trigger:** `rf_cal_check()` recalibrates and stores when the die has moved more than 15 °C.
 
-Measured on D0 with `tools/rf_cal_test.py` (bench/rfmeas/rf_cal_test.txt), 6/6 pass:
+Measured on D0 with `tools/rf/rf_cal_test.py` (bench/rfmeas/rf_cal_test.txt), 6/6 pass:
 
 | | Cold (calibrate + store) | Warm (load) |
 |---|---|---|
@@ -318,7 +318,7 @@ Measured with C9:48 capturing D0's tone (bench/rfmeas/psram_capture.txt):
 
 ## 4.2 Raw 802.11 over the Wi-Fi MAC (`rf_wifi_tx`, `rf_wifi_rx`)
 
-`components/drivers/rf/rf_wifi.c`, example `examples/rf/rf_wifi`, host driver `tools/rf_wifi_test.py`.
+`components/drivers/rf/rf_wifi.c`, example `examples/rf/rf_wifi`, host driver `tools/rf/rf_wifi_test.py`.
 Builds and sends / receives 802.11 frames directly through the Wi-Fi MAC descriptor
 path on channel 6 (2437 MHz) — our own code, no vendor Wi-Fi stack.
 
@@ -341,7 +341,7 @@ the MAC clears the owner and writes the length when a frame lands. RX control he
 
 ## 4.3 802.15.4 O-QPSK by DAC waveform (`rf_154_build`)
 
-`components/drivers/rf/rf_154.c`, example `examples/rf/rf_154`, host `tools/rf_154_test.py`.
+`components/drivers/rf/rf_154.c`, example `examples/rf/rf_154`, host `tools/rf/rf_154_test.py`.
 The S3 has no 802.15.4 radio, so `rf_154_build(psdu, len, out, max)` synthesises the
 O-QPSK/DSSS baseband at 40 MS/s (2 Mchip/s, 32-chip PN per 4-bit symbol, half-sine pulse,
 Q offset half a chip) for preamble+SFD+PHR+PSDU; play it with `rf_tx_play` (looped) on

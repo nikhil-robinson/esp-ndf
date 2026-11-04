@@ -1,5 +1,5 @@
 /* 4.2: raw 802.11 over the Wi-Fi MAC from our own code (rf.h: rf_wifi_*), no vendor stack.
- * Two boards: one runs "tx", the other "rx" (tools/rf_wifi_test.py drives both).
+ * Two boards: one runs "tx", the other "rx" (tools/rf/rf_wifi_test.py drives both).
  *   tx [count]   send our tagged frame count times (0 = continuous for ~15 s)
  *   rx [ms]      receive into our own buffers; print the first frames and a count */
 #include "console.h"
