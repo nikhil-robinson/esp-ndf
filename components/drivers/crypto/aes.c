@@ -6,7 +6,7 @@
 #include <string.h>
 #include <strings.h>
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define AES_BASE    0x6003A000
 #define AES_KEY(i)  (AES_BASE + 0x00 + 4 * (i))

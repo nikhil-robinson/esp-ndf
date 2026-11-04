@@ -8,7 +8,7 @@
 #include "flash.h"
 #include "crc32.h"
 #include "rng.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 #define SEC         FLASH_SECTOR

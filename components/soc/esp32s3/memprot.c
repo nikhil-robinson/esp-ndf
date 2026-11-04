@@ -2,7 +2,7 @@
  * IRAM0 and DRAM0-DMA lines; IRAM0 area 0 RX, area 3 none; DRAM0 area 0 R, areas 1-3 RW; I-cache memory none. */
 #include "memprot.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <stdio.h>
 
 #define S(o)            (0x600C1000u + (o))

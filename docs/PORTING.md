@@ -9,7 +9,10 @@ esp-ndf is layered so that a new chip or CPU replaces one directory, not the dri
 | peripherals | `components/drivers/*/` | register-level drivers (UART, SPI, I2S, RMT, ...) | registers moved / fields changed |
 | libraries | `lib/` | libc, float/double runtime, DSP, NN, crypto math, time, events, REPL, tests, coop tasks | nothing (portable C; accelerated paths behind capability flags) |
 
-Build selection: `make SOC=<chip> ARCH=<arch>` (`Makefile` picks `arch/$(ARCH)` and `soc/$(SOC)`).
+Build selection: `make SOC=<chip>`; `soc/<chip>/soc.mk` sets `ARCH`, the toolchain, the compiler flags, the driver
+sources (`SOC_DRIVER_SRCS`), the lib files left out (`SOC_LIB_EXCLUDE`) and the flash address of the image. Objects go to
+`build/` for the S3 and `build-<chip>/` for others. Shared code includes `cpu.h` (never `xtensa.h`) for `ccount`,
+`core_id` and `irq_lock`.
 
 ## Capability flags (`components/soc/<chip>/soc_caps.h`)
 
@@ -37,6 +40,6 @@ of that ABI, and the fault handler + unwinder. Everything above (drivers, lib) s
 
 ## What is S3-only today
 
-The register maps in `drivers/` are the ESP32-S3's; DSP/NN assembly is Xtensa + PIE (with C fallbacks); the RF
-drivers (`components/drivers/rf`) are S3 radio specific. No second chip has been brought up yet, so this guide is the plan
-the layering was built for, checked only by the NO_ACCEL build.
+The register maps in `drivers/<x>/*.c` are the ESP32-S3's; DSP/NN assembly is Xtensa + PIE (with C fallbacks); the RF
+drivers (`components/drivers/rf`) are S3 radio specific. The second chip, the ESP32-P4 (RISC-V), is in progress:
+[P4.md](P4.md) (CPU layer `arch/riscv`, chip layer `soc/esp32p4`, drivers in `drivers/<x>/esp32p4/`).

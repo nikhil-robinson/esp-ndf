@@ -5,7 +5,7 @@
 #include "rtcclk.h"
 #include "rtcio.h"
 #include "regi2c.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "clk.h"
 #include "cache.h"
 #include "xcore.h"

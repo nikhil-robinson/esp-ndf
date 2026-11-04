@@ -3,7 +3,7 @@
 #include "rtcclk.h"
 #include "clk.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define CLK_CONF    0x60008074u   /* b31:30 slow src, b29 fast src, b9 8M/256 digi, b8 XTAL32K digi, b7 !8M div, b6 !8M */
 #define EXT_XTL     0x60008060u   /* XTAL32K: b23 gpio sel (ext osc), b19:17 dac, b16 xpd, b15:13 dres, b12:10 dgm,

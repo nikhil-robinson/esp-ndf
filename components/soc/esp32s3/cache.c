@@ -8,7 +8,7 @@
 #include "cache.h"
 #include "flash.h"
 #include "soc.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define ICACHE_CTRL       0x600C4060u      /* b0 enable, b1 8-way, b2 32 KB, b3 32-byte lines */
 #define ICACHE_CTRL1      0x600C4064u      /* b0 / b1: instruction bus of core 0 / 1 shut */

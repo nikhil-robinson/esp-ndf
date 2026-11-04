@@ -5,7 +5,7 @@
 #include "wdt.h"
 #include "sys.h"
 #include "system.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "boot/rtc_boot.h"
 
 RTC_DATA_ATTR uint32_t boots;

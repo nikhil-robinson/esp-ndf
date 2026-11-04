@@ -25,7 +25,12 @@
 #define CFG_ALARM    BIT(10)
 #define CFG_XTAL     BIT(9)
 
-static const uint8_t src[GPT_COUNT] = { 50, 51, 53, 54 };
+#ifndef GPT_SRCS                                   /* chip hooks (drivers/gptimer/esp32p4/gptimer.c sets its own) */
+#define GPT_SRCS { 50, 51, 53, 54 }
+#define GPT_APB_HZ 80000000u                        /* 0: no APB source */
+#define GPT_CLK_SEL(id, xtal) ((xtal) ? CFG_XTAL : 0)   /* config bits for the source */
+#endif
+static const uint8_t src[GPT_COUNT] = GPT_SRCS;
 
 typedef struct { irq_fn_t fn; void *arg; int cpu_int; bool periodic; } gpt_t;
 static gpt_t gpt[GPT_COUNT];
@@ -35,15 +40,17 @@ uint32_t gpt_init(int id, uint32_t hz)
     if (!(id >= 0 && id < GPT_COUNT)) return 0;      /* caller index: never past the hardware */
     if (id < 0 || id >= GPT_COUNT || !hz) return 0;
     uint32_t base, div;
-    if (80000000 % hz == 0 && (div = 80000000 / hz) >= 2 && div <= 65536) base = 0;
-    else if (40000000 % hz == 0 && (div = 40000000 / hz) >= 2 && div <= 65536) base = CFG_XTAL;
+    bool xtal;
+    if (GPT_APB_HZ && GPT_APB_HZ % hz == 0 && (div = GPT_APB_HZ / hz) >= 2 && div <= 65536) xtal = false;
+    else if (40000000 % hz == 0 && (div = 40000000 / hz) >= 2 && div <= 65536) xtal = true;
     else return 0;                                  /* no exact divider: refuse, don't round */
     periph_enable((id >> 1) ? PERIPH_TIMG1 : PERIPH_TIMG0);
     REG_SET(G_REGCLK(id), BIT(31));
     REG(T_CONFIG(id)) = 0;
+    base = GPT_CLK_SEL(id, xtal);
     REG(T_CONFIG(id)) = base | CFG_INC | (div & 0xFFFF) << 13;  /* 65536 encodes as 0 */
     gpt_set(id, 0);
-    return (base ? 40000000 : 80000000) / div;
+    return (xtal ? 40000000 : GPT_APB_HZ) / div;
 }
 
 void gpt_start(int id) { REG_SET(T_CONFIG(id), CFG_EN); }

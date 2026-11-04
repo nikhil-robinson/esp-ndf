@@ -3,7 +3,7 @@
 static int dn_grade = -1, dn_cap;                          /* touch_denoise(), applied by touch_init */
 #include "sys.h"
 #include "rtc_irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define CTRL1      0x60008108   /* b15:0 sleep cycles b31:16 meas num */
 #define CTRL2      0x6000810C   /* b3:2 drange b5:4 drefl b7:6 drefh b13 slp_timer b16 start_force b24:17 xpd_wait b28:27 force_done b29 reset b31 clkgate */

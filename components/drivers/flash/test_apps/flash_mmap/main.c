@@ -1,7 +1,7 @@
 /* Probe: reading flash through the data cache + MMU instead of SPI1 registers. */
 #include "flash.h"
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 #define DCACHE_CTRL   0x600C4000

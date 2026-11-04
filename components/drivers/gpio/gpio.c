@@ -4,7 +4,7 @@
 #include "flash.h"
 #include "clk.h"
 #include "soc.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define GPIO_ENABLE_W1TC   (GPIO_BASE + 0x028)
 #define GPIO_ENABLE1_W1TS  (GPIO_BASE + 0x030)

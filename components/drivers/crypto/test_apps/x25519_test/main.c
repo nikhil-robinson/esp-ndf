@@ -2,7 +2,7 @@
 #include "console.h"
 #include "x25519.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include "x25519/vectors.h"
 

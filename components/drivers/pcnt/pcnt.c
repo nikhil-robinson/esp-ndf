@@ -6,7 +6,7 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define PCNT_BASE      0x60017000
 #define U_CONF0(u)     (PCNT_BASE + 0x0C * (u) + 0x0)   /* b9:0 filter b10 filt_en b12 h_lim b13 l_lim, ch0 b23:16, ch1 b31:24 */

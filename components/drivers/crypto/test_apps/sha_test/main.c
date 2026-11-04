@@ -2,7 +2,7 @@
  * two interleaved contexts, speed for 64 B .. 64 KB. */
 #include "console.h"
 #include "sha.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include <stdlib.h>
 #include "sys.h"

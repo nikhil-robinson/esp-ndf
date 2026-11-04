@@ -4,7 +4,7 @@
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <string.h>
 

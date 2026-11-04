@@ -1,0 +1,71 @@
+/* ESP32-P4 (v3.x) image, run through the C preprocessor (NDF_* from the Makefile).
+ * HP L2MEM 0x4FF00000-0x4FFC0000 (768 KB) is one RWX space for code and data. Its low end is the L2 cache (size set at
+ * boot, up to 512 KB while the ROM runs) and the ROM's own data starts at 0x4FFBCFC0 (IDF bootloader.memory.ld.in,
+ * bootloader_usable_dram_end for v3), so everything the ROM loads (code, data) goes into ROM_LO..ROM_HI. .bss and the
+ * stacks go below it, into 0x4FF20000..ROM_LO, which becomes plain memory once sys_start0 has set the L2 cache to
+ * 128 KB (cache.c) - before anything touches .bss or the stacks. Heap: the rest of both.
+ * ponytail: TCM 0x30100000 (8 KB, zero wait) is unused; move irq_entry there (copied at boot, esptool must not see it
+ * as a load segment) once the board shows L2 fetch latency in irq_latency. */
+#define ROM_LO  0x4FF80000
+#define ROM_HI  0x4FFBCFC0
+#define L2_FREE_LO 0x4FF20000      /* above a 128 KB L2 cache */
+ENTRY(_start0)
+
+MEMORY
+{
+    sram (RWX) : ORIGIN = ROM_LO, LENGTH = ROM_HI - ROM_LO
+    sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = ROM_LO - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
+    lpram (RW) : ORIGIN = 0x50108000 + 0x40, LENGTH = 0x7A80 - 0x40   /* LP RAM below the LP ROM data (0x5010FA80); first 64 B: notes */
+}
+
+SECTIONS
+{
+    _flash_text_start = 0; _flash_text_end = 0;     /* no XIP yet on the P4 */
+
+    .text : {
+        KEEP(*(.iram.text .iram.text.*))            /* entry and _trap_vec (64-byte aligned) */
+        *(.text .text.*)
+        . = ALIGN(16);
+        _text_end = .;
+    } > sram
+
+    .data : {
+        *(.rodata .rodata.* .srodata .srodata.*)
+        . = ALIGN(4);
+        __global_pointer$ = . + 0x800;
+        *(.data .data.* .sdata .sdata.*)
+        . = ALIGN(4);
+        __init_array_start = .;
+        KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*)))
+        KEEP(*(.init_array .ctors))
+        __init_array_end = .;
+        . = ALIGN(4);
+        __cmd_start = .;  KEEP(*(SORT_BY_NAME(.ndf_reg.cmd.*)))  __cmd_end = .;    /* cmd.h */
+        __test_start = .; KEEP(*(SORT(.ndf_reg.test.*)))         __test_end = .;   /* unit.h, by name */
+        _data_end = .;
+    } > sram
+
+    .bss (NOLOAD) : ALIGN(16) {
+        _bss_start = .;
+        *(.sbss .sbss.* .bss .bss.* COMMON)
+        . = ALIGN(4);
+        _bss_end = .;
+        . = ALIGN(16); _stack0_bot = .; . += NDF_STACK0_SIZE; _stack0_top = .;
+        . = ALIGN(16); _stack1_bot = .; . += NDF_STACK1_SIZE; _stack1_top = .;
+    } > sram_lo
+    _heap_start = _data_end;
+    _heap_end = ROM_HI;
+    _heap2_start = _stack1_top;
+    _heap2_end = ROM_LO;
+
+    .rtc.data : { _rtc_data_start = .; *(.rtc.data .rtc.data.*) . = ALIGN(4); _rtc_data_end = .; } > lpram
+    .rtc.bss (NOLOAD) : { _rtc_bss_start = .; *(.rtc.bss .rtc.bss.*) . = ALIGN(4); _rtc_bss_end = .; } > lpram
+    .rtc.noinit (NOLOAD) : { *(.rtc.noinit .rtc.noinit.*) } > lpram
+
+    /DISCARD/ : { *(.comment .note.* .eh_frame .riscv.attributes) }
+}
+
+ASSERT(_trap_vec % 64 == 0, "mtvec (CLIC mode) must be 64-byte aligned")
+ASSERT(_data_end <= ROM_HI, "RAM full: code + data exceed the ROM-loadable L2MEM window (0x4FF80000-0x4FFBCFC0)")
+ASSERT(_stack1_top <= ROM_LO, "RAM full: .bss + stacks exceed 0x4FF20000-0x4FF80000")
+ASSERT(SIZEOF(.rtc.data) == 0, "P4: the ROM does not load LP RAM; RTC_DATA_ATTR is not supported yet (use RTC_BSS / RTC_NOINIT)")

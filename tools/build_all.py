@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Build every application (a folder whose Makefile includes make/project.mk); print failures and warnings."""
+"""Build every application (a folder whose Makefile includes make/project.mk); print failures and warnings.
+Extra arguments go to make (tools/build_all.py SOC=esp32p4)."""
 import os, subprocess, sys
 root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 apps = []
 for d, dirs, files in os.walk(root):
-    dirs[:] = [x for x in dirs if x not in ('build', 'build-noaccel', '.git', 'bench')]
+    dirs[:] = [x for x in dirs if not x.startswith('build') and x not in ('.git', 'bench')]
     if 'Makefile' in files and '$(NDF_PATH)/make/project.mk' in open(os.path.join(d, 'Makefile')).read():
         apps.append(d)
 bad = 0
 for d in sorted(apps):
-    r = subprocess.run(['make', '-C', d, '-j8'], capture_output=True, text=True)
+    r = subprocess.run(['make', '-C', d, '-j8'] + sys.argv[1:], capture_output=True, text=True)   # extra args: e.g. SOC=esp32p4
     out = r.stdout + r.stderr
     if r.returncode:
         bad += 1

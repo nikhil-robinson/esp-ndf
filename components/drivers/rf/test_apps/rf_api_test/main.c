@@ -2,7 +2,7 @@
  * (tools/rf/rf_api_test.py drives both). Prints "STEP n" when the host must act, "PASS"/"FAIL" lines. */
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "rf.h"
 #include <math.h>
 #include <string.h>

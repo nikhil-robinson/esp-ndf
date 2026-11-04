@@ -3,7 +3,7 @@
 #include "console.h"
 #include "rsa.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include "rsa/vectors.h"
 

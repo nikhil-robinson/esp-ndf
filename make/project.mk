@@ -11,12 +11,11 @@ NDF  := $(abspath $(NDF_PATH))
 APP  := $(CURDIR)
 C    := $(NDF)/components
 SOC  ?= esp32s3
-ARCH ?= xtensa
 include $(NDF)/make/boards.mk
 PORT ?= $(DEVKIT)
-TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-elf
-PFX   = $(TC)/bin/xtensa-$(SOC)-elf-
-include $(C)/soc/$(SOC)/soc.mk
+# build/ for the S3, build-<chip>/ for other chips
+SOC_SUFFIX = $(if $(filter-out esp32s3,$(SOC)),-$(SOC))
+include $(C)/soc/$(SOC)/soc.mk   # ARCH, TC, PFX, ARCH_FLAGS, SOC_DRIVER_SRCS, SOC_LIB_EXCLUDE, FLASH_APP_ADDR, chip defaults
 
 # ---- build-side configuration (override in $(APP)/app.mk or on the command line; DEFS="-DNDF_X=1" for one-off
 # option overrides, e.g. benchmark variants)
@@ -38,14 +37,14 @@ CFG_FLAGS = $(DEFS) -DNDF_BOOT_LOAD_ADDR=$(LOAD_AT) -DNDF_XIP=$(XIP_NUM) -DNDF_X
 ifeq ($(NO_ACCEL),1)
   ACCEL_FLAGS = -DNDF_NO_ACCEL       # every accelerated path off: tests the portable fallbacks
   SOC_LOOPFIX := 0
-  OUT   = $(APP)/build-noaccel
+  OUT   ?= $(APP)/build-noaccel$(SOC_SUFFIX)
 else
-  OUT   = $(APP)/build
+  OUT   ?= $(APP)/build$(SOC_SUFFIX)
 endif
 
 # SDK sources (paths relative to the esp-ndf root, objects under $(OUT)/ndf/) and the application's own (objects under
 # $(OUT)/app/). UNIT_MAIN = 1 links the generic test runner (make/unit_main.c) instead of an app main().
-SDK_SRCS = $(patsubst $(NDF)/%,%,$(wildcard $(C)/arch/$(ARCH)/*.c $(C)/arch/$(ARCH)/*.S $(C)/soc/$(SOC)/*.c $(C)/drivers/*/*.c $(C)/drivers/*/*.S $(C)/lib/*.c $(C)/lib/*.S $(C)/lib/musl/*.c))
+SDK_SRCS = $(patsubst $(NDF)/%,%,$(filter-out $(addprefix $(C)/lib/,$(SOC_LIB_EXCLUDE)),$(wildcard $(C)/arch/$(ARCH)/*.c $(C)/arch/$(ARCH)/*.S $(C)/soc/$(SOC)/*.c $(SOC_DRIVER_SRCS) $(C)/lib/*.c $(C)/lib/*.S $(C)/lib/musl/*.c)))
 # C++ runtime (new/delete, ABI hooks) only when the app has C++ sources
 # optional components an app lists in COMPONENTS (components/<c>/*.c and one level of subfolders, not test_apps/include)
 SDK_SRCS += $(patsubst $(NDF)/%,%,$(foreach c,$(COMPONENTS),$(wildcard $(C)/$(c)/*.c) $(filter-out %/test_apps/% %/include/%,$(wildcard $(C)/$(c)/*/*.c))))
@@ -56,8 +55,7 @@ INCS  = -I$(C)/include -I$(C)/arch/$(ARCH) -I$(C)/soc/$(SOC) -I$(NDF)/bench -I$(
 # file names in __FILE__ / debug info are relative to the esp-ndf root (or the app): identical binaries from any checkout
 PREFIX_MAPS = -ffile-prefix-map=$(NDF)/=  -ffile-prefix-map=$(APP)/=
 
-# CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
-FLAGS = -mabi=call0 -mlongcalls -mtext-section-literals -O2 -g -ffreestanding -fno-builtin \
+FLAGS = $(ARCH_FLAGS) -O2 -g -ffreestanding -fno-builtin \
         -ffunction-sections -fdata-sections -fstack-protector-strong -Wformat -Wformat-security -Wall -Wextra -Wno-unused-function $(ACCEL_FLAGS) $(CFG_FLAGS) $(INCS) $(PREFIX_MAPS)
 
 # Rebuild everything when the effective configuration changes (app.mk, command
@@ -75,7 +73,7 @@ $(OUT)/app.bin: $(OUT)/app.elf
 	@$(PFX)objcopy -O binary -j .flash.text $< $(OUT)/xip_text.bin; $(PFX)objcopy -O binary -j .flash.rodata $< $(OUT)/xip_ro.bin
 	@cat $(OUT)/xip_text.bin $(OUT)/xip_ro.bin > $(OUT)/xip.bin                  # code blob for XIP_ADDR (rodata right after the code)
 	@test $$(stat -c%s $(OUT)/xip.bin) -le $$(( $(strip $(XIP_SIZE)) )) || (echo "xip.bin larger than XIP_SIZE"; rm -f $@; false)
-	@python3 $(NDF)/tools/mkunwind.py $(PFX)readelf $(PFX)nm $< $@ >/dev/null   # exact panic backtraces: unwind table in flash
+	@$(if $(filter xtensa,$(ARCH)),,true ||) python3 $(NDF)/tools/mkunwind.py $(PFX)readelf $(PFX)nm $< $@ >/dev/null   # exact panic backtraces: unwind table in flash
 	@test $$(( $$(stat -c%s $@) + $(LOAD_AT) )) -le $$(( $(strip $(PART_TABLE_ADDR)) )) || (echo "image larger than PART_TABLE_ADDR ($(strip $(PART_TABLE_ADDR))): would overwrite the partition table"; rm -f $@; false)
 	@python3 -c "import sys; a=open('$@','rb').read(); x=open('$(OUT)/xip.bin','rb').read(); o=$(strip $(OTA_XIP_OFF)); assert len(a)<=o, 'app.bin larger than OTA_XIP_OFF'; open('$(OUT)/ota.bin','wb').write(a+b'\\xff'*(o-len(a))+x if x else a)"   # OTA image
 	@echo "built $@"
@@ -161,7 +159,7 @@ $(OUT)/app/%.S.o: $(APP)/%.S
 	@$(PFX)gcc $(FLAGS) -MMD -MP -c $< -o $@
 
 flash: all
-	esptool.py --chip $(SOC) -p $(PORT) write_flash $(if $(filter-out 0,$(LOAD_AT)),0x0 $(OUT)/loader.bin 0x1000 $(OUT)/rtcboot.bin $(LOAD_AT) $(OUT)/app.bin,0x0 $(OUT)/app.bin) \
+	esptool.py --chip $(SOC) -p $(PORT) write_flash $(if $(filter-out 0,$(LOAD_AT)),0x0 $(OUT)/loader.bin 0x1000 $(OUT)/rtcboot.bin $(LOAD_AT) $(OUT)/app.bin,$(FLASH_APP_ADDR) $(OUT)/app.bin) \
 	    $(if $(filter-out 0,$(XIP_NUM)),$(strip $(XIP_ADDR)) $(OUT)/xip.bin)
 
 PARTS ?= $(NDF)/tools/partitions.csv

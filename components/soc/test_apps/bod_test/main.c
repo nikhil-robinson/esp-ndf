@@ -5,7 +5,7 @@
 #include "sys.h"
 #include "system.h"
 #include "regi2c.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define STEP  (*(volatile uint32_t *)0x50001F80u)
 #define MAGIC (*(volatile uint32_t *)0x50001F84u)

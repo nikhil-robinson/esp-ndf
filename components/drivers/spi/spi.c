@@ -4,7 +4,7 @@
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define B(h)          ((h) == 2 ? 0x60024000 : 0x60025000)
 #define CMD(h)        (B(h) + 0x00)   /* b24 usr (start) b23 update */

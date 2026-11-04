@@ -8,7 +8,7 @@
 #include "rf_regi2c.h"
 #include "tsens.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "dsp.h"
 #include <string.h>
 #include <math.h>

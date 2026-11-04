@@ -3,7 +3,7 @@
  * next to GAP (device name) and GATT. Address 11:22:33:44:55:C6 (static random), name "NDF-GATT". */
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "ble_hw.h"
 #include "gatt.h"
 #include "smp.h"

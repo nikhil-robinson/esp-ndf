@@ -15,7 +15,12 @@
 
 static inline uint32_t asu(float f) { union { float f; uint32_t u; } v = { f }; return v.u; }
 static inline float asf(uint32_t u) { union { float f; uint32_t u; } v = { .u = u }; return v.f; }
+#ifdef __XTENSA__
 static inline float fma_(float a, float b, float c) { __asm__("madd.s %0, %1, %2" : "+f"(c) : "f"(a), "f"(b)); return c; }
+#else
+static inline float fma_(float a, float b, float c) { float r; __asm__("fmadd.s %0, %1, %2, %3" : "=f"(r) : "f"(a), "f"(b), "f"(c)); return r; }
+float sqrtf(float x) { float r; __asm__("fsqrt.s %0, %1" : "=f"(r) : "f"(x)); return r; }   /* RV32F: exact (fpu.S on Xtensa) */
+#endif
 static inline void two_sum(float a, float b, float *s, float *e) { float t = a + b, bb = t - a; *s = t; *e = (a - (t - bb)) + (b - bb); }
 /* Polynomials in Estrin form: independent pairs, then powers of t, so the
  * FPU's fused multiply-adds overlap instead of waiting on one chain */
@@ -40,11 +45,15 @@ static inline __attribute__((always_inline)) float poly(const float *c, int n, f
  * quotient with a residual, so the last bit does not matter); d normal */
 static inline float recip_(float d)
 {
+#ifdef __XTENSA__
     float r;
     __asm__("recip0.s %0, %1" : "=f"(r) : "f"(d));
     float e = fma_(-d, r, 1.0f); r = fma_(r, e, r);
     e = fma_(-d, r, 1.0f); r = fma_(r, e, r);
     return r;
+#else
+    return 1.0f / d;                                          /* fdiv.s: correctly rounded */
+#endif
 }
 #define INF  asf(0x7F800000)
 #define QNAN asf(0x7FC00000)

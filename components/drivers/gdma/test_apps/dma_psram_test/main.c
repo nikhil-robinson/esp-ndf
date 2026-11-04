@@ -12,7 +12,7 @@
 #include "lcd_i80.h"
 #include "cam.h"
 #include "uart.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 static const int8_t mpad[4] = { 16, 17, 18, 21 }, spad[4] = { 1, 2, 42, 47 };
 static const uint8_t s2_io[4] = { 103, 102, 105, 104 }, s3_io[4] = { 68, 67, 70, 69 };

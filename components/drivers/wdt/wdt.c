@@ -7,7 +7,7 @@
 #include "clk.h"
 #include "irq.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "rtcclk.h"
 
 #define CONFIG0(b)    ((b) + 0x48)  /* b31 en b30:29 stg0 b28:27 stg1 b20:18 cpu rst len b17:15 sys rst len */

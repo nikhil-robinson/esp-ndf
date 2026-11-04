@@ -4,7 +4,7 @@
  * flag, read Z. */
 #include "rsa.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include "irq.h"
 

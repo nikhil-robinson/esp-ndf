@@ -2,7 +2,7 @@
  * runs. Each 12288-pair unit (48 KiB) is copied by an async GDMA memcpy into
  * a separate SRAM buffer; the copy must finish before the next unit arrives. */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include "gdma.h"
 #include <stdint.h>

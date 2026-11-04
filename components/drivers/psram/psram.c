@@ -4,7 +4,7 @@
 #include "psram.h"
 #include "irq.h"
 #include "flash.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <string.h>
 

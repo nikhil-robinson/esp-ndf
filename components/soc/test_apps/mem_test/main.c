@@ -5,7 +5,7 @@
 #include "psram.h"
 #include "sys.h"
 #include "system.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 RTC_DATA_ATTR int rtc_data = 5;

@@ -4,7 +4,7 @@
  *   adv chan interval_us hardware advertising (the transmitting board)
  *   watch ms             read all 512 modem words for ms; print every word that changed (count, min, max, last) */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include "ble_hw.h"
 #include <stdlib.h>

@@ -5,7 +5,7 @@
 #include "spin.h"
 #include "soc.h"
 #include "regi2c.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define SYSTEM_CPU_PERI_CLK  (SYSTEM_BASE + 0x008)
 #define SYSTEM_CPU_PERI_RST  (SYSTEM_BASE + 0x00C)

@@ -4,7 +4,7 @@
 #include "rf.h"
 #include "crc32.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #define MAXF 1600
 #ifndef WIFI_TX_TRIES

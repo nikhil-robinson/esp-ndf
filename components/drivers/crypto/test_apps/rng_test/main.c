@@ -3,7 +3,7 @@
 #include "console.h"
 #include "rng.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 static uint8_t big[65536];
