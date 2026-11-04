@@ -5,10 +5,6 @@
 
 #define SOC_CPU_CORES               2
 #define SOC_HAS_CROSS_CORE_INT      1   /* HP_SYSTEM_CPU_INT_FROM_CPU_n */
-#define SOC_GPIO_BASE               0x500E0000u
-#define SOC_GPIO_IN_HIGH            0x3F  /* GPIO matrix constant-1 / constant-0 input */
-#define SOC_GPIO_IN_LOW             0x3E
-#define SOC_XC_NOTIFY_REG(core)     (0x500E5010 + 4 * (core))
 #define SOC_CPU_RISCV               1
 #define SOC_HEAP_LINKER             1   /* heap regions from link.ld (_heap_start/_heap_end, _heap2_*) */
 

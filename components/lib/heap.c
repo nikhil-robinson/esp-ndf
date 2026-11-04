@@ -53,6 +53,12 @@ static void region_init(region_t *r, char *start, char *end, uint32_t caps)
 
 static void init(void)
 {
+#if SOC_HEAP_LINKER                                /* regions from the chip's link.ld */
+    extern char _heap_start[], _heap_end[], _heap2_start[], _heap2_end[];
+    region_init(&reg[0], _heap_start, _heap_end, HEAP_INTERNAL | HEAP_DMA); nreg = 1;
+    if (_heap2_end - _heap2_start > 256) region_init(&reg[nreg++], _heap2_start, _heap2_end, HEAP_INTERNAL | HEAP_DMA);
+    return;
+#endif
     char *lo = (uintptr_t)_rfmark_dac_size ? (char *)0x3FCB0000 : (uintptr_t)_rfmark_size ? (char *)0x3FCD0000 : 0;
     if (!lo) { region_init(&reg[0], _stack1_top, HEAP_END, HEAP_INTERNAL | HEAP_DMA); nreg = 1; return; }
     nreg = 0;

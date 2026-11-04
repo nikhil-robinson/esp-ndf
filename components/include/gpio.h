@@ -19,8 +19,15 @@ typedef enum {
 } gpio_irq_t;
 
 #define GPIO_SIG_SIMPLE  0x100    /* output signal: plain GPIO (gpio_write) */
+#if SOC_CPU_RISCV                  /* ESP32-P4 */
+#define GPIO_IN_HIGH     0x3F     /* input "pin": constant 1 */
+#define GPIO_IN_LOW      0x3E     /* input "pin": constant 0 */
+#define GPIO_BASE_ADDR   0x500E0000u
+#else
 #define GPIO_IN_HIGH     0x38     /* input "pin": constant 1 */
 #define GPIO_IN_LOW      0x3C     /* input "pin": constant 0 */
+#define GPIO_BASE_ADDR   0x60004000u
+#endif
 
 int  gpio_config(int pin, uint32_t flags);   /* -1 if pin invalid/reserved */
 void gpio_drive(int pin, int strength);      /* 0..3 (~5, 10, 20, 40 mA)  */
@@ -33,7 +40,7 @@ int  gpio_irq_attach(int pin, gpio_irq_t type, int level, irq_fn_t fn, void *arg
 void gpio_irq_detach(int pin);
 
 /* ---- fast path: inline register access ---------------------------------- */
-#define GPIO_REG(o)  (*(volatile uint32_t *)(0x60004000 + (o)))
+#define GPIO_REG(o)  (*(volatile uint32_t *)(GPIO_BASE_ADDR + (o)))   /* same set/clear/in offsets on the S3 and the P4 */
 
 static inline void gpio_set(int pin)
 {
@@ -61,11 +68,19 @@ int  dgpio_route(int ch, int pin, bool output);   /* calling core's channel */
 
 static inline void dgpio_write(uint32_t mask, uint32_t val)
 {
+#if SOC_CPU_RISCV
+    __asm__ volatile("csrs 0x805, %0\n\tcsrc 0x805, %1" :: "r"(mask & val), "r"(mask & ~val));   /* CSR_GPIO_OUT_USER */
+#else
     __asm__ volatile("ee.wr_mask_gpio_out %0, %1" :: "r"(val), "r"(mask));
+#endif
 }
 static inline uint32_t dgpio_read(void)
 {
     uint32_t v;
+#if SOC_CPU_RISCV
+    __asm__ volatile("csrr %0, 0x804" : "=r"(v));                                               /* CSR_GPIO_IN_USER */
+#else
     __asm__ volatile("ee.get_gpio_in %0" : "=r"(v));
+#endif
     return v;
 }
