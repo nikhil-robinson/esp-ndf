@@ -5,7 +5,7 @@
 extern "C" {
 #include "console.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "heap.h"
 }
 

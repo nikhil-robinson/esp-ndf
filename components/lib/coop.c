@@ -5,6 +5,7 @@
 #include "sys.h"
 #include "debug.h"
 
+#include "cpu.h"
 #ifndef COOP_CTX_WORDS
 #define COOP_CTX_WORDS 6          /* coop_switch context (Xtensa CALL0: a0 a1 a12-a15); arch cpu.h may set it */
 #endif

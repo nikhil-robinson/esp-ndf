@@ -2,7 +2,7 @@
 #pragma once
 #include "ndf.h"
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "unit.h"
 
 extern int test_fail;

@@ -2,7 +2,7 @@
  * (numpy) vectors, printf/snprintf formats against C reference strings,
  * strtol/strtof, qsort/bsearch, plus timings. */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>

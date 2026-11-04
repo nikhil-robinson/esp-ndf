@@ -2,7 +2,7 @@
  * cores may post; dispatch copies an entry out before calling handlers (they may post again). */
 #include "event.h"
 #include "xcore.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 typedef struct { uint16_t id; uint32_t data; } ev_t;
 static ev_t q[NDF_EVENT_QUEUE];

@@ -639,7 +639,7 @@ int x25519_base(uint8_t pub[32], const uint8_t priv[32]) { static const uint8_t 
 
 #ifdef NDF_ECC_BENCH                                           /* components/lib/test_apps/ecc_bench: cycles per primitive */
 #include "console.h"
-#include "xtensa.h"
+#include "cpu.h"
 #define BEST(stmt) ({ unsigned long b_ = ~0ul; for (int i_ = 0; i_ < 8; i_++) { uint32_t t_ = ccount(); for (int j_ = 0; j_ < 16; j_++) { stmt; } unsigned long d_ = (ccount() - t_) / 16; if (d_ < b_) b_ = d_; } b_; })
 void p256_bench(void)
 {

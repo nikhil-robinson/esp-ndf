@@ -7,7 +7,7 @@
  * allocation-heavy code shows up in profiles. */
 #include "heap.h"
 #include "xcore.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 
 typedef struct { uint32_t size, prev, used, magic; } blk_t;   /* 16 bytes keeps payload aligned */

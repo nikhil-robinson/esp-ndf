@@ -16,7 +16,7 @@
  *    (30-49 cycles) but needs the receiver to check; the interrupt does not. */
 #pragma once
 #include "ndf.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 #if SOC_CPU_RISCV
 static inline void xc_barrier(void) { __asm__ volatile("fence" ::: "memory"); }
