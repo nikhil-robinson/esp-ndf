@@ -45,7 +45,7 @@ RAM_FN static void on_tez(void *a)
 
 void test_mcpwm(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     uint32_t tick;
     uint32_t per = mcpwm_timer(0, 0, 20000, MCPWM_UP, &tick);       /* 20 kHz edge */
     METRIC("20 kHz edge-aligned: period", "%lu ticks @ %lu MHz", per, tick / 1000000);

@@ -51,7 +51,7 @@ static uint32_t duty_pm(void)                         /* per mille high over 1 m
 
 void test_ledc_gamma(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     ledc_timer(0, 20000, 10);                          /* 20 kHz, 10-bit */
     ledc_channel(0, 0, P, 0);
     uint32_t t0 = ccount();

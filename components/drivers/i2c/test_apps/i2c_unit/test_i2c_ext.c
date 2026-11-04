@@ -41,7 +41,7 @@ static void core1(void)
 
 void test_i2c_ext(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     i2c_master_init(0, 10, 12, 100000, true);
     CHECK(i2c_slave_init(1, 11, 13, I2C_ADDR10 | 0x2A5, true) == 0);
     uint8_t w[8] = { 1, 2, 3, 4, 5, 6, 7, 8 }, r[8], s4[4] = { 0xC0, 0xC1, 0xC2, 0xC3 };

@@ -28,7 +28,7 @@ static void periodic(int id, int level, uint32_t hz, bool lat, uint32_t count)
     CHECK(gpt_init(id, hz) == hz);
     CHECK(gpt_alarm(id, count, true, alarm_cb, &st, level) == 0);
     gpt_start(id);
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     uint32_t t0 = ccount();
     while (READ_ONCE(st.n) < 5000 && ccount() - t0 < 240000000) {}   /* 1 s timeout */
     if (st.n < 5000) {

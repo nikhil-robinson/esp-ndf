@@ -25,7 +25,7 @@ static void on_touch(int pad, bool t, void *a) { (void)a; ev_pad = pad; if (t) e
 
 void test_touch_ext(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     gpio_config(11, GPIO_INPUT);
     touch_init(BIT(10));
     touch_filter(true);

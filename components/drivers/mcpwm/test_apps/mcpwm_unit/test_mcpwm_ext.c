@@ -23,7 +23,7 @@ static void on_cap(int ch, uint32_t t, int edge, void *a)
 
 void test_mcpwm_ext(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     uint32_t per = mcpwm_timer(1, 0, 10000, MCPWM_UP, 0);   /* unit 1: unit 0 is used by test_mcpwm */
     mcpwm_pwm(1, 0, 0, 12, -1);
     mcpwm_cmp(1, 0, 0, per / 2);

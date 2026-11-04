@@ -33,7 +33,7 @@ static uint8_t px[300] __attribute__((aligned(4)));
 
 void test_lcd_i80(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     lcd_i80_cfg_t c = { .wr = 14, .dc = 15, .cs = -1, .bits = 8, .pclk_hz = 25000 };
     memcpy(c.data, pads, 8);
     uint32_t hz = lcd_i80_init(&c);
@@ -83,7 +83,7 @@ void test_lcd_i80(void)
 #include "cam.h"
 void test_cam(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     static uint8_t fb[32 * 8] __attribute__((aligned(4))), got[512] __attribute__((aligned(4)));
     for (int i = 0; i < 256; i++) fb[i] = (uint8_t)(i * 13 + 7);
     lcd_rgb_cfg_t r = { .pclk = 14, .hsync = -1, .vsync = 4, .de = 5, .bits = 8, .pclk_hz = 1000000,

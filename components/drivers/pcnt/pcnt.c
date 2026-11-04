@@ -6,9 +6,13 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 
+#if SOC_CPU_RISCV                      /* ESP32-P4: same PCNT block (4 units, 2 channels), other base / source / matrix signals */
+#define PCNT_BASE      0x500C9000
+#else
 #define PCNT_BASE      0x60017000
+#endif
 #define U_CONF0(u)     (PCNT_BASE + 0x0C * (u) + 0x0)   /* b9:0 filter b10 filt_en b12 h_lim b13 l_lim, ch0 b23:16, ch1 b31:24 */
 #define U_CONF1(u)     (PCNT_BASE + 0x0C * (u) + 0x4)   /* b15:0 thres0 b31:16 thres1 */
 #define U_CONF2(u)     (PCNT_BASE + 0x0C * (u) + 0x8)   /* b15:0 h_lim b31:16 l_lim */
@@ -19,11 +23,17 @@
 #define INT_CLR        (PCNT_BASE + 0x4C)
 #define U_STATUS(u)    (PCNT_BASE + 0x50 + 4 * (u))     /* b2 thres1 b3 thres0 b4 l_lim b5 h_lim b6 zero (latched) */
 #define CTRL           (PCNT_BASE + 0x60)               /* b2u rst b2u+1 pause b16 clk_en */
+#if SOC_CPU_RISCV
+#include "soc.h"                        /* SRC_PCNT */
+/* input signals (gpio_sig_map.h): PCNT_SIG_CH<c>_PAD_IN<u> = 141 + 4c + u, PCNT_CTRL_CH<c>_PAD_IN<u> = 149 + 4c + u */
+#define SIG_IN(u, c)   (141 + 4 * (c) + (u))
+#define CTRL_IN(u, c)  (149 + 4 * (c) + (u))
+#else
 #define SRC_PCNT       41
-
 /* input signals: unit u, channel c: sig = 33 + 4u + c, ctrl = 35 + 4u + c */
 #define SIG_IN(u, c)   (33 + 4 * (u) + (c))
 #define CTRL_IN(u, c)  (35 + 4 * (u) + (c))
+#endif
 
 static int32_t wraps[PCNT_UNITS], off[PCNT_UNITS], lim[PCNT_UNITS] = { PCNT_WRAP, PCNT_WRAP, PCNT_WRAP, PCNT_WRAP };
 static int cpu_int = -1;
@@ -76,7 +86,7 @@ int pcnt_channel(int u, int c, int sig, int ctl, pcnt_edge_t pos, pcnt_edge_t ne
     uint32_t mode = neg | pos << 2 | hi << 4 | lo << 6;
     REG_FIELD(U_CONF0(u), 16 + 8 * c, 8, mode);
     gpio_in_signal(sig, SIG_IN(u, c), false);
-    gpio_in_signal(ctl < 0 ? 0x38 : ctl, CTRL_IN(u, c), false);   /* 0x38 = constant 1 */
+    gpio_in_signal(ctl < 0 ? GPIO_IN_HIGH : ctl, CTRL_IN(u, c), false);   /* constant 1 */
     return 0;
 }
 

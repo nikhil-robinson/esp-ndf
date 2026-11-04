@@ -3,10 +3,15 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: same I2C block; the function clock moved to HP_SYS_CLKRST, other base / signals / sources */
+#include "soc.h"
+#define B(p)            (0x500C4000 + 0x1000 * (p))
+#else
 #define B(p)            ((p) ? 0x60027000 : 0x60013000)
+#endif
 #define SCL_LOW(p)      (B(p) + 0x00)
 #define CTR(p)          (B(p) + 0x04)   /* b0 sda_force_out b1 scl_force_out b4 master b5 start b8 clk_en b10 fsm_rst b11 upgate */
 #define SR(p)           (B(p) + 0x08)   /* b13:8 rx cnt b23:18 tx cnt b4 busy */
@@ -26,7 +31,9 @@
 #define STOP_HOLD(p)    (B(p) + 0x48)
 #define STOP_SETUP(p)   (B(p) + 0x4C)
 #define FILTER(p)       (B(p) + 0x50)
+#if !SOC_CPU_RISCV
 #define CLK_CONF(p)     (B(p) + 0x54)   /* b7:0 div-1 b20 sel (0 = XTAL) b21 active */
+#endif
 #define COMD(p, i)      (B(p) + 0x58 + 4 * (i))
 
 /* INT bits */
@@ -40,7 +47,23 @@
 enum { OP_WRITE = 1, OP_STOP = 2, OP_READ = 3, OP_END = 4, OP_RSTART = 6 };
 #define CMD(op, n, ackchk, ackval) ((n) | (ackchk) << 8 | (ackval) << 10 | (op) << 11)
 
+#if SOC_CPU_RISCV
+static const uint8_t sig_sda[2] = { 69, 71 }, sig_scl[2] = { 68, 70 };
+#define SLAVE_SRC(p)    (SRC_I2C0 + (p))
+/* function clock XTAL 40 MHz with a divider in HP_SYS_CLKRST: I2C0 PERI_CLK_CTRL10 (src b0, en b1, div-1 b9:2),
+ * I2C1 src b26 / en b27 in PERI_CLK_CTRL10 and div-1 b7:0 in PERI_CLK_CTRL11 (hw_ver3 hp_sys_clkrst_reg.h) */
+static void sclk_set(int p, uint32_t div)
+{
+    if (!p) { REG_FIELD(HP_CLKRST_BASE + 0x40, 2, 8, div - 1); REG_FIELD(HP_CLKRST_BASE + 0x40, 0, 1, 0); REG_SET(HP_CLKRST_BASE + 0x40, BIT(1)); }
+    else { REG_FIELD(HP_CLKRST_BASE + 0x44, 0, 8, div - 1); REG_CLR(HP_CLKRST_BASE + 0x40, BIT(26)); REG_SET(HP_CLKRST_BASE + 0x40, BIT(27)); }
+}
+static uint32_t sclk_div(int p) { return (p ? REG(HP_CLKRST_BASE + 0x44) & 0xFF : (REG(HP_CLKRST_BASE + 0x40) >> 2) & 0xFF) + 1; }
+#else
 static const uint8_t sig_sda[2] = { 90, 92 }, sig_scl[2] = { 89, 91 };
+#define SLAVE_SRC(p)    ((p) ? 43 : 42)
+static void sclk_set(int p, uint32_t div) { REG(CLK_CONF(p)) = (div - 1) | BIT(21); }
+static uint32_t sclk_div(int p) { return (REG(CLK_CONF(p)) & 0xFF) + 1; }
+#endif
 static const periph_t pid[2] = { PERIPH_I2C0, PERIPH_I2C1 };
 static uint8_t pins[2][2];
 static struct { uint32_t hz, filt, to; bool pu; } mcfg[2];   /* to rebuild the master after an error */
@@ -73,7 +96,7 @@ uint32_t i2c_master_init(int p, int sda, int scl, uint32_t hz, bool pu)
     uint32_t div = 40000000 / (hz * 1024) + 1;
     uint32_t sclk = 40000000 / div, half = sclk / hz / 2;
     uint32_t wait = hz >= 80000 ? half / 2 - 2 : half / 4;
-    REG(CLK_CONF(p)) = (div - 1) | BIT(21);
+    sclk_set(p, div);
     REG(CTR(p)) = BIT(4) | BIT(8) | BIT(9) | BIT(0) | BIT(1);   /* master, clk on, arbitration (reset default), open-drain */
     REG(SCL_LOW(p)) = half - 1;
     REG(SCL_HIGH(p)) = (half - wait) | wait << 9;
@@ -219,7 +242,7 @@ int i2c_slave_init(int p, int sda, int scl, uint16_t addr, bool pu)
     if (p < 0 || p > 1) return -1;
     periph_enable(pid[p]);
     periph_reset(pid[p]);                                   /* as IDF: no state left from an earlier role */
-    REG(CLK_CONF(p)) = BIT(21);
+    sclk_set(p, 1);
     bool ten = addr & I2C_ADDR10;
     /* as IDF's slave: open-drain outs, rx_full_ack_level, slv_tx_auto_start, (10-bit r/w check) */
     REG(INT_ENA(p)) = 0;
@@ -235,7 +258,7 @@ int i2c_slave_init(int p, int sda, int scl, uint16_t addr, bool pu)
     pads(p, sda, scl, pu);
     sh[p] = st_[p] = 0;
     REG(INT_CLR(p)) = ~0u;
-    if (irq_attach(p ? 43 : 42, 1, slave_isr, (void *)p) < 0) return -1;
+    if (irq_attach(SLAVE_SRC(p), 1, slave_isr, (void *)p) < 0) return -1;
     REG(INT_ENA(p)) = I_RXWM | I_DONE;
     return 0;
 }
@@ -268,7 +291,7 @@ uint32_t i2c_set_timeout(int p, uint32_t us)
 {
     if (!(p >= 0 && p < 2)) return 0;      /* caller index: never past the hardware */
     /* TO counts 2^n source cycles (n 1..22) of SCL low/held; pick the smallest >= us */
-    uint32_t sclk = 40000000 / ((REG(CLK_CONF(p)) & 0xFF) + 1), n = 1;
+    uint32_t sclk = 40000000 / sclk_div(p), n = 1;
     while (n < 22 && ((uint64_t)1 << n) * 1000000 < (uint64_t)us * sclk) n++;
     REG(TO(p)) = mcfg[p].to = BIT(5) | n;
     REG_SET(CTR(p), BIT(11));

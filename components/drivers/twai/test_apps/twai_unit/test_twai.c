@@ -26,7 +26,7 @@ static int run(uint32_t rate)
 
 void test_twai(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     CHECK(run(125000) == 100);
     CHECK(run(1000000) == 100);
     CHECK(run(500000) == 100);
@@ -47,7 +47,7 @@ void test_twai(void)
  * RX held recessive -> every dominant bit is a bit error -> bus-off; RX back -> recovery -> RECOVERED. */
 void test_twai_alerts(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     CHECK(twai_init(10, 11, 500000, TWAI_NORMAL) == 0);
     twai_frame_t f = { .id = 0x321, .dlc = 2, .data = { 1, 2 } };
     twai_send(&f, 30000);                                    /* retransmits until aborted at the timeout */

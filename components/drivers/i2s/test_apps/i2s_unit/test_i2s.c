@@ -9,7 +9,7 @@ static uint16_t out[512], in[2048];
 
 void test_i2s(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     i2s_cfg_t tx = { .rate = 48000, .bits = 16, .mclk = -1, .bck = 12, .ws = 4, .dout = 10, .din = -1 };
     i2s_cfg_t rx = { .rate = 48000, .bits = 16, .slave = true, .mclk = -1, .bck = 13, .ws = 4, .dout = -1, .din = 11 };
     uint64_t fs = i2s_init(0, &tx);

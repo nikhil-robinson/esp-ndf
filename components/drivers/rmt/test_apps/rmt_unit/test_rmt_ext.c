@@ -127,7 +127,7 @@ static void ws2812(void)
 
 void test_rmt_ext(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     loop();
     uint32_t s0 = skew(false), s1 = skew(true);
     printf("    start skew ch0/ch1: %lu cycles without sync, %lu with sync\n", s0, s1);

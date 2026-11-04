@@ -24,7 +24,7 @@ static void quad_stop(void) { mcpwm_stop(0, 0); mcpwm_stop(0, 1); }
 
 void test_pcnt(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     CHECK(pcnt_quadrature(0, PA, PB) == 0);
 
     /* 20 kHz for 10 ms: 200 periods x 4 = 800 counts (+-4 for start/stop phase) */

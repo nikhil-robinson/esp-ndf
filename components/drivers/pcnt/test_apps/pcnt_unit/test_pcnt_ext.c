@@ -21,7 +21,7 @@ static void on_step(int u, uint32_t ev, int32_t at, void *a) { (void)u; (void)ev
 
 void test_pcnt_ext(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     gpio_config(12, GPIO_OUTPUT); gpio_config(10, GPIO_OUTPUT); gpio_write(12, 0); gpio_write(10, 0);
     st = 0;
     pcnt_quadrature(1, 13, 11);

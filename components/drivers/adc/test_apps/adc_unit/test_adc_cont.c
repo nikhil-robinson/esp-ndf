@@ -119,7 +119,7 @@ static uint32_t p2p(const uint32_t *f)
 
 void test_adc_filter(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     adc_cont_ch_t one[1] = { { 9, ADC_ATTEN_12DB } };
     ledc_timer(0, 1000, 10);
     ledc_channel(0, 0, 11, 512);

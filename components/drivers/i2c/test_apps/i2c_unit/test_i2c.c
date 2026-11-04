@@ -69,7 +69,7 @@ void test_i2c(void)
 {
     uint32_t rs = rise_ns(10, 11), rc = rise_ns(12, 13);
     printf("    bus rise time: SDA %lu ns, SCL %lu ns (spec: 1000 ns @100k, 300 ns @400k)\n", rs, rc);
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     bus(100000);
     printf("    analyzer: SCL 100k burst\n");
     uint8_t w[64] = { 0 };

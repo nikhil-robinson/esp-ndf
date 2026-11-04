@@ -3,7 +3,22 @@
 #include "gpio.h"
 #include "clk.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: same MCPWM block (register offsets as the S3), other bases / signals / sources */
+#include "soc.h"
+#define U_BASE(u)        (0x500C0000 + 0x1000 * (u))
+#define REGCLK_OFF       0x144                              /* MCPWM_CLK: b0 clk_en */
+#define SIG_OUT0A(u)     (89 + 6 * (u))                     /* +2*op (+1 for B) */
+#define SIG_CAP0(u)      (95 + 9 * (u))
+#define SIG_F0(u)        (92 + 9 * (u))
+#define MCPWM_SRC(u)     ((u) ? 39 : 38)
+#else
 #define U_BASE(u)        ((u) ? 0x6002C000 : 0x6001E000)
+#define REGCLK_OFF       0x120
+#define SIG_OUT0A(u)     ((u) ? 166 : 160)                /* +2*op (+1 for B) */
+#define SIG_CAP0(u)      ((u) ? 175 : 166)
+#define SIG_F0(u)        ((u) ? 172 : 163)
+#define MCPWM_SRC(u)     ((u) ? 32 : 31)
+#endif
 #define CLK_CFG(u)       (U_BASE(u) + 0x000)              /* b7:0 group prescale (160 MHz / (n+1)) */
 #define T_CFG0(u, t)     (U_BASE(u) + 0x004 + 0x10 * (t)) /* b7:0 prescale b23:8 period b25:24 upmethod */
 #define T_CFG1(u, t)     (U_BASE(u) + 0x008 + 0x10 * (t)) /* b2:0 start b4:3 mode */
@@ -30,11 +45,7 @@
 #define INT_ENA(u)       (U_BASE(u) + 0x110)
 #define INT_ST(u)        (U_BASE(u) + 0x118)
 #define INT_CLR(u)       (U_BASE(u) + 0x11C)
-#define REGCLK(u)        (U_BASE(u) + 0x120)
-
-#define SIG_OUT0A(u)     ((u) ? 166 : 160)                /* +2*op (+1 for B) */
-#define SIG_CAP0(u)      ((u) ? 175 : 166)
-#define SIG_F0(u)        ((u) ? 172 : 163)
+#define REGCLK(u)        (U_BASE(u) + REGCLK_OFF)
 
 /* generator actions: 0 none, 1 low, 2 high, 3 toggle */
 #define ACT(ev, a)       ((uint32_t)(a) << (2 * (ev)))
@@ -54,6 +65,9 @@ static void unit_up(int u)
 {
     if (unit[u].up[0]) return;
     periph_enable(u ? PERIPH_MCPWM1 : PERIPH_MCPWM0);
+#if SOC_CPU_RISCV    /* group clock PLL_F160M (src 2, IDF mcpwm_ll_group_set_clock_source), divider 1 in HP_SYS_CLKRST PERI_CLK_CTRL20 */
+    { uint32_t sh = u ? 11 : 0, dsh = u ? 14 : 3; REG_FIELD(HP_CLKRST_BASE + 0x94, sh, 2, 2); REG_FIELD(HP_CLKRST_BASE + 0x94, dsh, 8, 0); }
+#endif
     REG(REGCLK(u)) = 1;
     REG(CLK_CFG(u)) = 0;                       /* group: 160 MHz, finest */
     REG(UPDATE_CFG(u)) = 0x55;                 /* b0 global, b2/b4/b6 op0-2 shadow update enable */
@@ -77,7 +91,7 @@ RAM_FN static void unit_isr(void *arg)
 
 static int unit_irq(int u, int level)
 {
-    if (unit[u].cpu_int < 0) unit[u].cpu_int = irq_attach(u ? 32 : 31, level, unit_isr, (void *)u);
+    if (unit[u].cpu_int < 0) unit[u].cpu_int = irq_attach(MCPWM_SRC(u), level, unit_isr, (void *)u);
     return unit[u].cpu_int;
 }
 

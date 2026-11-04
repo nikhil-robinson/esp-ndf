@@ -94,3 +94,33 @@
 #define SRC_GPIO             74
 #define SRC_FROM_CPU0        79
 #define SRC_MAX              136
+
+/* more interrupt matrix sources (ESP-IDF v6.1 soc/esp32p4/include/soc/interrupts.h) */
+#define SRC_LP_ADC           9
+#define SRC_TSENS            15
+#define SRC_SPI2             25
+#define SRC_SPI3             26
+#define SRC_I2S0             27
+#define SRC_I2S1             28
+#define SRC_I2S2             29
+#define SRC_UHCI0            30
+#define SRC_LCD_CAM          36
+#define SRC_ADC              37
+#define SRC_TWAI0            40
+#define SRC_TWAI1            41
+#define SRC_TWAI2            42
+#define SRC_RMT              43
+#define SRC_I2C0             44
+#define SRC_I2C1             45
+#define SRC_LEDC             52
+#define SRC_AHB_PDMA_IN(c)   (56 + (c))
+#define SRC_AHB_PDMA_OUT(c)  (59 + (c))
+#define SRC_AXI_PDMA_IN(c)   (62 + (c))
+#define SRC_AXI_PDMA_OUT(c)  (65 + (c))
+#define SRC_USB_OTG          93
+#define SRC_PCNT             111
+
+/* DMA controllers */
+#define AHB_DMA_BASE         (HPPERIPH0 + 0x85000)
+#define AXI_DMA_BASE         (HPPERIPH0 + 0x8A000)
+#define CACHE_CTRL_BASE      0x3FF10000u

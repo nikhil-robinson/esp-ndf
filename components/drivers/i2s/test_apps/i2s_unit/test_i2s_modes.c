@@ -139,7 +139,7 @@ static void fmts(void)
 
 void test_i2s_modes(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     tdm();
     pdm();
     fmts();

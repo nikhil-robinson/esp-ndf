@@ -4,12 +4,19 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include "gdma.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: the same RMT block (registers at the same offsets), other base / source / matrix signals */
+#include "soc.h"
+#define RMT_BASE        0x500A2000
+#define RMT_RAM_BASE    0x500A2800
+#else
 #define RMT_BASE        0x60016000
-#define RMT_RAM(c)      ((volatile uint32_t *)(0x60016800 + (c) * 48 * 4))  /* c = 0..7 */
+#define RMT_RAM_BASE    0x60016800
+#endif
+#define RMT_RAM(c)      ((volatile uint32_t *)(RMT_RAM_BASE + (c) * 48 * 4))  /* c = 0..7 */
 #define TX_CONF0(c)     (RMT_BASE + 0x20 + 4 * (c))
 #define RX_CONF0(c)     (RMT_BASE + 0x30 + 8 * (c))   /* b7:0 div b22:8 idle_thres b27:24 mem_size */
 #define RX_CONF1(c)     (RMT_BASE + 0x34 + 8 * (c))   /* b0 rx_en b1 wr_rst b3 owner b4 filt_en b12:5 thres b13 wrap b15 update */
@@ -25,8 +32,12 @@
 #define SYS_CONF        (RMT_BASE + 0xC0)
 #define TX_SIM          (RMT_BASE + 0xC4)   /* b3:0 channels b4 enable */
 #define REF_CNT_RST     (RMT_BASE + 0xC8)   /* b3:0 reset TX clock dividers */
+#if SOC_CPU_RISCV
+#define SIG(c)          (246 + (c))                   /* RMT_SIG_PAD_OUT<c> / _IN<c>; SRC_RMT from soc.h */
+#else
 #define SIG(c)          (81 + (c))
 #define SRC_RMT         40
+#endif
 
 /* TX_CONF0 bits */
 #define TX_START   BIT(0)
@@ -55,7 +66,12 @@ static void group_init(void)
 {
     if (cpu_int >= 0) return;
     periph_enable(PERIPH_RMT);
+#if SOC_CPU_RISCV    /* group clock PLL_F80M (src 2), divider 1: HP_SYS_CLKRST PERI_CLK_CTRL22 b4:3; RMT clock gate in periph_enable */
+    REG_FIELD(HP_CLKRST_BASE + 0x9C, 3, 2, 2);
+    REG(SYS_CONF) = BIT(31) | BIT(26) | BIT(1) | BIT(0);       /* clk on, active, memory clock forced on, direct RAM */
+#else
     REG(SYS_CONF) = BIT(31) | BIT(26) | 1u << 24 | BIT(0);   /* clk on, APB source, /1, direct RAM */
+#endif
     REG(INT_ENA) = 0;
     REG(INT_CLR) = ~0u;
     extern void rmt_isr(void *);

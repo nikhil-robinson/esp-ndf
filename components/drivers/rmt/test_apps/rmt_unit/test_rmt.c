@@ -11,7 +11,7 @@ static rmt_item_t out[N], in[N + 4];
 
 void test_rmt(void)
 {
-    __asm__ volatile("rsil a2, 0" ::: "a2");
+    irq_enable_all();
     CHECK(rmt_tx_init(0, TXP, 10000000, 0) == 10000000);          /* 100 ns ticks */
     CHECK(rmt_rx_init(0, RXP, 10000000, 2000, 0) == 10000000);    /* idle 200 us ends frame */
     for (int i = 0; i < N; i++) out[i] = RMT_ITEM(1, 10 + i, 0, 20 + 2 * i);

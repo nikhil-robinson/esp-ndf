@@ -102,7 +102,7 @@ int main(void)
         if (k == 0) __asm__ volatile("wsr.ccompare0 %0" :: "r"(f));
         if (k == 1) __asm__ volatile("wsr.ccompare1 %0" :: "r"(f));
         if (k == 2) __asm__ volatile("wsr.ccompare2 %0" :: "r"(f));
-        __asm__ volatile("rsil a2, 0" ::: "a2");
+        irq_enable_all();
         printf("           storm: %lu interrupts during 20000 hardware-loop checksums, %d wrong\n", storm_count, bad);
     }
     printf("=== done ===\n");

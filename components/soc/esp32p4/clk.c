@@ -194,32 +194,59 @@ uint32_t clk_cpu_sync(void)
     return clk_cpu_hz();
 }
 
-/* ---- peripheral gates: same periph_t ids as the S3; P4 bus clock / function clock / reset bits per id ----------- */
-typedef struct { uint16_t bus_reg; uint8_t bus_bit; uint16_t fn_reg; uint32_t fn_mask; uint16_t rst_reg; uint32_t rst; } gate_t;
-#define CRYPTO_BUS 0x18, 26                   /* SOC_CLK_CTRL1 b26: crypto system clock */
-#define CRYPTO_FN  0xA8                       /* PERI_CLK_CTRL25: b14 AES, 15 DS, 16 ECC, 17 HMAC, 18 RSA, 19 SEC, 20 SHA, 21 ECDSA */
-#define CRYPTO_RST 0xC8                       /* HP_RST_EN2: b14 crypto, 16 AES, 17 DS, 18 SHA, 19 HMAC, 20 ECDSA, 21 RSA, 22 ECC */
+/* ---- peripheral gates: same periph_t ids as the S3. Each P4 peripheral has a system / APB bus clock gate (SOC_CLK_CTRL1-3),
+ * often a function clock gate (PERI_CLK_CTRLn) and a reset bit (HP_RST_EN0-2): up to four enable masks and one reset mask,
+ * offsets from HP_SYS_CLKRST (hw_ver3 hp_sys_clkrst_reg.h). Function clock sources stay at their reset value (XTAL) unless a
+ * driver selects another. ---- */
+typedef struct { struct { uint16_t reg; uint32_t mask; } en[4]; uint16_t rst_reg; uint32_t rst; } gate_t;
+#define CRYPTO(bit, rstbit) { { 0x18, BIT(26) }, { 0xA8, BIT(bit) | BIT(19) } }, 0xC8, BIT(14) | BIT(rstbit)
 static const gate_t *gate(periph_t p)
 {
-    static const gate_t uart0 = { 0x1C, 7, 0x68, BIT(26), 0xC4, BIT(8) | BIT(13) }, uart1 = { 0x1C, 8, 0x6C, BIT(26), 0xC4, BIT(9) | BIT(14) },
-        timg0 = { 0x1C, 21, 0x94, BIT(24), 0xC4, BIT(6) }, timg1 = { 0x1C, 22, 0x98, BIT(22), 0xC4, BIT(7) },
-        stimer = { 0x1C, 23, 0x98, BIT(30), 0xC4, BIT(5) },
-        aes = { CRYPTO_BUS, CRYPTO_FN, BIT(14) | BIT(19), CRYPTO_RST, BIT(14) | BIT(16) },
-        sha = { CRYPTO_BUS, CRYPTO_FN, BIT(20) | BIT(19), CRYPTO_RST, BIT(14) | BIT(18) },
-        rsa = { CRYPTO_BUS, CRYPTO_FN, BIT(18) | BIT(19), CRYPTO_RST, BIT(14) | BIT(21) },
-        ds = { CRYPTO_BUS, CRYPTO_FN, BIT(15) | BIT(19), CRYPTO_RST, BIT(14) | BIT(17) },
-        hmac = { CRYPTO_BUS, CRYPTO_FN, BIT(17) | BIT(19), CRYPTO_RST, BIT(14) | BIT(19) };
+    static const gate_t g_uart0 = { { { 0x1C, BIT(7) }, { 0x68, BIT(26) } }, 0xC4, BIT(8) | BIT(13) },
+        g_uart1 = { { { 0x1C, BIT(8) }, { 0x6C, BIT(26) } }, 0xC4, BIT(9) | BIT(14) },
+        g_timg0 = { { { 0x1C, BIT(21) }, { 0x94, BIT(24) } }, 0xC4, BIT(6) },
+        g_timg1 = { { { 0x1C, BIT(22) }, { 0x98, BIT(22) } }, 0xC4, BIT(7) },
+        g_stimer = { { { 0x1C, BIT(23) }, { 0x98, BIT(30) } }, 0xC4, BIT(5) },
+        g_aes = { CRYPTO(14, 16) }, g_sha = { CRYPTO(20, 18) }, g_rsa = { CRYPTO(18, 21) }, g_ds = { CRYPTO(15, 17) }, g_hmac = { CRYPTO(17, 19) },
+        g_pcnt = { { { 0x1C, BIT(30) } }, 0xC4, BIT(30) },
+        g_ledc = { { { 0x20, BIT(0) }, { 0x9C, BIT(2) } }, 0xC4, BIT(29) },
+        g_rmt = { { { 0x1C, BIT(0) }, { 0x9C, BIT(5) } }, 0xC4, BIT(23) },
+        g_i2c0 = { { { 0x1C, BIT(12) }, { 0x40, BIT(1) } }, 0xC4, BIT(22) },
+        g_i2c1 = { { { 0x1C, BIT(13) }, { 0x40, BIT(27) } }, 0xC4, BIT(21) },
+        g_i2s0 = { { { 0x1C, BIT(14) } }, 0xC8, BIT(4) }, g_i2s1 = { { { 0x1C, BIT(15) } }, 0xC8, BIT(5) },
+        g_twai0 = { { { 0x1C, BIT(24) }, { 0x7C, BIT(25) } }, 0, 0 }, g_twai1 = { { { 0x1C, BIT(25) }, { 0x7C, BIT(27) } }, 0, 0 },
+        g_mcpwm0 = { { { 0x1C, BIT(27) }, { 0x94, BIT(2) } }, 0, 0 }, g_mcpwm1 = { { { 0x1C, BIT(28) }, { 0x94, BIT(13) } }, 0, 0 },
+        g_spi2 = { { { 0x18, BIT(0) }, { 0x1C, BIT(19) }, { 0x80, BIT(3) | BIT(20) } }, 0xC8, BIT(7) },
+        g_spi3 = { { { 0x18, BIT(1) }, { 0x1C, BIT(20) }, { 0x80, BIT(24) }, { 0x84, BIT(16) } }, 0xC8, BIT(8) },
+        g_uhci = { { { 0x18, BIT(17) }, { 0x1C, BIT(6) } }, 0xC4, BIT(18) },
+        g_adc = { { { 0x1C, BIT(5) }, { 0xA0, BIT(0) } }, 0xC8, BIT(10) },
+        g_lcdcam = { { { 0x20, BIT(1) }, { 0x64, BIT(31) }, { 0x8C, BIT(29) } }, 0xC8, BIT(9) };
     switch (p) {
-    case PERIPH_UART0: return &uart0;
-    case PERIPH_UART1: return &uart1;
-    case PERIPH_TIMG0: return &timg0;
-    case PERIPH_TIMG1: return &timg1;
-    case PERIPH_SYSTIMER: return &stimer;
-    case PERIPH_AES: return &aes;
-    case PERIPH_SHA: return &sha;
-    case PERIPH_RSA: return &rsa;
-    case PERIPH_DS: return &ds;
-    case PERIPH_HMAC: return &hmac;
+    case PERIPH_UART0: return &g_uart0;
+    case PERIPH_UART1: return &g_uart1;
+    case PERIPH_TIMG0: return &g_timg0;
+    case PERIPH_TIMG1: return &g_timg1;
+    case PERIPH_SYSTIMER: return &g_stimer;
+    case PERIPH_AES: return &g_aes;
+    case PERIPH_SHA: return &g_sha;
+    case PERIPH_RSA: return &g_rsa;
+    case PERIPH_DS: return &g_ds;
+    case PERIPH_HMAC: return &g_hmac;
+    case PERIPH_PCNT: return &g_pcnt;
+    case PERIPH_LEDC: return &g_ledc;
+    case PERIPH_RMT: return &g_rmt;
+    case PERIPH_I2C0: return &g_i2c0;
+    case PERIPH_I2C1: return &g_i2c1;
+    case PERIPH_I2S0: return &g_i2s0;
+    case PERIPH_I2S1: return &g_i2s1;
+    case PERIPH_TWAI: return &g_twai0;
+    case PERIPH_MCPWM0: return &g_mcpwm0;
+    case PERIPH_MCPWM1: return &g_mcpwm1;
+    case PERIPH_SPI2: return &g_spi2;
+    case PERIPH_SPI3: return &g_spi3;
+    case PERIPH_UHCI0: return &g_uhci;
+    case PERIPH_SARADC: return &g_adc;
+    case PERIPH_LCD_CAM: return &g_lcdcam;
     default: return 0;
     }
 }
@@ -229,9 +256,8 @@ void periph_enable(periph_t p)
     const gate_t *g = gate(p);
     if (!g) return;
     uint32_t t = irq_lock();
-    REG_SET(HPC(g->bus_reg), BIT(g->bus_bit));
-    REG_SET(HPC(g->fn_reg), g->fn_mask);
-    REG_CLR(HPC(g->rst_reg), g->rst);
+    for (int i = 0; i < 4; i++) if (g->en[i].reg) REG_SET(HPC(g->en[i].reg), g->en[i].mask);
+    if (g->rst_reg) REG_CLR(HPC(g->rst_reg), g->rst);
     irq_unlock(t);
 }
 
@@ -240,16 +266,15 @@ void periph_disable(periph_t p)
     const gate_t *g = gate(p);
     if (!g) return;
     uint32_t t = irq_lock();
-    REG_SET(HPC(g->rst_reg), g->rst);
-    REG_CLR(HPC(g->fn_reg), g->fn_mask);
-    REG_CLR(HPC(g->bus_reg), BIT(g->bus_bit));
+    if (g->rst_reg) REG_SET(HPC(g->rst_reg), g->rst);
+    for (int i = 3; i >= 0; i--) if (g->en[i].reg) REG_CLR(HPC(g->en[i].reg), g->en[i].mask);
     irq_unlock(t);
 }
 
 void periph_reset(periph_t p)
 {
     const gate_t *g = gate(p);
-    if (!g) return;
+    if (!g || !g->rst_reg) return;
     uint32_t t = irq_lock();
     REG_SET(HPC(g->rst_reg), g->rst);
     REG_CLR(HPC(g->rst_reg), g->rst);
