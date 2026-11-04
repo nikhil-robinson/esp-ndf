@@ -42,6 +42,9 @@
 #ifndef NDF_CPU_MHZ
 #define NDF_CPU_MHZ        400          /* v3 silicon: CPLL 400 MHz (IDF v6.1 default); 200, 100 or 40 (crystal) */
 #endif
+#ifndef NDF_STACK_GUARD
+#define NDF_STACK_GUARD    0            /* hardware stack guard (stackguard.c) is off until checked on the board; 256 arms it */
+#endif
 #ifndef NDF_CONSOLE
 #define NDF_CONSOLE        2            /* NDF_CONSOLE_UART0: the P4 boards' USB-UART bridge; the ROM set it up */
 #endif

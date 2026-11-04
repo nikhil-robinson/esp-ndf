@@ -9,6 +9,7 @@
 #include "console.h"
 #include "unwind.h"
 #include "irq.h"
+#include "debug.h"
 
 uintptr_t __stack_chk_guard = 0x5A3C9E17u;
 NORETURN void __stack_chk_fail(void)
@@ -66,8 +67,21 @@ static void wdt_off(void)
 }
 
 /* IDF start_other_core: unstall (PMU stall code 0xFF), clock on, out of reset, boot address (LP_SYS, ROM reads it) */
+#if NDF_STACK_GUARD
+extern char _stack0_bot[], _stack1_bot[], _stack0_top[], _stack1_top[];
+extern void stack_guard_core_off(int);
+static void guard_boot(int core)
+{
+    uint32_t bot = core ? (uint32_t)_stack1_bot : (uint32_t)_stack0_bot, top = core ? (uint32_t)_stack1_top : (uint32_t)_stack0_top;
+    stack_guard(bot + NDF_STACK_GUARD, top, 0);
+}
+#endif
+
 void cpu1_start(void (*fn)(void))
 {
+#if NDF_STACK_GUARD
+    stack_guard_core_off(1);                          /* the ROM start stub runs outside core 1's stack */
+#endif
     cpu1_fn = fn;
     REG(LP_SYS_BOOT_ADDR_HP_CORE1) = (uint32_t)_start1;
     REG_FIELD(PMU_CPU_SW_STALL, 16, 8, 0xFF);
@@ -80,6 +94,9 @@ bool sys_cpu1_running(void) { return cpu1_fn != 0; }
 
 void sys_start1(void)
 {
+#if NDF_STACK_GUARD
+    guard_boot(1);
+#endif
     irq_enable_all();
     cpu1_fn();
     for (;;) {}
@@ -111,6 +128,9 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     clk_cpu_set_mhz(NDF_CPU_MHZ);
     periph_enable(PERIPH_SYSTIMER);
     console_init();
+#if NDF_STACK_GUARD
+    guard_boot(0);
+#endif
     irq_enable_all();
 #if NDF_BOOT_BANNER
     sys_print_info();

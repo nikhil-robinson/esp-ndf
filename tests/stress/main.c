@@ -36,7 +36,7 @@ static void core1(void)
         if (!heap_check()) c1_err++;
         c1_rounds++;
     }
-    for (;;) __asm__ volatile("waiti 0");
+    for (;;) cpu_wait_for_irq();
 }
 
 static const int8_t mpad[4] = { 16, 17, 18, 21 }, spad[4] = { 1, 2, 42, 47 };
