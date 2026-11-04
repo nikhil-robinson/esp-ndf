@@ -137,7 +137,6 @@ New application: copy any example folder, set `NDF_PATH` to the esp-ndf root and
 | [PERFORMANCE.md](docs/PERFORMANCE.md) | All measurements vs ESP-IDF / ESP-DSP |
 | [TESTING.md](docs/TESTING.md) | Test apps, boards, `make test` |
 | [WIRELESS.md](docs/WIRELESS.md) | BLE / Wi-Fi / IP status |
-| [COMPARISON.md](docs/COMPARISON.md) | esp-ndf vs ESP-IDF vs esp-hal |
 | [DEBUG.md](docs/DEBUG.md) | JTAG, core dumps, tracing |
 | [examples/README.md](examples/README.md) | Every example |
 
