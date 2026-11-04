@@ -4,7 +4,7 @@
 #include "swtimer.h"
 #include "heap.h"
 #include "log.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "console.h"
 #include <string.h>
 

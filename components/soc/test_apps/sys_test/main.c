@@ -11,7 +11,7 @@
 #include "gdma.h"
 #include "wdt.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "xcore.h"
 #include <string.h>
 

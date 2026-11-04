@@ -2,7 +2,7 @@
 #include "dsp.h"
 #include "gdma.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 
 #define N 1024

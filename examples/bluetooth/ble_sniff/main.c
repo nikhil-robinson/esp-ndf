@@ -2,7 +2,7 @@
  * ADV_IND per channel. A third board's view of what a central puts on the air. */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "ble_hw.h"
 #include "rf_pll.h"
 #include "rf_init.h"

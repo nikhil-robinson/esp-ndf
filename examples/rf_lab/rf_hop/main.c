@@ -3,7 +3,7 @@
  * 2 MHz DAC tone); the other parks at 2500 MHz, hops to 2436 MHz, captures at
  * once and reports the tone (+3 MHz) per 256-sample block (3.2 us). */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <stdint.h>
 #include <math.h>

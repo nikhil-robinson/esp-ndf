@@ -6,8 +6,11 @@ PFX   = $(TC)/bin/riscv32-esp-elf-
 ARCH_FLAGS = -march=rv32imafc_zicsr_zifencei_zaamo_zalrsc -mabi=ilp32f -mno-relax -Wl,--no-warn-rwx-segments
 # P4 drivers live in drivers/<x>/esp32p4/ (same public headers); folders without one are not built for this chip
 SOC_DRIVER_SRCS = $(wildcard $(C)/drivers/*/esp32p4/*.c $(C)/drivers/*/esp32p4/*.S)
-# Xtensa assembly; the C paths cover them
-SOC_LIB_EXCLUDE = double.S dsp.S dsp_f32.S fpu.S nn_s8.S
+# components/lib files not built for the P4: Xtensa assembly (the C paths cover it) and the files this chip carries
+# its own RISC-V copy of (soc/esp32p4/lib_*.c); the S3 files stay untouched
+SOC_LIB_EXCLUDE = double.S dsp.S dsp_f32.S fpu.S nn_s8.S double.c mathf.c ringbuf.c heap.c coop.c
+# P4 versions of shared headers (gpio.h, xcore.h) are found before components/include
+SOC_INCS = -I$(C)/soc/esp32p4/include -I$(C)/lib
 # the P4 ROM reads the first image at 0x2000
 FLASH_APP_ADDR = 0x2000
 # the ROM loads the app directly (no own loader yet)

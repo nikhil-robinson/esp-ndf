@@ -4,7 +4,7 @@
  * next key at once and every byte handed out is zeroed, so earlier output cannot be recomputed from the state (fast
  * key erasure); calls are served from the buffer. */
 #include "rng.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <string.h>
 

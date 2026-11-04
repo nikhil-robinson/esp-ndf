@@ -5,7 +5,7 @@
  * suspend also come from the chip's own SFDP table when it has one. */
 #include "flash.h"
 #include "cache.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <string.h>
 

@@ -1,7 +1,7 @@
 /* GDMA (TRM ch. 3). Channel register blocks are 0xC0 apart. */
 #include "gdma.h"
 #include "clk.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "irq.h"
 #include "psram.h"
 

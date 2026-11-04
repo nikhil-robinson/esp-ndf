@@ -4,7 +4,7 @@
 #include "brownout.h"
 #include "sys.h"
 #include "system.h"
-#include "cpu.h"
+#include "xtensa.h"
 #ifndef LEVEL
 #define LEVEL 7
 #endif

@@ -2,7 +2,7 @@
 #include "sys.h"
 #include "irq.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 volatile uint32_t naked_probe[4];               /* saved a2, t_in, done, t_out */
 extern void naked_cc2(void);

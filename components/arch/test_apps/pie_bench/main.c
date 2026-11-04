@@ -1,7 +1,7 @@
 /* PIE cookbook numbers: cycles per instruction in a zero-overhead loop of 8 copies (throughput) on internal RAM,
  * 16-byte aligned unless stated. Prints a table for docs/PIE.md. */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 
 static uint8_t buf[4096 + 64] __attribute__((aligned(16)));

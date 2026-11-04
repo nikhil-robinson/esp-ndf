@@ -5,7 +5,7 @@
 #include "rf.h"
 #include "ble_hw.h"
 #include "rf_init.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 /* Same adverts, same transmitter: IDF Bluedroid reports -69 / -83 dBm where the core's raw value is -47 / -60
  * (bench/rfmeas/sens_idf_vs_ours.txt): 22..23 dB. */

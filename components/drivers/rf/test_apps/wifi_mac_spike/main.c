@@ -5,7 +5,7 @@
  *   rd <addr> [n]           read n words      wr <addr> <val>   write a word
  *   txinit / tx <hex>       carrier + TX front end; send one raw frame (rf_wifi_tx) */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include "rf.h"
 #include <stdlib.h>

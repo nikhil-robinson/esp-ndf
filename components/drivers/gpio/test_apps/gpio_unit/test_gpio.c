@@ -22,7 +22,7 @@ void test_gpio(void)
 
     /* edge interrupt: latency from the write to the handler's first line */
     CHECK(gpio_irq_attach(P, GPIO_IRQ_RISING, 1, pin_isr, 0) == 0);
-    irq_enable_all();
+    __asm__ volatile("rsil a2, 0" ::: "a2");
     uint32_t best = ~0u, worst = 0;
     for (int i = 0; i < 1000; i++) {
         gpio_clr(P);

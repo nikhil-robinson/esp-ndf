@@ -18,22 +18,14 @@ static inline __attribute__((always_inline)) uint64_t shl(uint64_t x, unsigned n
 {
     uint32_t hi = (uint32_t)(x >> 32), lo = (uint32_t)x;
     if (n & 32) { hi = lo << (n & 31); lo = 0; }
-#ifdef __XTENSA__
     else __asm__("ssl %2\n\tsrc %0, %0, %1\n\tsll %1, %1" : "+r"(hi), "+r"(lo) : "r"(n));
-#else
-    else if (n) { hi = hi << n | lo >> (32 - n); lo <<= n; }
-#endif
     return (uint64_t)hi << 32 | lo;
 }
 static inline __attribute__((always_inline)) uint64_t shr(uint64_t x, unsigned n)
 {
     uint32_t hi = (uint32_t)(x >> 32), lo = (uint32_t)x;
     if (n & 32) { lo = hi >> (n & 31); hi = 0; }
-#ifdef __XTENSA__
     else __asm__("ssr %2\n\tsrc %1, %0, %1\n\tsrl %0, %0" : "+r"(hi), "+r"(lo) : "r"(n));
-#else
-    else if (n) { lo = lo >> n | hi << (32 - n); hi >>= n; }
-#endif
     return (uint64_t)hi << 32 | lo;
 }
 
@@ -112,13 +104,9 @@ static inline uint32_t hi32(uint64_t x) { return (uint32_t)(x >> 32); }
 static inline int clz64(uint64_t x) { return hi32(x) ? __builtin_clz(hi32(x)) : 32 + __builtin_clz((uint32_t)x); }
 static inline uint64_t mul32(uint32_t a, uint32_t b)          /* 32 x 32 -> 64 on mull/muluh */
 {
-#ifdef __XTENSA__
     uint32_t lo, hi;
     __asm__("mull %0, %2, %3\n\tmuluh %1, %2, %3" : "=&r"(lo), "=&r"(hi) : "r"(a), "r"(b));
     return (uint64_t)hi << 32 | lo;
-#else
-    return (uint64_t)a * b;                                   /* mul + mulhu */
-#endif
 }
 
 #ifndef __XTENSA__

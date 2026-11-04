@@ -1,7 +1,7 @@
 /* Flash read speed: inspect the SPI1 clock, try faster settings, verify data. */
 #include "flash.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 #include "crc32.h"
 

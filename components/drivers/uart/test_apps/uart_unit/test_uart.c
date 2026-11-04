@@ -47,7 +47,7 @@ static void dma(void)
 
 void test_uart(void)
 {
-    irq_enable_all();
+    __asm__ volatile("rsil a2, 0" ::: "a2");
     run_baud(115200);
     run_baud(2000000);
     run_baud(5000000);

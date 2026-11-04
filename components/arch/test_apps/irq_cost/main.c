@@ -7,7 +7,7 @@
 #include "sys.h"
 #include "irq.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define N 20000
 typedef struct { volatile uint32_t target, t_in, t_out, done; } probe_t;

@@ -7,7 +7,7 @@
 #include "soc.h"
 #include "sys.h"
 #include "regi2c.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "efuse.h"
 
 static float trim;

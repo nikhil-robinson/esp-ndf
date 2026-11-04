@@ -4,7 +4,7 @@
  * Prints: words that step by one (the shared DAC/capture address counter), mean power, the power at +offset vs the median
  * of 16 other bins (dB), and the same tone check on a capture after the transmitter is off (the receive path still works). */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include "rf.h"
 #include "rf_init.h"

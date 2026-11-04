@@ -1,7 +1,7 @@
 /* How long does the timer-group latch take? Cost of each step of gpt_get(). */
 #include "gptimer.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define TIMG0     0x6001F000
 #define T0_UPDATE (TIMG0 + 0x0C)

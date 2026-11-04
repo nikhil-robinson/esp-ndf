@@ -1,7 +1,7 @@
 /* memcpy / memset: speed by size and alignment, exhaustive correctness for
  * small sizes and all offsets, and use from inside an interrupt handler. */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "irq.h"
 #include "sys.h"
 #include <string.h>

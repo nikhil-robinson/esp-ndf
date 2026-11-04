@@ -6,11 +6,7 @@
 
 #define MARK 0xFFFFFFFFu
 #define HDR  4u
-#ifdef __XTENSA__
 static inline void barrier(void) { __asm__ volatile("memw" ::: "memory"); }
-#else
-static inline void barrier(void) { __asm__ volatile("fence" ::: "memory"); }
-#endif
 static inline uint32_t need_of(uint32_t len) { return HDR + ((len + 3) & ~3u); }
 
 void rb_init(ringbuf_t *rb, void *buf, uint32_t size)

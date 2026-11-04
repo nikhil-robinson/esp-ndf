@@ -5,7 +5,7 @@
 #include "clk.h"
 #include "irq.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define LCD_BASE      0x60041000
 #define LCD_CLOCK     (LCD_BASE + 0x00)  /* b5:0 clkcnt_n b6 equ_sysclk b7 ck_idle b8 ck_out_edge b16:9 div_num

@@ -2,7 +2,7 @@
  * Board ...D0 transmits a +2 MHz DAC tone, 1 s on / 1 s off; the other
  * receives and reports the power at +2 / -2 / +5 MHz (control) per capture. */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <stdint.h>
 #include <math.h>

@@ -3,7 +3,7 @@
 #include "console.h"
 #include "rtcclk.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "boot/rtc_boot.h"
 
 static uint32_t timer_hz(void)                    /* RTC timer ticks per second, over 50 ms of CPU time */

@@ -4,7 +4,7 @@
  * rf_wifi_regs.h; rf_set_freq_khz + rf_tx_start/rf_rx_start bring up our calibrated
  * carrier and front end. See docs/PENDING.md and bench/rfmeas/wifi_tx_42.txt. */
 #include "rf.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 #include "rf_init.h"
 #include "rf_wifi_regs.h"

@@ -3,7 +3,7 @@
 #include "console.h"
 #include "aes.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 #include "gcm/vectors.h"
 

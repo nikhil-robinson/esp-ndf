@@ -2,7 +2,7 @@
  * (128-byte FIFO written directly, polled: safe from ISRs). */
 #include "console.h"
 #include "soc.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include "uart.h"
 

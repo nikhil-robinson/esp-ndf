@@ -13,9 +13,18 @@ C    := $(NDF)/components
 SOC  ?= esp32s3
 include $(NDF)/make/boards.mk
 PORT ?= $(DEVKIT)
-# build/ for the S3, build-<chip>/ for other chips
+include $(C)/soc/$(SOC)/soc.mk
+# Defaults are the S3's; another chip's soc.mk sets its own (soc/esp32p4/soc.mk): toolchain, flags, driver sources,
+# lib files it replaces (SOC_LIB_EXCLUDE), include dirs searched first (SOC_INCS), image flash address. build/ for the
+# S3, build-<chip>/ for other chips.
+ARCH ?= xtensa
+TC   ?= $(HOME)/.espressif/tools/xtensa-esp-elf/esp-13.2.0_20250707/xtensa-esp-elf
+PFX  ?= $(TC)/bin/xtensa-$(SOC)-elf-
+# CALL0 ABI: no register windows -> cheap, deterministic interrupt entry.
+ARCH_FLAGS ?= -mabi=call0 -mlongcalls -mtext-section-literals
+SOC_DRIVER_SRCS ?= $(wildcard $(C)/drivers/*/*.c $(C)/drivers/*/*.S)
+FLASH_APP_ADDR ?= 0x0
 SOC_SUFFIX = $(if $(filter-out esp32s3,$(SOC)),-$(SOC))
-include $(C)/soc/$(SOC)/soc.mk   # ARCH, TC, PFX, ARCH_FLAGS, SOC_DRIVER_SRCS, SOC_LIB_EXCLUDE, FLASH_APP_ADDR, chip defaults
 
 # ---- build-side configuration (override in $(APP)/app.mk or on the command line; DEFS="-DNDF_X=1" for one-off
 # option overrides, e.g. benchmark variants)
@@ -51,7 +60,7 @@ SDK_SRCS += $(patsubst $(NDF)/%,%,$(foreach c,$(COMPONENTS),$(wildcard $(C)/$(c)
 SDK_SRCS += $(if $(wildcard $(APP)/*.cpp),components/lib/cxx/cxx.cpp) $(if $(filter 1,$(UNIT_MAIN)),make/unit_main.c)
 APP_SRCS = $(notdir $(wildcard $(APP)/*.c $(APP)/*.S $(APP)/*.cpp))
 OBJS  = $(patsubst %,$(OUT)/ndf/%.o,$(SDK_SRCS)) $(patsubst %,$(OUT)/app/%.o,$(APP_SRCS))
-INCS  = -I$(C)/include -I$(C)/arch/$(ARCH) -I$(C)/soc/$(SOC) -I$(NDF)/bench -I$(C)/lib/musl $(addprefix -I,$(EXTRA_INCLUDES)) $(foreach c,$(COMPONENTS),-I$(C)/$(c)/include)
+INCS  = $(SOC_INCS) -I$(C)/include -I$(C)/arch/$(ARCH) -I$(C)/soc/$(SOC) -I$(NDF)/bench -I$(C)/lib/musl $(addprefix -I,$(EXTRA_INCLUDES)) $(foreach c,$(COMPONENTS),-I$(C)/$(c)/include)
 # file names in __FILE__ / debug info are relative to the esp-ndf root (or the app): identical binaries from any checkout
 PREFIX_MAPS = -ffile-prefix-map=$(NDF)/=  -ffile-prefix-map=$(APP)/=
 

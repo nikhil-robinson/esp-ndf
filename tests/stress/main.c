@@ -4,7 +4,7 @@
  * corruption counts as an error; "stress PASS" needs 0. */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "gptimer.h"
 #include "uart.h"
 #include "spi.h"

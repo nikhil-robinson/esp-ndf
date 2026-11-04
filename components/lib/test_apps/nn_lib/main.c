@@ -3,7 +3,7 @@
 #include "console.h"
 #include "nn.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 #include "nn/layers.h"
 #define A16 __attribute__((aligned(16)))

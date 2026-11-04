@@ -6,7 +6,7 @@
 #include "system.h"
 #include "soc.h"
 #include "clk.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "console.h"
 #include "unwind.h"
 #include "wdt.h"

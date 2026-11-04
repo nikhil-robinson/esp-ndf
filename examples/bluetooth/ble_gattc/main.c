@@ -3,7 +3,7 @@
  * 0xFFF1 and reads it back, subscribes to 0xFFF2 and counts notifications. Prints "gattc PASS" or "gattc FAIL <why>". */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "ble_hw.h"
 #include "gatt.h"
 #include "rf_pll.h"

@@ -3,7 +3,7 @@
 #include "console.h"
 #include "dsp.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <math.h>
 #include <string.h>
 

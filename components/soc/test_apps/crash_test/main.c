@@ -5,7 +5,7 @@
 #include "console.h"
 #include "system.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 
 #define STEP  (*(volatile uint32_t *)0x50001F70u)

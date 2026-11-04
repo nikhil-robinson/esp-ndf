@@ -2,7 +2,7 @@
  * (bits 8, 9; ENA + RLS), source 83 shared by both cores; the interrupted core's handler checks its own status. */
 #include "debug.h"
 #include "irq.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <stdio.h>
 
 #define AD(core, off)   (0x600CE000u + (core) * 0x90u + (off))

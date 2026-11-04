@@ -4,7 +4,7 @@
 #include "gdma.h"
 #include "clk.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define LCD_BASE      0x60041000
 #define CAM_CTRL      (LCD_BASE + 0x04)  /* b0 stop_en b3:1 vsync filt b4 update b5 byte order b6 bit order b7 line int

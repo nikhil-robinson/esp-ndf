@@ -4,7 +4,7 @@
 #include "console.h"
 #include "debug.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 static volatile uint32_t target, hit_n = 99, hit_pc, guard_hit, guard_pc;
 static volatile uint32_t arr[1000];

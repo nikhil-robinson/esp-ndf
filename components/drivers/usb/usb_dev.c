@@ -9,7 +9,7 @@
 #include "clk.h"
 #include "gpio.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 #include "wdt.h"
 

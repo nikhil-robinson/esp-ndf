@@ -4,7 +4,7 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 
 #define T_BASE   0x6002B000

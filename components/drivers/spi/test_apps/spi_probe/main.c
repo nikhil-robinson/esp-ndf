@@ -3,7 +3,7 @@
 #include "spi.h"
 #include "sys.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 int main(void)
 {

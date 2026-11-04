@@ -116,7 +116,7 @@ static void pattern(void)
 
 void test_uart_modes(void)
 {
-    irq_enable_all();
+    __asm__ volatile("rsil a2, 0" ::: "a2");
     flow();
     rs485();
     collision();

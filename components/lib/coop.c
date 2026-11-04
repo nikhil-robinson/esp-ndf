@@ -4,12 +4,11 @@
 #include "coop.h"
 #include "sys.h"
 #include "debug.h"
-#include "cpu.h"
 
 #define MAXT 8
-typedef struct { uint32_t ctx[COOP_CTX_WORDS]; void (*fn)(void *); void *arg; uint32_t wake_ms, lo, hi; uint8_t state; } task_t;   /* 0 free 1 ready 2 done */
+typedef struct { uint32_t ctx[6]; void (*fn)(void *); void *arg; uint32_t wake_ms, lo, hi; uint8_t state; } task_t;   /* 0 free 1 ready 2 done */
 static task_t t[MAXT];
-static uint32_t sched_ctx[COOP_CTX_WORDS], s_lo, s_hi;
+static uint32_t sched_ctx[6], s_lo, s_hi;
 static bool guard;                                   /* hardware stack guard on: move its window on every switch */
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))

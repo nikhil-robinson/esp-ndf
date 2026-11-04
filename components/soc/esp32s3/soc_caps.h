@@ -7,10 +7,6 @@
 
 #define SOC_CPU_CORES               2
 #define SOC_HAS_CROSS_CORE_INT      1   /* SYSTEM_CPU_INTR_FROM_CPU_n */
-#define SOC_GPIO_BASE               0x60004000u
-#define SOC_GPIO_IN_HIGH            0x38  /* GPIO matrix constant-1 / constant-0 input */
-#define SOC_GPIO_IN_LOW             0x3C
-#define SOC_XC_NOTIFY_REG(core)     (0x600C0030 + 4 * (core))
 
 #ifndef NDF_NO_ACCEL
 #define SOC_CPU_HAS_FPU             1   /* single-precision FPU, coprocessor 0 */

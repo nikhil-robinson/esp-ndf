@@ -3,7 +3,7 @@
  * 240 MHz: at lower clocks the bound is longer, never shorter); value: cond at the end. */
 #pragma once
 #include "ndf.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define SPIN_US(cond, us) ({ uint32_t _t0 = ccount(), _lim = (uint32_t)(us) * 240u; bool _ok;           \
     while (!(_ok = (cond)) && ccount() - _t0 < _lim) {} _ok; })

@@ -2,7 +2,7 @@
  * tools/libm_check.py reproduces; results go out in hex and the host computes
  * the exact error (mpmath) per function. Speed: same table as the IDF sibling. */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <math.h>
 #include <stdint.h>

@@ -5,7 +5,7 @@
 #include "console.h"
 #include "sys.h"
 #include "wdt.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define PAD_HOLD 0x600080D8u
 

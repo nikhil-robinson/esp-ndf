@@ -16,13 +16,9 @@
  *    (30-49 cycles) but needs the receiver to check; the interrupt does not. */
 #pragma once
 #include "ndf.h"
-#include "cpu.h"
+#include "xtensa.h"
 
-#if SOC_CPU_RISCV
-static inline void xc_barrier(void) { __asm__ volatile("fence" ::: "memory"); }
-#else
 static inline void xc_barrier(void) { __asm__ volatile("memw" ::: "memory"); }
-#endif
 
 /* ---- sequence counter --------------------------------------------------- */
 typedef struct { volatile uint32_t seq; } xc_seq_t;
@@ -61,18 +57,6 @@ static inline bool xc_spin_try(xc_spin_t *l)
 }
 static inline void xc_spin_lock(xc_spin_t *l)   { while (!xc_spin_try(l)) ; }
 static inline void xc_spin_unlock(xc_spin_t *l) { xc_barrier(); l->owner = 0; }
-#elif SOC_CPU_HAS_AMO
-typedef struct { volatile uint32_t owner; } xc_spin_t;   /* 0 = free, else core + 1 */
-
-static inline bool xc_spin_try(xc_spin_t *l)       /* LR/SC compare-and-swap 0 -> core + 1 */
-{
-    uint32_t v = core_id() + 1, old, fail;
-    __asm__ volatile("1: lr.w.aq %0, (%2)\n\tbnez %0, 2f\n\tsc.w.rl %1, %3, (%2)\n\tbnez %1, 1b\n2:"
-                     : "=&r"(old), "=&r"(fail) : "r"(&l->owner), "r"(v) : "memory");
-    return old == 0;
-}
-static inline void xc_spin_lock(xc_spin_t *l)   { while (!xc_spin_try(l)) ; }
-static inline void xc_spin_unlock(xc_spin_t *l) { __asm__ volatile("amoswap.w.rl zero, zero, (%0)" :: "r"(&l->owner) : "memory"); }
 #else
 /* No compare-and-swap: Peterson's algorithm for two cores (plain loads and
  * stores + barriers; correct because each core only writes its own flag). */
@@ -103,7 +87,7 @@ static inline void xc_spin_unlock(xc_spin_t *l) { l->owner = 0; xc_barrier(); l-
 /* Install fn (or NULL) on the calling core for notifications sent to it (level 1-3). */
 int  xc_notify_init(void (*fn)(void *), void *arg, int level);
 /* Interrupt the other core (core = target). */
-static inline void xc_notify(int core) { REG(SOC_XC_NOTIFY_REG(core)) = 1; }
+static inline void xc_notify(int core) { REG(0x600C0030 + 4 * core) = 1; }
 
 /* Cross-core call (esp_ipc_call_blocking): run fn(arg) on core, in its notify interrupt, and wait. The target calls
  * xc_call_init once (shares the notify interrupt: an xc_notify_init handler still runs). fn must be short and must

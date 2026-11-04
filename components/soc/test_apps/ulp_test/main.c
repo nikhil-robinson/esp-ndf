@@ -4,7 +4,7 @@
 #include "console.h"
 #include "ulp.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "rtcclk.h"
 #include "ulp/ulp_count.h"
 #include "ulp/ulp_fsm_count.h"

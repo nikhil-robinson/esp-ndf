@@ -17,7 +17,7 @@
 #include "swtimer.h"
 #include "console.h"
 #include "soc_intr.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include <string.h>
 #include "../rf/rf_pll.h"

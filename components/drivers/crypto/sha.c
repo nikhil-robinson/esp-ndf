@@ -6,7 +6,7 @@
 #include "sha.h"
 #include "spin.h"
 #include "clk.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "gdma.h"
 #include <string.h>
 

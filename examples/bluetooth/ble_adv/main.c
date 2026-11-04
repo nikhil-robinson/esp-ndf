@@ -3,7 +3,7 @@
  * the next event from the end-of-event interrupt. */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "ble_hw.h"
 #include "rf_pll.h"
 #include "rf_init.h"

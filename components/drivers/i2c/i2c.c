@@ -3,7 +3,7 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 
 #define B(p)            ((p) ? 0x60027000 : 0x60013000)

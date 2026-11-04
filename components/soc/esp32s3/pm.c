@@ -3,7 +3,7 @@
 #include "pm.h"
 #include "clk.h"
 #include "xcore.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 static xc_spin_t lk;
 static volatile int count;

@@ -3,7 +3,7 @@
 #include "console.h"
 #include "fastmath.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <math.h>
 #include "fastmath_bench.h"
 

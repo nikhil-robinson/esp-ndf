@@ -1,6 +1,6 @@
 #include "unit.h"
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include <string.h>
 
 extern const unit_t __test_start[], __test_end[];

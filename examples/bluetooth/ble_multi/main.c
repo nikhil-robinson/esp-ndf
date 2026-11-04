@@ -3,7 +3,7 @@
  * Prints "multi PASS" / "multi FAIL ...". */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "ble_hw.h"
 #include "gatt.h"
 #include "rf_pll.h"

@@ -6,7 +6,7 @@
 #include "irq.h"
 #include "rtc_irq.h"
 #include "system.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define BROWN_OUT   0x600080E8u    /* b31 det b30 ena b29 cnt_clr b28 ana_rst b27 rst_sel b26 rst_ena b25:16 rst_wait
                                       b15 pd_rf b14 close_flash b13:4 int_wait */

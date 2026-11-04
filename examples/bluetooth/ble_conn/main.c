@@ -5,7 +5,7 @@
  * The counter is notified once a second while the central has enabled notifications. */
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "ble_hw.h"
 #include <string.h>
 #include "rf_pll.h"

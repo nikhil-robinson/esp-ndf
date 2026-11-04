@@ -3,7 +3,7 @@
  *   tx [count]   send our tagged frame count times (0 = continuous for ~15 s)
  *   rx [ms]      receive into our own buffers; print the first frames and a count */
 #include "console.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include "rf.h"
 #include <stdlib.h>

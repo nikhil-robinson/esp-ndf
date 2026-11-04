@@ -5,7 +5,7 @@
 #include "rtcclk.h"
 #include "sys.h"
 #include "system.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "boot/rtc_boot.h"
 
 #define STEP  (*(volatile uint32_t *)0x50001F80u)

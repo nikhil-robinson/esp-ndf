@@ -5,7 +5,7 @@
  * swapping" (address the host may break at); PERFMON PM1 = CRC16 of the exposed block | 0xA55A << 16.
  * Every chunk carries {u16 allocated | core << 15, u16 written}. */
 #include "trace.h"
-#include "cpu.h"
+#include "xtensa.h"
 #include "sys.h"
 #include "irq.h"
 #include <string.h>

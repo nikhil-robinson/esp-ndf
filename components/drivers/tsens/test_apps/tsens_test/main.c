@@ -3,7 +3,7 @@
 #include "efuse.h"
 #include "console.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 int main(void)
 {

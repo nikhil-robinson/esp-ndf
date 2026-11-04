@@ -1,6 +1,6 @@
 /* Shared RTC_CNTL interrupt dispatch: brownout (bit 9), touch (4, 6-8, 18), ... at level 3. */
 #include "rtc_irq.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 #define INT_ENA  0x60008040u
 #define INT_ST   0x60008048u

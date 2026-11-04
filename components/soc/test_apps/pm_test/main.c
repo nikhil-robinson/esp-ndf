@@ -4,7 +4,7 @@
 #include "pm.h"
 #include "clk.h"
 #include "sys.h"
-#include "cpu.h"
+#include "xtensa.h"
 
 static uint32_t measured_mhz(void)
 {
