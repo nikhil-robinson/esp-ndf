@@ -195,18 +195,31 @@ uint32_t clk_cpu_sync(void)
 }
 
 /* ---- peripheral gates: same periph_t ids as the S3; P4 bus clock / function clock / reset bits per id ----------- */
-typedef struct { uint16_t bus_reg; uint8_t bus_bit; uint16_t fn_reg; uint8_t fn_bit; uint16_t rst_reg; uint32_t rst; } gate_t;
+typedef struct { uint16_t bus_reg; uint8_t bus_bit; uint16_t fn_reg; uint32_t fn_mask; uint16_t rst_reg; uint32_t rst; } gate_t;
+#define CRYPTO_BUS 0x18, 26                   /* SOC_CLK_CTRL1 b26: crypto system clock */
+#define CRYPTO_FN  0xA8                       /* PERI_CLK_CTRL25: b14 AES, 15 DS, 16 ECC, 17 HMAC, 18 RSA, 19 SEC, 20 SHA, 21 ECDSA */
+#define CRYPTO_RST 0xC8                       /* HP_RST_EN2: b14 crypto, 16 AES, 17 DS, 18 SHA, 19 HMAC, 20 ECDSA, 21 RSA, 22 ECC */
 static const gate_t *gate(periph_t p)
 {
-    static const gate_t uart0 = { 0x1C, 7, 0x68, 26, 0xC4, BIT(8) | BIT(13) }, uart1 = { 0x1C, 8, 0x6C, 26, 0xC4, BIT(9) | BIT(14) },
-        timg0 = { 0x1C, 21, 0x94, 24, 0xC4, BIT(6) }, timg1 = { 0x1C, 22, 0x98, 22, 0xC4, BIT(7) },
-        stimer = { 0x1C, 23, 0x98, 30, 0xC4, BIT(5) };
+    static const gate_t uart0 = { 0x1C, 7, 0x68, BIT(26), 0xC4, BIT(8) | BIT(13) }, uart1 = { 0x1C, 8, 0x6C, BIT(26), 0xC4, BIT(9) | BIT(14) },
+        timg0 = { 0x1C, 21, 0x94, BIT(24), 0xC4, BIT(6) }, timg1 = { 0x1C, 22, 0x98, BIT(22), 0xC4, BIT(7) },
+        stimer = { 0x1C, 23, 0x98, BIT(30), 0xC4, BIT(5) },
+        aes = { CRYPTO_BUS, CRYPTO_FN, BIT(14) | BIT(19), CRYPTO_RST, BIT(14) | BIT(16) },
+        sha = { CRYPTO_BUS, CRYPTO_FN, BIT(20) | BIT(19), CRYPTO_RST, BIT(14) | BIT(18) },
+        rsa = { CRYPTO_BUS, CRYPTO_FN, BIT(18) | BIT(19), CRYPTO_RST, BIT(14) | BIT(21) },
+        ds = { CRYPTO_BUS, CRYPTO_FN, BIT(15) | BIT(19), CRYPTO_RST, BIT(14) | BIT(17) },
+        hmac = { CRYPTO_BUS, CRYPTO_FN, BIT(17) | BIT(19), CRYPTO_RST, BIT(14) | BIT(19) };
     switch (p) {
     case PERIPH_UART0: return &uart0;
     case PERIPH_UART1: return &uart1;
     case PERIPH_TIMG0: return &timg0;
     case PERIPH_TIMG1: return &timg1;
     case PERIPH_SYSTIMER: return &stimer;
+    case PERIPH_AES: return &aes;
+    case PERIPH_SHA: return &sha;
+    case PERIPH_RSA: return &rsa;
+    case PERIPH_DS: return &ds;
+    case PERIPH_HMAC: return &hmac;
     default: return 0;
     }
 }
@@ -217,7 +230,7 @@ void periph_enable(periph_t p)
     if (!g) return;
     uint32_t t = irq_lock();
     REG_SET(HPC(g->bus_reg), BIT(g->bus_bit));
-    REG_SET(HPC(g->fn_reg), BIT(g->fn_bit));
+    REG_SET(HPC(g->fn_reg), g->fn_mask);
     REG_CLR(HPC(g->rst_reg), g->rst);
     irq_unlock(t);
 }
@@ -228,7 +241,7 @@ void periph_disable(periph_t p)
     if (!g) return;
     uint32_t t = irq_lock();
     REG_SET(HPC(g->rst_reg), g->rst);
-    REG_CLR(HPC(g->fn_reg), BIT(g->fn_bit));
+    REG_CLR(HPC(g->fn_reg), g->fn_mask);
     REG_CLR(HPC(g->bus_reg), BIT(g->bus_bit));
     irq_unlock(t);
 }

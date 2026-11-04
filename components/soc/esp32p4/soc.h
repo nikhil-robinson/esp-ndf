@@ -20,6 +20,7 @@
 #define HP_SYS_CPU_INT_FROM_CPU(n) (HP_SYS_BASE + 0x10 + 4 * (n))    /* cross-core software interrupts 0..3 */
 
 /* ---- LP always-on ------------------------------------------------------- */
+#define FLASH_SPI1_BASE    (HPPERIPH0 + 0x8D000)       /* SPI1: flash commands (SPI0 is the cache path) */
 #define LP_SYS_BASE           (LPAON + 0x0000)
 #define LP_SYS_BOOT_ADDR_HP_CORE1 (LP_SYS_BASE + 0x164)   /* core 1 reset vector (ROM ets_set_appcpu_boot_addr) */
 #define LP_CLKRST_BASE        (LPAON + 0x1000)

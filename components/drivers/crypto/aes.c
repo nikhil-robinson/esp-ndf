@@ -2,13 +2,16 @@
  * ~15 cycles of crypto work; the register traffic dominates. */
 #include "aes.h"
 #include "clk.h"
-#include "gdma.h"
+#include "gdma.h"   /* DMA modes: chips with SOC_CRYPTO_NO_DMA (P4 so far) use the CPU path only */
 #include <string.h>
 #include <strings.h>
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 
-#define AES_BASE    0x6003A000
+#ifndef SOC_AES_BASE
+#define SOC_AES_BASE 0x6003A000        /* ESP32-S3; other chips set it in soc_caps.h */
+#endif
+#define AES_BASE    SOC_AES_BASE
 #define AES_KEY(i)  (AES_BASE + 0x00 + 4 * (i))
 #define AES_IN(i)   (AES_BASE + 0x20 + 4 * (i))
 #define AES_OUT(i)  (AES_BASE + 0x30 + 4 * (i))
@@ -95,6 +98,7 @@ void aes_xts(const uint8_t key[64], uint32_t tweak, bool encrypt, const void *in
     aes_unlock(st);
 }
 
+#ifndef SOC_CRYPTO_NO_DMA
 /* ---- block modes by DMA (ESP-IDF port/aes/dma/esp_aes_dma_core.c: GDMA OUT -> AES -> GDMA IN, BLOCK_NUM blocks,
  * wait for the IN EOF and state DONE, IV read back for the next call, DMA_EXIT) ---- */
 #define DESCS 16                           /* 16 x 4 KB per call, larger requests are split */
@@ -124,6 +128,8 @@ static void dma_run(int mode, const uint8_t *key, int key_len, bool enc, uint8_t
     REG(AES_DEXIT) = 0;
     REG(AES_DMA_EN) = 0;
 }
+
+#endif /* !SOC_CRYPTO_NO_DMA */
 
 static void cpu_mode(int mode, const uint8_t *key, int key_len, bool enc, uint8_t iv[16], const uint8_t *in, uint8_t *out, size_t len)
 {
@@ -163,6 +169,7 @@ int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t i
     if ((mode == AES_ECB || mode == AES_CBC) && (len & 15)) return -1;
     const uint8_t *s = in; uint8_t *d = out;
     size_t full = len & ~(size_t)15;
+#ifndef SOC_CRYPTO_NO_DMA
     if (full >= 16u * NDF_AES_DMA_MIN && dma_ok(s, full) && dma_ok(d, full) && (aes_ch = gdma_alloc()) >= 0) {   /* per call */
         uint32_t st = aes_lock();
         for (size_t j = 0; j < full; ) {
@@ -174,6 +181,7 @@ int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t i
         aes_unlock(st);
         s += full; d += full; len -= full;
     }
+#endif
     if (len) cpu_mode(mode, key, key_len, encrypt, iv, s, d, len);     /* short requests, tails, non-DMA memory */
     return 0;
 }

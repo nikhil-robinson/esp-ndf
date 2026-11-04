@@ -23,7 +23,12 @@
 #define SOC_CPU_HWLOOP_LBEG_QUIRK   0
 #define SOC_HAS_FLASH_CACHE         0
 #endif
-#define SOC_CPENABLE_BOOT           0   /* Xtensa CPENABLE: unused */
+#define SOC_CPENABLE_BOOT           0
+/* crypto engines: the same register layout as the S3 (drivers/crypto/*.c are shared), P4 base addresses; CPU-fed only */
+#define SOC_AES_BASE                0x50090000u
+#define SOC_SHA_BASE                0x50091000u
+#define SOC_RSA_BASE                0x50092000u
+#define SOC_CRYPTO_NO_DMA           1   /* Xtensa CPENABLE: unused */
 
 /* Boot step in start.S before any stack / .bss access: L2 cache = 128 KB, 64 B lines, so 0x4FF20000-0x4FF80000
  * (stacks, .bss, link.ld.in) is plain memory. ROM Cache_Set_L2_Cache_Mode disassembled: one-hot size at CACHE + 0x278

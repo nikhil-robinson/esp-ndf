@@ -6,11 +6,14 @@
 #include "sha.h"
 #include "spin.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "gdma.h"
 #include <string.h>
 
-#define SHA_BASE   0x6003B000u
+#ifndef SOC_SHA_BASE
+#define SOC_SHA_BASE 0x6003B000u        /* ESP32-S3; other chips set it in soc_caps.h */
+#endif
+#define SHA_BASE   SOC_SHA_BASE
 #define SHA_MODE   (SHA_BASE + 0x00)
 #define SHA_START  (SHA_BASE + 0x10)
 #define SHA_CONT   (SHA_BASE + 0x14)
@@ -45,6 +48,7 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
         for (unsigned i = 0; i < hw; i++) REG(SHA_H(i)) = c->h[i];
     REG(SHA_MODE) = c->type;
     int ch = -1;                                          /* a GDMA channel only for this run: 5 for the whole chip */
+#ifndef SOC_CRYPTO_NO_DMA
     if (n >= NDF_SHA_DMA_MIN && (uintptr_t)p >= 0x3FC88000u && (uintptr_t)p + n * w * 4 <= 0x3FD00000u &&
         !((uintptr_t)p & 3) && (ch = gdma_alloc()) >= 0) {
         static gdma_desc_t d[2];
@@ -61,6 +65,7 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
         }
         gdma_free(ch);                                    /* none free: the CPU path below does the blocks */
     }
+#endif
     for (; n; n--, p += w * 4) {
         SPIN_US(!REG(SHA_BUSY), 10000);
         if (!((uintptr_t)p & 3)) for (unsigned i = 0; i < w; i++) REG(SHA_TEXT(i)) = ((const uint32_t *)p)[i];

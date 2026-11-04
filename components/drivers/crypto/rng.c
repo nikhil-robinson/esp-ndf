@@ -4,13 +4,20 @@
  * next key at once and every byte handed out is zeroed, so earlier output cannot be recomputed from the state (fast
  * key erasure); calls are served from the buffer. */
 #include "rng.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 #include <string.h>
 
-#define WDEV_RND      0x6003507Cu
-#define WIFI_CLK_EN   0x60026014u     /* SYSCON: b15 RNG clock */
-#define RTC_CLK_CONF  0x60008074u     /* b10 8 MHz clock to the digital domain (RNG entropy source) */
+#if SOC_CPU_RISCV    /* ESP32-P4: LP_TRNG data register, clock gate in LPPERI (IDF hw_random.c, rng_ll.h; ~75 kHz byte rate) */
+#define RNG_DATA      0x50126004u      /* LP_TRNG base 0x50126000 + 4 (rev v3: RNG_DATA_REG) */
+#define LPPERI_CLK_EN 0x50120000u      /* b16 RNG clock */
+#define RNG_WAIT_CYCLES (sys_cpu_hz() / 1000000u * 14u)
+#else
+#define RNG_DATA      0x6003507Cu      /* ESP32-S3 WDEV_RND */
+#define WIFI_CLK_EN   0x60026014u      /* SYSCON: b15 RNG clock */
+#define RTC_CLK_CONF  0x60008074u      /* b10 8 MHz clock to the digital domain (RNG entropy source) */
+#define RNG_WAIT_CYCLES (1778 * (sys_cpu_hz() / 80000000u))   /* 1778 APB cycles (IDF: tested rate) */
+#endif
 
 static bool up;
 static uint32_t last;
@@ -22,6 +29,7 @@ static uint8_t  buf[RSBUF] __attribute__((aligned(4))); static unsigned avail;  
 /* Boot seeding with the SAR ADC noise source switched on (IDF bootloader_random_enable / _disable for the S3, register
  * for register): the RC 8 MHz source alone is not full entropy without RF; with the ADC sampling its internal reference
  * the RNG words are. Runs once before main (no ADC user yet); the ADC is put back in reset afterwards. */
+#if !SOC_CPU_RISCV
 #define SAR(o)  (0x60040000u + (o))
 #define SENS(o) (0x60008800u + (o))
 #define PERIP_CLK_EN0 0x600C0018u
@@ -60,6 +68,10 @@ static void sar_entropy(bool on)
     }
 }
 
+#else
+static void sar_entropy(bool on) { (void)on; }       /* ponytail: P4 has no ADC noise source switched on here (IDF does not either) */
+#endif
+
 static bool seeded;
 void rng_boot_seed(void)       /* first use of rng_fill / rng_u32, not at boot: ~1 ms of paced hardware words that no
                                 * application without keys should pay on every reset */
@@ -73,8 +85,12 @@ void rng_boot_seed(void)       /* first use of rng_fill / rng_u32, not at boot: 
 
 void rng_init(void)
 {
+#if SOC_CPU_RISCV
+    REG_SET(LPPERI_CLK_EN, BIT(16));
+#else
     REG_SET(WIFI_CLK_EN, BIT(15));
     REG_SET(RTC_CLK_CONF, BIT(10));
+#endif
     last = ccount();
     up = true;
 }
@@ -82,8 +98,8 @@ void rng_init(void)
 uint32_t rng_hw(void)
 {
     if (!up) rng_init();
-    uint32_t wait = 1778 * (sys_cpu_hz() / 80000000u), r = 0, c;   /* 1778 APB cycles (IDF: tested rate) */
-    do { c = ccount(); r ^= REG(WDEV_RND); } while (c - last < wait);
+    uint32_t wait = RNG_WAIT_CYCLES, r = 0, c;
+    do { c = ccount(); r ^= REG(RNG_DATA); } while (c - last < wait);
     last = c;
     return r;
 }

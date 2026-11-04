@@ -5,7 +5,9 @@ PFX   = $(TC)/bin/riscv32-esp-elf-
 # No Zcmp: IDF SOC_CPU_ZCMP_WORKAROUND (push/pop and interrupts, DIG-661). PIE / hardware loops only in their own .S files.
 ARCH_FLAGS = -march=rv32imafc_zicsr_zifencei_zaamo_zalrsc -mabi=ilp32f -mno-relax -Wl,--no-warn-rwx-segments
 # P4 drivers live in drivers/<x>/esp32p4/ (same public headers); folders without one are not built for this chip
-SOC_DRIVER_SRCS = $(wildcard $(C)/drivers/*/esp32p4/*.c $(C)/drivers/*/esp32p4/*.S)
+# plus the drivers shared with the S3 (same file, chip data from soc_caps.h): storage on top of flash.h (ota.c waits for the
+# P4 boot path) and the crypto engines
+SOC_DRIVER_SRCS = $(wildcard $(C)/drivers/*/esp32p4/*.c $(C)/drivers/*/esp32p4/*.S) $(filter-out $(C)/drivers/storage/ota.c,$(wildcard $(C)/drivers/storage/*.c)) $(wildcard $(C)/drivers/crypto/*.c)
 # Xtensa assembly in components/lib; the C paths cover it
 SOC_LIB_EXCLUDE = double.S dsp.S dsp_f32.S fpu.S nn_s8.S
 # the P4 ROM reads the first image at 0x2000

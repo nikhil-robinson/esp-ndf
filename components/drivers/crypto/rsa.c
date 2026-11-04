@@ -4,11 +4,14 @@
  * flag, read Z. */
 #include "rsa.h"
 #include "clk.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include <string.h>
 #include "irq.h"
 
-#define RSA_BASE   0x6003C000u
+#ifndef SOC_RSA_BASE
+#define SOC_RSA_BASE 0x6003C000u       /* ESP32-S3; other chips set it in soc_caps.h */
+#endif
+#define RSA_BASE   SOC_RSA_BASE
 #define MEM_M      (RSA_BASE + 0x000)
 #define MEM_Z      (RSA_BASE + 0x200)
 #define MEM_Y      (RSA_BASE + 0x400)
@@ -24,7 +27,9 @@
 #define SEARCH_EN  (RSA_BASE + 0x824)
 #define SEARCH_POS (RSA_BASE + 0x828)
 #define INT_ENA    (RSA_BASE + 0x82C)
-#define RSA_PD     0x600C0040u           /* SYSTEM_RSA_PD_CTRL: b0 memory power-down */
+#if !SOC_CPU_RISCV
+#define RSA_PD     0x600C0040u           /* SYSTEM_RSA_PD_CTRL: b0 memory power-down (the P4 has no power control) */
+#endif
 
 static bool up;
 static volatile uint32_t lk;                         /* one engine: callers on both cores are serialised; interrupts stay on */
@@ -39,7 +44,9 @@ static void hw_on(void)
 {
     if (up) return;
     periph_enable(PERIPH_RSA);
+#ifdef RSA_PD
     REG_CLR(RSA_PD, BIT(0));
+#endif
     for (uint32_t t = ccount(); !REG(CLEAN) && ccount() - t < 2400000; ) {}
     REG(INT_ENA) = 0;
     up = true;
