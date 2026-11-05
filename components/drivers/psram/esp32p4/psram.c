@@ -132,6 +132,10 @@ int psram_cmd(uint16_t cmd, uint32_t addr, int dummy, const uint8_t *out, int no
 int psram_probe(uint8_t mr[8])
 {
     psram_pins();
+#if NDF_P4_REV < 3     /* v1.x: external memory is reached through the L2 cache, which the ROM leaves off (IDF cache_hal_init enables it) */
+    ((int (*)(uint32_t))0x4fc00404)(BIT(5));     /* Cache_Invalidate_All(L2) */
+    ((void (*)(uint32_t))0x4fc00504)(0);         /* Cache_Enable_L2_Cache */
+#endif
     for (int a = 0; a < 8; a += 2) psram_cmd(CMD_REG_RD, (uint32_t)a, RD_REG_DUMMY, 0, 0, mr + a, 2);
     return 0;
 }
@@ -209,7 +213,7 @@ uint32_t psram_init(int clk_div)
     size_bytes = sizes[dens];
     if (!size_bytes) return 0;
 
-    psram_spi0_setup(clk_div, 10, 5);
+    psram_spi0_setup(clk_div, RD_DUMMY, WR_DUMMY);             /* IDF AP_HEX_PSRAM_RD / WR_DUMMY_BITLEN: 2 * (10 - 1) and 2 * (5 - 1) bit times */
     REG(SMEM_DDR) |= BIT(1);                        /* variable dummy */
     /* PSRAM MMU: page i of the PSRAM at 0x48000000 + 64 KB * i; stale cache lines of that window dropped afterwards */
     uint32_t pages = size_bytes >> 16;
