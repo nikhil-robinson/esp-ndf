@@ -1,6 +1,13 @@
 /* DFS: pm_config(240, 80); lock -> 240 MHz, unlock -> 80 MHz (CPU clock measured against the system timer); lock and
  * unlock cost (cycles at the start clock); console and timing still right at 80 MHz. Sibling: bench/idf_pm. */
 #include "console.h"
+#if SOC_CPU_RISCV
+#define HI 400          /* P4 steps: 400 / 200 / 100 / 40 MHz */
+#define LO 100
+#else
+#define HI 240
+#define LO 80
+#endif
 #include "pm.h"
 #include "clk.h"
 #include "sys.h"
@@ -16,7 +23,7 @@ static uint32_t measured_mhz(void)
 int main(void)
 {
     delay_ms(200);
-    int r = pm_config(240, 80);
+    int r = pm_config(HI, LO);
     uint32_t idle = measured_mhz();
     uint32_t t = ccount(); pm_lock(); uint32_t tl = ccount() - t;        /* counted at 80 MHz, then ends at 240 */
     uint32_t busy = measured_mhz();
@@ -33,12 +40,12 @@ int main(void)
         if (c1 - c0 < best_l) best_l = c1 - c0;
         if (c2 - c1 < best_u) best_u = c2 - c1;
     }
-    int ok = !r && idle >= 78 && idle <= 82 && busy >= 238 && busy <= 242 && nested >= 238 && back >= 78 && back <= 82 && dms >= 9990 && dms <= 10100 && pm_locks() == 0;
+    int ok = !r && idle >= LO - 2 && idle <= LO + 2 && busy >= HI - 2 && busy <= HI + 2 && nested >= HI - 2 && back >= LO - 2 && back <= LO + 2 && dms >= 9990 && dms <= 10100 && pm_locks() == 0;
     printf("%s DFS: idle %lu MHz, locked %lu MHz, nested %lu MHz, unlocked %lu MHz, delay_ms(10) = %lu us | lock %lu cycles, unlock %lu cycles\n",
            ok ? "PASS" : "FAIL", (unsigned long)idle, (unsigned long)busy, (unsigned long)nested, (unsigned long)back, (unsigned long)dms,
            (unsigned long)best_l, (unsigned long)best_u);
     (void)tl; (void)tu;
-    pm_config(240, 240);
+    pm_config(HI, HI);
     printf("pm_test %s done\n", ok ? "PASS" : "FAIL");
     for (;;) {}
 }
