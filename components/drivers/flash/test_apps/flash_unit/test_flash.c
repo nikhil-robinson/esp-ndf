@@ -9,7 +9,7 @@ void test_flash(void)
 {
     uint32_t id = flash_jedec_id();
     printf("    JEDEC id %06lx, size %lu MB\n", id, flash_size() >> 20);
-    CHECK(flash_size() == 16u << 20);
+    CHECK(flash_size() >= (16u << 20) && !(flash_size() & (flash_size() - 1)));       // 16 MB devkit, 32 MB P4 board
     uint32_t t = ccount();
     CHECK(flash_erase_sector(TEST_ADDR) == 0);
     uint32_t te = (ccount() - t) / (sys_cpu_hz() / 1000000);
