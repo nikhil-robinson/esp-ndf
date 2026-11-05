@@ -83,6 +83,11 @@ $(OBJS) $(OUT)/app.elf $(OUT)/app.bin: $(OUT)/config.stamp $(wildcard $(APP)/ndf
 
 $(OUT)/app.bin: $(OUT)/app.elf
 	@$(PFX)objcopy -R .flash.text -R .flash.rodata $< $(OUT)/app_ram.elf 2>&1 | grep -v "empty loadable segment" >&2 || true   # the ROM loads only the RAM part
+ifeq ($(ARCH),riscv)
+	@# RTC_DATA initial values: the ROM would write a .rtc.data section into LP RAM at every boot (and deep-sleep wake); ship them as a section at their load address in L2MEM instead (sys_start0 copies them)
+	@$(PFX)objcopy -O binary -j .rtc.data $< $(OUT)/rtc_data.bin
+	@if [ -s $(OUT)/rtc_data.bin ]; then $(PFX)objcopy -R .flash.text -R .flash.rodata -R .rtc.data --add-section .rtc.init=$(OUT)/rtc_data.bin --set-section-flags .rtc.init=alloc,load,contents,data --change-section-address .rtc.init=0x$$($(PFX)nm $< | awk '$$3=="_rtc_data_load"{print $$1}') $< $(OUT)/app_ram.elf 2>&1 | grep -v "empty loadable segment" >&2 || true; fi
+endif
 	esptool.py --chip $(SOC) elf2image --flash_mode $(strip $(FLASH_MODE)) --flash_freq $(strip $(FLASH_FREQ)) -o $@ $(OUT)/app_ram.elf >/dev/null
 	@$(PFX)objcopy -O binary -j .flash.text $< $(OUT)/xip_text.bin; $(PFX)objcopy -O binary -j .flash.rodata $< $(OUT)/xip_ro.bin
 	@cat $(OUT)/xip_text.bin $(OUT)/xip_ro.bin > $(OUT)/xip.bin                  # code blob for XIP_ADDR (rodata right after the code)

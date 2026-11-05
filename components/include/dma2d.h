@@ -6,8 +6,13 @@
 #pragma once
 #include "ndf.h"
 
+#if defined(NDF_P4_REV) && NDF_P4_REV < 3
+#define DMA2D_TX_CHANNELS 3      /* v1.x silicon: hw_ver1 dma2d_reg.h has OUT channels 0..2 and IN channels 0..1 */
+#define DMA2D_RX_CHANNELS 2
+#else
 #define DMA2D_TX_CHANNELS 4
 #define DMA2D_RX_CHANNELS 3
+#endif
 
 typedef struct dma2d_desc {
     uint32_t w0;                      /* vb_size[13:0] hb_length[27:14] err_eof[28] dma2d_en[29] suc_eof[30] owner[31] */

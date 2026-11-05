@@ -1,4 +1,4 @@
-/* P4 2D-DMA (dma2d.h). Sequence of ESP-IDF v6.1 esp_driver_dma/src/dma2d.c and esp_hal_dma/esp32p4/dma2d_ll.h (channel set-up:
+/* P4 2D-DMA (dma2d.h). v1.x silicon: memory to memory runs on TX 0 / RX 0 (TX 2 / RX 1 never complete). Sequence of ESP-IDF v6.1 esp_driver_dma/src/dma2d.c and esp_hal_dma/esp32p4/dma2d_ll.h (channel set-up:
  * stop, abort + reset, connect to the peripheral, owner check off, descriptor-end EOF mode, 128-byte bursts, page bound
  * wrap), registers from the generated regs/dma2d.h (channel 0 names; channel n is +0x100 n, RX block at +0x500). */
 #include "dma2d.h"
@@ -156,11 +156,12 @@ int dma2d_m2m(void *dst, const void *src, size_t n)
     if (!n || n > 0x0FFFFFFF || dma2d_init()) return -1;
     dma2d_cfg_t c = { .periph = DMA2D_PERIPH_M2M, .periph_id = -1 };
     cache_dma_writeback(src, n);
+    cache_dma_wbinv(dst, n);                                                     /* no dirty line of dst may be written back over the DMA's data later */
     dma2d_desc_1d(&td, (void *)src, n, n, true, 0);
     dma2d_desc_1d(&rd, dst, n, 0, true, 0);                                    /* receive: size n, the length is written back */
-    if (dma2d_rx_start(2, &c, &rd) || dma2d_tx_start(3, &c, &td)) return -1;
-    int r = dma2d_tx_wait(3, 1000000) | dma2d_rx_wait(2, 1000000, 0);
+    if (dma2d_rx_start(0, &c, &rd) || dma2d_tx_start(0, &c, &td)) return -1;
+    int r = dma2d_tx_wait(0, 1000000) | dma2d_rx_wait(0, 1000000, 0);
     cache_dma_wbinv(dst, n);
-    dma2d_stop(3, 2);
+    dma2d_stop(0, 0);
     return r;
 }

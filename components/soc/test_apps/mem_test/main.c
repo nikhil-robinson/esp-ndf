@@ -19,6 +19,11 @@ static uint32_t cyc(void *(*f)(size_t), size_t n)
     return best;
 }
 
+#if SOC_CPU_RISCV
+#define INTERNAL(p) ((uintptr_t)(p) >= 0x4FF00000u && (uintptr_t)(p) < 0x4FFC0000u)     /* P4 L2MEM */
+#else
+#define INTERNAL(p) ((uintptr_t)(p) < 0x3FD00000u)
+#endif
 int main(void)
 {
     delay_ms(200);
@@ -39,8 +44,8 @@ int main(void)
     int a = heap_add_psram((void *)PSRAM_VADDR, sz);
     size_t ps0 = heap_caps_free_size(HEAP_SPIRAM);
     uint8_t *big = malloc(100000), *small = malloc(100), *dma = heap_caps_malloc(4096, HEAP_DMA), *ext = heap_caps_malloc(65536, HEAP_SPIRAM);
-    ok = !a && sz && big && (uintptr_t)big >= PSRAM_VADDR && small && (uintptr_t)small < 0x3FD00000u && dma &&
-         (uintptr_t)dma < 0x3FD00000u && ext && (uintptr_t)ext >= PSRAM_VADDR;
+    ok = !a && sz && big && (uintptr_t)big >= PSRAM_VADDR && small && INTERNAL(small) && dma &&
+         INTERNAL(dma) && ext && (uintptr_t)ext >= PSRAM_VADDR;
     printf("%s PSRAM %lu KB in the heap (%lu free); malloc(100000) %p (PSRAM), malloc(100) %p, DMA %p, SPIRAM %p\n", ok ? "PASS" : "FAIL",
            (unsigned long)(sz >> 10), (unsigned long)ps0, big, small, dma, ext); fail |= !ok;
     for (int i = 0; i < 100000; i++) big[i] = (uint8_t)(i * 13);
