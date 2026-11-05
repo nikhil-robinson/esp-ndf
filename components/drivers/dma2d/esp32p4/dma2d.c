@@ -59,16 +59,9 @@ void dma2d_desc_2d(dma2d_desc_t *d, void *buf, int ha, int va, int hb, int vb, i
 
 static uint32_t mb_sel(dma2d_mb_t m) { return m == DMA2D_MB_NONE ? 3 : m - 1; }
 
-static void flush_list(dma2d_desc_t *d, bool tx_data)
+static void flush_list(dma2d_desc_t *d)                /* descriptors only: the callers write back / invalidate their pixel buffers */
 {
-    for (; d; d = d->next) {
-        uint32_t pix = 0;
-        cache_dma_writeback(d, sizeof *d);
-        if (tx_data && !(d->w0 & BIT(29))) pix = (d->w1 >> 14 & 0x3FFF) << 14 | (d->w0 >> 14 & 0x3FFF);      /* 1-D: length */
-        else if (tx_data) pix = (d->w1 >> 14 & 0x3FFF) * (d->w1 & 0x3FFF) * 4;                              /* 2-D: whole picture, upper bound */
-        if (pix) cache_dma_writeback(d->buf, pix);
-        if (d->w0 & BIT(30)) break;
-    }
+    for (; d; d = d->next) { cache_dma_writeback(d, sizeof *d); if (d->w0 & BIT(30)) break; }
 }
 
 int dma2d_tx_start(int ch, const dma2d_cfg_t *c, dma2d_desc_t *first)
@@ -88,7 +81,7 @@ int dma2d_tx_start(int ch, const dma2d_cfg_t *c, dma2d_desc_t *first)
     OUTF(ch, DSCR_PORT_EN, c->dscr_port);
     if (c->dscr_port) { OUTF(ch, DSCR_PORT_BLK_H, c->dscr_port_h); OUTF(ch, DSCR_PORT_BLK_V, c->dscr_port_v); }
     REG(TX(ch, INT_CLR)) = 0x1FFF;
-    flush_list(first, true);
+    flush_list(first);
     REG(TX(ch, LINK_ADDR)) = (uint32_t)(uintptr_t)first;
     REG_CLR(TX(ch, LINK_CONF), BIT(DMA2D_OUTLINK_STOP_CH0_S));
     REG_SET(TX(ch, LINK_CONF), BIT(DMA2D_OUTLINK_START_CH0_S));
@@ -162,6 +155,7 @@ int dma2d_m2m(void *dst, const void *src, size_t n)
     static dma2d_desc_t td __attribute__((aligned(64))), rd __attribute__((aligned(64)));
     if (!n || n > 0x0FFFFFFF || dma2d_init()) return -1;
     dma2d_cfg_t c = { .periph = DMA2D_PERIPH_M2M, .periph_id = -1 };
+    cache_dma_writeback(src, n);
     dma2d_desc_1d(&td, (void *)src, n, n, true, 0);
     dma2d_desc_1d(&rd, dst, n, 0, true, 0);                                    /* receive: size n, the length is written back */
     if (dma2d_rx_start(2, &c, &rd) || dma2d_tx_start(3, &c, &td)) return -1;

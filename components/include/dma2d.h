@@ -1,8 +1,8 @@
 /* 2D-DMA (ESP32-P4 only, TRM chapter 7 "VDMA"): 4 TX (read memory) and 3 RX (write memory) channels that move 1-D buffers or
  * 2-D blocks of a picture between memory and the JPEG codec, the PPA or each other (memory to memory). A transfer is a
  * linked list of 24-byte descriptors; the engine fetches them, reads / writes the pixels, optionally reorders macro
- * blocks. Polling API; the peripheral drivers (jpeg.h, ppa.h) own the channels they use. Buffers and descriptors are
- * cache-maintained by the start / wait calls (L1 D-cache in front of L2MEM and PSRAM). */
+ * blocks. Polling API; the peripheral drivers (jpeg.h, ppa.h) own the channels they use. Descriptors are cache-maintained by the
+ * start calls; the caller writes back its TX pixel buffers before and invalidates its RX buffers after (cache_p4.h). */
 #pragma once
 #include "ndf.h"
 
