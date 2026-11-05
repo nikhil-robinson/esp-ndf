@@ -35,11 +35,12 @@ int watch_set(int n, const volatile void *addr, size_t len, int mode, watch_fn_t
     uint32_t t1 = 2u << 28 | BIT(6) | (mode & WATCH_WRITE ? BIT(1) : 0) | (mode & WATCH_READ ? BIT(0) : 0);   /* type 2, M-mode, store / load */
     uint32_t t2 = (uint32_t)addr;
     if (len > 1) { t1 |= 1u << 7; t2 |= (len >> 1) - 1; }                                                     /* match 1: NAPOT range */
+    WR(0x7A5, BIT(7) | BIT(3));                                                                               /* tcontrol: M-mode triggers enabled (MPTE | MTE), as IDF rv_utils */
     WR(0x7A0, n);
     WR(0x7A1, 0);
     WR(0x7A2, t2);
     WR(0x7A1, t1);
-    if (RD(0x7A1) != t1) { WR(0x7A1, 0); return -1; }                                                         /* not writable: a debugger owns it */
+    if ((RD(0x7A1) & ~(0x3Fu << 21 | BIT(20))) != t1) { WR(0x7A1, 0); return -1; }                                                         /* not writable: a debugger owns it (maskmax, bits 26:21, and hit are read-only) */
     watch_fn[core_id()][n] = fn;
     return 0;
 }
