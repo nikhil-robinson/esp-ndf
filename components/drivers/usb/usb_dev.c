@@ -113,6 +113,16 @@ static uint32_t guard_fed;
 #define EP_NOTIFY       3
 #define MPS             64
 #define RXB             RXB_SZ
+#if USB_HS
+#define PIPE_MPS_INIT BMPS,
+#else
+#define PIPE_MPS_INIT
+#endif
+#if USB_HS
+#define PMPS(q)         ((q)->mps)
+#else
+#define PMPS(q)         MPS                          /* S3: the constant, as before */
+#endif
 #define EPINFO_W        (2u * USB_OTG_EPS)      /* as TinyUSB's dwc2 driver */
 
 /* ---- descriptors ---- */
@@ -190,7 +200,11 @@ static const uint8_t *ep0_src; static uint32_t ep0_left; static bool ep0_zlp, ep
  * composite. TX double buffer (one on the bus, one being filled); RX ping-pong (the core DMA-writes the armed one). */
 #define TX2 4096u
 typedef struct {
-    uint8_t in, out, fifo; uint16_t mps; bool zlp;               /* zlp: stream class, close a full-packet transfer with a ZLP */
+    uint8_t in, out, fifo;
+#if USB_HS
+    uint16_t mps;                                   /* bulk 512 / interrupt 64 (S3: always MPS, no field) */
+#endif
+    bool zlp;               /* zlp: stream class, close a full-packet transfer with a ZLP */
     uint8_t *txb[2], *rxb[2]; uint32_t txmax;
     uint32_t tx_len[2]; int tx_cur, tx_q; bool tx_full_end;
     uint32_t rx_len[2]; bool rx_full[2]; int rx_arm_b, rx_rd; uint32_t rx_pos;
@@ -198,8 +212,8 @@ typedef struct {
 static uint8_t tx_buf[2][TX_MAX] __attribute__((aligned(USB_DMA_ALIGN))), rx_buf[2][RXB] __attribute__((aligned(USB_DMA_ALIGN)));
 static uint8_t tx_buf2[2][TX2] __attribute__((aligned(USB_DMA_ALIGN))), rx_buf2[2][RXB] __attribute__((aligned(USB_DMA_ALIGN)));
 static pipe_t pp[2] = {
-    { EP_IN, EP_OUT, 1, BMPS, true, { tx_buf[0], tx_buf[1] }, { rx_buf[0], rx_buf[1] }, TX_MAX, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
-    { EP_MSC_IN, EP_MSC_OUT, 3, BMPS, false, { tx_buf2[0], tx_buf2[1] }, { rx_buf2[0], rx_buf2[1] }, TX2, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
+    { EP_IN, EP_OUT, 1, PIPE_MPS_INIT true, { tx_buf[0], tx_buf[1] }, { rx_buf[0], rx_buf[1] }, TX_MAX, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
+    { EP_MSC_IN, EP_MSC_OUT, 3, PIPE_MPS_INIT false, { tx_buf2[0], tx_buf2[1] }, { rx_buf2[0], rx_buf2[1] }, TX2, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
 };
 static int npipes(void) { return fn == USB_FN_CDC_MSC ? 2 : 1; }
 static void pipe_reset(pipe_t *q) { q->tx_cur = q->tx_q = -1; q->rx_full[0] = q->rx_full[1] = false; q->rx_rd = 0; q->rx_pos = 0; q->rx_arm_b = -1; }
@@ -255,7 +269,7 @@ static void rx_arm(pipe_t *q, int b)              /* hand one OUT buffer to the 
     q->rx_arm_b = b;
     DMA_FROM_DEV(q->rxb[b], RXB);
     R(DOEPDMA(q->out)) = (uint32_t)q->rxb[b];
-    R(DOEPTSIZ(q->out)) = (RXB / q->mps) << 19 | RXB;
+    R(DOEPTSIZ(q->out)) = (RXB / PMPS(q)) << 19 | RXB;
     R(DOEPCTL(q->out)) |= EP_ENA | EP_CNAK;
 }
 static void rx_done(pipe_t *q)                     /* transfer complete (32 packets or a short one) */
@@ -278,9 +292,11 @@ static void set_configuration(int cfg)
         R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;   /* interrupt, TX FIFO 2 */
     for (int k = 0; k < npipes(); k++) {
         pipe_t *q = &pp[k];
+#if USB_HS
         q->mps = fn == USB_FN_HID ? IMPS : BMPS;
-        R(DIEPCTL(q->in)) = EP_SD0PID | (uint32_t)q->fifo << 22 | ty << 18 | EP_ACTIVE | q->mps;
-        R(DOEPCTL(q->out)) = EP_SD0PID | ty << 18 | EP_ACTIVE | q->mps;
+#endif
+        R(DIEPCTL(q->in)) = EP_SD0PID | (uint32_t)q->fifo << 22 | ty << 18 | EP_ACTIVE | PMPS(q);
+        R(DOEPCTL(q->out)) = EP_SD0PID | ty << 18 | EP_ACTIVE | PMPS(q);
         pipe_reset(q); rx_arm(q, 0);
     }
 }
@@ -357,10 +373,10 @@ static void bus_reset(void)
 static void tx_start(pipe_t *q, int b)
 {
     uint32_t n = q->tx_len[b];
-    q->tx_cur = b; q->tx_full_end = n % q->mps == 0 && q->zlp;
+    q->tx_cur = b; q->tx_full_end = n % PMPS(q) == 0 && q->zlp;
     DMA_TO_DEV(q->txb[b], (n + 63u) & ~63u);
     R(DIEPDMA(q->in)) = (uint32_t)q->txb[b];
-    R(DIEPTSIZ(q->in)) = (n + q->mps - 1) / q->mps << 19 | n;
+    R(DIEPTSIZ(q->in)) = (n + PMPS(q) - 1) / PMPS(q) << 19 | n;
     R(DIEPCTL(q->in)) |= EP_ENA | EP_CNAK;
 }
 
