@@ -4,6 +4,7 @@
 #include "sys.h"
 #include "system.h"
 #include "soc.h"
+#include "cache.h"
 #include "clk.h"
 #include "cpu.h"
 #include "console.h"
@@ -126,6 +127,9 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     wdt_off();
 #endif
     clk_cpu_set_mhz(NDF_CPU_MHZ);
+#if NDF_XIP
+    cache_xip_init();                       /* before any code in flash runs */
+#endif
     periph_enable(PERIPH_SYSTIMER);
     console_init();
 #if NDF_STACK_GUARD

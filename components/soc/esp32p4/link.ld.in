@@ -6,6 +6,7 @@
  * 128 KB (cache.c) - before anything touches .bss or the stacks. Heap: the rest of both.
  * ponytail: TCM 0x30100000 (8 KB, zero wait) is unused; move irq_entry there (copied at boot, esptool must not see it
  * as a load segment) once the board shows L2 fetch latency in irq_latency. */
+#define XIP_VWIN 0x3F00000         /* code window: 1 MB at 0x43F00000 (flash MMU entries 1008-1023, cache.c) */
 #define ROM_LO  0x4FF80000
 #define ROM_HI  0x4FFBCFC0
 #define L2_FREE_LO 0x4FF20000      /* above a 128 KB L2 cache */
@@ -15,12 +16,42 @@ MEMORY
 {
     sram (RWX) : ORIGIN = ROM_LO, LENGTH = ROM_HI - ROM_LO
     sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = ROM_LO - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
+    xipwin (RX) : ORIGIN = 0x40000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE   /* code, then read-only data, in flash through the caches */
     lpram (RW) : ORIGIN = 0x50108000 + 0x40, LENGTH = 0x7A80 - 0x40   /* LP RAM below the LP ROM data (0x5010FA80); first 64 B: notes */
 }
 
+/* Same split as the S3 (esp32s3/link.ld.in): libraries never called from interrupts, flash operations or the panic
+ * path. "*build*" because the P4 objects are in build-esp32p4/. */
+#define XIP_LIB(S) *build*?ndf?components?lib?strtod.c.o(S) *build*?ndf?components?lib?bigint.c.o(S) *build*?ndf?components?lib?stdlib.c.o(S) *build*?ndf?components?lib?math.c.o(S) *build*?ndf?components?lib?mathf.c.o(S) \
+                   *build*?ndf?components?lib?double.c.o(S) *build*?ndf?components?lib?md5.c.o(S) *build*?ndf?components?lib?crc32.c.o(S) *build*?ndf?components?lib?p256_comb.c.o(S) *build*?ndf?components?lib?ecc.c.o(S) *build*?ndf?components?lib?musl?*.c.o(S)
+#define XIP_ALL(S) *build*?app?*.o(S) *build*?ndf?components?drivers?storage?*.o(S)
+
 SECTIONS
 {
-    _flash_text_start = 0; _flash_text_end = 0;     /* no XIP yet on the P4 */
+#if NDF_XIP
+    .flash.text : {
+        _flash_text_start = ABSOLUTE(.);
+        *(.flash.text .flash.text.*)                       /* FLASH_FN */
+        XIP_LIB(.text .text.*)
+#if NDF_XIP == 2
+        XIP_ALL(.text .text.*)
+#endif
+        . = ALIGN(16);
+        _flash_text_end = ABSOLUTE(.);
+    } > xipwin
+
+    .flash.rodata ORIGIN(xipwin) + SIZEOF(.flash.text) : {   /* same flash offset as the end of the code */
+        _flash_rodata_start = ABSOLUTE(.);
+        XIP_LIB(.rodata .rodata.*)
+#if NDF_XIP == 2
+        XIP_ALL(.rodata .rodata.*)
+#endif
+        . = ALIGN(16);
+        _flash_rodata_end = ABSOLUTE(.);
+    } > xipwin
+#else
+    _flash_text_start = 0; _flash_text_end = 0;
+#endif
 
     .text : {
         KEEP(*(.iram.text .iram.text.*))            /* entry and _trap_vec (64-byte aligned) */
@@ -69,3 +100,4 @@ ASSERT(_trap_vec % 64 == 0, "mtvec (CLIC mode) must be 64-byte aligned")
 ASSERT(_data_end <= ROM_HI, "RAM full: code + data exceed the ROM-loadable L2MEM window (0x4FF80000-0x4FFBCFC0)")
 ASSERT(_stack1_top <= ROM_LO, "RAM full: .bss + stacks exceed 0x4FF20000-0x4FF80000")
 ASSERT(SIZEOF(.rtc.data) == 0, "P4: the ROM does not load LP RAM; RTC_DATA_ATTR is not supported yet (use RTC_BSS / RTC_NOINIT)")
+ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (flash MMU entries 1008-1023)")

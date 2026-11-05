@@ -54,3 +54,8 @@
 #ifndef NDF_CONSOLE_RX_PIN
 #define NDF_CONSOLE_RX_PIN 38
 #endif
+
+/* PSRAM: 16 / 32 MB HEX on MSPI2; the MMU maps it at 0x48000000 (64 KB pages from entry 0 of the PSRAM MMU) */
+#define PSRAM_VADDR            0x48000000u
+#define PSRAM_MMU_FIRST        0u
+#define SOC_GDMA_PSRAM_TX_OK   1
