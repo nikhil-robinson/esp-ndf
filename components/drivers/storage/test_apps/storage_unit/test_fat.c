@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "fat.h"
 #include <string.h>
@@ -44,7 +45,7 @@ void test_fat(void)
     }
     uint32_t t = ccount();
     CHECK(fat_format(&bd) == 0);
-    uint32_t fmt_ms = (ccount() - t) / 240000;
+    uint32_t fmt_ms = (ccount() - t) / (sys_cpu_hz() / 1000);
     uint32_t total, freeb; int bits;
     fat_info(&total, &freeb, &bits);
     printf("    formatted FAT%d in %lu ms: %lu KB, %lu KB free\n", bits, fmt_ms, total / 1024, freeb / 1024);
@@ -57,7 +58,7 @@ void test_fat(void)
     t = ccount();
     fd = fat_open("/data/long file name.bin", FAT_WRONLY | FAT_CREAT | FAT_TRUNC);
     CHECK(fd >= 0 && fat_write(fd, big, sizeof big) == (int)sizeof big && fat_close(fd) == 0);
-    uint32_t w_ms = (ccount() - t) / 240000;
+    uint32_t w_ms = (ccount() - t) / (sys_cpu_hz() / 1000);
     fd = fat_open("/data/sub dir/note.txt", FAT_WRONLY | FAT_CREAT);
     CHECK(fd >= 0 && fat_write(fd, "nested", 6) == 6 && fat_close(fd) == 0);
     fd = fat_open("/temp.tmp", FAT_WRONLY | FAT_CREAT);
@@ -69,7 +70,7 @@ void test_fat(void)
     t = ccount();
     fd = fat_open("/DATA/Long File Name.BIN", FAT_RDONLY);      /* case-insensitive */
     int n = fat_read(fd, back, sizeof back);
-    uint32_t r_ms = (ccount() - t) / 240000;
+    uint32_t r_ms = (ccount() - t) / (sys_cpu_hz() / 1000);
     fat_close(fd);
     CHECK(n == (int)sizeof big && !memcmp(back, big, sizeof big));
     char s[32] = { 0 };

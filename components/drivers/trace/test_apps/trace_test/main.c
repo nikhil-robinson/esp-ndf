@@ -22,7 +22,7 @@ int main(void)
         if (c < best) best = c;
     }
     trace_flush(2000000);
-    uint32_t us = (ccount() - t0) / 240;
+    uint32_t us = (ccount() - t0) / (sys_cpu_hz() / 1000000);
     printf("trace_test: 64 x 1020 B, %lu failed, best write %lu cycles, %lu us = %lu KB/s\n", fails, best, us,
            (uint32_t)(64 * 1024ull * 1000000 / us / 1024));
     for (;;) delay_ms(1000);

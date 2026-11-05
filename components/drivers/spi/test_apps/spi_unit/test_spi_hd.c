@@ -67,7 +67,7 @@ static bool hd_dma(uint8_t mod, uint8_t lines)
     spi_hd_xfer(2, &r, NULL, NULL, 0);
     bool rok = rbefore && spi_slave_hd_dma_tx_done(3) && !memcmp(dm, ds, 3096);
     printf("    DMA %u-line: WRDMA 3 seg + WR_END -> %d B %s (%lu us), RDDMA 2 seg + INT0 %s\n", lines, n,
-           wok ? "ok" : "BAD", t / 240, rok ? "ok" : "BAD");
+           wok ? "ok" : "BAD", t / (sys_cpu_hz() / 1000000), rok ? "ok" : "BAD");
     return wok && rok;
 }
 
@@ -76,7 +76,7 @@ static void capture(void)                                /* core 1: sample GPIO_
 {
     while (!cap_go) {}
     uint32_t prev = 0, t0 = ccount();
-    while (cap_n < 64 && ccount() - t0 < 24000000u) {
+    while (cap_n < 64 && ccount() - t0 < (sys_cpu_hz() / 10)) {
         uint32_t lo = REG(0x6000403C), hi = REG(0x60004040);
         uint32_t ck = lo & BIT(14);
         if (ck != prev && (ck || cap_both)) { cap_lo[cap_n] = lo; cap_hi[cap_n] = hi; cap_n++; }

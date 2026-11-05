@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "nvs.h"
 #include "partition.h"
@@ -45,7 +46,7 @@ void test_nvs(void)
     uint32_t t = ccount();
     int fails = 0;
     for (uint32_t i = 0; i < 600; i++) fails += nvs_set_u32(h, "counter", i) != 0;   /* forces GC */
-    uint32_t us = (ccount() - t) / 240;
+    uint32_t us = (ccount() - t) / (sys_cpu_hz() / 1000000);
     uint8_t a; int32_t b; uint64_t c; uint32_t ctr; char s[32]; size_t sl = sizeof s, bl;
     CHECK(nvs_get_u8(h, "u8", &a) == 0 && a == 0xAB);
     CHECK(nvs_get_i32(h, "i32", &b) == 0 && b == -123456);
@@ -73,7 +74,7 @@ void test_nvs(void)
     CHECK(bi[2].result == 0 && bi[2].u64 == 0x1122334455667788ull && bi[3].result == 0 && bi[3].u32 == 599);
     CHECK(bi[4].result == 0 && !strcmp(bs, "esp-ndf robot v1") && bi[4].len == 17);
     CHECK(bi[5].result == NVS_NOT_FOUND && bi[6].result == NVS_NOT_FOUND && bi[7].result == NVS_ERR);
-    printf("    nvs_boot_read() 8 keys, %d pages, no mount: %lu us\n", 6, bt / 240);
+    printf("    nvs_boot_read() 8 keys, %d pages, no mount: %lu us\n", 6, bt / (sys_cpu_hz() / 1000000));
     int used, freee; nvs_stats(&used, &freee);
     printf("    600 updates: %d failures, %lu us each; entries used %d free %d\n", fails, us / 600, used, freee);
     CHECK(nvs_mount("nvs") == 0);                              /* remount: rebuild from flash */
@@ -90,7 +91,7 @@ void test_nvs_enc(void)
     if (nvs_read_keys("nvs_keys", key)) { printf("    (no nvs_keys partition content: skipped)\n"); return; }
     uint32_t t = ccount();
     CHECK(nvs_mount_secure("nvs_enc", key) == 0);
-    printf("    secure mount %lu us\n", (ccount() - t) / 240);
+    printf("    secure mount %lu us\n", (ccount() - t) / (sys_cpu_hz() / 1000000));
     nvs_handle_t h;
     uint32_t u; char s[48]; size_t sl = sizeof s, bl;
     if (nvs_open("gen", &h) == 0 && nvs_get_u32(h, "u32", &u) == 0) {      /* host-generated image */
@@ -114,7 +115,7 @@ void test_nvs_enc(void)
     int lasterr = 0;
     for (uint32_t i = 0; i < 400; i++) { int e = nvs_set_u32(h, "ctr", i); if (e) { fails++; lasterr = e; } }   /* GC re-encrypts moved entries */
     if (fails) printf("    ctr updates: %d failed, last err %d\n", fails, lasterr);
-    uint32_t us = (ccount() - t) / 240;
+    uint32_t us = (ccount() - t) / (sys_cpu_hz() / 1000000);
     CHECK(fails == 0);
     CHECK(nvs_mount_secure("nvs_enc", key) == 0);
     sl = sizeof s; bl = sizeof back;

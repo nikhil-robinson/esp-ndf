@@ -22,7 +22,7 @@ int main(void)
             for (int j = 0; j < 32; j++) bad += rx[j] != tx[j];
         }
         printf("spi_probe: %lu Hz: 4-byte xfer %lu cycles; 32-byte back-to-back min %lu cycles (wire %lu), %lu bytes wrong\n",
-               act, c, b2b, (uint32_t)(32ull * 8 * 240000000 / act), bad);
+               act, c, b2b, (uint32_t)(32ull * 8 * sys_cpu_hz() / act), bad);
         delay_us(5000);
     }
     for (;;) ;

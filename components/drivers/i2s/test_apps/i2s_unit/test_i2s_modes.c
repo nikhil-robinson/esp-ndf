@@ -28,7 +28,7 @@ static void tdm(void)
     i2s_start(1, false, true); i2s_start(0, true, false);
     uint32_t seen = 0, zeros = 0, bad = 0, got = 0, t0 = ccount();
     uint16_t prev = 0;
-    while (got < 64 * 1024 && ccount() - t0 < 240000000u * 2) {
+    while (got < 64 * 1024 && ccount() - t0 < sys_cpu_hz() * 2) {
         for (int i = 0; i < 512; i++) out[i] = v++;
         i2s_write(0, out, sizeof out, 100000);
         int n = i2s_read(1, in, sizeof in, 0);
@@ -63,7 +63,7 @@ static void pdm(void)
     int16_t lo = 0, hi = 0; bool neg = false;
     float q1 = 0, q2 = 0, pw = 0;                                     /* Goertzel at 1 kHz / 48 kHz */
     const float cf = 2 * fm_cosf(6.2831853f / 48);
-    while (n_s < 48000 / 2 && ccount() - t0 < 240000000u * 2) {      /* 0.5 s of left channel */
+    while (n_s < 48000 / 2 && ccount() - t0 < sys_cpu_hz() * 2) {      /* 0.5 s of left channel */
         FILL(); i2s_write(0, out, sizeof out, 100000);
         int n = i2s_read(0, in, sizeof in, 0);
         for (int i = 0; i < n / 2; i += 2, got++) {
@@ -98,7 +98,7 @@ static uint32_t fmt_run(int ftx, int frx, uint32_t *ws_hi_bits)
     i2s_start(1, false, true); i2s_start(0, true, false);
     uint32_t seen = 0, bad = 0, t0 = ccount();
     uint16_t prev = 0;
-    while (seen < 12000 && ccount() - t0 < 240000000u) {
+    while (seen < 12000 && ccount() - t0 < sys_cpu_hz()) {
         for (int i = 0; i < 512; i++) out[i] = v++;
         i2s_write(0, out, sizeof out, 100000);
         int n = i2s_read(1, in, sizeof in, 0);
@@ -111,7 +111,7 @@ static uint32_t fmt_run(int ftx, int frx, uint32_t *ws_hi_bits)
     }
     uint32_t hi = 0, nh = 0, rise = 0;                            /* WS high time, 8 pulses */
     bool last = gpio_read(4);
-    for (uint32_t t1 = ccount(); nh < 8 && ccount() - t1 < 24000000u; ) {
+    for (uint32_t t1 = ccount(); nh < 8 && ccount() - t1 < (sys_cpu_hz() / 10); ) {
         bool w = gpio_read(4);
         uint32_t c = ccount();
         if (w && !last) rise = c;

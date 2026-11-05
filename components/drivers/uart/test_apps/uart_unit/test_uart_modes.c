@@ -14,7 +14,7 @@ static uint8_t tx[512], rx[512];
 static int rx_all(uint8_t *b, int n, uint32_t ms)
 {
     int k = 0; uint32_t t0 = ccount();
-    while (k < n && ccount() - t0 < ms * 240000u) k += uart_read(1, b + k, n - k);
+    while (k < n && ccount() - t0 < ms * (sys_cpu_hz() / 1000)) k += uart_read(1, b + k, n - k);
     return k;
 }
 
@@ -26,7 +26,7 @@ static void flow(void)
     for (int i = 0; i < 300; i++) tx[i] = (uint8_t)(i * 7 + 1);
     REG(U1_INT_ENA) = 0;                                       /* RX ISR off: only the 128 B FIFO */
     uart_write(1, tx, 300);
-    uint32_t t0 = ccount(); while (ccount() - t0 < 240000u * 60) {}   /* 300 B would take 26 ms */
+    uint32_t t0 = ccount(); while (ccount() - t0 < (sys_cpu_hz() / 1000) * 60) {}   /* 300 B would take 26 ms */
     uint32_t inf = REG(U1_STATUS) & 0x3FF, ovf = REG(U1_INT_RAW) & BIT(4);
     REG(U1_INT_ENA) = BIT(0) | BIT(8) | BIT(4) | BIT(1);       /* RX + TX-empty (TX ring still has 172 B) */
     int n = rx_all(rx, 300, 200);
@@ -47,7 +47,7 @@ static void rs485(void)
     bool de_tx = REG(GPIO_IN) & BIT(16);
     /* turnaround: last TX edge -> DE low, minus the stop bit */
     uint32_t last = ccount(), t0 = last, tde = 0, prev = REG(GPIO_IN);
-    while (ccount() - t0 < 240000u * 2) {
+    while (ccount() - t0 < (sys_cpu_hz() / 1000) * 2) {
         uint32_t v = REG(GPIO_IN), now = ccount();
         if ((v ^ prev) & BIT(12)) last = now;
         if (!tde && (prev & BIT(16)) && !(v & BIT(16))) { tde = now; break; }
@@ -106,7 +106,7 @@ static void pattern(void)
     uart_set_pattern(1, '+', 3, 9, 0, 0);                      /* IDF example values */
     const char *m = "hello+++world";
     uart_write(1, m, 13);
-    uint32_t t0 = ccount(); while (ccount() - t0 < 240000u * 3) {}  /* 13 B = 1.1 ms */
+    uint32_t t0 = ccount(); while (ccount() - t0 < (sys_cpu_hz() / 1000) * 3) {}  /* 13 B = 1.1 ms */
     int pos = uart_pattern_pop(1), none = uart_pattern_pop(1);
     int n = rx_all(rx, 13, 20);
     printf("    pattern '+++': %d B, at offset %d (5), next %d\n", n, pos, none);

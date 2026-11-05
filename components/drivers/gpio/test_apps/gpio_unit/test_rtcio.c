@@ -10,6 +10,13 @@
 
 void test_rtcio(void)
 {
+#if SOC_CPU_RISCV    /* P4: LP IO pads 0..15; the jumpers 10<->11 / 12<->13 are not on this board (docs/P4.md); the S3 test below needs them and RTC_CNTL */
+    CHECK(rtcio_config(4, GPIO_OUTPUT | GPIO_INPUT) == 0);
+    rtcio_write(4, 1); delay_us(5); CHECK(rtcio_read(4) == 1);          /* a pad reads back what the RTC domain drives */
+    rtcio_write(4, 0); delay_us(5); CHECK(rtcio_read(4) == 0);
+    rtcio_release(4);
+    return;
+#endif
     if (REG(STORE3) == MAGIC) {          /* second boot: GPIO10 was held high across the reset */
         REG(STORE3) = 0;
         gpio_config(11, GPIO_INPUT | GPIO_PULLDOWN);

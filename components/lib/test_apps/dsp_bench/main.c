@@ -1,4 +1,5 @@
 /* SIMD / FPU kernels vs plain C (-O2), cycles per call, results checked. */
+#include "sys.h"
 #include "dsp.h"
 #include "gdma.h"
 #include "console.h"
@@ -55,7 +56,7 @@ int main(void)
     static uint8_t dst2[16384] DSP_ALIGN;
     uint32_t tg = TIME(gdma_memcpy(ch, dst2, src, sizeof src));
     printf("  copy 16 KB: memcpy %lu (%lu MB/s)  SIMD %lu (%lu MB/s)  GDMA %lu (%lu MB/s)  %s\n",
-           tc, 16384u * 240 / tc, ts, 16384u * 240 / ts, tg, 16384u * 240 / tg,
+           tc, 16384u * (sys_cpu_hz() / 1000000) / tc, ts, 16384u * (sys_cpu_hz() / 1000000) / ts, tg, 16384u * (sys_cpu_hz() / 1000000) / tg,
            memcmp(src, dst, sizeof src) || memcmp(src, dst2, sizeof src) ? "MISMATCH" : "equal");
     /* every length 16..512 (step 16): pipelined prologue/epilogue, saturation */
     int bad = 0;

@@ -39,7 +39,7 @@ static uint32_t skew(bool sync)
     for (volatile int d = 0; d < 200; d++) {}               /* the second start comes ~1 us later */
     rmt_tx(1, one, 1);
     /* time the falling edges: the 20 us pulses outlast any start-up latency of this loop (flash cache) */
-    while ((!t1 || !t2) && ccount() - t0 < 2400000u) {
+    while ((!t1 || !t2) && ccount() - t0 < (sys_cpu_hz() / 100)) {
         uint32_t v = REG(GPIO_IN), now = ccount();
         if (!t1 && (prev & BIT(12)) && !(v & BIT(12))) t1 = now;
         if (!t2 && (prev & BIT(14)) && !(v & BIT(14))) t2 = now;
@@ -77,7 +77,7 @@ static void dma(void)
     rmt_rx_init(0, 11, 10000000, 300, 0);
     rmt_rx_start(0, in, 1100);
     CHECK(rmt_tx_dma(3, out, 1000) == 0);
-    { uint32_t t0 = ccount(); while (ccount() - t0 < 24000000u) {} }        /* 1000 items ~ 1 ms */
+    { uint32_t t0 = ccount(); while (ccount() - t0 < (sys_cpu_hz() / 10)) {} }        /* 1000 items ~ 1 ms */
     int n = rmt_rx_wait(0, 100000), bad = 0;
     for (int i = 0; i < 999 && i < n; i++)
         bad += in[i].d0 < out[i].d0 - 1 || in[i].d0 > out[i].d0 + 1 || in[i].d1 < out[i].d1 - 1 || in[i].d1 > out[i].d1 + 1;

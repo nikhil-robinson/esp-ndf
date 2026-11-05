@@ -3,6 +3,7 @@
 #include "ndf.h"
 #include "console.h"
 #include "cpu.h"
+#include "sys.h"
 #include "unit.h"
 
 extern int test_fail;

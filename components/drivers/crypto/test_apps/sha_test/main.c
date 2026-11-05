@@ -60,7 +60,7 @@ int main(void)
             uint8_t d[64]; uint32_t best = ~0u;
             for (int r = 0; r < 4; r++) { uint32_t c = ccount(); sha(t ? SHA512 : SHA256, big, sz[i], d); c = ccount() - c; if (c < best) best = c; }
             printf("speed %s %6u B: %7lu cycles (%lu us, %lu MB/s)\n", t ? "SHA-512" : "SHA-256", (unsigned)sz[i],
-                   (unsigned long)best, (unsigned long)(best / 240), (unsigned long)((uint64_t)sz[i] * 240 / best));
+                   (unsigned long)best, (unsigned long)(best / (sys_cpu_hz() / 1000000)), (unsigned long)((uint64_t)sz[i] * (sys_cpu_hz() / 1000000) / best));
         }
     printf("sha_test %s done\n", fail ? "FAIL" : "PASS");
     for (;;) {}

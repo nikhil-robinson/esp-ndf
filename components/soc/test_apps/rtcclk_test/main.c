@@ -19,7 +19,7 @@ int main(void)
 {
     delay_ms(200);
     int fail = 0;
-    uint32_t t = ccount(); uint32_t rc = rtc_slow_hz(); uint32_t cal_us = (ccount() - t) / 240;
+    uint32_t t = ccount(); uint32_t rc = rtc_slow_hz(); uint32_t cal_us = (ccount() - t) / (sys_cpu_hz() / 1000000);
     uint32_t th = timer_hz();
     printf("%s RC slow clock: calibrated %lu Hz (%lu us), RTC timer %lu Hz\n", near(rc, th) ? "PASS" : "FAIL",
            (unsigned long)rc, (unsigned long)cal_us, (unsigned long)th); fail |= !near(rc, th);
@@ -33,7 +33,7 @@ int main(void)
     uint32_t th3 = timer_hz();
     printf("%s back to RC (%d): RTC timer %lu Hz\n", !e && near(th3, rc) ? "PASS" : "FAIL", e, (unsigned long)th3);
     fail |= e || !near(th3, rc);
-    t = ccount(); e = xtal32k_start(false); uint32_t ms = (ccount() - t) / 240000;
+    t = ccount(); e = xtal32k_start(false); uint32_t ms = (ccount() - t) / (sys_cpu_hz() / 1000);
     int s = slow_clk_select(SLOW_XTAL32K);
     printf("%s 32 kHz crystal (none fitted): start %d after %lu ms, select %d, still on %d\n",
            e == -1 && s == -1 && slow_clk_src() == SLOW_RC ? "PASS" : "FAIL", e, (unsigned long)ms, s, slow_clk_src());

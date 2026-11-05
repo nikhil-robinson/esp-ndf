@@ -15,8 +15,8 @@ static void run_baud(uint32_t baud)
     uint32_t t0 = ccount();
     uart_write(1, tx, LEN);
     size_t n = 0;
-    while (n < LEN && ccount() - t0 < 240000000) n += uart_read(1, rx + n, LEN - n);
-    uint32_t us = (ccount() - t0) / 240;
+    while (n < LEN && ccount() - t0 < sys_cpu_hz()) n += uart_read(1, rx + n, LEN - n);
+    uint32_t us = (ccount() - t0) / (sys_cpu_hz() / 1000000);
     int bad = 0;
     for (int i = 0; i < LEN; i++) bad += rx[i] != tx[i];
     printf("    %7lu baud (actual %lu): %u/%d bytes, %d wrong, %lu us (wire %lu us), ovf %lu\n",
@@ -36,8 +36,8 @@ static void dma(void)
     uint32_t c1 = ccount();
     CHECK(uart_dma_write(1, tx, LEN, 0) == LEN);             /* async: the CPU is free from here */
     uint32_t c2 = ccount();
-    int n; while (((n = uart_dma_read_done(1)) < 0 || !uart_dma_write_done(1)) && ccount() - c0 < 240000000u) {}
-    uint32_t us = (ccount() - c0) / 240;
+    int n; while (((n = uart_dma_read_done(1)) < 0 || !uart_dma_write_done(1)) && ccount() - c0 < sys_cpu_hz()) {}
+    uint32_t us = (ccount() - c0) / (sys_cpu_hz() / 1000000);
     int bad = 0; for (int i = 0; i < LEN; i++) bad += rx[i] != tx[i];
     uart_dma_stop(1);
     printf("    DMA 5 Mbaud: %d/%d bytes, %d wrong, %lu us (wire %u us), CPU in calls %lu + %lu cycles\n",

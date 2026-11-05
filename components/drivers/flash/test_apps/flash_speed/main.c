@@ -1,4 +1,5 @@
 /* Flash read speed: inspect the SPI1 clock, try faster settings, verify data. */
+#include "sys.h"
 #include "flash.h"
 #include "console.h"
 #include "cpu.h"
@@ -31,7 +32,7 @@ int main(void)
             flash_read(a, r2 + o, n);
             if (memcmp(r2 + o, ref + (a - 0x1000), n) || r2[o + n] != 0xA5) bad++;
         }
-    printf("  current: 4 KB in %lu cycles = %lu us, %lu MB/s, lines %d; size/offset checks: %d wrong\n", t, t / 240, 4096u * 240 / t, flash_read_lines(), bad);
+    printf("  current: 4 KB in %lu cycles = %lu us, %lu MB/s, lines %d; size/offset checks: %d wrong\n", t, t / (sys_cpu_hz() / 1000000), 4096u * (sys_cpu_hz() / 1000000) / t, flash_read_lines(), bad);
     {   uint32_t t0 = ccount(), x = 0;
         for (int i = 0; i < 16; i++) x += REG(0x60002058 + 4 * i);
         uint32_t d = ccount() - t0;

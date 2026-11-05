@@ -31,7 +31,7 @@ static const uint32_t *wait_frame(void)
 {
     const uint32_t *f; int n;
     uint32_t t = ccount();
-    while (!(f = adc_cont_get(&n))) if (ccount() - t > 240000000u) return NULL;
+    while (!(f = adc_cont_get(&n))) if (ccount() - t > sys_cpu_hz()) return NULL;
     return f;
 }
 
@@ -71,7 +71,7 @@ void test_adc_cont(void)
     int spp1000 = rises > 1 ? (last - first) * 1000 / (rises - 1) : 0;      /* samples per 1 kHz period x1000 */
     printf("    1 kHz square: %d rising edges per frame, %d.%03d samples/period (ideal 20)\n", rises, spp1000 / 1000, spp1000 % 1000);
     printf("    frame interval %lu..%lu cycles = %lu.%04lu ms (ideal 50 ms), jitter %lu cycles\n",
-           dmin, dmax, dmin / 240000, dmin % 240000 * 10000 / 240000, dmax - dmin);
+           dmin, dmax, dmin / (sys_cpu_hz() / 1000), dmin % (sys_cpu_hz() / 1000) * 10000 / (sys_cpu_hz() / 1000), dmax - dmin);
     CHECK(rises >= 49 && rises <= 50 && spp1000 > 19900 && spp1000 < 20100);
     CHECK(dmin > 11880000 && dmax < 12120000);
 

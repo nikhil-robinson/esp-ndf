@@ -37,8 +37,8 @@ int main(void)
     bool diff = memcmp(a, b, 32) != 0; fail |= !diff;
     printf("%s two 32-byte draws differ\n", diff ? "PASS" : "FAIL");
     printf("speed: rng_hw %lu cycles/word (%lu us), rng_u32 %lu cycles, rng_fill 4 KB %lu us, 64 KB %lu us (%lu MB/s)\n",
-           (unsigned long)hw, (unsigned long)(hw / 240), (unsigned long)u, (unsigned long)(f4 / 240),
-           (unsigned long)(f64 / 240), (unsigned long)(65536ull * 240 / f64));
+           (unsigned long)hw, (unsigned long)(hw / (sys_cpu_hz() / 1000000)), (unsigned long)u, (unsigned long)(f4 / (sys_cpu_hz() / 1000000)),
+           (unsigned long)(f64 / (sys_cpu_hz() / 1000000)), (unsigned long)(65536ull * (sys_cpu_hz() / 1000000) / f64));
     printf("rng_test %s done\n", fail ? "FAIL" : "PASS");
     for (;;) {}
 }

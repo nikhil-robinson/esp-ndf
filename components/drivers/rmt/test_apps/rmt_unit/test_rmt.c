@@ -20,7 +20,7 @@ void test_rmt(void)
     CHECK(rmt_tx(0, out, N) == 0);
     uint32_t start_cyc = ccount() - t0;
     rmt_tx_wait(0);
-    uint32_t tx_us = (ccount() - t0) / 240;
+    uint32_t tx_us = (ccount() - t0) / (sys_cpu_hz() / 1000000);
     int got = rmt_rx_wait(0, 100000);
     METRIC("TX 100 items / RX received", "%d items (+1 end marker)", got);
     CHECK(got >= N);

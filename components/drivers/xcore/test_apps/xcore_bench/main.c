@@ -115,7 +115,7 @@ int main(void)
     if (notify_ok) printf("  core 1 notify init failed: %d\n", notify_ok);
     for (uint32_t i = 2 * N + 1; i <= 3 * N; i++) {
         ping = i; t = ccount(); xc_notify(1);
-        uint32_t t0 = ccount(); while (pong != i && ccount() - t0 < 2400000) ;
+        uint32_t t0 = ccount(); while (pong != i && ccount() - t0 < (sys_cpu_hz() / 100)) ;
         if (pong != i) { printf("  notify: no answer at %lu\n", i); break; }
         st_add(&s, ccount() - t);
     }
@@ -136,7 +136,7 @@ int main(void)
         ack = 0; started = 0; mode = T_TORN;
         while (!started) ;
         uint32_t t_end = ccount();
-        for (uint32_t i = 1; ccount() - t_end < 24000000u; i++) {      /* 100 ms */
+        for (uint32_t i = 1; ccount() - t_end < (sys_cpu_hz() / 10); i++) {      /* 100 ms */
             uint32_t tw = ccount();
             xc_seq_write_begin(&shared.s); shared.a = i; shared.b = i; shared.c = i; shared.d = i; xc_seq_write_end(&shared.s);
             unprot.a = i; unprot.b = i; unprot.c = i; unprot.d = i;

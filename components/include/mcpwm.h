@@ -29,7 +29,11 @@ int  mcpwm_complementary(int u, int op, int t, int pin_hi, int pin_lo, uint32_t 
 
 static inline void mcpwm_cmp(int u, int op, int ab, uint32_t ticks)
 {
+#if SOC_CPU_RISCV
+    *(volatile uint32_t *)(0x500C0000 + 0x1000 * u + 0x40 + 0x38 * op + 4 * ab) = ticks;       /* P4: MCPWM0 0x500C0000, MCPWM1 0x500C1000 */
+#else
     *(volatile uint32_t *)((u ? 0x6002C000 : 0x6001E000) + 0x40 + 0x38 * op + 4 * ab) = ticks;
+#endif
 }
 /* Brake: force both pins of op (after dead-time): 0 low, 1 high, -1 release.
  * Takes effect immediately, latched until released. */

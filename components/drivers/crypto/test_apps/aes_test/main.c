@@ -53,7 +53,7 @@ int main(void)
     for (int m = 1; m <= 3; m += 2) for (int i = 0; i < 4; i++) {
         uint32_t best = ~0u;
         for (int r = 0; r < 4; r++) { uint8_t iv[16] = { 0 }; uint32_t c = ccount(); aes_crypt(m == 1 ? AES_CBC : AES_CTR, K2, 16, true, iv, A, B, sz[i]); c = ccount() - c; if (c < best) best = c; }
-        printf("speed AES-128-%s %5u B: %7lu cycles (%lu MB/s)\n", m == 1 ? "CBC" : "CTR", (unsigned)sz[i], (unsigned long)best, (unsigned long)((uint64_t)sz[i] * 240 / best));
+        printf("speed AES-128-%s %5u B: %7lu cycles (%lu MB/s)\n", m == 1 ? "CBC" : "CTR", (unsigned)sz[i], (unsigned long)best, (unsigned long)((uint64_t)sz[i] * (sys_cpu_hz() / 1000000) / best));
     }
     printf("aes_test %s done\n", fail ? "FAIL" : "PASS");
     for (;;) {}

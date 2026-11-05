@@ -9,7 +9,7 @@
 static int ones(uint32_t us)                               /* samples of pad 13 that are high */
 {
     int k = 0; uint32_t t0 = ccount();
-    while (ccount() - t0 < us * 240) k += (REG(GPIO_IN) >> 13) & 1;
+    while (ccount() - t0 < us * (sys_cpu_hz() / 1000000)) k += (REG(GPIO_IN) >> 13) & 1;
     return k;
 }
 

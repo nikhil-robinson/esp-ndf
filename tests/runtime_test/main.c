@@ -151,7 +151,7 @@ TEST(nmi_under_irq_lock)
     UASSERT(gpt_alarm(1, 1000, true, on_nmi, 0, 7) >= 0);
     gpt_start(1);
     uint32_t ps = irq_lock();                             /* every maskable interrupt off for 20 ms */
-    uint32_t t0 = ccount(); while (ccount() - t0 < 240000u * 20) {}
+    uint32_t t0 = ccount(); while (ccount() - t0 < (sys_cpu_hz() / 1000) * 20) {}
     uint32_t in_lock = nmi_n;
     irq_unlock(ps);
     gpt_alarm_off(1); gpt_stop(1);

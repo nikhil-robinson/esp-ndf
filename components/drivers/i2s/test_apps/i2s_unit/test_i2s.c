@@ -27,7 +27,7 @@ void test_i2s(void)
     uint32_t got = 0, breaks = 0, seen = 0;
     uint16_t prev = 0;
     uint32_t t0 = ccount();
-    while (got < 64 * 1024 && ccount() - t0 < 240000000u * 2) {      /* 64 KB = ~0.34 s */
+    while (got < 64 * 1024 && ccount() - t0 < sys_cpu_hz() * 2) {      /* 64 KB = ~0.34 s */
         for (int i = 0; i < 512; i++) out[i] = v++;
         i2s_write(0, out, sizeof out, 100000);
         int n = i2s_read(1, in, sizeof in, 0);

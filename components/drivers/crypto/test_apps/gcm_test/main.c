@@ -28,7 +28,7 @@ int main(void)
         int ok3 = aes_gcm(key, c->kl, false, iv, c->il, aad, c->al, buf, buf, c->len, tag) == -1;
         printf("%s GCM-%d iv %d aad %d len %5d: tag %d, decrypt %d, tamper %d | encrypt %lu us, decrypt %lu us\n",
                ok1 && ok2 && ok3 ? "PASS" : "FAIL", c->kl * 8, c->il, c->al, c->len, ok1, ok2, ok3,
-               (unsigned long)(te / 240), (unsigned long)(td / 240));
+               (unsigned long)(te / (sys_cpu_hz() / 1000000)), (unsigned long)(td / (sys_cpu_hz() / 1000000)));
         fail |= !(ok1 && ok2 && ok3);
     }
     printf("gcm_test %s done\n", fail ? "FAIL" : "PASS");

@@ -59,7 +59,7 @@ int main(void)
     for (int k = 0; k < 256; k++) w[k] = (uint8_t)(k * 7 + 3);
     uint32_t t0 = ccount(), before = c1_runs;
     int e = flash_erase_sector(a), wr = flash_write(a, w, sizeof w);
-    uint32_t us = (ccount() - t0) / 240, during = c1_runs - before;   /* core 1 is stalled: ~0 */
+    uint32_t us = (ccount() - t0) / (sys_cpu_hz() / 1000000), during = c1_runs - before;   /* core 1 is stalled: ~0 */
     flash_read(a, r, sizeof r);
     delay_ms(50);
     c1_stop = 1;

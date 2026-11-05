@@ -47,7 +47,7 @@ void test_lcd_i80(void)
     delay_us(1000);                                          /* core 1 in its loop */
     CHECK(lcd_i80_send(0x2A, par, 4) == 0);
     CHECK(lcd_i80_send(0x2C, px, 300) == 0);
-    uint32_t t0 = ccount(); while (cap_n < 306 && ccount() - t0 < 240000000u) {}
+    uint32_t t0 = ccount(); while (cap_n < 306 && ccount() - t0 < sys_cpu_hz()) {}
     cap_go = 0;
     int bad = 0;
     bad += cap[0] != 0x02A;                                 /* DC 0 = command */

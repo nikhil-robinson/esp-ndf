@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "spiffs.h"
 #include "vfs.h"
@@ -24,7 +25,7 @@ void test_spiffs(void)
     }
     uint32_t t = ccount();
     CHECK(spiffs_format(p) == 0 && spiffs_mount(p) == 0);
-    printf("    format 1 MB + mount %lu ms\n", (ccount() - t) / 240000);
+    printf("    format 1 MB + mount %lu ms\n", (ccount() - t) / (sys_cpu_hz() / 1000));
 
     for (uint32_t i = 0; i < BIG; i++) back[i] = pat(i);
     t = ccount();
@@ -40,7 +41,7 @@ void test_spiffs(void)
     uint32_t r = ccount() - t;
     spiffs_close(fd);
     CHECK(n == BIG && is_pat(back, 0, BIG));
-    printf("    30 KB file (2 index pages): write %lu ms, read %lu ms\n", w / 240000, r / 240000);
+    printf("    30 KB file (2 index pages): write %lu ms, read %lu ms\n", w / (sys_cpu_hz() / 1000), r / (sys_cpu_hz() / 1000));
 
     /* overwrite in the middle (across a page boundary: 251 * 60 = 15060), extend at the end */
     fd = spiffs_open("/data/big.bin", FAT_RDWR);
@@ -64,7 +65,7 @@ void test_spiffs(void)
         back[0] = i;
         if (spiffs_write(fd, back, BIG) != 30000 || spiffs_close(fd)) { CHECK(0); break; }
     }
-    printf("    40 x 30 KB rewrites (GC): %lu ms\n", (ccount() - t) / 240000);
+    printf("    40 x 30 KB rewrites (GC): %lu ms\n", (ccount() - t) / (sys_cpu_hz() / 1000));
 
     /* remount: everything from flash */
     CHECK(spiffs_unmount() == 0 && spiffs_mount(p) == 0);

@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "gdma.h"
 
@@ -18,12 +19,12 @@ void test_gdma(void)
     uint32_t dma = ccount() - t;
     int bad = 0;
     for (int i = 0; i < LEN / 4; i++) bad += dst[i] != src[i];
-    METRIC("DMA copy 32 KB", "%lu cycles (%lu MB/s), %d words wrong", dma, (uint32_t)((uint64_t)LEN * 240 / dma), bad);
+    METRIC("DMA copy 32 KB", "%lu cycles (%lu MB/s), %d words wrong", dma, (uint32_t)((uint64_t)LEN * (sys_cpu_hz() / 1000000) / dma), bad);
     CHECK(bad == 0);
     t = ccount();
     for (int i = 0; i < LEN / 4; i++) ((volatile uint32_t *)dst)[i] = src[i];
     uint32_t cpu = ccount() - t;
-    METRIC("CPU word copy 32 KB", "%lu cycles (%lu MB/s)", cpu, (uint32_t)((uint64_t)LEN * 240 / cpu));
+    METRIC("CPU word copy 32 KB", "%lu cycles (%lu MB/s)", cpu, (uint32_t)((uint64_t)LEN * (sys_cpu_hz() / 1000000) / cpu));
     gdma_free(ch);
 }
 

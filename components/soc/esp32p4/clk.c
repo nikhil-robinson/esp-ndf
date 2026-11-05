@@ -6,6 +6,7 @@
 #include "soc.h"
 #include "cpu.h"
 #include "spin.h"
+#include "gpio.h"
 
 #define HPC(off)              (HP_CLKRST_BASE + (off))
 #define ROOT_CLK_CTRL0        HPC(0x04)     /* b4 SOC_CLK_DIV_UPDATE, b12:5 CPU div-1, b20:13 num, b28:21 den */
@@ -291,4 +292,21 @@ void periph_reset(periph_t p)
     irq_unlock(t);
 }
 
-int clk_out(int ch, int src, int pin) { (void)ch; (void)src; (void)pin; return -1; }   /* ponytail: no clock output on the P4 yet */
+/* Clock output (IDF esp_clock_output.c, clk_ll_bind_output_channel / _enable_output_channel / _set_output_channel_divider):
+ * HP_CLKRST DBG_CLK_CTRL0/1 select the source and enable a channel, GPIO matrix signals 184..186 (DBG_CH0..2_CLK) carry it
+ * to any pad. ch 1..3, src a CLK_OUT_* (clk.h) or -1 to switch the channel off. The USB pads 24 / 25 are refused. */
+int clk_out(int ch, int src, int pin)
+{
+    static const uint8_t sel_s[3] = { 0, 8, 16 }, div_s[3] = { 24, 0, 8 }, en_s[3] = { 16, 17, 18 };
+    static const uint8_t sig[3] = { 184, 185, 186 };
+    if (ch < 1 || ch > 3 || pin == 24 || pin == 25) return -1;
+    int c = ch - 1;
+    if (src < 0) { REG_CLR(HPC(0xE8), BIT(en_s[c])); return 0; }
+    int id = src == CLK_OUT_PLL ? 2 : src == CLK_OUT_XTAL ? 3 : src == CLK_OUT_RC_FAST ? 4 : src == CLK_OUT_RC_SLOW ? 5 : -1;   /* soc_clkout_sig_id_t: CPLL, XTAL, RC_FAST, RC_SLOW */
+    if (id < 0 || pin < 0 || pin > 54) return -1;
+    REG_FIELD(HPC(0xE4), sel_s[c], 8, id);
+    if (c == 0) REG_FIELD(HPC(0xE4), div_s[0], 8, 0); else REG_FIELD(HPC(0xE8), div_s[c], 8, 0);      /* divider 1 */
+    REG_SET(HPC(0xE8), BIT(en_s[c]));
+    gpio_out_signal(pin, sig[c], false);
+    return 0;
+}

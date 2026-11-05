@@ -23,7 +23,7 @@ void test_spi(void)
         int b64 = check(64);
         t = ccount();
         spi_xfer(2, tx, rx, LEN);
-        uint32_t us = (ccount() - t) / 240;
+        uint32_t us = (ccount() - t) / (sys_cpu_hz() / 1000000);
         int b4k = check(LEN);
         printf("    %2lu MHz: 64 B PIO %d wrong (%lu cycles), 4 KB DMA %d wrong, %lu us (wire %lu us)\n",
                act / 1000000, b64, c64, b4k, us, (uint32_t)((uint64_t)LEN * 8 * 1000000 / act));

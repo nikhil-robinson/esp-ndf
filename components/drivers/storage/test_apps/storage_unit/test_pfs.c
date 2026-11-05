@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "pfs.h"
 #include "vfs.h"
@@ -7,8 +8,8 @@ extern uint8_t back[32768];
 #define BIG 30000
 static uint8_t pat(uint32_t i) { return (uint8_t)(i * 7 + (i >> 9)); }
 static bool is_pat(const uint8_t *b, uint32_t from, uint32_t n) { for (uint32_t i = 0; i < n; i++) if (b[i] != pat(from + i)) return false; return true; }
-#define MS(c) ((c) / 240000)
-#define US(c) ((c) / 240)
+#define MS(c) ((c) / (sys_cpu_hz() / 1000))
+#define US(c) ((c) / (sys_cpu_hz() / 1000000))
 
 /* same workload as bench/idf_littlefs (esp_littlefs on the same partition) */
 void test_pfs(void)

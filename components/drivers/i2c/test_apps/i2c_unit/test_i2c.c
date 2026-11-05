@@ -19,7 +19,7 @@ static void bus(uint32_t hz)
     for (int i = 0; i < 100; i++) w[i] = i * 7 + 1;
     uint32_t t0 = ccount();
     i2c_err_t e = i2c_master_xfer(0, SLV, w, 16, 0, 0, 100000);
-    uint32_t us16 = (ccount() - t0) / 240;
+    uint32_t us16 = (ccount() - t0) / (sys_cpu_hz() / 1000000);
     delay_us(200);
     int n = i2c_slave_read(1, r, 100);
     printf("    write 16: err %d, slave got %d, %lu us\n", e, n, us16);

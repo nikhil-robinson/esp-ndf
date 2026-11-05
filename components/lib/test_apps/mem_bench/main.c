@@ -30,7 +30,7 @@ int main(void)
         t = ccount(); memcpy(B + 1, A + 2, n); uint32_t tx = ccount() - t;
         t = ccount(); memset(B, 0x33, n); uint32_t ts = ccount() - t;
         printf("  %5d B: memcpy aligned %5lu (%4lu MB/s)  same-offset %5lu  mixed %5lu  memset %5lu (%4lu MB/s)\n",
-               n, ta, (uint32_t)n * 240 / ta, tm, tx, ts, (uint32_t)n * 240 / ts);
+               n, ta, (uint32_t)n * (sys_cpu_hz() / 1000000) / ta, tm, tx, ts, (uint32_t)n * (sys_cpu_hz() / 1000000) / ts);
     }
     /* exhaustive: every size 0..300 x src/dst offsets 0..17 */
     int bad = 0;

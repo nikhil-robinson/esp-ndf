@@ -9,7 +9,11 @@ RAM_FN static void pin_isr(void *arg) { isr_t = ccount(); isr_n++; (void)arg; }
 
 void test_gpio(void)
 {
+    #if SOC_CPU_RISCV
+    CHECK(gpio_config(NDF_CONSOLE_TX_PIN, GPIO_OUTPUT) < 0);       /* console pin refused */
+#else
     CHECK(gpio_config(19, GPIO_OUTPUT) < 0);           /* console pin refused */
+#endif
     CHECK(gpio_config(P, GPIO_OUTPUT | GPIO_INPUT) == 0);
     gpio_set(P); CHECK(gpio_read(P) == 1);
     gpio_clr(P); CHECK(gpio_read(P) == 0);

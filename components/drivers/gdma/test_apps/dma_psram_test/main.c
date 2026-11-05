@@ -79,7 +79,7 @@ int main(void)
         memset(ur, 0, sizeof ur);
         uart_dma_read_start(1, ur, sizeof ur);
         int w = uart_dma_write(1, ut, 2048, 100000);
-        int got = -1; uint32_t t9 = ccount(); while ((got = uart_dma_read_done(1)) < 0 && ccount() - t9 < 240000000u) {}
+        int got = -1; uint32_t t9 = ccount(); while ((got = uart_dma_read_done(1)) < 0 && ccount() - t9 < sys_cpu_hz()) {}
         int b3 = 0; for (int i = 0; i < 2048; i++) b3 += ur[i] != (uint8_t)(i * 5 + 1);
         uart_dma_stop(1);
         printf("%s UART DMA TX from PSRAM: write %d, %d B, %d wrong\n", w > 0 && got == 2048 && !b3 ? "PASS" : w < 0 ? "REFUSED" : "FAIL", w, got, b3);

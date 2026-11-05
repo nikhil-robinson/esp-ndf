@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "twai.h"
 #include "gpio.h"
@@ -65,8 +66,8 @@ void test_twai_alerts(void)
     gpio_in_signal(11, 116, false);
     uint32_t t0 = ccount();
     twai_recover();
-    while (twai_state() != TWAI_ST_ACTIVE && ccount() - t0 < 240000u * 50) {}
-    uint32_t us = (ccount() - t0) / 240, a3 = twai_alerts();
+    while (twai_state() != TWAI_ST_ACTIVE && ccount() - t0 < (sys_cpu_hz() / 1000) * 50) {}
+    uint32_t us = (ccount() - t0) / (sys_cpu_hz() / 1000000), a3 = twai_alerts();
     printf("    recovery: alerts %03lx after %lu us (128 x 11 bits @500k = 2816 us)\n", a3, us);
     CHECK((a3 & TWAI_ALERT_RECOVERED) && us >= 2800 && us < 4000);
     twai_init(10, 11, 500000, TWAI_SELFTEST);

@@ -30,7 +30,7 @@ void test_pcnt(void)
     /* 20 kHz for 10 ms: 200 periods x 4 = 800 counts (+-4 for start/stop phase) */
     quad(20000, true);
     pcnt_clear(0);
-    uint32_t t = ccount(); while (ccount() - t < 2400000) {}
+    uint32_t t = ccount(); while (ccount() - t < (sys_cpu_hz() / 100)) {}
     int32_t f = pcnt_get(0);
     quad_stop();
     METRIC("20 kHz fwd, 10 ms (expect 800)", "%ld", f);
@@ -38,7 +38,7 @@ void test_pcnt(void)
 
     quad(20000, false);
     pcnt_clear(0);
-    t = ccount(); while (ccount() - t < 2400000) {}
+    t = ccount(); while (ccount() - t < (sys_cpu_hz() / 100)) {}
     int32_t r = pcnt_get(0);
     quad_stop();
     METRIC("20 kHz rev, 10 ms (expect -800)", "%ld", r);
@@ -50,7 +50,7 @@ void test_pcnt(void)
     pcnt_clear(0);
     int32_t prev = 0, back = 0;
     t = ccount();
-    while (ccount() - t < 24000000) { int32_t v = pcnt_get(0); if (v < prev) back++; prev = v; }
+    while (ccount() - t < (sys_cpu_hz() / 10)) { int32_t v = pcnt_get(0); if (v < prev) back++; prev = v; }
     int32_t big = pcnt_get(0);
     quad_stop();
     METRIC("1 MHz fwd, 100 ms (expect 400000)", "%ld", big);
@@ -61,7 +61,7 @@ void test_pcnt(void)
     /* 100 kHz for 1 s with no reads in between: wraps counted by the IRQ alone */
     quad(100000, true);
     pcnt_clear(0);
-    t = ccount(); for (int k = 0; k < 10; k++) { uint32_t t1 = ccount(); while (ccount() - t1 < 24000000) {} }
+    t = ccount(); for (int k = 0; k < 10; k++) { uint32_t t1 = ccount(); while (ccount() - t1 < (sys_cpu_hz() / 10)) {} }
     int32_t slow = pcnt_get(0);
     quad_stop();
     METRIC("100 kHz, 1 s, IRQ-only (expect 400000)", "%ld", slow);

@@ -91,7 +91,7 @@ static void stage1(void)
     uint32_t total = dma_t - c0;
     CHECK(rc == 0 && !memcmp(big[0], big[1], 65472), "async DMA 65472 B: correct; start returns in %lu cycles", (unsigned long)start_c);
     printf("     done callback after %lu cycles = %lu MB/s; CPU looped %lu times meanwhile\n",
-           (unsigned long)total, (unsigned long)(65472ull * 240 / total), (unsigned long)work);
+           (unsigned long)total, (unsigned long)(65472ull * (sys_cpu_hz() / 1000000) / total), (unsigned long)work);
     CHECK(!gdma_busy(ch), "gdma_busy false after callback");
     memset(big[1], 0, 4096);
     gdma_memcpy_async(ch, big[1], big[0], 4096, 0, 0, 0);

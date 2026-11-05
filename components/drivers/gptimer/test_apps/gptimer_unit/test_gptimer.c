@@ -35,7 +35,7 @@ static void periodic(int id, int level, uint32_t hz, bool lat, uint32_t count)
     gpt_start(id);
     irq_enable_all();
     uint32_t t0 = ccount();
-    while (READ_ONCE(st.n) < 5000 && ccount() - t0 < 240000000) {}   /* 1 s timeout */
+    while (READ_ONCE(st.n) < 5000 && ccount() - t0 < sys_cpu_hz()) {}   /* 1 s timeout */
 #ifdef __XTENSA__                      /* diagnostic: raw interrupt / enable registers of the CPU */
     if (st.n < 5000) {
         uint32_t pend, ena;

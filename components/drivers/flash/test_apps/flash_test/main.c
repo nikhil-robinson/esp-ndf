@@ -35,7 +35,7 @@ static void core1_loop(void)
         uint32_t now = ccount();
         if (now - last > c1_gap) c1_gap = now - last;
         c1_runs++;
-        if (c1_every) { while (ccount() - now < c1_every * 240) {} }   /* RAM spin: no flash access */
+        if (c1_every) { while (ccount() - now < c1_every * (sys_cpu_hz() / 1000000)) {} }   /* RAM spin: no flash access */
         last = ccount();
     }
     for (;;) {}

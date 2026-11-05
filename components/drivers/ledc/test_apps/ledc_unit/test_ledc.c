@@ -1,3 +1,4 @@
+#include "sys.h"
 #include "test.h"
 #include "ledc.h"
 #include "gpio.h"
@@ -8,8 +9,8 @@
 RAM_FN static void measure(uint32_t *period, uint32_t *high)   /* RAM: no cache misses in the timing loop (XIP=all) */
 {
     uint32_t t = ccount();
-    while (gpio_read(P) && ccount() - t < 24000000) {}
-    while (!gpio_read(P) && ccount() - t < 24000000) {}
+    while (gpio_read(P) && ccount() - t < (sys_cpu_hz() / 10)) {}
+    while (!gpio_read(P) && ccount() - t < (sys_cpu_hz() / 10)) {}
     uint32_t r1 = ccount();
     while (gpio_read(P)) {}
     uint32_t f = ccount();
@@ -26,14 +27,15 @@ void test_ledc(void)
     CHECK(ledc_channel(0, 0, P, 256) == 0);            /* 25 % */
     uint32_t per, hi;
     measure(&per, &hi);
-    CHECK(per >= 11970 && per <= 12030);               /* 50 us = 12000 cycles, +-poll step */
-    CHECK(hi >= 2970 && hi <= 3030);                    /* 25 % */
+    uint32_t ex = sys_cpu_hz() / 20000, tol = ex / 200 + 4;          /* 50 us in cycles, +-0.5 % and the poll step */
+    CHECK(per >= ex - tol && per <= ex + tol);
+    CHECK(hi >= ex / 4 - tol && hi <= ex / 4 + tol);     /* 25 % */
     METRIC("period / high (cycles)", "%lu / %lu", per, hi);
     ledc_duty(0, 768);
     for (volatile int i = 0; i < 20000; i++) {}
     measure(&per, &hi);
     METRIC("after ledc_duty(768): period/high", "%lu / %lu", per, hi);
-    CHECK(hi >= 8970 && hi <= 9030);                    /* 75 % */
+    CHECK(hi >= ex * 3 / 4 - tol && hi <= ex * 3 / 4 + tol);   /* 75 % */
     METRIC("ledc_duty()", "%lu cycles", CYCLES(ledc_duty(0, 512)));
     uint64_t odd = ledc_timer(1, 33333, 8);            /* not exact: report the truth */
     METRIC("asked 33333 Hz/8 bit, got", "%lu.%03lu Hz", (uint32_t)(odd / 1000), (uint32_t)(odd % 1000));
@@ -45,7 +47,7 @@ void test_ledc(void)
 static uint32_t duty_pm(void)                         /* per mille high over 1 ms (20 PWM periods) */
 {
     uint32_t hi = 0, n = 0, t = ccount();
-    while (ccount() - t < 240000u) { hi += gpio_read(P); n++; }
+    while (ccount() - t < (sys_cpu_hz() / 1000)) { hi += gpio_read(P); n++; }
     return hi * 1000 / n;
 }
 
@@ -57,9 +59,9 @@ void test_ledc_gamma(void)
     uint32_t t0 = ccount();
     CHECK(ledc_fade_gamma(0, 0, 1024, 160, 220) == 0); /* 160 ms */
     uint32_t q[15];
-    for (int k = 0; k < 15; k++) { while (ccount() - t0 < 240000u * (10 * k + 10)) {} q[k] = duty_pm(); }
-    while (ledc_fade_busy(0) && ccount() - t0 < 240000u * 400) {}
-    uint32_t dt = (ccount() - t0) / 240000, end = duty_pm();
+    for (int k = 0; k < 15; k++) { while (ccount() - t0 < (sys_cpu_hz() / 1000) * (10 * k + 10)) {} q[k] = duty_pm(); }
+    while (ledc_fade_busy(0) && ccount() - t0 < (sys_cpu_hz() / 1000) * 400) {}
+    uint32_t dt = (ccount() - t0) / (sys_cpu_hz() / 1000), end = duty_pm();
     printf("    gamma 2.2, 0 -> 1024 in 160 ms, per mille every 10 ms:");
     for (int k = 0; k < 15; k++) printf(" %lu", q[k]);
     printf(" | end %lu after %lu ms\n", end, dt);

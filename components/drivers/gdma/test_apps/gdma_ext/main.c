@@ -10,8 +10,8 @@
 
 static uint8_t ibuf[65536] __attribute__((aligned(64))), ibuf2[32768] __attribute__((aligned(64)));
 static uint8_t big_a[32768] __attribute__((aligned(64))), big_b[32768] __attribute__((aligned(64)));
-static uint32_t us(uint32_t c) { return c / 240; }
-static uint32_t mbs(size_t n, uint32_t cyc) { return (uint32_t)((uint64_t)n * 240 / (cyc ? cyc : 1)); }   /* bytes/us = MB/s */
+static uint32_t us(uint32_t c) { return c / (sys_cpu_hz() / 1000000); }
+static uint32_t mbs(size_t n, uint32_t cyc) { return (uint32_t)((uint64_t)n * (sys_cpu_hz() / 1000000) / (cyc ? cyc : 1)); }   /* bytes/us = MB/s */
 static void fill(uint8_t *p, size_t n, uint32_t seed) { for (size_t i = 0; i < n; i++) p[i] = (uint8_t)(i * 13 + seed + (i >> 9)); }
 static int same(const uint8_t *p, size_t n, uint32_t seed) { for (size_t i = 0; i < n; i++) if (p[i] != (uint8_t)(i * 13 + seed + (i >> 9))) return 0; return 1; }
 

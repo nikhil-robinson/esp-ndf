@@ -34,6 +34,9 @@ static bool pin_ok(int pin, uint32_t flags)
 {
     if (pin < 0 || pin >= NPIN) return false;
     if (flags & GPIO_FORCE) return true;
+#if NDF_CONSOLE == NDF_CONSOLE_UART0
+    if (pin == NDF_CONSOLE_TX_PIN || pin == NDF_CONSOLE_RX_PIN) return false;     /* the console's UART pads */
+#endif
     return !(pin == USJ_DM || pin == USJ_DP);
 }
 
