@@ -13,6 +13,29 @@
 #include "regs/p4reg.h"
 #include <string.h>
 
+#if NDF_P4_REV < 3     /* v1.x (hw_ver1 ecdsa_reg.h): 32-byte operand memories at 0xa00.., 1-bit curve select, no P-384, other CONF bits */
+#define D_R   (ECDSA_BASE + 0xa00)
+#define D_S   (ECDSA_BASE + 0xa20)
+#define D_Z   (ECDSA_BASE + 0xa40)
+#define D_QAX (ECDSA_BASE + 0xa60)
+#define D_QAY (ECDSA_BASE + 0xa80)
+#define D_S_CURVE 2
+#define D_W_CURVE 1
+#define D_S_SWZ   4
+#define D_S_DET   5
+#define D_P384    0
+#else
+#define D_R   ECDSA_R_MEM
+#define D_S   ECDSA_S_MEM
+#define D_Z   ECDSA_Z_MEM
+#define D_QAX ECDSA_QAX_MEM
+#define D_QAY ECDSA_QAY_MEM
+#define D_S_CURVE ECDSA_ECC_CURVE_S
+#define D_W_CURVE 2
+#define D_S_SWZ   ECDSA_SOFTWARE_SET_Z_S
+#define D_S_DET   ECDSA_DETERMINISTIC_K_S
+#define D_P384    1
+#endif
 enum { ST_IDLE = 0, ST_LOAD = 1, ST_GET = 2 };                             /* ECDSA_STATE.BUSY encodes: 0 idle, 1 load, 2 get */
 enum { MODE_VERIFY = 0, MODE_SIGN = 1, MODE_EXPORT = 2 };
 static const uint8_t clen[3] = { 24, 32, 48 };
@@ -50,9 +73,9 @@ static void select_key(ecc_curve_id_t c, int blk)
 static void conf(ecc_curve_id_t c, int mode, bool sw_z)
 {
     REG_FIELD(ECDSA_CONF_REG, ECDSA_WORK_MODE_S, 2, mode);
-    REG_FIELD(ECDSA_CONF_REG, ECDSA_ECC_CURVE_S, 2, c);
-    if (sw_z) REG_SET(ECDSA_CONF_REG, BIT(ECDSA_SOFTWARE_SET_Z_S)); else REG_CLR(ECDSA_CONF_REG, BIT(ECDSA_SOFTWARE_SET_Z_S));
-    REG_CLR(ECDSA_CONF_REG, BIT(ECDSA_DETERMINISTIC_K_S));                  /* k from the TRNG */
+    REG_FIELD(ECDSA_CONF_REG, D_S_CURVE, D_W_CURVE, c);
+    if (sw_z) REG_SET(ECDSA_CONF_REG, BIT(D_S_SWZ)); else REG_CLR(ECDSA_CONF_REG, BIT(D_S_SWZ));
+    REG_CLR(ECDSA_CONF_REG, BIT(D_S_DET));                  /* k from the TRNG */
 }
 static int phase(uint32_t want)
 {
@@ -62,13 +85,13 @@ static int phase(uint32_t want)
 
 int ecdsa_hw_verify(ecc_curve_id_t c, const uint8_t *hash, const uint8_t *r, const uint8_t *s, const uint8_t *qx, const uint8_t *qy)
 {
-    if ((unsigned)c > 2 || !hash || !r || !s || !qx || !qy) return -1;
+    if ((unsigned)c > 2 || (c == ECC_P384 && !D_P384) || !hash || !r || !s || !qx || !qy) return -1;
     init(); int n = clen[c];
     if (st() != ST_IDLE) return -1;
     conf(c, MODE_VERIFY, true);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_START_S));
     if (phase(ST_LOAD)) return -1;
-    wr(ECDSA_Z_MEM, hash, n); wr(ECDSA_R_MEM, r, n); wr(ECDSA_S_MEM, s, n); wr(ECDSA_QAX_MEM, qx, n); wr(ECDSA_QAY_MEM, qy, n);
+    wr(D_Z, hash, n); wr(D_R, r, n); wr(D_S, s, n); wr(D_QAX, qx, n); wr(D_QAY, qy, n);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_LOAD_DONE_S));
     if (phase(ST_IDLE)) return -1;
     return (REG(ECDSA_RESULT_REG) & BIT(ECDSA_OPERATION_RESULT_S)) ? 0 : -1;
@@ -76,24 +99,24 @@ int ecdsa_hw_verify(ecc_curve_id_t c, const uint8_t *hash, const uint8_t *r, con
 
 int ecdsa_hw_sign(ecc_curve_id_t c, int blk, const uint8_t *hash, uint8_t *r, uint8_t *s)
 {
-    if ((unsigned)c > 2 || !hash || !r || !s) return -1;
+    if ((unsigned)c > 2 || (c == ECC_P384 && !D_P384) || !hash || !r || !s) return -1;
     init(); int n = clen[c];
     if (st() != ST_IDLE) return -1;
     select_key(c, blk);
     conf(c, MODE_SIGN, true);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_START_S));
     if (phase(ST_LOAD)) return -1;
-    wr(ECDSA_Z_MEM, hash, n);
+    wr(D_Z, hash, n);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_LOAD_DONE_S));
     if (phase(ST_GET)) return -1;
-    rd(ECDSA_R_MEM, r, n); rd(ECDSA_S_MEM, s, n);
+    rd(D_R, r, n); rd(D_S, s, n);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_GET_DONE_S));
     return phase(ST_IDLE) || !(REG(ECDSA_RESULT_REG) & BIT(ECDSA_OPERATION_RESULT_S)) ? -1 : 0;
 }
 
 int ecdsa_hw_pubkey(ecc_curve_id_t c, int blk, uint8_t *qx, uint8_t *qy)
 {
-    if ((unsigned)c > 2 || !qx || !qy) return -1;
+    if ((unsigned)c > 2 || (c == ECC_P384 && !D_P384) || !qx || !qy) return -1;
     init(); int n = clen[c];
     if (st() != ST_IDLE) return -1;
     select_key(c, blk);
@@ -102,7 +125,7 @@ int ecdsa_hw_pubkey(ecc_curve_id_t c, int blk, uint8_t *qx, uint8_t *qy)
     if (phase(ST_LOAD)) return -1;
     REG_SET(ECDSA_START_REG, BIT(ECDSA_LOAD_DONE_S));
     if (phase(ST_GET)) return -1;
-    rd(ECDSA_QAX_MEM, qx, n); rd(ECDSA_QAY_MEM, qy, n);
+    rd(D_QAX, qx, n); rd(D_QAY, qy, n);
     REG_SET(ECDSA_START_REG, BIT(ECDSA_GET_DONE_S));
     return phase(ST_IDLE);
 }
