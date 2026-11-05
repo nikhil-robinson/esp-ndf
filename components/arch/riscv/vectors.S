@@ -16,7 +16,14 @@
 #define F_MSTAT  72
 #define F_SIZE   80
 
+#ifndef NDF_TCM_IRQ
+#define NDF_TCM_IRQ 0
+#endif
+#if NDF_TCM_IRQ                         /* ndf_config.h: irq_entry in the 8 KB TCM (0x30100000, zero wait states, copied at boot) */
+    .section .tcm.text, "ax"
+#else
     .section .iram.text, "ax"
+#endif
     .align 2
     .global irq_entry
     .type irq_entry, @function

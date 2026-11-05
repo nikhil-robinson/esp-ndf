@@ -123,6 +123,12 @@ __attribute__((no_stack_protector)) void sys_start0(void)
             for (uint32_t *p = _rtc_data_start; p < _rtc_data_end; p++) *p = *src++;
         }
     }
+    {   /* TCM code (irq_entry with NDF_TCM_IRQ): copy from the image before any interrupt can run */
+        extern uint32_t _tcm_start[], _tcm_end[], _tcm_load[];
+        const uint32_t *src = _tcm_load;
+        for (uint32_t *p = _tcm_start; p < _tcm_end; p++) *p = *src++;
+        __asm__ volatile("fence.i" ::: "memory");
+    }
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
     sys_latch_reset_cause();

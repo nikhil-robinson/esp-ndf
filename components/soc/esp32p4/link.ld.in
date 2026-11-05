@@ -24,6 +24,7 @@ MEMORY
     sram (RWX) : ORIGIN = ROM_LO, LENGTH = ROM_HI - ROM_LO
     sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = ROM_LO - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
     xipwin (RX) : ORIGIN = 0x40000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE   /* code, then read-only data, in flash through the caches */
+    tcm (RWX) : ORIGIN = 0x30100000, LENGTH = 0x2000   /* HP TCM: irq_entry with NDF_TCM_IRQ; not loaded by the ROM, copied at boot (sys.c) */
     lpram (RW) : ORIGIN = 0x50108000 + NDF_ULP_RESERVE + 0x40, LENGTH = 0x7A60 - NDF_ULP_RESERVE - 0x40   /* LP RAM below the loader note (0x5010FA60) and the LP ROM data (0x5010FA80); first 64 B: notes */
 }
 
@@ -83,6 +84,10 @@ SECTIONS
         _data_end = .;
     } > sram
 
+    /* .tcm.text: runs in TCM, stored after .data (AT > sram), copied by sys_start0 before interrupts are enabled */
+    .tcm.text : { _tcm_start = .; KEEP(*(.tcm.text .tcm.text.*)) . = ALIGN(4); _tcm_end = .; } > tcm AT > sram
+    _tcm_load = LOADADDR(.tcm.text);
+
     .bss (NOLOAD) : ALIGN(16) {
         _bss_start = .;
         *(.sbss .sbss.* .bss .bss.* COMMON)
@@ -91,7 +96,7 @@ SECTIONS
         . = ALIGN(16); _stack0_bot = .; . += NDF_STACK0_SIZE; _stack0_top = .;
         . = ALIGN(16); _stack1_bot = .; . += NDF_STACK1_SIZE; _stack1_top = .;
     } > sram_lo
-    _heap_start = _data_end + SIZEOF(.rtc.data);
+    _heap_start = LOADADDR(.rtc.data) + SIZEOF(.rtc.data);
     _heap_end = ROM_HI;
     _heap2_start = _stack1_top;
     _heap2_end = ROM_LO;
