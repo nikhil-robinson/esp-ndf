@@ -106,5 +106,12 @@ static void sync(uint32_t op, const void *addr, size_t len)
     for (uint32_t t = ccount(); !(REG(SYNC_CTRL) & BIT(4)) && ccount() - t < 40000000u; ) {}   /* bounded */
     irq_unlock(ps);
 }
+#if NDF_P4_REV < 3     /* v1.x: the SYNC registers do not write back as the v3 ones do (DMA read stale descriptors); the ROM calls do (measured) */
+#define ROM_WB(a, s)     ((int (*)(uint32_t, uint32_t, uint32_t))0x4fc003f4)(BIT(4) | BIT(5), (uint32_t)(a), (uint32_t)(s))   /* Cache_WriteBack_Addr */
+#define ROM_WBINV(a, s)  ((int (*)(uint32_t, uint32_t, uint32_t))0x4fc003fc)(BIT(4) | BIT(5), (uint32_t)(a), (uint32_t)(s))   /* Cache_WriteBack_Invalidate_Addr */
+void cache_dma_writeback(const void *addr, size_t len) { if (len) { uint32_t ps = irq_lock(); ROM_WB(addr, len); irq_unlock(ps); } }
+void cache_dma_wbinv(const void *addr, size_t len)     { if (len) { uint32_t ps = irq_lock(); ROM_WBINV(addr, len); irq_unlock(ps); } }
+#else
 void cache_dma_writeback(const void *addr, size_t len) { sync(BIT(2), addr, len); }
 void cache_dma_wbinv(const void *addr, size_t len)     { sync(BIT(3), addr, len); }
+#endif
