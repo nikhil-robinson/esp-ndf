@@ -4,6 +4,7 @@
  * flag, read Z. */
 #include "rsa.h"
 #include "clk.h"
+#include "sys.h"
 #include "cpu.h"
 #include <string.h>
 #include "irq.h"
@@ -102,9 +103,9 @@ static void run(uint32_t start, uint32_t *z, int words)
 {
     REG(CLEAR_INT) = 1;
     REG(start) = 1;
-    /* bounded wait (a 4096-bit x^d takes ~1.3 s): elapsed in kilocycles so the 32-bit counter can wrap; 10 s */
+    /* bounded wait (a 4096-bit x^d takes 1.3 s on the S3, ~12 s on the P4 at 200 MHz): elapsed in kilocycles so the 32-bit counter can wrap; 60 s */
     uint32_t last = ccount(), kc = 0;
-    while (!REG(QUERY_INT) && kc < 2400000u) { uint32_t n = ccount(); kc += (n - last) / 1000; last += (n - last) / 1000 * 1000; }
+    while (!REG(QUERY_INT) && kc < sys_cpu_hz() / 1000 * 60) { uint32_t n = ccount(); kc += (n - last) / 1000; last += (n - last) / 1000 * 1000; }
     REG(CLEAR_INT) = 1;
     for (int i = 0; i < words; i++) z[i] = REG(MEM_Z + 4 * i);
 }
