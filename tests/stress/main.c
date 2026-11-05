@@ -10,6 +10,7 @@
 #include "spi.h"
 #include "gpio.h"
 #include "gdma.h"
+#include "test.h"
 #include "aes.h"
 #include "sha.h"
 #include "heap.h"
@@ -40,7 +41,11 @@ static void core1(void)
 }
 
 static const int8_t mpad[4] = { 16, 17, 18, 21 }, spad[4] = { 1, 2, 42, 47 };
+#if SOC_CPU_RISCV
+static const uint8_t s2_io[4] = { 55, 54, 57, 56 }, s3_io[4] = { 49, 48, 51, 50 };      /* P4 matrix signals of SPI2 / SPI3 D, Q, WP, HD */
+#else
 static const uint8_t s2_io[4] = { 103, 102, 105, 104 }, s3_io[4] = { 68, 67, 70, 69 };
+#endif
 
 int main(void)
 {
@@ -48,7 +53,7 @@ int main(void)
     printf("stress: 60 s\n");
     cpu1_start(core1);                                                          /* everything running first, */
     gpt_init(0, 1000000); gpt_alarm(0, 50, true, tick, 0, 2); gpt_start(0);       /* 20 kHz              */
-    uart_cfg_t uc = { .baud = 2000000, .tx_pin = 12, .rx_pin = 13 }; uart_init(1, &uc); uart_dma_start(1, 0);
+    uart_cfg_t uc = { .baud = 2000000, .tx_pin = 12, .rx_pin = test_far(12, 13) };     /* no jumper: RX reads the TX pad */ uart_init(1, &uc); uart_dma_start(1, 0);
     spi_slave_hd_init(3, 14, 15, spad, 0); spi_master_init(2, 14, -1, -1, 15, 10000000, 0);   /* then SPI */
     for (int i = 0; i < 4; i++) { spi_master_io(2, i, mpad[i]); gpio_in_signal(spad[i], s2_io[i], false); gpio_in_signal(mpad[i], s3_io[i], false); }
     int ch = gdma_alloc(); gdma_connect(ch, GDMA_M2M);
