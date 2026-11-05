@@ -78,6 +78,15 @@ static void guard_boot(int core)
 }
 #endif
 
+/* PIE (vector unit) on for this core: state 1 = initial (RV_WRITE_CSR(CSR_PIE_STATE_REG, 1), IDF rv_utils_enable_pie).
+ * Interrupt handlers must not use it (dsp.h): nothing saves q0-q7 / XACC / QACC on a trap. */
+static inline void pie_on(void)
+{
+#if SOC_CPU_HAS_PIE
+    __asm__ volatile("csrwi 0x7f2, 1");
+#endif
+}
+
 void cpu1_start(void (*fn)(void))
 {
 #if NDF_STACK_GUARD
@@ -95,6 +104,7 @@ bool sys_cpu1_running(void) { return cpu1_fn != 0; }
 
 void sys_start1(void)
 {
+    pie_on();
 #if NDF_STACK_GUARD
     guard_boot(1);
 #endif
@@ -113,6 +123,7 @@ void sys_boot_times(uint32_t *rom_us, uint32_t *init_us)
 __attribute__((no_stack_protector)) void sys_start0(void)
 {
     uint64_t t0 = time_ticks();
+    pie_on();
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
     canary_init();
     {   /* RTC_DATA_ATTR / RTC_BSS_ATTR in LP RAM: initialised except after a deep-sleep wake (cause 5) */

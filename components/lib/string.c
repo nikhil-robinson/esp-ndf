@@ -12,9 +12,9 @@ void dsp_copy128u(void *dst, const void *src, size_t n);
  * (it is off inside interrupt handlers, which may also call memcpy) */
 static inline int vec_ok(uintptr_t a, uintptr_t b, size_t n, size_t min)
 {
-#if !SOC_CPU_HAS_PIE
+#if !SOC_CPU_HAS_PIE || SOC_CPU_RISCV
     (void)a; (void)b; (void)n; (void)min;
-    return 0;                                     /* portable build: word/byte paths only */
+    return 0;                                     /* portable build: word/byte paths only; P4: q0-q7 are not saved on a trap, handlers call memcpy */
 #else
     uint32_t cp;
     __asm__ volatile("rsr.cpenable %0" : "=r"(cp));

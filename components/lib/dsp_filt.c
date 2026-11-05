@@ -2,13 +2,18 @@
 #include "dsp.h"
 #include <string.h>
 
-#if SOC_CPU_HAS_PIE                                               /* components/lib/dsp_f32.S */
+#ifndef SOC_DSP_F32_ASM
+#define SOC_DSP_F32_ASM SOC_CPU_HAS_PIE                          /* float kernels in assembly (S3: FPU fed by PIE loads); the P4 compiler does as well */
+#endif
+#if SOC_DSP_F32_ASM                                               /* components/lib/dsp_f32.S */
 void dsp_vadd8_f32(const float *a, const float *b, float *y, int blocks8);
 void dsp_vsub8_f32(const float *a, const float *b, float *y, int blocks8);
 void dsp_vmul8_f32(const float *a, const float *b, float *y, int blocks8);
 void dsp_vmulc8_f32(const float *a, float *y, int blocks8, uint32_t c_bits);
 void dsp_mm4_f32(const float *A, const float *B, float *C, int m, int n, int k);
 void dsp_biquad_f32_asm(const float *x, float *y, int n, const float *c, float *w);
+#endif
+#if SOC_CPU_HAS_PIE
 void dsp_vadds16_sh(const int16_t *a, const int16_t *b, int16_t *y, int blocks16, int shift);
 void dsp_vmuls16_sh(const int16_t *a, const int16_t *b, int16_t *y, int blocks16, int shift);
 void dsp_mm8_s16(const int16_t *A, const int16_t *B, int16_t *C, int m, int n, int k, int shift);
@@ -62,7 +67,7 @@ void dsp_fir_f32(dsp_fir_f32_t *f, const float *in, float *out, int n)
 /* DF2 transposed biquad: coef = b0 b1 b2 a1 a2 (a0 = 1), w = 2 state words (ESP-DSP dsps_biquad_f32 layout) */
 void dsp_biquad_f32(const float *restrict x, float *restrict y, int n, const float *restrict c, float *restrict w)
 {
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     dsp_biquad_f32_asm(x, y, n & ~3, c, w);                         /* n % 4 tail below */
     x += n & ~3; y += n & ~3; n &= 3;
 #endif
@@ -79,7 +84,7 @@ void dsp_biquad_f32(const float *restrict x, float *restrict y, int n, const flo
 __attribute__((optimize("unroll-loops"))) void dsp_add_f32(const float *restrict a, const float *restrict b, float *restrict y, int n)
 {
     int i = 0;
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (al3(a, b, y)) { dsp_vadd8_f32(a, b, y, n >> 3); i = n & ~7; }
 #endif
     for (; i < n; i++) y[i] = a[i] + b[i];
@@ -87,7 +92,7 @@ __attribute__((optimize("unroll-loops"))) void dsp_add_f32(const float *restrict
 __attribute__((optimize("unroll-loops"))) void dsp_sub_f32(const float *restrict a, const float *restrict b, float *restrict y, int n)
 {
     int i = 0;
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (al3(a, b, y)) { dsp_vsub8_f32(a, b, y, n >> 3); i = n & ~7; }
 #endif
     for (; i < n; i++) y[i] = a[i] - b[i];
@@ -95,7 +100,7 @@ __attribute__((optimize("unroll-loops"))) void dsp_sub_f32(const float *restrict
 __attribute__((optimize("unroll-loops"))) void dsp_mul_f32(const float *restrict a, const float *restrict b, float *restrict y, int n)
 {
     int i = 0;
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (al3(a, b, y)) { dsp_vmul8_f32(a, b, y, n >> 3); i = n & ~7; }
 #endif
     for (; i < n; i++) y[i] = a[i] * b[i];
@@ -103,7 +108,7 @@ __attribute__((optimize("unroll-loops"))) void dsp_mul_f32(const float *restrict
 __attribute__((optimize("unroll-loops"))) void dsp_mulc_f32(const float *restrict a, float c, float *restrict y, int n)
 {
     int i = 0;
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (al3(a, y, 0)) { union { float f; uint32_t u; } cb = { c }; dsp_vmulc8_f32(a, y, n >> 3, cb.u); i = n & ~7; }
 #endif
     for (; i < n; i++) y[i] = a[i] * c;
@@ -132,7 +137,7 @@ void dsp_minmax_f32(const float *a, int n, float *mn, float *mx, int *imn, int *
 /* C[m][k] = A[m][n] * B[n][k], row-major; 4x2 register tiles (8 accumulators, 6 loads per 8 MACs) */
 void dsp_mat_mul_f32(const float *restrict A, const float *restrict B, float *restrict C, int m, int n, int k)
 {
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (m > 0 && !(n & 3) && !(k & 3) && al3(A, B, C)) { dsp_mm4_f32(A, B, C, m, n, k); return; }
 #endif
     int i = 0;

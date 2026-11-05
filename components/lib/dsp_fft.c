@@ -4,9 +4,14 @@
 #include "dsp.h"
 #include <math.h>
 
-#if SOC_CPU_HAS_PIE
+#ifndef SOC_DSP_F32_ASM
+#define SOC_DSP_F32_ASM SOC_CPU_HAS_PIE                          /* float kernels in assembly (S3: FPU fed by PIE loads); the P4 compiler does as well */
+#endif
+#if SOC_DSP_F32_ASM
 void dsp_r4pass_f32(float *p, int h, const float *tw, int st_bytes);   /* components/lib/dsp_f32.S */
 void dsp_r4first_f32(float *x, int groups);
+#endif
+#if SOC_CPU_HAS_PIE
 void dsp_fft_s16_stage(int16_t *x, int n2, int blocks, const int16_t *wbr);
 void dsp_fft_s16_last2(int16_t *x, int n, const int16_t *wbr);
 #endif
@@ -66,12 +71,12 @@ static void fft_core(float *x, int n, int lg)
         }
         h = 2;
     }
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
     if (h == 1 && n >= 4 && !((uintptr_t)x & 15)) { dsp_r4first_f32(x, n / 4); h = 4; }
 #endif
     for (; h < n; h *= 4) {
         int st = FFT_MAX / (4 * h);               /* W_4h^k = W_4096^(k st) */
-#if SOC_CPU_HAS_PIE
+#if SOC_DSP_F32_ASM
         if (!((uintptr_t)x & 7)) { for (int b = 0; b < n; b += 4 * h) dsp_r4pass_f32(x + 2 * b, h, tw, 8 * st); continue; }
 #endif
         for (int k = 0; k < h; k++) {
