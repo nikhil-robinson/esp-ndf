@@ -61,7 +61,7 @@ static int mwdt_start(int n, uint32_t timeout_ms, bool report)
     REG(CONFIG3(b)) = (uint32_t)t;
     REG(FEED(b)) = 1;
     REG(CONFIG0(b)) = BIT(31) | (report ? STG_INT : STG_SYS_RESET) << 29 | (report ? STG_SYS_RESET : 0) << 27
-                    | 7u << 18 | 7u << 15;
+                    | 7u << 18 | 7u << 15 | BIT(22);                 /* b22 conf_update_en: the config crosses into the WDT clock domain */
     REG(WPROTECT(b)) = 0;
     REG(INT_CLR(b)) = BIT(2);
     if (report) REG(INT_ENA(b)) |= BIT(2); else REG(INT_ENA(b)) &= ~BIT(2);
@@ -72,7 +72,7 @@ static void mwdt_feed(int n) { uint32_t b = TIMG_BASE(n); REG(WPROTECT(b)) = WDT
 static void mwdt_stop(int n)
 {
     uint32_t b = TIMG_BASE(n), ps = irq_lock();
-    REG(WPROTECT(b)) = WDT_WKEY; REG(CONFIG0(b)) = 0; REG(WPROTECT(b)) = 0;
+    REG(WPROTECT(b)) = WDT_WKEY; REG(CONFIG0(b)) = BIT(22); REG(WPROTECT(b)) = 0;
     REG(INT_ENA(b)) &= ~BIT(2);
     irq_unlock(ps);
 }

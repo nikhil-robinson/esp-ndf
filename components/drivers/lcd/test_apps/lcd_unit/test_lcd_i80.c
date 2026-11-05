@@ -7,9 +7,17 @@
 
 /* i80 8-bit: D0-D7 on 16 17 18 21 38 39 40 41, WR 14, DC 15; core 1 records (DC, byte) at each WR rise.
  * RGB 8-bit timing on the same pads: PCNT counts PCLK / HSYNC per VSYNC. */
+#if SOC_CPU_RISCV    /* P4: pads 16..23 (24 / 25 are USB, 37 / 38 the console), GPIO_IN at 0x500E003C */
+#define GPIO_IN 0x500E003C
+#define GPIO_IN1 0x500E0040
+static const int8_t pads[8] = { 16, 17, 18, 19, 20, 21, 22, 23 };
+#define DATA_BYTE(lo, hi) ((lo) >> 16 & 0xFF)
+#else
 #define GPIO_IN 0x6000403C
 #define GPIO_IN1 0x60004040
 static const int8_t pads[8] = { 16, 17, 18, 21, 38, 39, 40, 41 };
+#define DATA_BYTE(lo, hi) ((lo) >> 16 & 7) | ((lo) >> 21 & 1) << 3 | ((hi) >> 6 & 0xF) << 4        /* 38..41 = in1 bits 6..9 */
+#endif
 static volatile uint32_t cap_go, cap_n; static uint16_t cap[512];
 
 static void capture(void)
@@ -20,7 +28,7 @@ static void capture(void)
         while (cap_n < 512 && ccount() - t0 < 120000000u) {
             uint32_t lo = REG(GPIO_IN), hi = REG(GPIO_IN1);
             if ((lo & BIT(14)) && !(prev & BIT(14))) {        /* WR rising: the i80 latch edge */
-                uint32_t b = (lo >> 16 & 7) | (lo >> 21 & 1) << 3 | (hi >> 6 & 0xF) << 4;   /* 38..41 = in1 bits 6..9 */
+                uint32_t b = DATA_BYTE(lo, hi);
                 cap[cap_n++] = b | (lo >> 15 & 1) << 8;
             }
             prev = lo;
