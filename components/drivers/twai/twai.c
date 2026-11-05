@@ -108,7 +108,7 @@ int twai_init(int tx, int rx, uint32_t bitrate, twai_mode_t mode)
     rh = rt = dropped = 0;
     gpio_config(tx, GPIO_OUTPUT | GPIO_INPUT); gpio_set(tx);
     gpio_out_signal(tx, SIG_TX, false);
-    gpio_config(rx, GPIO_INPUT | GPIO_PULLUP | GPIO_FORCE);
+    if (!gpio_is_output(rx)) gpio_config(rx, GPIO_INPUT | GPIO_PULLUP | GPIO_FORCE);   /* RX on the TX pad: loopback without a jumper */
     gpio_in_signal(rx, SIG_RX, false);
     if (!irq_on) irq_on = irq_attach(SRC_TWAI, 1, twai_isr, 0) >= 0;
     (void)REG(IR);
