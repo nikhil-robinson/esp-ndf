@@ -7,14 +7,20 @@
  * I2S1 RX slave on 13 / 11 / 4. Stream a 16-bit counter, check every sample is +1. */
 static uint16_t out[512], in[2048];
 
+#if SOC_CPU_RISCV
+#define I2S0_BCK_SIG 25
+#else
+#define I2S0_BCK_SIG 22
+#endif
 void test_i2s(void)
 {
+    NEED_JUMPER(12, 13); NEED_JUMPER(10, 11);
     irq_enable_all();
     i2s_cfg_t tx = { .rate = 48000, .bits = 16, .mclk = -1, .bck = 12, .ws = 4, .dout = 10, .din = -1 };
     i2s_cfg_t rx = { .rate = 48000, .bits = 16, .slave = true, .mclk = -1, .bck = 13, .ws = 4, .dout = -1, .din = 11 };
     uint64_t fs = i2s_init(0, &tx);
     i2s_init(1, &rx);
-    gpio_config(6, GPIO_OUTPUT); gpio_out_signal(6, 22, false);       /* BCK mirror for analyzer D2 */
+    gpio_config(6, GPIO_OUTPUT); gpio_out_signal(6, I2S0_BCK_SIG, false);       /* BCK mirror for analyzer D2 */
     printf("    48 kHz requested, achieved %lu.%03lu Hz\n", (uint32_t)(fs / 1000), (uint32_t)(fs % 1000));
     uint16_t v = 1;
     for (int k = 0; k < 4; k++) {                                     /* pre-fill before starting */

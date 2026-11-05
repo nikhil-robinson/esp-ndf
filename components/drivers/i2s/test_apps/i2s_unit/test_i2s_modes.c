@@ -13,6 +13,7 @@ static int16_t out[512], in[2048];
 
 static void tdm(void)
 {
+    if (!(test_jumper(12, 13) && test_jumper(10, 11))) { printf("    SKIP TDM: no jumpers GPIO12<->13, 10<->11\n"); return; }
     i2s_cfg_t tx = { .mode = I2S_TDM, .slots = 4, .mask = 0xB, .rate = 48000, .bits = 16,
                      .mclk = -1, .bck = 12, .ws = 4, .dout = 10, .din = -1 };
     i2s_cfg_t rx = { .mode = I2S_TDM, .slots = 4, .rate = 48000, .bits = 16, .slave = true,
@@ -48,7 +49,8 @@ static void tdm(void)
 
 static void pdm(void)
 {
-    i2s_cfg_t c = { .mode = I2S_PDM, .rate = 48000, .bits = 16, .mclk = -1, .bck = -1, .ws = 12, .dout = 10, .din = 11 };
+    i2s_cfg_t c = { .mode = I2S_PDM, .rate = 48000, .bits = 16, .mclk = -1, .bck = -1, .ws = 12, .dout = 10, .din = -1 };
+    c.din = test_jumper(10, 11) ? 11 : 10;                  /* PDM data back in on the same pad when the board has no jumper */
     uint32_t t = ccount();
     uint64_t fs = i2s_init(0, &c);
     t = ccount() - t;
@@ -125,6 +127,7 @@ static uint32_t fmt_run(int ftx, int frx, uint32_t *ws_hi_bits)
 
 static void fmts(void)
 {
+    if (!(test_jumper(12, 13) && test_jumper(10, 11))) { printf("    SKIP formats: no jumpers GPIO12<->13, 10<->11\n"); return; }
     static const char *nm[] = { "Philips", "MSB", "PCM short", "PCM long" };
     static const uint8_t want_ws[] = { 16, 16, 1, 16 };
     for (int f = 0; f < 4; f++) {                             /* back to back: also checks restart (no stale blocks) */

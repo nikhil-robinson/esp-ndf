@@ -9,6 +9,7 @@
 #include "cpu.h"
 #include "soc.h"
 #include "sys.h"
+#include "cache_p4.h"
 #include <string.h>
 
 #define B(p)            (0x500C6000 + 0x1000 * (p))
@@ -23,20 +24,27 @@
 #define PDM2PCM(p)      (B(p) + 0x48)   /* b19 pdm2pcm_en b20 sinc_dsr_16_en */
 #define RXEOF_NUM(p)    (B(p) + 0x64)
 
+#if NDF_P4_REV >= 3
 #define SCLK  160000000u
+#define I2S_SRC 3                        /* PLL_F160M */
+#else
+#define SCLK  40000000u                  /* v1.x: PLL_F160M is hw_ver3 only (IDF i2s_ll_get_clk_src): XTAL */
+#define I2S_SRC 0
+#endif
 #define NB    6                          /* blocks per ring */
 #define BLK   1024                       /* bytes per block */
 
-typedef struct {
-    int ch;
-    uint8_t txb[NB][BLK] __attribute__((aligned(4)));
-    uint8_t rxb[NB][BLK] __attribute__((aligned(4)));
-    gdma_desc_t txd[NB], rxd[NB];
+typedef struct {                          /* CPU-written fields first, each DMA-visible array on its own cache lines (64 B): a write-back */
+    int ch;                               /* of a line shared with them would overwrite what the DMA wrote */
     volatile uint32_t th, tt, rh, rt;    /* tx: app head / dma tail; rx: dma head / app tail */
     volatile uint32_t und, ovr;
     uint32_t tl, rl;                      /* last descriptor index each ISR handled */
     uint32_t woff;                        /* bytes already written into block th */
-} port_t;
+    uint8_t txb[NB][BLK] __attribute__((aligned(64)));
+    uint8_t rxb[NB][BLK] __attribute__((aligned(64)));
+    gdma_desc_t txd[NB] __attribute__((aligned(64)));
+    gdma_desc_t rxd[NB] __attribute__((aligned(64)));
+} __attribute__((aligned(64))) port_t;
 static port_t P[2] = { { .ch = -1 }, { .ch = -1 } };
 
 static const uint8_t s_bck_o[2] = { 25, 31 }, s_ws_o[2] = { 27, 33 }, s_sd_o[2] = { 28, 34 }, s_mclk[2] = { 26, 32 };
@@ -75,7 +83,7 @@ static void set_div(int port, int dir, uint32_t i, uint32_t n, uint32_t d)
     const clk_t *c = &clks[port][dir];
     uint32_t yn1 = 0, z = 0, x = 0, y = 0;
     if (n) { yn1 = n * 2 > d; z = yn1 ? d - n : n; x = d / z - 1; y = d % z; }
-    fld(c->src, 2, 3);
+    fld(c->src, 2, I2S_SRC);
     fld(c->n, 8, 2); fld(c->yn1, 1, 0); fld(c->y, 9, 1); fld(c->z, 9, 0); fld(c->x, 9, 0);   /* safe small divider */
     fld(c->yn1, 1, yn1); fld(c->z, 9, z); fld(c->y, 9, y); fld(c->x, 9, x);
     fld(c->n, 8, i);
@@ -94,6 +102,7 @@ RAM_FN static void tx_done(void *a)                        /* blocks finished pl
         uint32_t i = p->tt % NB;
         if (p->tt == p->th) p->und++;                       /* it was never filled: silence */
         for (int w = 0; w < BLK / 4; w++) ((uint32_t *)p->txb[i])[w] = 0;
+        cache_dma_writeback(p->txb[i], BLK);                 /* the DMA reads memory, not the CPU's cache */
         p->tt++;
         if (p->th < p->tt) { p->th = p->tt; p->woff = 0; }
     }
@@ -174,6 +183,7 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
     }
     for (int k = 0; k < NB; k++) { p->txd[k].next = &p->txd[(k + 1) % NB]; p->rxd[k].next = &p->rxd[(k + 1) % NB]; }
     for (int k = 0; k < NB; k++) for (int w = 0; w < BLK / 4; w++) ((uint32_t *)p->txb[k])[w] = 0;
+    for (int k = 0; k < NB; k++) { cache_dma_writeback(p->txb[k], BLK); cache_dma_writeback(&p->txd[k], sizeof(gdma_desc_t)); }
     p->th = p->tt = p->rh = p->rt = p->und = p->ovr = p->woff = 0;
     p->tl = p->rl = NB - 1;                                  /* the first EOF is block 0 */
     gdma_on_out_eof(p->ch, tx_done, p, 1);
@@ -188,7 +198,7 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
         if (c->mclk >= 0){ gpio_config(c->mclk, GPIO_OUTPUT); gpio_out_signal(c->mclk, s_mclk[port], false); }
     }
     if (c->dout >= 0) { gpio_config(c->dout, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(c->dout, s_sd_o[port], false); }
-    if (c->din >= 0)  { gpio_config(c->din, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(c->din, s_sd_i[port], false); }
+    if (c->din >= 0)  { if (!gpio_is_output(c->din)) gpio_config(c->din, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(c->din, s_sd_i[port], false); }   /* din on the dout pad: loopback without a jumper */
     if (c->slave) return (uint64_t)c->rate * 1000;
     /* fs = SCLK / (i + n/d) / bdiv / (bck per sample) */
     return (uint64_t)SCLK * 1000 * d / ((uint64_t)(i * d + n) * bdiv * (bck / c->rate));
@@ -232,6 +242,7 @@ int i2s_write(int port, const void *buf, size_t len, uint32_t us)
         uint8_t *blk = p->txb[(p->th + 1) % NB];
         size_t k = BLK - p->woff < len - done ? BLK - p->woff : len - done;
         memcpy(blk + p->woff, b + done, k);
+        cache_dma_writeback(blk + p->woff, k);
         p->woff += k; done += k;
         if (p->woff == BLK) { p->th++; p->woff = 0; }
         irq_unlock(ps);
@@ -250,6 +261,8 @@ int i2s_read(int port, void *buf, size_t len, uint32_t us)
         if (p->rh == p->rt) { if (ccount() - t0 > lim) break; continue; }
         uint32_t ps = irq_lock();
         uint8_t *blk = p->rxb[p->rt % NB];
+        cache_dma_wbinv(&p->rxd[p->rt % NB], sizeof(gdma_desc_t));   /* descriptor and block were written by the DMA */
+        cache_dma_wbinv(blk, BLK);
         size_t have = p->rxd[p->rt % NB].length;              /* bytes the DMA actually wrote */
         size_t k = have < len - done ? have : len - done;     /* whole blocks; partial tail dropped */
         memcpy(b + done, blk, k);
