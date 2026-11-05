@@ -35,6 +35,29 @@ extern uint32_t _bss_start[], _bss_end[];
 extern void _start1(void);
 int main(void);
 
+/* Interrupt watchdog (IDF ESP_INT_WDT): timer group 1 watchdog fed from a periodic system-timer interrupt (comparator 1,
+ * period mode, 4 feeds per timeout; its ISR only writes the feed registers). If interrupts stay masked or the core hangs for
+ * NDF_INT_WDT_MS the watchdog reports and resets. Same as soc/esp32s3/sys.c. */
+#if NDF_INT_WDT_MS
+#include "wdt.h"
+RAM_FN static void int_wdt_feed(void *a)
+{
+    (void)a;
+    if (!(REG(SYSTIMER_INT_ST) & BIT(1))) return;
+    REG(SYSTIMER_INT_CLR) = BIT(1);
+    wdt1_feed();
+}
+static int int_wdt_feeder(void)
+{
+    if (irq_attach(SRC_SYSTIMER_TARGET1, 1, int_wdt_feed, 0) < 0) return -1;
+    REG(SYSTIMER_TARGET1_CONF) = BIT(30) | ((NDF_INT_WDT_MS * 4000u) & 0x3FFFFFF);   /* 16 ticks/us / 4 */
+    REG(SYSTIMER_COMP1_LOAD) = 1;
+    REG_SET(SYSTIMER_CONF, BIT(23));
+    REG_SET(SYSTIMER_INT_ENA, BIT(1));
+    return 0;
+}
+#endif
+
 static void (*volatile cpu1_fn)(void);
 
 uint32_t sys_cpu_hz(void) { return clk_cpu_hz(); }
@@ -193,6 +216,9 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     { extern int memprot_init(bool); memprot_init(NDF_MEMPROT == 2); }
 #endif
     irq_enable_all();
+#if NDF_INT_WDT_MS
+    if (!wdt1_start(NDF_INT_WDT_MS, true) && int_wdt_feeder() < 0) wdt1_stop();   /* no feeder, no watchdog */
+#endif
 #if NDF_BOOT_BANNER
     sys_print_info();
 #endif
