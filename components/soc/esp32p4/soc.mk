@@ -1,5 +1,10 @@
 # ESP32-P4 (v3.x silicon) build capabilities (make side of soc_caps.h). Reference: ESP-IDF v6.1.
 ARCH ?= riscv
+# P4_REV=1: silicon v1.x ("eco2" ROM, e.g. the v1.3 boards); default 3 (v3.x)
+P4_REV ?= 3
+ifeq ($(P4_REV),1)
+override DEFS += -DNDF_P4_REV=1
+endif
 TC   ?= $(HOME)/.espressif-v6.1/tools/riscv32-esp-elf/esp-15.2.0_20251204/riscv32-esp-elf
 PFX   = $(TC)/bin/riscv32-esp-elf-
 # No Zcmp: IDF SOC_CPU_ZCMP_WORKAROUND (push/pop and interrupts, DIG-661). PIE / hardware loops only in their own .S files.

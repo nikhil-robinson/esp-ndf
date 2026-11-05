@@ -168,6 +168,7 @@ static void dividers(uint32_t cpu, uint32_t mem, uint32_t sys, uint32_t apb, boo
 int clk_cpu_set_mhz(uint32_t mhz)
 {
     uint32_t mem, apb;
+    mhz = mhz >= 300 ? 400 : mhz >= 150 ? 200 : mhz >= 70 ? 100 : 40;      /* the P4 steps: 400 / 200 / 100 / 40 (an S3 style 160 or 240 lands on the nearest) */
     switch (mhz) {
     case 400: mem = 2; apb = 2; break;
     case 200: mem = 1; apb = 2; break;

@@ -12,6 +12,12 @@
 #include "irq.h"
 #include "debug.h"
 
+#ifdef NDF_TRACE_BOOT                              /* bring-up: one character per boot step on UART0, polled, before anything is configured */
+#define TR(c) do { while (((REG(UART_STATUS(0)) >> 16) & 0xFF) > 100) {} REG(UART_FIFO(0)) = (c); } while (0)
+#else
+#define TR(c) do {} while (0)
+#endif
+
 uintptr_t __stack_chk_guard = 0x5A3C9E17u;
 NORETURN void __stack_chk_fail(void)
 {
@@ -122,8 +128,24 @@ void sys_boot_times(uint32_t *rom_us, uint32_t *init_us)
 
 __attribute__((no_stack_protector)) void sys_start0(void)
 {
+    TR('a');
+    periph_enable(PERIPH_SYSTIMER);                 /* the time base must be clocked before the first read (v1.x ROM leaves it gated) */
+    TR('x');
+#ifdef NDF_TRACE_BOOT
+    {   /* are the cycle counter and the system timer running? */
+        uint32_t c0 = ccount(), d = 0; for (volatile int i = 0; i < 1000; i++) {} d = ccount() - c0;
+        TR(d ? 'M' : 'm');
+        REG(SYSTIMER_UNIT0_OP) = BIT(30);
+        for (volatile int i = 0; i < 1000; i++) {}
+        TR((REG(SYSTIMER_UNIT0_OP) & BIT(29)) ? 'V' : 'v');
+        uint32_t a = REG(SYSTIMER_UNIT0_LO); REG(SYSTIMER_UNIT0_OP) = BIT(30); for (volatile int i = 0; i < 100000; i++) {} uint32_t b = REG(SYSTIMER_UNIT0_LO);
+        TR(a != b ? 'T' : 't');
+    }
+#endif
     uint64_t t0 = time_ticks();
+    TR('y');
     pie_on();
+    TR('b');
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
     canary_init();
     {   /* RTC_DATA_ATTR / RTC_BSS_ATTR in LP RAM: initialised except after a deep-sleep wake (cause 5) */
@@ -140,13 +162,16 @@ __attribute__((no_stack_protector)) void sys_start0(void)
         for (uint32_t *p = _tcm_start; p < _tcm_end; p++) *p = *src++;
         __asm__ volatile("fence.i" ::: "memory");
     }
+    TR('c');
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
     sys_latch_reset_cause();
 #if NDF_BOOT_WDT_OFF
     wdt_off();
 #endif
+    TR('d');
     clk_cpu_set_mhz(NDF_CPU_MHZ);
+    TR('e');
 #if NDF_BROWNOUT                                  /* hardware reset on a brownout (no handler), as the S3 */
     { extern void bod_reset_mode(int); bod_reset_mode(NDF_BROWNOUT); }
 #endif
@@ -157,7 +182,9 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     cache_xip_init();                       /* before any code in flash runs */
 #endif
     periph_enable(PERIPH_SYSTIMER);
+    TR('f');
     console_init();
+    TR('g');
 #if NDF_STACK_GUARD
     guard_boot(0);
 #endif
@@ -179,7 +206,7 @@ __attribute__((no_stack_protector)) void sys_start0(void)
 
 /* ---- faults ---------------------------------------------------------------- */
 extern char _text_end[], _stack0_top[], _stack1_top[];
-#define TEXT_LO 0x4FF80000u
+#define TEXT_LO SOC_IMG_LO
 
 static bool is_ret_addr(uint32_t w)           /* w follows a jal / jalr (4 bytes) or c.jal / c.jalr (2 bytes) */
 {
@@ -276,6 +303,14 @@ void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint3
     static const char *c[] = { "instruction address misaligned", "instruction access fault", "illegal instruction (FPU in an ISR?)",
                                "breakpoint", "load address misaligned", "load access fault", "store address misaligned",
                                "store access fault", "ecall from U-mode", "?", "?", "ecall from M-mode" };
+#ifdef NDF_TRACE_BOOT                              /* raw fault report: 'F', kind, cause, pc, mtval as hex, no console needed */
+    {
+        uint32_t v[4] = { cause, pc, vaddr, kind };
+        TR('F');
+        for (int i = 0; i < 4; i++) { TR(' '); for (int s = 28; s >= 0; s -= 4) TR("0123456789abcdef"[v[i] >> s & 15]); }
+        TR('\n');
+    }
+#endif
     char why[128];
     extern bool memprot_fault(uint32_t cause, uint32_t addr);
     extern bool ndf_watch_hit(uint32_t pc);

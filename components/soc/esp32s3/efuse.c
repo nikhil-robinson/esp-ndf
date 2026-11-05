@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef struct { const char *name; uint8_t block; uint16_t pos, bits; } efuse_field_t;
-#include "efuse_table.h"
+#include <efuse_table.h>
 
 static uint32_t base(int block)
 {

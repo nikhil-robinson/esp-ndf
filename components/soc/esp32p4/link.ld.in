@@ -10,13 +10,28 @@
 #define NDF_ULP_RESERVE 0     /* bytes of LP RAM from 0x50108000 for an LP core program (ulp.h); two note words follow it */
 #endif
 #define XIP_VWIN 0x3F00000         /* code window: 1 MB at 0x43F00000 (flash MMU entries 1008-1023, cache.c) */
-#define ROM_LO  0x4FF80000
-#if NDF_BOOT_LOAD_ADDR                 /* BOOT_FAST: the ROM loads loader/loader.c, which copies the app (OTA slots); the loader keeps the top */
-#define ROM_HI  0x4FFB9000               /* SOC_LOADER_BASE (soc_caps.h) */
-#else
-#define ROM_HI  0x4FFBCFC0
+#ifndef NDF_P4_REV
+#define NDF_P4_REV 3
 #endif
+#if NDF_P4_REV < 3                       /* v1.x ROM: image, .bss, stacks and heap all in 0x4FF00000-0x4FF2BBD0 (IDF bootloader.memory.ld.in, REV_LESS_V3) */
+#define ROM_LO  0x4FF00000
+#define ROM_HI  0x4FF2BBD0
+#define L2_FREE_LO 0x4FF00000
+#define BSS_REGION sram
+#define STACK_LIMIT ROM_HI
+#elif NDF_BOOT_LOAD_ADDR                 /* BOOT_FAST: the ROM loads loader/loader.c, which copies the app (OTA slots); the loader keeps the top */
+#define ROM_LO  0x4FF80000
+#define ROM_HI  0x4FFB9000               /* SOC_LOADER_BASE (soc_caps.h) */
+#define L2_FREE_LO 0x4FF20000
+#else
+#define ROM_LO  0x4FF80000
+#define ROM_HI  0x4FFBCFC0
 #define L2_FREE_LO 0x4FF20000      /* above a 128 KB L2 cache */
+#endif
+#ifndef BSS_REGION
+#define BSS_REGION sram_lo
+#define STACK_LIMIT ROM_LO
+#endif
 ENTRY(_start0)
 
 MEMORY
@@ -95,11 +110,15 @@ SECTIONS
         _bss_end = .;
         . = ALIGN(16); _stack0_bot = .; . += NDF_STACK0_SIZE; _stack0_top = .;
         . = ALIGN(16); _stack1_bot = .; . += NDF_STACK1_SIZE; _stack1_top = .;
-    } > sram_lo
+    } > BSS_REGION
     _heap_start = LOADADDR(.rtc.data) + SIZEOF(.rtc.data);
     _heap_end = ROM_HI;
     _heap2_start = _stack1_top;
+#if NDF_P4_REV < 3
+    _heap2_end = _heap2_start;                  /* one region only */
+#else
     _heap2_end = ROM_LO;
+#endif
 
     /* RTC_DATA_ATTR: lives in LP RAM (kept through deep sleep); the ROM only loads L2MEM, so the initial values travel in the
      * image after .data (AT > sram) and sys_start0 copies them on every power-up / reset except a deep-sleep wake */
@@ -113,5 +132,5 @@ SECTIONS
 
 ASSERT(_trap_vec % 64 == 0, "mtvec (CLIC mode) must be 64-byte aligned")
 ASSERT(_heap_start <= ROM_HI, "RAM full: code + data exceed the ROM-loadable L2MEM window (0x4FF80000-0x4FFBCFC0)")
-ASSERT(_stack1_top <= ROM_LO, "RAM full: .bss + stacks exceed 0x4FF20000-0x4FF80000")
+ASSERT(_stack1_top <= STACK_LIMIT, "RAM full: .bss + stacks exceed 0x4FF20000-0x4FF80000")
 ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (flash MMU entries 1008-1023)")

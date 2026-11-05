@@ -2,7 +2,7 @@
 #include "sys.h"
 #include "spin.h"
 #include "swtimer.h"
-#include "soc.h"
+#include <soc.h>          /* angle brackets: the chip directory comes from -I, so this shared file sees the P4 soc.h when built for the P4 */
 #include "irq.h"
 #include "xcore.h"
 #include "cpu.h"

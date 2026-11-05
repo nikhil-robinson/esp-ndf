@@ -8,9 +8,9 @@
 #include "memprot.h"
 #include "cpu.h"
 
-#define ROM_LO     0x4FF80000u
-#define DATA_END   0x4FFBCF80u              /* ROM_HI (link.ld.in) rounded down to the 128-byte granule */
-#define LOW_LO     0x4FF20000u
+#define ROM_LO     SOC_IMG_LO
+#define DATA_END   (NDF_P4_REV >= 3 ? 0x4FFBCF80u : 0x4FF2BB80u)              /* ROM_HI (link.ld.in) rounded down to the 128-byte granule */
+#define LOW_LO     (NDF_P4_REV >= 3 ? 0x4FF20000u : SOC_IMG_LO)
 #define PMP_R      1u
 #define PMP_W      2u
 #define PMP_X      4u

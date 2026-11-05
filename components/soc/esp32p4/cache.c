@@ -80,7 +80,7 @@ void cache_flash_op_end(uint32_t st, uint32_t flash_addr, size_t len)
 
 bool cache_is_code_addr(uint32_t a)
 {
-    return (a >= 0x4FF80000u && a < (uint32_t)_text_end) ||
+    return (a >= SOC_IMG_LO && a < (uint32_t)_text_end) ||
            (a >= (uint32_t)_flash_text_start && a < (uint32_t)_flash_text_end);
 }
 

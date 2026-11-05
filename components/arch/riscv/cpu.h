@@ -23,6 +23,7 @@ ALWAYS_INLINE int core_id(void)
     return (int)h;
 }
 
+#if NDF_P4_REV >= 3
 /* Mask interrupt levels 1-5; returns the old threshold. The CSR write takes effect for the next instruction. */
 ALWAYS_INLINE uint32_t irq_lock(void)
 {
@@ -40,6 +41,31 @@ ALWAYS_INLINE void irq_enable_all(void)
 {
     __asm__ volatile("csrw 0x347, zero\n\tcsrsi mstatus, 8" ::: "memory");
 }
+#else
+/* P4 before v3.0: the CLIC threshold is a memory-mapped register of the current core (CLIC_INT_THRESH_REG 0x20800008, bits 31:24;
+ * IDF interrupt_reg.h INTTHRESH_STANDARD 0) instead of the mintthresh CSR. The store is followed by a fence so it is effective
+ * before the next instruction that could take an interrupt. */
+#define CLIC_THRESH_REG (*(volatile uint32_t *)0x20800008u)
+ALWAYS_INLINE uint32_t irq_lock(void)
+{
+    uint32_t old = CLIC_THRESH_REG >> 24;
+    CLIC_THRESH_REG = IRQ_LOCK_THRESH << 24;
+    __asm__ volatile("fence" ::: "memory");
+    return old;
+}
+
+ALWAYS_INLINE void irq_unlock(uint32_t old)
+{
+    CLIC_THRESH_REG = old << 24;
+    __asm__ volatile("fence" ::: "memory");
+}
+
+ALWAYS_INLINE void irq_enable_all(void)
+{
+    CLIC_THRESH_REG = 0;
+    __asm__ volatile("fence\n\tcsrsi mstatus, 8" ::: "memory");
+}
+#endif
 
 /* ordering between the cores / with DMA (Xtensa memw) */
 ALWAYS_INLINE void cpu_barrier(void) { __asm__ volatile("fence" ::: "memory"); }

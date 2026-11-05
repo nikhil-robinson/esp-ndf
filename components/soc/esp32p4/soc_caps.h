@@ -32,12 +32,25 @@
 #define SOC_RSA_BASE                0x50092000u
 #define SOC_CRYPTO_NO_DMA           1   /* Xtensa CPENABLE: unused */
 
+/* Silicon revision of the target: 3 (v3.x, ROM data at the top of L2MEM, image at 0x4FF80000) or 1 (v1.x "eco2" ROM, as on the
+ * v1.3 boards: the ROM keeps 0x4FF2BBD0-0x4FF40000 and loads images below it; build with P4_REV=1). */
+#ifndef NDF_P4_REV
+#define NDF_P4_REV 3
+#endif
+#if NDF_P4_REV >= 3
+#define SOC_IMG_LO    0x4FF80000u
+#else
+#define SOC_IMG_LO    0x4FF00000u
+#endif
+
 /* Boot step in start.S before any stack / .bss access: L2 cache = 128 KB, 64 B lines, so 0x4FF20000-0x4FF80000
  * (stacks, .bss, link.ld.in) is plain memory. ROM Cache_Set_L2_Cache_Mode disassembled: one-hot size at CACHE + 0x278
  * (bit 9 = 128 KB, rom/cache.h CACHE_SIZE_128K), one-hot line size at + 0x27C (bit 3 = 64 B). Internal L2MEM goes
  * through the L1 caches only, so nothing cached in L2 needs flushing (nothing external is mapped yet).
  * ponytail: no L2 invalidate - add the SYNC_CTRL sequence once flash / PSRAM are mapped through the cache. */
+#if NDF_P4_REV >= 3                     /* v1.x: the L2 cache stays as the ROM left it */
 #define SOC_BOOT_ASM  li t0, 0x3FF10000; li t1, 0x200; sw t1, 0x278(t0); li t1, 8; sw t1, 0x27C(t0); fence
+#endif
 
 /* chip defaults for ndf_config.h */
 #ifndef NDF_CPU_MHZ
