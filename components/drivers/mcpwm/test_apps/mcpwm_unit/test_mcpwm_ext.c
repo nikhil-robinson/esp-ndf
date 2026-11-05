@@ -5,7 +5,13 @@
 #include "sys.h"
 
 /* PWM A out on 12 -> jumper -> read back on 13. Fault 0 driven from pad 10 -> jumper -> pad 11. */
+#if SOC_CPU_RISCV
+#define GPIO_IN 0x500E003C
+#define MCPWM1_FAULT_OP0 0x500C1068
+#else
 #define GPIO_IN 0x6000403C
+#define MCPWM1_FAULT_OP0 0x6002C068
+#endif
 static int ones(uint32_t us)                               /* samples of pad 13 that are high */
 {
     int k = 0; uint32_t t0 = ccount();
@@ -23,6 +29,7 @@ static void on_cap(int ch, uint32_t t, int edge, void *a)
 
 void test_mcpwm_ext(void)
 {
+    NEED_JUMPER(12, 13); NEED_JUMPER(10, 11);
     irq_enable_all();
     uint32_t per = mcpwm_timer(1, 0, 10000, MCPWM_UP, 0);   /* unit 1: unit 0 is used by test_mcpwm */
     mcpwm_pwm(1, 0, 0, 12, -1);
@@ -51,7 +58,7 @@ void test_mcpwm_ext(void)
     int back = ones(2000);
     printf("    cycle-by-cycle fault: tripped %d, fault gone %d (back by itself)\n", cbc, back);
     CHECK(cbc == 0 && back > 1000);
-    REG(0x6002C068) = 0;                                   /* op0 fault handler off */
+    REG(MCPWM1_FAULT_OP0) = 0;                                   /* op0 fault handler off */
 
     /* carrier on 1 kHz 50 % PWM: count pulses on 13 for 10 ms */
     per = mcpwm_timer(1, 0, 1000, MCPWM_UP, 0);             /* re-time the running timer: 10 kHz -> 1 kHz */

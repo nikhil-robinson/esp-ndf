@@ -5,6 +5,7 @@
 #include "cpu.h"
 #include "sys.h"
 #include "unit.h"
+#include "gpio.h"
 
 extern int test_fail;
 #define CHECK(cond) do { if (!(cond)) { test_fail++; unit_fail(__FILE__, __LINE__, #cond); } } while (0)   /* goes on */
@@ -23,3 +24,15 @@ extern int test_fail;
  * (later tests of one application may use state the earlier ones left) */
 #define NDF_UNIT(ord, n) static const unit_t __pt_##n __attribute__((used, aligned(4), section(".ndf_reg.test.p" #ord "_" #n))) = \
     { #n, test_##n, __FILE__, __LINE__ }
+
+/* Loopback detection: a test that needs a jumper between two pads checks for it and skips (passes with a note) when the
+ * board has none, so one test list runs on boards wired differently (docs/WIRING.md lists the jumpers). */
+static inline bool test_jumper(int a, int b)
+{
+    gpio_config(b, GPIO_INPUT | GPIO_PULLDOWN); gpio_config(a, GPIO_OUTPUT);
+    gpio_set(a); delay_us(20); int hi = gpio_read(b);
+    gpio_clr(a); delay_us(20); int lo = gpio_read(b);
+    gpio_config(a, GPIO_INPUT); gpio_config(b, GPIO_INPUT);
+    return hi && !lo;
+}
+#define NEED_JUMPER(a, b) do { if (!test_jumper((a), (b))) { printf("    SKIP: no jumper GPIO%d <-> GPIO%d on this board\n", (a), (b)); return; } } while (0)

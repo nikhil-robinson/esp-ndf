@@ -192,7 +192,7 @@ int pcnt_index(int u, int pin, bool rising)
     if (!(u >= 0 && u < PCNT_UNITS)) return -1;      /* caller index: never past the hardware */
     /* no hardware clear input on the S3 (IDF SOC_PCNT_SUPPORT_CLEAR_SIGNAL: not here): GPIO interrupt */
     if (u < 0 || u >= PCNT_UNITS) return -1;
-    if (!((pin < 32 ? REG(0x60004020) >> pin : REG(0x6000402C) >> (pin - 32)) & 1))   /* GPIO_ENABLE: */
+    if (!((pin < 32 ? GPIO_REG(0x20) >> pin : GPIO_REG(0x2C) >> (pin - 32)) & 1))   /* GPIO_ENABLE: */
         gpio_config(pin, GPIO_INPUT);       /* an output pad (shared, loop test) is left as configured */
     return gpio_irq_attach(pin, rising ? GPIO_IRQ_RISING : GPIO_IRQ_FALLING, 3, on_index, (void *)u);
 }

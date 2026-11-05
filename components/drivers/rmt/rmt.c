@@ -179,7 +179,8 @@ uint32_t rmt_rx_init(int c, int pin, uint32_t hz, uint32_t idle, uint32_t filter
     REG(RX_CONF0(c)) = div | idle << 8 | 1u << 24;               /* mem_size = 1 block (b27:24) */
     REG(RX_CONF1(c)) = (filt ? BIT(4) | filt << 5 : 0) | BIT(3) | BIT(1) | BIT(2) | BIT(15);
     REG(RX_LIM(c)) = HALF;
-    gpio_config(pin, GPIO_INPUT | GPIO_FORCE);
+    if (!((pin < 32 ? GPIO_REG(0x20) >> pin : GPIO_REG(0x2C) >> (pin - 32)) & 1))      /* an output pad (TX loopback on one pad) stays as configured */
+        gpio_config(pin, GPIO_INPUT | GPIO_FORCE);
     gpio_in_signal(pin, SIG(c), false);
     return hz;
 }

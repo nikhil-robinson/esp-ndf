@@ -5,7 +5,12 @@
 #include <string.h>
 
 /* TX 10 -> jumper -> RX 11; TX ch1 also on pad 14 for the sync skew (read back through GPIO_IN). */
+#if SOC_CPU_RISCV
+#define GPIO_IN 0x500E003C
+#else
 #define GPIO_IN 0x6000403C
+#endif
+static int RXPAD = 11;         /* RX pad: 11 with the jumper, else TX pad 10 itself */
 static rmt_item_t out[1024], in[1100];
 
 static int edges(const rmt_item_t *b, int n)               /* rising edges in received items */
@@ -18,7 +23,7 @@ static int edges(const rmt_item_t *b, int n)               /* rising edges in re
 static void loop(void)
 {
     rmt_tx_init(0, 10, 1000000, 0);                         /* 1 us ticks */
-    rmt_rx_init(0, 11, 1000000, 500, 0);
+    rmt_rx_init(0, RXPAD, 1000000, 500, 0);
     rmt_item_t p[3] = { RMT_ITEM(1, 5, 0, 5), RMT_ITEM(1, 10, 0, 5), RMT_ITEM(1, 3, 0, 7) };
     rmt_rx_start(0, in, 1100);
     CHECK(rmt_tx_loop(0, p, 3, 100) == 0);
@@ -55,7 +60,7 @@ static void demod(void)
     rmt_tx_init(0, 10, 1000000, 0);
     rmt_tx_carrier(0, 38000, 33);
     for (int i = 0; i < 5; i++) out[i] = RMT_ITEM(1, 600, 0, 600);
-    rmt_rx_init(0, 11, 10000000, 20000, 0);                /* 100 ns: the carrier is 263 ticks */
+    rmt_rx_init(0, RXPAD, 10000000, 20000, 0);                /* 100 ns: the carrier is 263 ticks */
     rmt_rx_start(0, in, 1100);
     rmt_tx(0, out, 5); rmt_tx_wait(0);
     int raw = rmt_rx_wait(0, 100000);
@@ -74,7 +79,7 @@ static void dma(void)
 {
     for (int i = 0; i < 1000; i++) out[i] = RMT_ITEM(1, 5 + i % 7, 0, 4 + i % 5);
     rmt_tx_init(3, 10, 10000000, 0);                        /* 100 ns ticks */
-    rmt_rx_init(0, 11, 10000000, 300, 0);
+    rmt_rx_init(0, RXPAD, 10000000, 300, 0);
     rmt_rx_start(0, in, 1100);
     CHECK(rmt_tx_dma(3, out, 1000) == 0);
     { uint32_t t0 = ccount(); while (ccount() - t0 < (sys_cpu_hz() / 10)) {} }        /* 1000 items ~ 1 ms */
@@ -85,7 +90,7 @@ static void dma(void)
     CHECK(n >= 1000 && bad == 0);
     /* RX DMA (ch 3) from a normal TX */
     rmt_tx_init(0, 10, 10000000, 0);
-    rmt_rx_init(3, 11, 10000000, 300, 0);
+    rmt_rx_init(3, RXPAD, 10000000, 300, 0);
     memset(in, 0, sizeof in);
     CHECK(rmt_rx_dma_start(3, in, 1100) == 0);
     rmt_tx(0, out, 1000); rmt_tx_wait(0);
@@ -101,7 +106,7 @@ static void ws2812(void)
     const uint8_t grb[9] = { 0x10, 0x00, 0x00, 0x00, 0x10, 0x00, 0xA5, 0x5A, 0xFF };
     size_t n = rmt_ws2812_encode(grb, 9, out, 10000000);
     rmt_tx_init(0, 10, 10000000, 0);
-    rmt_rx_init(0, 11, 10000000, 500, 0);
+    rmt_rx_init(0, RXPAD, 10000000, 500, 0);
     rmt_rx_start(0, in, 1100);
     rmt_tx(0, out, n); rmt_tx_wait(0);
     int m = rmt_rx_wait(0, 100000);
@@ -127,6 +132,7 @@ static void ws2812(void)
 
 void test_rmt_ext(void)
 {
+    RXPAD = test_jumper(10, 11) ? 11 : 10;
     irq_enable_all();
     loop();
     uint32_t s0 = skew(false), s1 = skew(true);

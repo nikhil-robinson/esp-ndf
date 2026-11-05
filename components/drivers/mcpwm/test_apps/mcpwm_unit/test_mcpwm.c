@@ -3,6 +3,11 @@
 #include "gpio.h"
 #include "sys.h"
 
+#if SOC_CPU_RISCV
+#define K 2              /* capture timer ticks per S3 tick: the P4 captures at the 160 MHz group clock, the S3 at 80 MHz APB */
+#else
+#define K 1
+#endif
 #define PA 4
 #define PB 5
 
@@ -58,7 +63,7 @@ void test_mcpwm(void)
     uint32_t hi, pp;
     edges(&cap[0], &hi, &pp);
     METRIC("captured high / period", "%lu / %lu (12.5 ns ticks)", hi, pp);
-    CHECK(hi == 1000 && pp == 4000);                                  /* 12.5 us / 50 us exact */
+    CHECK(hi == 1000 * K && pp == 4000 * K);                                  /* 12.5 us / 50 us exact */
 
     per = mcpwm_timer(0, 1, 20000, MCPWM_UPDOWN, &tick);             /* center aligned */
     CHECK(per == 4000);
@@ -69,7 +74,7 @@ void test_mcpwm(void)
     WAIT_FOR(cap[1].n >= 8, 100);
     edges(&cap[1], &hi, &pp);
     METRIC("center-aligned high / period", "%lu / %lu", hi, pp);
-    CHECK(hi == 1000 && pp == 4000);
+    CHECK(hi == 1000 * K && pp == 4000 * K);
 
     /* complementary 25 %, 1 us dead time each side (160 ticks @ 160 MHz) */
     mcpwm_stop(0, 1);
@@ -88,7 +93,7 @@ void test_mcpwm(void)
         if (cap[1].e[j] == MCPWM_NEG && cap[0].e[i] == MCPWM_POS && d > 0 && (uint32_t)d < db2) db2 = d;
     }
     METRIC("dead band A->B / B->A", "%lu / %lu ticks (80 = 1 us)", db1, db2);
-    CHECK(db1 >= 79 && db1 <= 81 && db2 >= 79 && db2 <= 81);
+    CHECK(db1 >= 79 * K && db1 <= 81 * K + (K - 1) && db2 >= 79 * K && db2 <= 81 * K + (K - 1));
 
     mcpwm_force(0, 0, 0);                                             /* brake: both low */
     delay_us(200);
@@ -112,7 +117,7 @@ void test_mcpwm(void)
         if (cap[0].e[i] == MCPWM_POS && cap[1].e[j] == MCPWM_POS && d >= 0 && (uint32_t)d < lag) lag = d;
     }
     METRIC("synced timer phase lag", "%lu ticks (1000 = 90 deg)", lag);
-    CHECK(lag >= 999 && lag <= 1001);
+    CHECK(lag >= 999 * K && lag <= 1001 * K);
     mcpwm_stop(0, 2);
 
     mcpwm_capture(0, 0, PA, MCPWM_BOTH, 0, 0, 1);                     /* captures off */
