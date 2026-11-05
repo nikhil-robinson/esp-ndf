@@ -7,7 +7,7 @@
   <img alt="Cores" src="https://img.shields.io/badge/cores-2%20%C3%97%20240%20MHz-14233d">
   <img alt="RTOS" src="https://img.shields.io/badge/RTOS-none-0b1220">
   <img alt="ESP-IDF code" src="https://img.shields.io/badge/ESP--IDF%20code-0%20lines-success">
-  <img alt="License" src="https://img.shields.io/badge/license-BSD--3--Clause-blue">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue">
 </p>
 
 <p align="center">
@@ -142,4 +142,4 @@ New application: copy any example folder, set `NDF_PATH` to the esp-ndf root and
 
 ## License
 
-BSD 3-Clause — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Code vendored from other projects (musl, lwIP, the esp-dsp copy under bench/) keeps its own license.
