@@ -87,7 +87,7 @@ $(OUT)/app.bin: $(OUT)/app.elf
 	@$(PFX)objcopy -O binary -j .flash.text $< $(OUT)/xip_text.bin; $(PFX)objcopy -O binary -j .flash.rodata $< $(OUT)/xip_ro.bin
 	@cat $(OUT)/xip_text.bin $(OUT)/xip_ro.bin > $(OUT)/xip.bin                  # code blob for XIP_ADDR (rodata right after the code)
 	@test $$(stat -c%s $(OUT)/xip.bin) -le $$(( $(strip $(XIP_SIZE)) )) || (echo "xip.bin larger than XIP_SIZE"; rm -f $@; false)
-	@$(if $(filter xtensa,$(ARCH)),,true ||) python3 $(NDF)/tools/mkunwind.py $(PFX)readelf $(PFX)nm $< $@ >/dev/null   # exact panic backtraces: unwind table in flash
+	@python3 $(NDF)/tools/mkunwind$(if $(filter xtensa,$(ARCH)),,_rv).py $(PFX)readelf $(PFX)nm $< $@ >/dev/null   # exact panic backtraces: unwind table in flash
 	@test $$(( $$(stat -c%s $@) + $(LOAD_AT) )) -le $$(( $(strip $(PART_TABLE_ADDR)) )) || (echo "image larger than PART_TABLE_ADDR ($(strip $(PART_TABLE_ADDR))): would overwrite the partition table"; rm -f $@; false)
 	@python3 -c "import sys; a=open('$@','rb').read(); x=open('$(OUT)/xip.bin','rb').read(); o=$(strip $(OTA_XIP_OFF)); assert len(a)<=o, 'app.bin larger than OTA_XIP_OFF'; open('$(OUT)/ota.bin','wb').write(a+b'\\xff'*(o-len(a))+x if x else a)"   # OTA image
 	@echo "built $@"

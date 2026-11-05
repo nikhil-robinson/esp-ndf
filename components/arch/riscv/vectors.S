@@ -138,5 +138,40 @@ _trap_vec:
     .option norelax
     la      gp, __global_pointer$
     .option pop
-    call    ndf_fault               /* does not return */
-2:  j       2b
+    call    ndf_fault               /* returns only after a data watchpoint was handled (debug.c) */
+    lw      t0, 0(sp)
+    csrw    mepc, t0                /* the instruction that tripped the watchpoint runs again, the trigger is cleared */
+    addi    t0, sp, 128
+    csrw    mscratch, t0            /* panic stack top for the next trap */
+    lw      x1,   4(sp)
+    lw      x3,  12(sp)
+    lw      x4,  16(sp)
+    lw      x5,  20(sp)
+    lw      x6,  24(sp)
+    lw      x7,  28(sp)
+    lw      x8,  32(sp)
+    lw      x9,  36(sp)
+    lw      x10, 40(sp)
+    lw      x11, 44(sp)
+    lw      x12, 48(sp)
+    lw      x13, 52(sp)
+    lw      x14, 56(sp)
+    lw      x15, 60(sp)
+    lw      x16, 64(sp)
+    lw      x17, 68(sp)
+    lw      x18, 72(sp)
+    lw      x19, 76(sp)
+    lw      x20, 80(sp)
+    lw      x21, 84(sp)
+    lw      x22, 88(sp)
+    lw      x23, 92(sp)
+    lw      x24, 96(sp)
+    lw      x25, 100(sp)
+    lw      x26, 104(sp)
+    lw      x27, 108(sp)
+    lw      x28, 112(sp)
+    lw      x29, 116(sp)
+    lw      x30, 120(sp)
+    lw      x31, 124(sp)
+    lw      sp,   8(sp)             /* sp at the trap */
+    mret

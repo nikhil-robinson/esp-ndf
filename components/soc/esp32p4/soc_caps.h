@@ -66,3 +66,4 @@
 #define SOC_ULP_MEM_BASE       0x50108000u              /* LP RAM: ulp_mem() words, LP core program */
 #define SOC_OTA_NOTE           0x5010FA60u              /* loader note: "OTAS", image flash offset, XIP flash offset (16 bytes at the top of the LP RAM window, link.ld.in) */
 #define SOC_LOADER_BASE        0x4FFB9000u              /* BOOT_FAST: ROM-loaded loader window 0x4FFB9000-0x4FFBCFC0; apps end below it */
+#define SOC_FLASH_APP_ADDR     0x2000u                  /* the ROM loads the first image from here (BOOT_FAST=0) */

@@ -2,6 +2,25 @@
 #pragma once
 #include "ndf.h"
 
+#if SOC_CPU_RISCV
+/* ---- performance counters: 2 per core. The RISC-V HP cores count cycles (mcycle) and retired instructions (minstret); the
+ * other events of the Xtensa cores (cache misses, stalls, interrupts) have no counter here: they read 0. ---------------- */
+#define PERF_CYCLES       1u
+#define PERF_INSN         2u
+#define PERF_D_STALL      0u
+#define PERF_DCACHE_MISS  0u
+#define PERF_I_STALL      0u
+#define PERF_ICACHE_MISS  0u
+#define PERF_EXR          0u
+#define PERF_IRQ          0u
+#define PERF_D_LOAD       0u
+#define PERF_D_STORE      0u
+void perf_setup(int n, uint32_t event);
+void perf_start(void);
+void perf_stop(void);
+uint32_t perf_read(int n);
+void perf_reset(int n);
+#else
 /* ---- performance counters: 2 per core (Xtensa perfmon, ERI registers), 32-bit ---------------------------------
  * perf_setup(0, PERF_INSN); perf_setup(1, PERF_DCACHE_MISS); perf_start(); ... perf_read(0) ...
  * An event is PMCTRL's SELECT (bits 12:8) | MASK (31:16); counted at every interrupt level. */
@@ -26,8 +45,9 @@ static inline void perf_start(void) { eri_wr(PERF_ERI_PGM, 1); }
 static inline void perf_stop(void)  { eri_wr(PERF_ERI_PGM, 0); }
 static inline uint32_t perf_read(int n) { return eri_rd(PERF_ERI_PM(n)); }
 static inline void perf_reset(int n) { eri_wr(PERF_ERI_PM(n), 0); }
+#endif
 
-/* ---- data watchpoints: 2 per core (DBREAK) -------------------------------------------------------------------
+/* ---- data watchpoints: 2 per core (Xtensa DBREAK) / 3 (RISC-V trigger module) -------------------------------------------------------------------
  * len a power of 2 up to 64, addr aligned to it. On a hit fn(n, pc) runs in the debug exception (level 6) with the
  * watchpoint already cleared (one-shot, so the access then completes); fn NULL = panic with registers. A debugger
  * attached over JTAG takes the hit instead. */
