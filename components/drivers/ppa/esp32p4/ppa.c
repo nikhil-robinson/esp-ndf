@@ -65,7 +65,7 @@ int ppa_srm(const ppa_pic_t *in, ppa_pic_t *out, int sx16, int sy16, int rot, bo
     desc_out(&drx, out, 2, 2);                                              /* hb / vb are written back by the DMA, any even value */
     wb(in); inv(out);                                                       /* clean the output's lines before the DMA writes it */
     dma2d_cfg_t tx = { .periph = DMA2D_PERIPH_PPA_SRM, .periph_id = 1, .dscr_port = true, .dscr_port_h = 18, .dscr_port_v = 18 };
-    dma2d_cfg_t rx = { .periph = DMA2D_PERIPH_PPA_SRM, .periph_id = 1 };
+    dma2d_cfg_t rx = { .periph = DMA2D_PERIPH_PPA_SRM, .periph_id = 1, .dscr_port = true };      /* IDF dma2d.c: both halves of an SRM transfer use the descriptor port */
     if (dma2d_rx_start(0, &rx, &drx) || dma2d_tx_start(0, &tx, &dtx[0])) return -1;
     PF(SR_RX_CM, cm_id[in->cm]); PF(SR_TX_CM, cm_id[out->cm]);
     PF(SR_RX_BYTE_SWAP_EN, 0); PF(SR_RX_RGB_SWAP_EN, 0);
