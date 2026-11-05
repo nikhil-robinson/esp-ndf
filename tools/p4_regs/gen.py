@@ -9,7 +9,7 @@ src, out, base, addr = sys.argv[1:5]
 keep = re.compile(sys.argv[5]) if len(sys.argv) > 5 else None
 regs, fields, cur = [], [], None
 for ln in open(src):
-    m = re.match(r"#define (\w+_REG)\s+\(DR_REG_\w+_BASE \+ (0x[0-9a-fA-F]+)\)", ln)
+    m = re.match(r"#define (\w+)\s+\(DR_REG_\w+_BASE \+ (0x[0-9a-fA-F]+)\)", ln)
     if m: regs.append((m[1], m[2])); cur = m[1]; continue
     m = re.match(r"/\*\* (\w+) : \w+(?:/\w+)*; bitpos: \[(\d+)(?::(\d+))?\]", ln)
     if m:
