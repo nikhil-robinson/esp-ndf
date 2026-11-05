@@ -25,7 +25,7 @@ static void init(void)
     FSET(HP_SYS_CLKRST_REG_CRYPTO_ECDSA_CLK_EN);
     FSET(HP_SYS_CLKRST_REG_RST_EN_ECDSA); FCLR(HP_SYS_CLKRST_REG_RST_EN_ECDSA); FCLR(HP_SYS_CLKRST_REG_RST_EN_CRYPTO);
     irq_unlock(t);
-    SPIN_US(REG(ECDSA_STATE_REG) & 3, 10000);
+    SPIN_WHILE(REG(ECDSA_STATE_REG) & 3, 10000);
     up = true;
 }
 static uint32_t st(void) { return REG(ECDSA_STATE_REG) & 3; }
@@ -36,8 +36,8 @@ static void efuse_read(void)                                              /* rel
 {
     REG_FIELD(EFUSE_CONF_REG, EFUSE_OP_CODE_S, EFUSE_OP_CODE_W, 0x5A5A);
     REG_SET(EFUSE_CMD_REG, BIT(EFUSE_READ_CMD_S));
-    SPIN_US(REG(EFUSE_CMD_REG) & BIT(EFUSE_READ_CMD_S), 100000);
-    SPIN_US(REG(EFUSE_CMD_REG) & BIT(EFUSE_READ_CMD_S), 100000);
+    SPIN_WHILE(REG(EFUSE_CMD_REG) & BIT(EFUSE_READ_CMD_S), 100000);
+    SPIN_WHILE(REG(EFUSE_CMD_REG) & BIT(EFUSE_READ_CMD_S), 100000);
 }
 static void select_key(ecc_curve_id_t c, int blk)
 {
@@ -56,7 +56,7 @@ static void conf(ecc_curve_id_t c, int mode, bool sw_z)
 }
 static int phase(uint32_t want)
 {
-    SPIN_US(st() != want, 2000000);
+    SPIN_WHILE(st() != want, 2000000);
     return st() == want ? 0 : -1;
 }
 

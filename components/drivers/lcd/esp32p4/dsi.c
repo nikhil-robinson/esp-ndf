@@ -95,10 +95,10 @@ int dsi_init(const dsi_cfg_t *c)
     phy_write(0x18, (M - 1) & 0x1F);
     phy_write(0x18, 0x80 | (((M - 1) >> 5) & 0x0F));
     d.mbps = ref * M / N;
-    SPIN_US(!FGET(DSI_HOST_PHY_LOCK), 10000);
+    SPIN_WHILE(!FGET(DSI_HOST_PHY_LOCK), 10000);
     if (!FGET(DSI_HOST_PHY_LOCK)) return -1;
     uint32_t mask = BIT(DSI_HOST_PHY_STOPSTATECLKLANE_S) | BIT(DSI_HOST_PHY_STOPSTATE0LANE_S) | (c->lanes > 1 ? BIT(DSI_HOST_PHY_STOPSTATE1LANE_S) : 0);
-    SPIN_US((REG(DSI_HOST_PHY_STATUS_REG) & mask) != mask, 10000);
+    SPIN_WHILE((REG(DSI_HOST_PHY_STATUS_REG) & mask) != mask, 10000);
     if ((REG(DSI_HOST_PHY_STATUS_REG) & mask) != mask) return -1;
     FPUT(DSI_HOST_CMD_VIDEO_MODE, 1);                                        /* command mode */
     H(AUTO_CLKLANE_CTRL, !c->clock_lane_hs); H(PHY_TXREQUESTCLKHS, 1);
@@ -120,12 +120,12 @@ int dsi_init(const dsi_cfg_t *c)
 
 static void pkt_hdr(int vc, int dt, uint8_t msb, uint8_t lsb)
 {
-    SPIN_US(FGET(DSI_HOST_GEN_CMD_FULL), 100000);
+    SPIN_WHILE(FGET(DSI_HOST_GEN_CMD_FULL), 100000);
     REG(DSI_HOST_GEN_HDR_REG) = (uint32_t)msb << 16 | (uint32_t)lsb << 8 | (vc << 6 | dt);
 }
 static void pld(uint32_t w)
 {
-    SPIN_US(FGET(DSI_HOST_GEN_PLD_W_FULL), 100000);
+    SPIN_WHILE(FGET(DSI_HOST_GEN_PLD_W_FULL), 100000);
     REG(DSI_HOST_GEN_PLD_DATA_REG) = w;
 }
 
@@ -144,7 +144,7 @@ int dsi_dcs_write(int vc, uint8_t cmd, const void *param, size_t n)
         pkt_hdr(vc, DT_DCS_LW, total >> 8, total & 0xFF);
     } else if (total == 2) pkt_hdr(vc, DT_DCS_SW1, p[0], cmd);
     else pkt_hdr(vc, DT_DCS_SW0, 0, cmd);
-    SPIN_US(!FGET(DSI_HOST_GEN_CMD_EMPTY) || !FGET(DSI_HOST_GEN_PLD_W_EMPTY), 100000);
+    SPIN_WHILE(!FGET(DSI_HOST_GEN_CMD_EMPTY) || !FGET(DSI_HOST_GEN_PLD_W_EMPTY), 100000);
     return 0;
 }
 
@@ -155,8 +155,8 @@ int dsi_dcs_read(int vc, uint8_t cmd, void *buf, size_t n)
     pkt_hdr(vc, DT_SET_MAX_RET, n >> 8, n & 0xFF);
     H(BTA_EN, 1); H(GEN_VCID_RX, vc);
     pkt_hdr(vc, DT_DCS_RD0, 0, cmd);
-    SPIN_US(FGET(DSI_HOST_GEN_RD_CMD_BUSY), 100000);
-    SPIN_US(FGET(DSI_HOST_GEN_PLD_R_EMPTY), 100000);
+    SPIN_WHILE(FGET(DSI_HOST_GEN_RD_CMD_BUSY), 100000);
+    SPIN_WHILE(FGET(DSI_HOST_GEN_PLD_R_EMPTY), 100000);
     uint8_t *o = buf; size_t k = 0;
     while (!FGET(DSI_HOST_GEN_PLD_R_EMPTY)) {
         uint32_t w = REG(DSI_HOST_GEN_PLD_DATA_REG);

@@ -132,14 +132,14 @@ static void tx_reset(int n)
     FPUT(H264_DMA_OUT_CMD_DISABLE_CH0, 0);
     uint32_t c = TXR(n, CONF0);
     REG_SET(c, BIT(H264_DMA_OUT_CMD_DISABLE_CH0_S));
-    SPIN_US(!(REG(TXR(n, STATE)) & BIT(H264_DMA_OUT_RESET_AVAIL_CH0_S)), 1000);
+    SPIN_WHILE(!(REG(TXR(n, STATE)) & BIT(H264_DMA_OUT_RESET_AVAIL_CH0_S)), 1000);
     REG_SET(c, BIT(H264_DMA_OUT_RST_CH0_S)); REG_CLR(c, BIT(H264_DMA_OUT_RST_CH0_S)); REG_CLR(c, BIT(H264_DMA_OUT_CMD_DISABLE_CH0_S));
 }
 static void rx_reset(int n)
 {
     uint32_t c = RXR(n, CONF0);
     REG_SET(c, BIT(H264_DMA_IN_CMD_DISABLE_CH0_S));
-    SPIN_US(!(REG(RXR(n, STATE)) & BIT(H264_DMA_IN_RESET_AVAIL_CH0_S)), 1000);
+    SPIN_WHILE(!(REG(RXR(n, STATE)) & BIT(H264_DMA_IN_RESET_AVAIL_CH0_S)), 1000);
     REG_SET(c, BIT(H264_DMA_IN_RST_CH0_S)); REG_CLR(c, BIT(H264_DMA_IN_RST_CH0_S)); REG_CLR(c, BIT(H264_DMA_IN_CMD_DISABLE_CH0_S));
 }
 static void tx_start(int n, dma2d_desc_t *d)
@@ -205,7 +205,7 @@ void h264_rc(bool on, int qmin, int qmax, int u)
 
 static int wait_ev(uint32_t ev, uint32_t us)
 {
-    SPIN_US(!(REG(H264_INT_RAW_REG) & ev), us);
+    SPIN_WHILE(!(REG(H264_INT_RAW_REG) & ev), us);
     int ok = (REG(H264_INT_RAW_REG) & ev) ? 0 : -1;
     REG(H264_INT_CLR_REG) = ev;
     return ok;

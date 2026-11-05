@@ -14,7 +14,7 @@
 
 #define PURPOSE_UP 8
 
-static void idle(void) { SPIN_US(REG(HMAC_QUERY_BUSY_REG) != 0, 100000); }
+static void idle(void) { SPIN_WHILE(REG(HMAC_QUERY_BUSY_REG) != 0, 100000); }
 static void block(const uint8_t *b) { uint32_t w[16]; memcpy(w, b, 64); for (int i = 0; i < 16; i++) REG(HMAC_WR_MESSAGE_MEM + 4 * i) = w[i]; REG(HMAC_SET_MESSAGE_ONE_REG) = 1; }
 
 int hmac_sha256_hw(int key_id, const void *msg, size_t n, uint8_t out[32])

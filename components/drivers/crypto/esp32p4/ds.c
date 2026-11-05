@@ -15,7 +15,7 @@
 
 #define PURPOSE_DOWN_DS 7
 static void fence(void) { __asm__ volatile("fence" ::: "memory"); }
-static void hidle(void) { SPIN_US(REG(HMAC_QUERY_BUSY_REG) != 0, 100000); }
+static void hidle(void) { SPIN_WHILE(REG(HMAC_QUERY_BUSY_REG) != 0, 100000); }
 
 int ds_sign(const ds_data_t *d, int key, const uint8_t *msg, uint8_t *sig)
 {
@@ -31,8 +31,8 @@ int ds_sign(const ds_data_t *d, int key, const uint8_t *msg, uint8_t *sig)
     if (REG(HMAC_QUERY_ERROR_REG)) { REG(HMAC_SET_RESULT_FINISH_REG) = 2; return -1; }
     hidle();
     REG(DS_SET_START_REG) = 1;
-    SPIN_US(REG(DS_QUERY_BUSY_REG) > 0, 1100);                                /* key check window (SOC_DS_KEY_CHECK_MAX_WAIT_US) */
-    if (REG(DS_QUERY_BUSY_REG) > 0) { REG(DS_SET_FINISH_REG) = 1; SPIN_US(REG(DS_QUERY_BUSY_REG) > 0, 100000); return -1; }
+    SPIN_WHILE(REG(DS_QUERY_BUSY_REG) > 0, 1100);                                /* key check window (SOC_DS_KEY_CHECK_MAX_WAIT_US) */
+    if (REG(DS_QUERY_BUSY_REG) > 0) { REG(DS_SET_FINISH_REG) = 1; SPIN_WHILE(REG(DS_QUERY_BUSY_REG) > 0, 100000); return -1; }
     const uint8_t *from = d->c;                                               /* Y, M, r_bar at full length, then the box (MD, M', L, padding) */
     memcpy((void *)DS_Y_MEM, from, DS_MAX_BITS / 8); fence(); from += DS_MAX_BITS / 8;
     memcpy((void *)DS_M_MEM, from, DS_MAX_BITS / 8); fence(); from += DS_MAX_BITS / 8;
@@ -41,12 +41,12 @@ int ds_sign(const ds_data_t *d, int key, const uint8_t *msg, uint8_t *sig)
     for (int i = 0; i < 4; i++) { uint32_t w; memcpy(&w, d->iv + 4 * i, 4); REG(DS_IV_MEM + 4 * i) = w; }
     memcpy((void *)DS_X_MEM, msg, n); fence();
     REG(DS_SET_CONTINUE_REG) = 1;
-    SPIN_US(REG(DS_QUERY_BUSY_REG) > 0, 2000000);
+    SPIN_WHILE(REG(DS_QUERY_BUSY_REG) > 0, 2000000);
     uint32_t chk = REG(DS_QUERY_CHECK_REG);                                   /* 0 ok, 1 MD fail, 2 padding fail, 3 both */
     if (chk == 0 || chk == 2) memcpy(sig, (void *)DS_Z_MEM, n);
     fence();
     REG(DS_SET_FINISH_REG) = 1;
-    SPIN_US(REG(DS_QUERY_BUSY_REG) > 0, 100000);
+    SPIN_WHILE(REG(DS_QUERY_BUSY_REG) > 0, 100000);
     hidle(); REG(HMAC_SET_INVALIDATE_DS_REG) = 1; REG(HMAC_SET_INVALIDATE_JTAG_REG) = 1;
     if (chk & 1) { memset(sig, 0, n); return -2; }
     if (chk == 2) { memset(sig, 0, n); return -3; }

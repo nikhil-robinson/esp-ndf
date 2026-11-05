@@ -51,11 +51,11 @@ static struct { bool up, hc; uint32_t rca, sectors; int width; uint32_t src_khz;
 
 static int cmd_start(uint32_t cmd, uint32_t arg)
 {
-    SPIN_US(REG(H(CMD)) & C_START, 100000);
+    SPIN_WHILE(REG(H(CMD)) & C_START, 100000);
     if (REG(H(CMD)) & C_START) return -1;
     REG(H(CMDARG)) = arg;
     REG(H(CMD)) = cmd | C_HOLD | C_START;
-    SPIN_US(REG(H(CMD)) & C_START, 100000);
+    SPIN_WHILE(REG(H(CMD)) & C_START, 100000);
     return REG(H(CMD)) & C_START ? -1 : 0;
 }
 static int clock_update(void) { return cmd_start(C_UPDCLK | C_WAITPRV, 0); }
@@ -90,7 +90,7 @@ static int set_clock(uint32_t khz)
 static int host_reset(void)
 {
     REG_SET(H(CTRL), BIT(0) | BIT(1) | BIT(2));                              /* controller, FIFO, DMA reset */
-    SPIN_US(REG(H(CTRL)) & (BIT(0) | BIT(1) | BIT(2)), 100000);
+    SPIN_WHILE(REG(H(CTRL)) & (BIT(0) | BIT(1) | BIT(2)), 100000);
     return REG(H(CTRL)) & (BIT(0) | BIT(1) | BIT(2)) ? -1 : 0;
 }
 
@@ -99,7 +99,7 @@ static int command(uint32_t idx, uint32_t arg, uint32_t flags, uint32_t resp[4])
 {
     REG(H(RINTSTS)) = 0xFFFFFFFFu;
     if (cmd_start(idx | flags | C_WAITPRV, arg)) return -1;
-    SPIN_US(!(REG(H(RINTSTS)) & (I_CD | I_ERR)), 100000);
+    SPIN_WHILE(!(REG(H(RINTSTS)) & (I_CD | I_ERR)), 100000);
     uint32_t s = REG(H(RINTSTS));
     if (!(s & I_CD) || (s & (I_RTO | I_RE | I_HLE)) || ((s & I_RCRC) && (flags & C_CRC))) return -1;        /* R3 (OCR) carries no valid CRC */
     if (resp && (flags & C_RESP)) { resp[0] = REG(H(RESP0)); resp[1] = REG(H(RESP1)); resp[2] = REG(H(RESP2)); resp[3] = REG(H(RESP3)); }
@@ -150,7 +150,7 @@ int sdcard_init(const sdcard_cfg_t *cfg)
     /* 80 clocks with CMD0 carrying the initialization flag */
     REG(H(RINTSTS)) = 0xFFFFFFFFu;
     cmd_start(0 | C_INIT | C_WAITPRV, 0);
-    SPIN_US(!(REG(H(RINTSTS)) & I_CD), 100000);
+    SPIN_WHILE(!(REG(H(RINTSTS)) & I_CD), 100000);
     if (command(0, 0, 0, 0)) return -1;
     bool v2 = command(8, 0x1AA, R1, r) == 0 && (r[0] & 0xFFF) == 0x1AA;
     uint32_t ocr = 0;
@@ -215,7 +215,7 @@ static int run_data(uint32_t cmd, uint32_t arg, void *buf, uint32_t bytes, uint3
     uint32_t r[4];
     if (command(cmd, arg, R1 | C_DATA | (wr ? C_WRITE : 0) | (autostop ? C_AUTOSTOP : 0), r)) { REG(H(BMOD)) = 0; return -1; }
     REG(H(PLDMND)) = 1;
-    SPIN_US(!(REG(H(RINTSTS)) & (I_DTO | I_ERR)), 2000000);
+    SPIN_WHILE(!(REG(H(RINTSTS)) & (I_DTO | I_ERR)), 2000000);
     uint32_t s = REG(H(RINTSTS));
     REG(H(BMOD)) = 0;
     if (!(s & I_DTO) || (s & (I_DCRC | I_DRTO | I_SBE | I_EBE))) { host_reset(); return -1; }

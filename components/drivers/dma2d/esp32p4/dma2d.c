@@ -71,7 +71,7 @@ int dma2d_tx_start(int ch, const dma2d_cfg_t *c, dma2d_desc_t *first)
     REG_CLR(TX(ch, LINK_CONF), BIT(DMA2D_OUTLINK_START_CH0_S));
     REG_SET(TX(ch, LINK_CONF), BIT(DMA2D_OUTLINK_STOP_CH0_S));
     OUTF(ch, CMD_DISABLE, 1);                                                  /* abort, wait until the channel can be reset, reset */
-    SPIN_US(!OUTG(ch, RESET_AVAIL), 1000);
+    SPIN_WHILE(!OUTG(ch, RESET_AVAIL), 1000);
     OUTF(ch, RST, 1); OUTF(ch, RST, 0); OUTF(ch, CMD_DISABLE, 0);
     OUTF(ch, PERI_SEL, id);
     OUTF(ch, CHECK_OWNER, 0); OUTF(ch, AUTO_WRBACK, 0); OUTF(ch, EOF_MODE, 1);
@@ -95,7 +95,7 @@ int dma2d_rx_start(int ch, const dma2d_cfg_t *c, dma2d_desc_t *first)
     REG_CLR(RX(ch, LINK_CONF), BIT(DMA2D_INLINK_START_CH0_S));
     REG_SET(RX(ch, LINK_CONF), BIT(DMA2D_INLINK_STOP_CH0_S));
     INF(ch, CMD_DISABLE, 1);
-    SPIN_US(!ING(ch, RESET_AVAIL), 1000);
+    SPIN_WHILE(!ING(ch, RESET_AVAIL), 1000);
     INF(ch, RST, 1); INF(ch, RST, 0); INF(ch, CMD_DISABLE, 0);
     INF(ch, PERI_SEL, id);
     INF(ch, MEM_TRANS_EN, c->periph == DMA2D_PERIPH_M2M);
@@ -116,14 +116,14 @@ int dma2d_rx_start(int ch, const dma2d_cfg_t *c, dma2d_desc_t *first)
 int dma2d_tx_wait(int ch, uint32_t timeout_us)
 {
     if ((unsigned)ch >= DMA2D_TX_CHANNELS) return -1;
-    SPIN_US(!(REG(TX(ch, INT_RAW)) & (EV_EOF | EV_ERR_TX)), timeout_us);
+    SPIN_WHILE(!(REG(TX(ch, INT_RAW)) & (EV_EOF | EV_ERR_TX)), timeout_us);
     return (REG(TX(ch, INT_RAW)) & EV_EOF) && !(REG(TX(ch, INT_RAW)) & EV_ERR_TX) ? 0 : -1;
 }
 
 int dma2d_rx_wait(int ch, uint32_t timeout_us, uint32_t *received)
 {
     if ((unsigned)ch >= DMA2D_RX_CHANNELS) return -1;
-    SPIN_US(!(REG(RX(ch, INT_RAW)) & (EV_EOF | EV_ERR_RX)), timeout_us);
+    SPIN_WHILE(!(REG(RX(ch, INT_RAW)) & (EV_EOF | EV_ERR_RX)), timeout_us);
     uint32_t raw = REG(RX(ch, INT_RAW));
     if (received) {                                                           /* hb / ha written back into the end descriptor */
         dma2d_desc_t *e = (dma2d_desc_t *)(uintptr_t)REG(RX(ch, SUC_EOF_DES_ADDR));
@@ -138,13 +138,13 @@ void dma2d_stop(int tx_ch, int rx_ch)
 {
     if ((unsigned)tx_ch < DMA2D_TX_CHANNELS) {
         REG_SET(TX(tx_ch, LINK_CONF), BIT(DMA2D_OUTLINK_STOP_CH0_S));
-        OUTF(tx_ch, CMD_DISABLE, 1); SPIN_US(!OUTG(tx_ch, RESET_AVAIL), 1000);
+        OUTF(tx_ch, CMD_DISABLE, 1); SPIN_WHILE(!OUTG(tx_ch, RESET_AVAIL), 1000);
         OUTF(tx_ch, RST, 1); OUTF(tx_ch, RST, 0); OUTF(tx_ch, CMD_DISABLE, 0);
         OUTF(tx_ch, PERI_SEL, 7);                                              /* 7: not connected */
     }
     if ((unsigned)rx_ch < DMA2D_RX_CHANNELS) {
         REG_SET(RX(rx_ch, LINK_CONF), BIT(DMA2D_INLINK_STOP_CH0_S));
-        INF(rx_ch, CMD_DISABLE, 1); SPIN_US(!ING(rx_ch, RESET_AVAIL), 1000);
+        INF(rx_ch, CMD_DISABLE, 1); SPIN_WHILE(!ING(rx_ch, RESET_AVAIL), 1000);
         INF(rx_ch, RST, 1); INF(rx_ch, RST, 0); INF(rx_ch, CMD_DISABLE, 0);
         INF(rx_ch, PERI_SEL, 7);
     }

@@ -34,7 +34,7 @@ static struct { bool up; int phy, rxi, txi; uint32_t dropped; } e;
 
 static void pin_mux(int pin) { REG(IO_MUX_BASE + 4 + pin * 4) = IOMUX_F3 | BIT(9) | 2u << 10; }          /* function 3, input enable, drive 2 */
 
-static int mdio_wait(void) { SPIN_US(REG(M(GMIIADDRESS)) & 1, 1000); return REG(M(GMIIADDRESS)) & 1 ? -1 : 0; }
+static int mdio_wait(void) { SPIN_WHILE(REG(M(GMIIADDRESS)) & 1, 1000); return REG(M(GMIIADDRESS)) & 1 ? -1 : 0; }
 int eth_phy_read(int reg, uint16_t *v)
 {
     if (mdio_wait()) return -1;
@@ -76,7 +76,7 @@ int eth_init(const eth_cfg_t *c)
     irq_unlock(t);
     /* DMA software reset */
     REG(M(BUSMODE)) = BIT(0);
-    SPIN_US(REG(M(BUSMODE)) & 1, 100000);
+    SPIN_WHILE(REG(M(BUSMODE)) & 1, 100000);
     if (REG(M(BUSMODE)) & 1) return -1;                                         /* no reference clock: reset never completes */
     /* MAC defaults */
     REG(M(INTERRUPTMASK)) = 0xFFFFFFFFu;
@@ -104,7 +104,7 @@ int eth_init(const eth_cfg_t *c)
      * OSF on (second frame); then flush the transmit FIFO (FTF self-clears) */
     REG(M(OPERATIONMODE)) = BIT(2);
     REG_SET(M(OPERATIONMODE), BIT(20));
-    SPIN_US(REG(M(OPERATIONMODE)) & BIT(20), 10000);
+    SPIN_WHILE(REG(M(OPERATIONMODE)) & BIT(20), 10000);
     REG(M(STATUS)) = 0xFFFFFFFFu;
     e.phy = c->phy_addr;
     if (e.phy < 0) {                                                            /* scan for a PHY that answers */
@@ -112,7 +112,7 @@ int eth_init(const eth_cfg_t *c)
         if (e.phy < 0) return -1;
     }
     eth_phy_write(0, BIT(15));                                                  /* BMCR reset */
-    SPIN_US(({ uint16_t v = BIT(15); eth_phy_read(0, &v); v & BIT(15); }), 500000);
+    SPIN_WHILE(({ uint16_t v = BIT(15); eth_phy_read(0, &v); v & BIT(15); }), 500000);
     eth_phy_write(4, 0x01E1);                                                   /* advertise 10/100 half / full + 802.3 selector */
     eth_phy_write(0, BIT(12) | BIT(9));                                         /* autonegotiation enable + restart */
     REG_SET(M(MACCONFIGURATION), BIT(3) | BIT(2));                              /* TE, RE */
@@ -146,7 +146,7 @@ int eth_send(const void *frame, size_t len)
     if (!e.up || !frame || len < 14 || len > 1518) return -1;
     edesc_t *d = &txd[e.txi];
     cache_dma_wbinv(d, sizeof *d);
-    SPIN_US(d->d0 & BIT(31), 100000);
+    SPIN_WHILE(d->d0 & BIT(31), 100000);
     if (d->d0 & BIT(31)) return -1;
     memcpy(txb[e.txi], frame, len);
     cache_dma_writeback(txb[e.txi], len);

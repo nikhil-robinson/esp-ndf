@@ -31,7 +31,7 @@ int dwg_init(void)
     FSET(HP_SYS_CLKRST_REG_RST_EN_GDMA); FCLR(HP_SYS_CLKRST_REG_RST_EN_GDMA);
     irq_unlock(t);
     REG_SET(DMAC_RESET0_REG, BIT(DMAC_DMAC_RST_S));
-    SPIN_US(REG(DMAC_RESET0_REG) & BIT(DMAC_DMAC_RST_S), 1000);
+    SPIN_WHILE(REG(DMAC_RESET0_REG) & BIT(DMAC_DMAC_RST_S), 1000);
     REG_SET(DMAC_CFG0_REG, BIT(DMAC_DMAC_EN_S));
     up = true;
     return 0;
@@ -113,7 +113,7 @@ int dwg_wait(int ch, uint32_t timeout_us)
 {
     if ((unsigned)ch > 3) return -1;
     const uint32_t done = BIT(DMAC_CH1_DMA_TFR_DONE_INTSTAT_S), err = 0x023F7FE0u;   /* bits 5..14 decode / slave / LLI errors, 16..21 and 25 slave-interface errors */
-    SPIN_US(!(REG(CHR(ch, INTSTATUS0)) & (done | err)), timeout_us);
+    SPIN_WHILE(!(REG(CHR(ch, INTSTATUS0)) & (done | err)), timeout_us);
     uint32_t s = REG(CHR(ch, INTSTATUS0));
     return (s & done) && !(s & err) ? 0 : -1;
 }
@@ -122,7 +122,7 @@ void dwg_stop(int ch)
 {
     if ((unsigned)ch > 3) return;
     REG(DMAC_CHEN0_REG) = 0x100u << ch;                                        /* write-enable only: clears the enable bit */
-    SPIN_US(REG(DMAC_CHEN0_REG) & BIT(ch), 1000);
+    SPIN_WHILE(REG(DMAC_CHEN0_REG) & BIT(ch), 1000);
     REG(CHR(ch, INTCLEAR0)) = 0xFFFFFFFFu;
 }
 
