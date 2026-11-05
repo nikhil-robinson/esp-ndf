@@ -203,7 +203,7 @@ test:
 	python3 $(NDF)/tools/ndf_test.py run $(APP)
 ndf-info:
 	@echo "TEST_KIND=$(or $(TEST_KIND),example)"; echo "TEST_BOARD=$(or $(TEST_BOARD),devkit)"; echo "TEST_PASS=$(or $(TEST_PASS),=== unit: (\\d+)/(\\d+) passed ===)"
-	@echo "TEST_TIMEOUT=$(or $(TEST_TIMEOUT),60)"; echo "TEST_HOST=$(TEST_HOST)"; echo "TEST_NOTE=$(TEST_NOTE)"; echo "TEST_ALLOW=$(TEST_ALLOW)"; echo "TEST_QUIET=$(or $(TEST_QUIET),0)"
+	@echo "TEST_TIMEOUT=$(or $(TEST_TIMEOUT),60)"; echo "TEST_HOST=$(TEST_HOST)"; echo "TEST_NOTE=$(TEST_NOTE)"; echo "TEST_ALLOW=$(TEST_ALLOW)"; echo "TEST_QUIET=$(or $(TEST_QUIET),0)"; echo "TEST_SOC=$(TEST_SOC)"
 
 -include $(OBJS:.o=.d)
 .PHONY: flash monitor clean partition backtrace menuconfig config-doc test ndf-info

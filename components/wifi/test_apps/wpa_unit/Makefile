@@ -2,6 +2,7 @@
 NDF_PATH ?= ../../../..
 COMPONENTS = wifi
 UNIT_MAIN = 1
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 TEST_KIND = unit
 TEST_BOARD = devkit
 XIP = all

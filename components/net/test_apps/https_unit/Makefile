@@ -2,6 +2,7 @@
 NDF_PATH ?= ../../../..
 COMPONENTS = wifi lwip net tls
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf $(NDF_PATH)/components/lwip/include
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 TEST_KIND = unit
 TEST_HOST = tools/wl/test_https.py
 TEST_TIMEOUT = 400

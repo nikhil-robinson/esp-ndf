@@ -1,5 +1,6 @@
 # irq_cost: Full interrupt cost per level, with an empty C handler, using CCOMPARE: entry  = handler's first CCOUNT - match time exit   = first CCOUNT back in the interrupted...
 NDF_PATH ?= ../../../..
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 TEST_KIND = bench
 TEST_PASS = done
 include $(NDF_PATH)/make/project.mk

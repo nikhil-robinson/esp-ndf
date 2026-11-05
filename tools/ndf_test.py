@@ -132,6 +132,9 @@ def main():
         if a.kind != 'all' and kv['TEST_KIND'] != a.kind: continue
         board = 'devkit' if kv['TEST_BOARD'] == 'any' else kv['TEST_BOARD']
         if a.board and board != a.board: continue
+        soc = next((x.split('=', 1)[1] for x in MAKE_ARGS if x.startswith('SOC=')), 'esp32s3')
+        only = kv.get('TEST_SOC') or ('esp32p4' if '/esp32p4/' in d else '')      # TEST_SOC = chips the test is for; apps under esp32p4/ are P4 only
+        if only and soc not in only.replace(',', ' ').split(): continue
         rows.append((d, kv, board))
     if a.cmd == 'list':
         for d, kv, board in rows:

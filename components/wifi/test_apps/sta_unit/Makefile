@@ -2,6 +2,7 @@
 NDF_PATH ?= ../../../..
 COMPONENTS = wifi
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 TEST_KIND = unit
 TEST_HOST = tools/wl/test_sta.py
 TEST_TIMEOUT = 150

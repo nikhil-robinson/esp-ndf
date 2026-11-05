@@ -4,4 +4,5 @@ COMPONENTS = ble_host
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf
 XIP = all
 STACK1_SIZE = 4096
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 include $(NDF_PATH)/make/project.mk

@@ -4,6 +4,7 @@ COMPONENTS = ble_host
 EXTRA_INCLUDES = $(NDF_PATH)/components/drivers/rf $(NDF_PATH)/examples/bluetooth/ble_gattc
 XIP = all
 STACK1_SIZE = 4096
+TEST_SOC = esp32s3             # radio / Xtensa / S3 registers: not for the P4
 TEST_KIND = unit
 TEST_HOST = tools/wl/test_central.py
 TEST_TIMEOUT = 150
