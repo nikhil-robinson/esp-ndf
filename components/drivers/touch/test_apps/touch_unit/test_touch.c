@@ -14,7 +14,12 @@ void test_touch(void)
     delay_us(50000);
     uint32_t p1 = avg(1), p10 = avg(10), p14 = avg(14);
     printf("    raw: pad1 %lu, pad14 %lu, pad10 %lu (jumper)\n", p1, p14, p10);
+#if SOC_CPU_RISCV    /* P4: channels are fixed to GPIO2..15 (touch_init takes the pad mask); with no jumper just require sane, repeatable counts */
+    uint32_t a = touch_read(1), b = touch_read(1);
+    CHECK(p1 > 1000 && p10 > 1000 && p14 > 1000 && (a > b ? a - b : b - a) < a / 10 + 1);
+#else
     CHECK(p1 > 1000 && p14 > 1000 && p10 > 2 * p1 && p10 > 2 * p14);
+#endif
     METRIC("touch_read()", "%lu cycles", CYCLES(touch_read(10)));
     gpio_config(11, GPIO_INPUT);
 }
@@ -34,13 +39,23 @@ void test_touch_ext(void)
     touch_threshold(10, base / 20);                          /* 5 % */
     ev_on = ev_off = 0;
     CHECK(touch_on_event(on_touch, 0) == 0);
-    REG_FIELD(0x60008150, 29, 3, 6); delay_us(100000);      /* touch */
+#if !SOC_CPU_RISCV
+    REG_FIELD(0x60008150, 29, 3, 6); delay_us(100000);      /* touch (S3: RTC_CNTL pad control) */
+#else
+    delay_us(100000);                                        /* P4: no way to emulate a finger; baseline / filter only */
+#endif
     int on = ev_on; uint16_t act = touch_active();
+#if !SOC_CPU_RISCV
     REG_FIELD(0x60008150, 29, 3, 7); delay_us(100000);      /* release */
+#endif
     int off = ev_off;
     printf("    filter: raw %lu, smooth %lu, baseline %lu; threshold %lu: touch -> %d event(s) pad %d (active %04x), release -> %d\n",
            raw, sm, base, base / 20, on, ev_pad, act, off);
+#if SOC_CPU_RISCV
+    CHECK(base > raw - raw / 20 && base < raw + raw / 20 && on == 0 && off == 0);      /* untouched pad: baseline follows, no event */
+#else
     CHECK(base > raw - raw / 20 && base < raw + raw / 20 && on == 1 && (act & BIT(10)) && off == 1 && ev_pad == 10);
+#endif
     touch_on_event(0, 0);
     const int8_t px[3] = { 10, 0, 0 };
     touch_proximity(px, 50);
