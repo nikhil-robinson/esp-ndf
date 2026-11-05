@@ -22,9 +22,14 @@ RAM_FN static void alarm_cb(void *arg)
     s->last = now; s->n++;
 }
 
+#if SOC_CPU_RISCV
+#define FAST_HZ 20000000u                       /* P4: timer divider >= 2 (IDF timer_ll.h) */
+#else
+#define FAST_HZ 40000000u
+#endif
 static void periodic(int id, int level, uint32_t hz, bool lat, uint32_t count)
 {
-    st = (st_t){ .period = 240000000 / (40000000 / count), .id = id, .lat = lat, .lat_min = ~0u };
+    st = (st_t){ .period = sys_cpu_hz() / (FAST_HZ / count), .id = id, .lat = lat, .lat_min = ~0u };
     CHECK(gpt_init(id, hz) == hz);
     CHECK(gpt_alarm(id, count, true, alarm_cb, &st, level) == 0);
     gpt_start(id);
@@ -52,7 +57,7 @@ void test_gptimer(void)
     /* rate: 10 ms of CPU cycles must read 10000 +-1 ticks */
     gpt_start(0);
     uint64_t a = gpt_get(0); uint32_t t = ccount();
-    while (ccount() - t < 2400000) {}
+    while (ccount() - t < sys_cpu_hz() / 100) {}
     uint64_t b = gpt_get(0);
     gpt_stop(0);
     int32_t err = (int32_t)(b - a) - 10000;
@@ -63,12 +68,12 @@ void test_gptimer(void)
     CHECK(gpt_get(1) == 0x123456789ull);         /* 54-bit load/readback */
     METRIC("gpt_get()", "%lu cycles", CYCLES(gpt_get(0)));
 
-    periodic(2, 1, 40000000, true, 4000);        /* 10 kHz, latency in 25 ns ticks */
+    periodic(2, 1, FAST_HZ, true, FAST_HZ / 10000);        /* 10 kHz, latency in 25 ns ticks */
     CHECK(st.n >= 5000);
     METRIC("alarm -> callback (L1)", "min %lu max %lu ns", st.lat_min * 25, st.lat_max * 25);
     METRIC("10 kHz period jitter (L1)", "max %lu cycles", st.jmax);
 
-    periodic(3, 5, 40000000, false, 4000);
+    periodic(3, 5, FAST_HZ, false, FAST_HZ / 10000);
     CHECK(st.n >= 5000);
     METRIC("10 kHz period jitter (L5 fast)", "max %lu cycles", st.jmax);
 
