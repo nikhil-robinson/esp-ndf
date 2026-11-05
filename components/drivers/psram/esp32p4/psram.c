@@ -7,6 +7,7 @@
  * mspi_timing_psram_tuning(): not written; psram_init() clamps to 80 MHz.
  * psram_init(clk_div): the SRAM clock is the MPLL divided by clk_div (MPLL 320 MHz, so 4 = 80 MHz, 8 = 40 MHz). */
 #include "psram.h"
+#include "ldo.h"
 #include "regi2c.h"
 #include "cache_p4.h"
 #include "cpu.h"
@@ -81,44 +82,12 @@ static uint32_t size_bytes;
 int psram_line_bytes = 64;                          /* kept for API parity with the S3 (cache line is 64 B here) */
 
 /* ---- supply: PMU external LDO channel 2 at 1.8 V (IDF ESP_LDO_CHAN_PSRAM_DOMAIN, ldo_ll.h; EV board wiring) ---- */
-#define LDO_UNIT_REG(u)  (PMU_BASE + 0x1B8 + 8 * ((const uint8_t[]){0, 3, 1, 4}[u]))   /* unit = channel - 1 */
-#define EFUSE_SYS_2     (SOC_EFUSE_BASE + 0x4C)         /* b31:28 ldo_vo2_dref */
-#define EFUSE_SYS_3     (SOC_EFUSE_BASE + 0x50)         /* b5:3 ldo_vo2_mul */
 #ifndef NDF_PSRAM_LDO_CHAN
 #define NDF_PSRAM_LDO_CHAN 2                        /* 0: the board powers the PSRAM externally */
 #endif
 #ifndef NDF_PSRAM_LDO_MV
 #define NDF_PSRAM_LDO_MV   1800
 #endif
-
-static void ldo_on(int unit, int mv)
-{
-    int best = 0x7FFFFFFF;
-    uint32_t dref = 0, mul = 0;
-    for (uint32_t d = 0; d < 16; d++) {
-        int vref20 = d < 9 ? 10 + (int)d : 20 + ((int)d - 9) * 2;
-        for (uint32_t m = 0; m < 8; m++) {
-            int err = mv * 80000 - vref20 * 1000 * (4000 + (int)m * 1000);   /* no per-chip trim for this unit */
-            if (err < 0) err = -err;
-            if (err < best) { best = err; dref = d; mul = m; }
-        }
-    }
-    uint32_t blk = ((REG(EFUSE_SYS_2) >> 11) & 3) * 100 + ((REG(EFUSE_SYS_2) >> 8) & 7);
-    if (blk >= 1 && unit == 1 && mv == 1800 && (REG(EFUSE_SYS_2) >> 28) && ((REG(EFUSE_SYS_3) >> 3) & 7)) {
-        dref = REG(EFUSE_SYS_2) >> 28;               /* factory-trimmed values */
-        mul = (REG(EFUSE_SYS_3) >> 3) & 7;
-    }
-    uint32_t ctrl = LDO_UNIT_REG(unit), ana = ctrl + 4;
-    REG_SET(ana, BIT(27));                          /* current limit on */
-    REG_FIELD(ana, 28, 4, dref);
-    REG_FIELD(ana, 23, 3, mul);
-    REG_CLR(ctrl, BIT(14));                         /* tieh: not the 3.3 V rail */
-    REG_SET(ctrl, BIT(7)); REG_FIELD(ctrl, 9, 3, 0);   /* software owner, tieh_sel 0 */
-    REG_SET(ana, BIT(26));                          /* ripple suppression */
-    REG_SET(ctrl, BIT(8));                          /* xpd */
-    REG_CLR(ana, BIT(27));
-    for (uint32_t t = ccount(); ccount() - t < 200u * NDF_CPU_MHZ; ) {}   /* stable delay: 200 us */
-}
 
 /* ---- MPLL 320 MHz (clk_ll_mpll_set_config_v3) ---- */
 static void mpll_on(uint32_t mhz)
