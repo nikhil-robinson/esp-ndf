@@ -116,7 +116,7 @@ int jpeg_encode(const void *in, int w, int ht, jpeg_in_t fmt, jpeg_sub_t sub, in
     if (fmt == JPEG_IN_YUV444 || fmt == JPEG_IN_YUV420) { JF(EXTD_COLOR_SPACE_EN, 1); JF(EXTD_COLOR_SPACE, fmt == JPEG_IN_YUV420); }
     else JF(EXTD_COLOR_SPACE_EN, 0);
     JF(VA, ht); JF(HA, w);
-    JF(PIXEL_REV, 0); JF(TAILER_EN, 1); JF(FF_CHECK_EN, 1); JF(QNR_PRECISION, 0);
+    JF(PIXEL_REV, fmt == JPEG_IN_RGB888 ? 1 : 0); JF(TAILER_EN, 1); JF(FF_CHECK_EN, 1); JF(QNR_PRECISION, 0);
     JF(QNR_FIFO_EN, 1); JF(LQNR_TBL_SEL, 0); JF(CQNR_TBL_SEL, 1);                       /* quantisation RAM written through the FIFO windows */
     static const uint32_t qreg[4] = { JPEG_T0QNR_REG, JPEG_T1QNR_REG, JPEG_T2QNR_REG, JPEG_T3QNR_REG };
     for (int t = 0; t < 4; t++) {
@@ -129,6 +129,7 @@ int jpeg_encode(const void *in, int w, int ht, jpeg_in_t fmt, jpeg_sub_t sub, in
     drx.w0 |= BIT(31);
     dma2d_desc_2d(&dtx, (void *)in, w, ht, hb_tbl[fmt][sub], mcuy[sub], 0, 0, fmt_pbyte[fmt], true, false, 0);
     cache_dma_writeback(in, inbytes);
+    cache_dma_wbinv((uint8_t *)out + hlen, payload);                                    /* dirty lines of the output must not be written back over the engine's data */
     dma2d_cfg_t tx = { .periph = DMA2D_PERIPH_JPEG, .periph_id = 0, .mb = mb, .reorder = true }, rx = { .periph = DMA2D_PERIPH_JPEG, .periph_id = 0 };
     if (dma2d_rx_start(0, &rx, &drx) || dma2d_tx_start(0, &tx, &dtx)) return -1;
     REG(JPEG_INT_CLR_REG) = 0xFFFFFFFFu;
