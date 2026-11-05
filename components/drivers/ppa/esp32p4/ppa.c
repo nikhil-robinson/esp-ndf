@@ -63,7 +63,7 @@ int ppa_srm(const ppa_pic_t *in, ppa_pic_t *out, int sx16, int sy16, int rot, bo
     REG_SET(PPA_SR_SCAL_ROTATE_REG, BIT(PPA_SCAL_ROTATE_RST_S)); REG_CLR(PPA_SR_SCAL_ROTATE_REG, BIT(PPA_SCAL_ROTATE_RST_S));
     desc_in(&dtx[0], in);
     desc_out(&drx, out, 2, 2);                                              /* hb / vb are written back by the DMA, any even value */
-    wb(in);
+    wb(in); inv(out);                                                       /* clean the output's lines before the DMA writes it */
     dma2d_cfg_t tx = { .periph = DMA2D_PERIPH_PPA_SRM, .periph_id = 1, .dscr_port = true, .dscr_port_h = 18, .dscr_port_v = 18 };
     dma2d_cfg_t rx = { .periph = DMA2D_PERIPH_PPA_SRM, .periph_id = 1 };
     if (dma2d_rx_start(0, &rx, &drx) || dma2d_tx_start(0, &tx, &dtx[0])) return -1;
@@ -113,7 +113,7 @@ int ppa_blend(const ppa_pic_t *bg, const ppa_pic_t *fg, const ppa_pic_t *out, pp
     REG_SET(PPA_BLEND_TRANS_MODE_REG, BIT(PPA_BLEND_RST_S)); REG_CLR(PPA_BLEND_TRANS_MODE_REG, BIT(PPA_BLEND_RST_S));
     desc_in(&dtx[1], bg); desc_in(&dtx[2], fg);
     desc_out(&drx, out, bg->w, bg->h);
-    wb(bg); wb(fg);
+    wb(bg); wb(fg); inv(out);
     dma2d_cfg_t tb = { .periph = DMA2D_PERIPH_PPA_BLEND, .periph_id = 2 }, tf = { .periph = DMA2D_PERIPH_PPA_BLEND, .periph_id = 3 };
     dma2d_cfg_t rx = { .periph = DMA2D_PERIPH_PPA_BLEND, .periph_id = 2 };
     if (dma2d_rx_start(1, &rx, &drx) || dma2d_tx_start(1, &tb, &dtx[1]) || dma2d_tx_start(2, &tf, &dtx[2])) return -1;
@@ -134,6 +134,7 @@ int ppa_fill(const ppa_pic_t *out, uint32_t color)
     if (!ok(out) || init()) return -1;
     REG_SET(PPA_BLEND_TRANS_MODE_REG, BIT(PPA_BLEND_RST_S)); REG_CLR(PPA_BLEND_TRANS_MODE_REG, BIT(PPA_BLEND_RST_S));
     desc_out(&drx, out, out->w, out->h);
+    inv(out);
     dma2d_cfg_t rx = { .periph = DMA2D_PERIPH_PPA_BLEND, .periph_id = 2 };
     if (dma2d_rx_start(1, &rx, &drx)) return -1;
     REG(PPA_BLEND_FIX_PIXEL_REG) = color;

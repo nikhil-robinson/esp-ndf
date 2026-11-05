@@ -1,5 +1,6 @@
 #include "ppa.h"
 #include "console.h"
+#include "cache_p4.h"
 #include <string.h>
 
 #define W 64
@@ -11,10 +12,11 @@ int main(void)
 {
     int err = 0;
     ppa_pic_t pa = { a, W, H, 0, 0, W, H, PPA_RGB565 };
-    err += ppa_fill(&pa, 0xF81F) != 0;                               /* magenta */
+    err += ppa_fill(&pa, 0x00FF00FF) != 0;                               /* magenta, given as RGB888 (the fixed pixel is converted to the output colour mode) */
     for (int i = 0; i < W * H; i++) err += a[i] != 0xF81F;
     printf("fill: %s\n", err ? "FAIL" : "ok");
     for (int i = 0; i < W * H; i++) a[i] = (uint16_t)(i * 31);
+    cache_dma_writeback(a, sizeof a);
     ppa_pic_t pb = { b, W, H, 0, 0, W, H, PPA_RGB565 };
     err += ppa_srm(&pa, &pb, 16, 16, 90, false, false) != 0;           /* rotate 90, 1:1: b is H wide, W high in the top-left */
     printf("srm 90: out %d x %d\n", pb.w, pb.h);
