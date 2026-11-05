@@ -5,6 +5,7 @@
 #include "isp.h"
 #include "clk.h"
 #include "cpu.h"
+#include "sys.h"
 #include "soc.h"
 #include "regs/isp.h"
 #include "regs/hp_clkrst.h"
@@ -21,12 +22,14 @@ int isp_init(const isp_cfg_t *c)
     uint32_t div = (240000 + c->clk_khz / 2) / c->clk_khz;
     if (div < 1 || div > 256) return -1;
     uint32_t t = irq_lock();
+    FSET(HP_SYS_CLKRST_REG_CSI_BRG_SYS_CLK_EN);                               /* the ISP's register bus clock is the CSI bridge's (IDF periph_ctrl: ISP uses the CSI bridge clock gate) */
     FSET(HP_SYS_CLKRST_REG_REF_240M_CLK_EN);
     FPUT(HP_SYS_CLKRST_REG_ISP_CLK_SRC_SEL, 1);                               /* PLL_F240M */
     FPUT(HP_SYS_CLKRST_REG_ISP_CLK_DIV_NUM, div - 1);
     FSET(HP_SYS_CLKRST_REG_ISP_CLK_EN);
     FSET(HP_SYS_CLKRST_REG_RST_EN_ISP); FCLR(HP_SYS_CLKRST_REG_RST_EN_ISP);
     irq_unlock(t);
+    for (uint32_t t0 = ccount(); ccount() - t0 < sys_cpu_hz() / 100000; ) {}        /* 10 us: the block answers only once its clock and reset settled */
     I(CLK_EN, 1);
     REG(ISP_INT_CLR_REG) = 0xFFFFFFFFu;
     REG(ISP_INT_ENA_REG) = 0x3F;                                              /* error events (data type, FIFO, buffer, size) */
