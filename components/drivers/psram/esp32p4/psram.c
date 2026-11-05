@@ -13,6 +13,7 @@
 #include "cpu.h"
 #include "irq.h"
 #include "soc.h"
+#include <string.h>
 
 #define MSPI0            (HPPERIPH0 + 0x8E000)      /* PSRAM MSPI0 (AXI path) */
 #define MSPI1            (HPPERIPH0 + 0x8F000)      /* PSRAM MSPI1 (user commands) */
@@ -55,11 +56,14 @@
 #define CMD_SYNC_WR      0x8080
 #define CMD_REG_RD       0x4040
 #define CMD_REG_WR       0xC0C0
-#define RD_DUMMY         (2 * (10 - 1))             /* 80 MHz row of the IDF table, bit times */
 #define RD_REG_DUMMY     (2 * (5 - 1))
-#define WR_DUMMY         (2 * (5 - 1))
-#define RD_LATENCY       2u
-#define WR_LATENCY       2u
+/* speed rows of the IDF table (esp_psram_impl_ap_hex.c): MPLL, bus divider, read / write dummy bit times, mode register latencies */
+static uint32_t g_mpll = 320, g_div = 4, g_rl = 2, g_wl = 2;
+static int g_rdd = 2 * (10 - 1), g_wrd = 2 * (5 - 1);
+#define RD_DUMMY         g_rdd
+#define WR_DUMMY         g_wrd
+#define RD_LATENCY       g_rl
+#define WR_LATENCY       g_wl
 #define REF_DATA         0x5A6B7C8Du
 
 /* ROM command engine (esp32p4.rom.ld esp_rom_spi_cmd_config / _start / _set_op_mode, rom/opi_flash.h) */
@@ -170,11 +174,73 @@ void psram_writeback(void *p, size_t n) { cache_dma_writeback(p, n); }
 void psram_invalidate(void *p, size_t n) { cache_dma_wbinv(p, n); }
 uint32_t psram_size(void) { return size_bytes; }
 
-uint32_t psram_init(int clk_div)
+/* ---- timing tuning at 200 MHz (esp_hw_support/mspi_timing_tuning, DQS scheme): DQS phase first, then the delay line of the data
+ * and DQS pads, each judged by writing and reading back a reference pattern through MSPI1 ---- */
+static const uint32_t tdata[32] = { 0x7f786655, 0xa5ff005a, 0x3f3c33aa, 0xa5ff5a00, 0x1f1e9955, 0xa5005aff, 0x0f0fccaa, 0xa55a00ff,
+                                    0x07876655, 0xffa55a00, 0x03c333aa, 0xff00a55a, 0x01e19955, 0xff005aa5, 0x00f0ccaa, 0xff5a00a5,
+                                    0x80786655, 0x00a5ff5a, 0xc03c33aa, 0x00a55aff, 0xe01e9355, 0x00ff5aa5, 0xf00fccaa, 0x005affa5,
+                                    0xf8876655, 0x5aa5ff00, 0xfcc333aa, 0x5affa500, 0xfee19955, 0x5a00a5ff, 0x11f0ccaa, 0x5a00ffa5 };
+#define DQS0 (IOMUX_MSPI + 0x3C)
+#define DQS1 (IOMUX_MSPI + 0x68)
+static void tune_phase(uint32_t p) { REG_FIELD(DQS0, 1, 2, p); REG_FIELD(DQS1, 1, 2, p); }
+static void tune_delay(uint32_t dqs, uint32_t data)
 {
-    if (clk_div < 4) clk_div = 4;                   /* 80 MHz is the fastest untuned setting */
+    static const uint8_t pins[] = { 0x1c, 0x20, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x40, 0x44, 0x48, 0x4c, 0x50, 0x54, 0x58, 0x5c, 0x60, 0x64 };
+    for (unsigned i = 0; i < sizeof pins; i++) REG_FIELD(IOMUX_MSPI + pins[i], 4, 4, data);      /* DLC */
+    REG_FIELD(DQS0, 7, 4, dqs); REG_FIELD(DQS0, 17, 4, dqs); REG_FIELD(DQS1, 7, 4, dqs); REG_FIELD(DQS1, 17, 4, dqs);   /* DELAY_90 / DELAY_270 */
+}
+static bool tune_try(void)
+{
+    uint8_t rb[8];
+    for (int pass = 0; pass < 3; pass++) {                       /* pass 0 is a warm-up (a cold PSRAM fails its first access at 200 MHz), 1 and 2 must match */
+        for (int o = 0; o < 128; o += 8) psram_cmd(CMD_SYNC_WR, 0x80 + o, WR_DUMMY, (const uint8_t *)tdata + o, 8, 0, 0);
+        for (int o = 0; o < 128; o += 8) {
+            psram_cmd(CMD_SYNC_RD, 0x80 + o, RD_DUMMY, 0, 0, rb, 8);
+            if (pass && memcmp(rb, (const uint8_t *)tdata + o, 8)) return false;
+        }
+    }
+    return true;
+}
+static int tune_run(int n, bool (*one)(int), int *best)          /* longest run of passes; *best = its first index (phase) or middle (delay) */
+{
+    int run = 0, bestlen = 0, bestend = -1;
+    for (int i = 0; i < n; i++) {
+        if (one(i)) { run++; if (run > bestlen) { bestlen = run; bestend = i; } }
+        else { run = 0; if (bestlen >= 4) break; }                      /* a long pass window is behind us: the bad region after it can upset the bus, stop */
+    }
+    *best = bestend;
+    return bestlen;
+}
+static int tune_len;
+static bool tryx(void) { (void)tune_try(); return tune_try(); }      /* a trial after a failed one starts from a clean bus */
+static bool tp(int i) { tune_phase((uint32_t)i); return tryx(); }
+static bool td(int i)       /* table of the IDF test delay lines: {dqs, data} = {0,15}..{0,0},{1,0}..{15,0} */
+{
+    if (i < 15) tune_delay(0, 15 - (uint32_t)i); else tune_delay((uint32_t)i - 15, 0);
+    return tryx();
+}
+static bool tune_psram(void)
+{
+    int end, len;
+    tune_delay(0, 0);
+    len = tune_run(4, tp, &end);                                   /* phases 67.5, 78.75, 90, 101.25 degrees */
+    tune_len = len;
+    if (!len) { tune_phase(0); return false; }
+    tune_phase((uint32_t)(end - len + 1));                         /* IDF: first phase of the passing run */
+    len = tune_run(31, td, &end);
+    if (len < 2) { tune_delay(0, 0); return false; }
+    int best = end - len / 2;
+    if (best < 15) tune_delay(0, 15 - (uint32_t)best); else tune_delay((uint32_t)best - 15, 0);
+    return tune_try();
+}
+
+static uint32_t bring_up(bool fast)
+{
+    if (fast) { g_mpll = 400; g_div = 2; g_rl = 4; g_wl = 1; g_rdd = 2 * (14 - 1); g_wrd = 2 * (7 - 1); }
+    else      { g_mpll = 320; g_div = 4; g_rl = 2; g_wl = 2; g_rdd = 2 * (10 - 1); g_wrd = 2 * (5 - 1); }
+    uint32_t clk_div = g_div;
     if (NDF_PSRAM_LDO_CHAN) ldo_on(NDF_PSRAM_LDO_CHAN - 1, NDF_PSRAM_LDO_MV);
-    mpll_on(MPLL_MHZ);
+    mpll_on(g_mpll);
     REG_SET(SOC_CLK_CTRL0, BIT(31));
     REG_SET(PERI_CLK_CTRL00, BIT(14) | BIT(15));
     REG_SET(HP_RST_EN0, BIT(23) | BIT(25)); REG_CLR(HP_RST_EN0, BIT(25) | BIT(23));
@@ -213,6 +279,10 @@ uint32_t psram_init(int clk_div)
     size_bytes = sizes[dens];
     if (!size_bytes) return 0;
 
+    if (fast) {
+        REG(SMEM_DDR) &= ~BIT(1);                         /* fixed dummy while tuning (IDF: variable dummy off) */
+        if (!tune_psram()) return 0;
+    }
     psram_spi0_setup(clk_div, RD_DUMMY, WR_DUMMY);             /* IDF AP_HEX_PSRAM_RD / WR_DUMMY_BITLEN: 2 * (10 - 1) and 2 * (5 - 1) bit times */
     REG(SMEM_DDR) |= BIT(1);                        /* variable dummy */
     /* PSRAM MMU: page i of the PSRAM at 0x48000000 + 64 KB * i; stale cache lines of that window dropped afterwards */
@@ -225,6 +295,13 @@ uint32_t psram_init(int clk_div)
     size_bytes = pages << 16;
     cache_dma_wbinv((void *)PSRAM_VADDR, size_bytes);
     return size_bytes;
+}
+
+uint32_t psram_init(int clk_div)
+{
+    /* clk_div <= 2: 200 MHz (MPLL 400 / 2) with timing tuning, falling back to 80 MHz when no setting passes; else 80 MHz (MPLL 320 / 4) */
+    if (clk_div <= 2) { uint32_t sz = bring_up(true); if (sz) return sz; }
+    return bring_up(false);
 }
 
 /* light sleep (pmu_sleep_start / pmu_sleep_finish): AXI traffic done, pads held, PSRAM clock to the crystal, MPLL off;
@@ -241,7 +318,9 @@ void psram_sleep_enter(void)
 }
 void psram_sleep_exit(void)
 {
-    mpll_on(MPLL_MHZ);
+    mpll_on(g_mpll);
     REG_FIELD(PERI_CLK_CTRL00, 12, 2, 1);
     REG_CLR(LP_SYS_DED_PAD_HOLD, 0x3FFFFC0u);
 }
+
+uint32_t psram_clock_mhz(void) { return g_mpll / g_div; }        /* the PSRAM bus clock in use (200 after a tuned bring-up, else 80) */
