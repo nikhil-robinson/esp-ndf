@@ -27,15 +27,20 @@ int memprot_init(bool lock)
 {
     (void)lock;                                       /* M-mode: only locked entries are enforced */
     if (armed) return 0;
-    uint32_t split = ((uint32_t)_text_end + 127u) & ~127u;
+    /* The CLIC fetches a vectored entry from mtvt + 4 * id as an instruction fetch (checked against X): the tables (.mtvt,
+     * written by irq_attach) get their own RWX window between the code and the data. */
+    extern char _mtvt_end[];
+    uint32_t split = ((uint32_t)_text_end + 127u) & ~127u, tv = ((uint32_t)_mtvt_end + 127u) & ~127u;
     WRITE_PMPADDR(0, ROM_LO >> 2);
     WRITE_PMPADDR(1, split >> 2);
-    WRITE_PMPADDR(2, DATA_END >> 2);
-    WRITE_PMPADDR(3, LOW_LO >> 2);
-    WRITE_PMPADDR(4, ROM_LO >> 2);
-    /* entries: 0 off (base), 1 TOR code RX, 2 TOR data RW, 3 off (base), 4 TOR low window RW; entry n is byte n % 4 of pmpcfg(n / 4) */
-    uint32_t cfg0 = (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_X) << 8 | (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_W) << 16;
-    uint32_t cfg1 = PMP_TOR | PMP_L | PMP_R | PMP_W;
+    WRITE_PMPADDR(2, tv >> 2);
+    WRITE_PMPADDR(3, DATA_END >> 2);
+    WRITE_PMPADDR(4, LOW_LO >> 2);
+    WRITE_PMPADDR(5, ROM_LO >> 2);
+    /* entries: 0 off (base), 1 TOR code RX, 2 TOR vector tables RWX, 3 TOR data RW, 4 off (base), 5 TOR low window RW; entry n is byte n % 4 of pmpcfg(n / 4) */
+    uint32_t cfg0 = (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_X) << 8 | (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_W | PMP_X) << 16 |
+                    (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_W) << 24;
+    uint32_t cfg1 = (uint32_t)(PMP_TOR | PMP_L | PMP_R | PMP_W) << 8;
     __asm__ volatile("csrw pmpcfg0, %0" :: "r"(cfg0));
     __asm__ volatile("csrw pmpcfg1, %0" :: "r"(cfg1));
     __asm__ volatile("fence.i");

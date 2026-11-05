@@ -9,7 +9,11 @@
 #include <string.h>
 
 #if SOC_CPU_RISCV    /* ESP32-P4: LP_TRNG data register, clock gate in LPPERI (IDF hw_random.c, rng_ll.h; ~75 kHz byte rate) */
+#if NDF_P4_REV < 3
+#define RNG_DATA      0x501101A4u      /* v1.x: LP_SYSTEM_REG_RNG_DATA_REG (hw_ver1 wdev_reg.h); LP_TRNG does not exist there (load fault) */
+#else
 #define RNG_DATA      0x50126004u      /* LP_TRNG base 0x50126000 + 4 (rev v3: RNG_DATA_REG) */
+#endif
 #define LPPERI_CLK_EN 0x50120000u      /* b16 RNG clock */
 #define RNG_WAIT_CYCLES (sys_cpu_hz() / 1000000u * 14u)
 #else

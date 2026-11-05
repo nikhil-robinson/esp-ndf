@@ -19,8 +19,8 @@ static int16_t line_src[SOC_CORES][32];   /* source + 1 routed to the line, 0 = 
 extern void irq_entry(void);
 #define MTVT_INIT { [0 ... 47] = irq_entry }
 /* CLIC vector tables, one per core, 48 entries; alignment: the spec asks for the next power of two >= 4 * entries */
-void (*irq_mtvt0[48])(void) __attribute__((aligned(256))) = MTVT_INIT;
-void (*irq_mtvt1[48])(void) __attribute__((aligned(256))) = MTVT_INIT;
+void (*irq_mtvt0[48])(void) __attribute__((aligned(256), section(".mtvt"))) = MTVT_INIT;     /* own section: the PMP gives it X (memprot.c) */
+void (*irq_mtvt1[48])(void) __attribute__((aligned(256), section(".mtvt"))) = MTVT_INIT;
 
 static void (**mtvt(void))(void) { return core_id() ? irq_mtvt1 : irq_mtvt0; }
 

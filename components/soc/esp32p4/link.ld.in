@@ -88,6 +88,7 @@ SECTIONS
     } > sram
 
     .data : {
+        . = ALIGN(256); KEEP(*(.mtvt)) _mtvt_end = .;             /* CLIC vector tables first: the PMP window with X (memprot.c) */
         *(.rodata .rodata.* .srodata .srodata.*)
         . = ALIGN(4);
         __global_pointer$ = . + 0x800;

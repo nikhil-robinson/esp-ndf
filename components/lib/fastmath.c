@@ -100,6 +100,9 @@ float fm_rsqrtf(float x)
     float h = 0.5f * x;
     r = r * (1.5f - h * r * r);                                     /* Newton x2: 7-bit seed -> 28 bits */
     r = r * (1.5f - h * r * r);
+#if !(defined(__XTENSA__) && SOC_CPU_HAS_FPU)
+    r = r * (1.5f - h * r * r);                                     /* the magic-number seed is 3.4% off: a third step reaches 2e-7 */
+#endif
     return r;
 }
 float fm_sqrtf(float x) { return x > 0 ? x * fm_rsqrtf(x) : 0; }

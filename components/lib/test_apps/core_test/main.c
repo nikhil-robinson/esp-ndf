@@ -47,7 +47,7 @@ int main(void)
     a = time_us(); delay_ms(250); b = time_us();
     CHECK(b - a >= 250000 && b - a < 250200, "delay_ms(250) = %lu us", (unsigned long)(b - a));
     uint32_t c0 = ccount(); for (int i = 0; i < 100; i++) (void)time_ticks(); uint32_t c = (ccount() - c0) / 100;
-    CHECK(c < 200, "time_ticks() costs %lu cycles", (unsigned long)c);
+    CHECK(c < sys_cpu_hz() / 800000, "time_ticks() costs %lu cycles (limit 1.25 us)", (unsigned long)c);   /* the SYSTIMER sits behind the 16 MHz bus bridge: its cost is time, not cycles */
     uint64_t prev = time_ticks(); bool mono = true;
     for (int i = 0; i < 100000; i++) { uint64_t t = time_ticks(); if (t < prev) mono = false; prev = t; }
     CHECK(mono, "time_ticks monotonic over 100k reads");
@@ -89,7 +89,7 @@ int main(void)
     CHECK(c1_hit == 1, "timer started on core 1 fired (core %d)", c1_hit - 1);
 
     /* heap */
-    size_t f0 = heap_free();
+    size_t f0 = heap_free(), l0 = heap_largest();      /* several heap regions: the largest block is one region */
     void *p[64];
     for (int i = 0; i < 64; i++) { p[i] = malloc(17 + i * 33); if (p[i]) memset(p[i], i, 17 + i * 33); }
     int al = 0; for (int i = 0; i < 64; i++) if (!p[i] || ((uintptr_t)p[i] & 15)) al++;
@@ -99,8 +99,8 @@ int main(void)
     for (int i = 1; i < 64; i += 2) for (int k = 0; k < 17 + i * 33; k++) if (((uint8_t *)p[i])[k] != i) { corrupt++; break; }
     CHECK(!corrupt, "odd blocks intact after freeing even ones");
     for (int i = 1; i < 64; i += 2) free(p[i]);
-    CHECK(heap_free() == f0 && heap_largest() == f0, "all freed and merged back: %lu bytes", (unsigned long)f0);
-    void *big = malloc(f0); CHECK(big != 0, "whole heap in one block"); free(big);
+    CHECK(heap_free() == f0 && heap_largest() == l0, "all freed and merged back: %lu bytes", (unsigned long)f0);
+    void *big = malloc(l0); CHECK(big != 0, "largest region in one block"); free(big);
     CHECK(malloc(f0 + 16) == 0, "oversize malloc returns NULL");
     uint8_t *r = malloc(10); for (int i = 0; i < 10; i++) r[i] = i; r = realloc(r, 1000);
     int ok = 1; for (int i = 0; i < 10; i++) if (r[i] != i) ok = 0; free(r);
