@@ -36,8 +36,13 @@ int cache_xip_init(void)
         REG(FL_MMU_INDEX) = (VWIN >> 16) + i;
         REG(FL_MMU_CONTENT) = ((xip_phys >> 16) + i) | FL_MMU_VALID;
     }
+#if NDF_P4_REV < 3     /* v1.x: the ROM left the L1 caches on and an Invalidate_All on the L1 maps faults; IDF (cache_hal_init) only enables L2 */
+    ROM_INVALIDATE_ALL(MAP_L2);
+    ROM_ENABLE_L2(0);
+#else
     ROM_INVALIDATE_ALL(MAP_ICACHE | MAP_DCACHE | MAP_L2);
     ROM_ENABLE_L2(0); ROM_ENABLE_DCACHE(0); ROM_ENABLE_ICACHE0(0); ROM_ENABLE_ICACHE1(0);   /* cache_hal_init order */
+#endif
     active = true;
     return 0;
 }
