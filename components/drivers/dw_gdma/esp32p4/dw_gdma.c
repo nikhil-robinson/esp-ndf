@@ -131,6 +131,7 @@ int dwg_m2m(void *dst, const void *src, size_t n)
     static dw_lli_t item;
     if (!n || (n & 7) || n > (4u << 20) * 8 || dwg_open(3, DWG_MEM, DWG_MEM, 0)) return -1;
     cache_dma_writeback(src, n);
+    cache_dma_wbinv(dst, n);                                    /* dst's dirty lines must not be written back over the DMA's data */
     dwg_block_t b = { (uint32_t)(uintptr_t)src, (uint32_t)(uintptr_t)dst, (uint32_t)(n / 8), DWG_WIDTH_64, DWG_ITEMS_16, DWG_ITEMS_16, 0, false, false, true, true };
     dwg_lli_fill(&item, &b, 0);
     if (dwg_start(3, &item)) return -1;
