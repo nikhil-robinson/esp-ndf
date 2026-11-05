@@ -5,13 +5,17 @@
 
 /* master I2C0 SDA10/SCL12 <-> jumpers <-> slave I2C1 SDA11/SCL13, addr 0x28 */
 #define SLV 0x28
+#if SOC_CPU_RISCV
+#define I2C0_SCL_SIG 68
+#else
+#define I2C0_SCL_SIG 89
+#endif
 
 static void bus(uint32_t hz)
 {
     uint8_t w[100], r[100], s[8] = { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7 }, got[8];
     uint32_t act = i2c_master_init(0, 10, 12, hz, true);
-    gpio_out_signal(6, 89, false);                           /* mirror master SCL to analyzer D2 */
-    gpio_config(6, GPIO_OUTPUT); gpio_out_signal(6, 89, false);
+        gpio_config(6, GPIO_OUTPUT); gpio_out_signal(6, I2C0_SCL_SIG, false);
     static bool slave_up;
     if (!slave_up) slave_up = i2c_slave_init(1, 11, 13, SLV, true) == 0;
     printf("    -- %lu Hz (actual %lu) --\n", hz, act);
@@ -67,6 +71,7 @@ static uint32_t rise_ns(int drv, int sense)
 
 void test_i2c(void)
 {
+    NEED_JUMPER(10, 11); NEED_JUMPER(12, 13);          /* master I2C0 <-> slave I2C1 needs the wires (docs/WIRING.md) */
     uint32_t rs = rise_ns(10, 11), rc = rise_ns(12, 13);
     printf("    bus rise time: SDA %lu ns, SCL %lu ns (spec: 1000 ns @100k, 300 ns @400k)\n", rs, rc);
     irq_enable_all();

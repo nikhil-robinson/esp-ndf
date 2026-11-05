@@ -7,7 +7,11 @@
 /* I2C0 SDA10/SCL12 <-> jumpers <-> I2C1 SDA11/SCL13 (same bus).
  * 10-bit slave, SCL-held timeout, bus recovery from a slave holding SDA (emulated on core 1),
  * then I2C1 as a 2nd master: both start together, the one sending the larger address loses. */
+#if SOC_CPU_RISCV
+#define GPIO_IN 0x500E003C
+#else
 #define GPIO_IN 0x6000403C
+#endif
 static volatile int go, res1, phase;
 
 static void core1(void)
@@ -41,6 +45,7 @@ static void core1(void)
 
 void test_i2c_ext(void)
 {
+    NEED_JUMPER(10, 11); NEED_JUMPER(12, 13);          /* master I2C0 <-> slave I2C1 needs the wires (docs/WIRING.md) */
     irq_enable_all();
     i2c_master_init(0, 10, 12, 100000, true);
     CHECK(i2c_slave_init(1, 11, 13, I2C_ADDR10 | 0x2A5, true) == 0);
