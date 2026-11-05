@@ -12,10 +12,12 @@ static int check(size_t n) { int bad = 0; for (size_t i = 0; i < n; i++) bad += 
 
 void test_spi(void)
 {
+    bool wired = test_jumper(10, 11) && test_jumper(12, 13);
+    int MISO = wired ? 11 : 10;                         /* without the jumper MISO reads the MOSI pad back */
     for (int i = 0; i < LEN; i++) tx[i] = i * 13 + 7;
     static const uint32_t f[3] = { 10000000, 20000000, 40000000 };
     for (int k = 0; k < 3; k++) {
-        uint32_t act = spi_master_init(2, 6, 10, 11, 4, f[k], 0);
+        uint32_t act = spi_master_init(2, 6, 10, MISO, 4, f[k], 0);
         for (int i = 0; i < LEN; i++) rx[i] = 0;
         uint32_t t = ccount();
         spi_xfer(2, tx, rx, 64);
@@ -30,14 +32,15 @@ void test_spi(void)
         CHECK(act == f[k] && b64 == 0 && b4k == 0);
     }
     METRIC("spi_xfer() 4 bytes", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 4)));
-    spi_master_init(2, 6, 10, 11, 4, 40000000, 0);
+    spi_master_init(2, 6, 10, MISO, 4, 40000000, 0);
     METRIC("spi_xfer() 4 bytes @40 MHz (wire 192)", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 4)));
     METRIC("spi_xfer() 32 bytes @40 MHz (wire 1536)", "%lu cycles", CYCLES(spi_xfer(2, tx, rx, 32)));
-    spi_master_init(2, 6, 10, 11, 4, 10000000, 0);
+    spi_master_init(2, 6, 10, MISO, 4, 10000000, 0);
     printf("    analyzer: SPI 10 MHz burst\n");
-    spi_master_init(2, 6, 10, 11, 4, 10000000, 0);
+    spi_master_init(2, 6, 10, MISO, 4, 10000000, 0);
     for (int i = 0; i < 2000; i++) spi_xfer(2, tx, rx, 64);
 
+    if (!wired) { printf("    SKIP master<->slave: no jumpers GPIO10<->11, 12<->13\n"); return; }
     /* master <-> slave, 32 bytes full duplex each way, all 4 modes */
     for (int mode = 0; mode < 4; mode++) {
         uint8_t s_tx[32], s_rx[32];

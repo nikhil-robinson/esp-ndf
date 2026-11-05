@@ -1,10 +1,14 @@
 /* GP-SPI (TRM ch. 30). host 2 = SPI2 @0x60024000, host 3 = SPI3 @0x60025000. */
 #include "spi.h"
+#if SOC_CPU_RISCV
+#include "cache_p4.h"
+#endif
 #include "spin.h"
 #include "gpio.h"
 #include "gdma.h"
 #include "clk.h"
 #include "cpu.h"
+#include "sys.h"
 
 #if SOC_CPU_RISCV    /* ESP32-P4: the same GP-SPI block (registers at the same offsets); other base, matrix signals, function clock */
 #include "soc.h"
@@ -94,7 +98,7 @@ uint32_t spi_master_init(int h, int sclk, int mosi, int miso, int cs, uint32_t h
     sync_cfg(h);
     if (sclk >= 0) { gpio_config(sclk, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(sclk, S(h).clk, false); }
     if (mosi >= 0) { gpio_config(mosi, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(mosi, S(h).mosi, false); }
-    if (miso >= 0) { gpio_config(miso, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(miso, S(h).miso, false); }
+    if (miso >= 0) { if (!gpio_is_output(miso)) gpio_config(miso, GPIO_INPUT | GPIO_FORCE); gpio_in_signal(miso, S(h).miso, false); }    /* MISO on the MOSI pad: loopback without a jumper */
     if (cs >= 0)   { gpio_config(cs, GPIO_OUTPUT | GPIO_INPUT); gpio_out_signal(cs, S(h).cs, false); }
     return 80000000 / div;
 }
@@ -162,7 +166,11 @@ static int xfer_dma(int h, const void *tx, void *rx, size_t len, uint32_t user, 
     REG(USER(h)) = user;
     REG(DMA_CONF(h)) = (out ? BIT(28) : 0) | (rx ? BIT(27) : 0);
     start_and_wait(h);
+    if (rx) { uint32_t t0 = ccount(); while (!gdma_in_eof(c) && ccount() - t0 < sys_cpu_hz() / 100) {} }   /* the IN DMA drains its FIFO after the SPI is done */
     REG(DMA_CONF(h)) = 0;
+#if SOC_CPU_RISCV
+    if (rx) cache_dma_wbinv(rx, len);                     /* drop lines the CPU loaded while the DMA wrote the buffer */
+#endif
     return 0;
 }
 
@@ -324,7 +332,15 @@ int spi_slave_hd_dma_rx_done(int h)
 {
     if (!(REG(INT_RAW(h)) & SLV_CMD7)) return -1;
     int n = 0;
-    for (gdma_desc_t *d = hd_rxd; d && !d->owner; d = d->next) n += d->length;   /* closed descriptors */
+#if SOC_CPU_RISCV
+    cache_dma_wbinv(hd_rxd, sizeof hd_rxd);               /* the DMA wrote the descriptors and the buffer behind the CPU's cache */
+#endif
+    for (gdma_desc_t *d = hd_rxd; d && !d->owner; d = d->next) {   /* closed descriptors */
+        n += d->length;
+#if SOC_CPU_RISCV
+        cache_dma_wbinv(d->buf, d->size);
+#endif
+    }
     return n;
 }
 

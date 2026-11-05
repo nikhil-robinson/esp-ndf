@@ -99,6 +99,7 @@ void cpu1_start(void (*fn)(void))
     stack_guard_core_off(1);                          /* the ROM start stub runs outside core 1's stack */
 #endif
     cpu1_fn = fn;
+    REG_SET(HP_CLKRST_HP_RST_EN0, BIT(8));            /* core 1 into reset first: a second cpu1_start restarts it (the S3 pulses its reset the same way) */
     REG(LP_SYS_BOOT_ADDR_HP_CORE1) = (uint32_t)_start1;
     REG_FIELD(PMU_CPU_SW_STALL, 16, 8, 0xFF);
     SPIN_US(!(REG(HP_SYS_CORESTALLED_ST) & BIT(1)), 1000);

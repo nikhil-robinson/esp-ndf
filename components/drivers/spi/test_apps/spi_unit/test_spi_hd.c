@@ -9,8 +9,17 @@
  *  SPI3 HD slave drives D0-D3 on 1 2 42 47; master reads those, slave reads the master's pads.
  * 1/2/4-line WRBUF + RDBUF (8-bit cmd, 8-bit addr, 8 dummy, IDF spi_slave_hd protocol), quad address,
  * then octal: master writes 16 bytes on 8 lines at 78 kHz, core 1 samples the pads on each rising SCLK. */
+#if SOC_CPU_RISCV    /* P4 pads (37 / 38 are the console UART, 24 / 25 USB) and matrix signals */
+static const int8_t mpad[8] = { 16, 17, 18, 21, 22, 23, 26, 27 }, spad[4] = { 1, 2, 42, 47 };
+static const uint8_t s2_io[4] = { 55, 54, 57, 56 }, s3_io[4] = { 49, 48, 51, 50 };
+#define GPIO_IN_LO 0x500E003C
+#define GPIO_IN_HI 0x500E0040
+#else
 static const int8_t mpad[8] = { 16, 17, 18, 21, 38, 39, 40, 41 }, spad[4] = { 1, 2, 42, 47 };
 static const uint8_t s2_io[4] = { 103, 102, 105, 104 }, s3_io[4] = { 68, 67, 70, 69 };
+#define GPIO_IN_LO 0x6000403C
+#define GPIO_IN_HI 0x60004040
+#endif
 
 static bool hd(uint8_t mod, uint8_t lines, uint8_t alines, uint8_t addr, size_t n)
 {
@@ -77,7 +86,7 @@ static void capture(void)                                /* core 1: sample GPIO_
     while (!cap_go) {}
     uint32_t prev = 0, t0 = ccount();
     while (cap_n < 64 && ccount() - t0 < (sys_cpu_hz() / 10)) {
-        uint32_t lo = REG(0x6000403C), hi = REG(0x60004040);
+        uint32_t lo = REG(GPIO_IN_LO), hi = REG(GPIO_IN_HI);
         uint32_t ck = lo & BIT(14);
         if (ck != prev && (ck || cap_both)) { cap_lo[cap_n] = lo; cap_hi[cap_n] = hi; cap_n++; }
         prev = ck;

@@ -10,9 +10,17 @@ typedef struct gdma_desc {
     uint32_t size : 12, length : 12, : 4, err_eof : 1, : 1, suc_eof : 1, owner : 1;
     void *buf;
     struct gdma_desc *next;
+#if SOC_CPU_RISCV
+} __attribute__((aligned(8))) gdma_desc_t;   /* P4: the AXI DMA needs 8-byte aligned descriptors (IDF dma_descriptor_align8_t): 16-byte stride */
+#else
 } gdma_desc_t;
+#endif
 
+#if SOC_CPU_RISCV
+#define GDMA_DESC_MAX 4032                 /* P4: bytes per descriptor, whole 64-byte lines (the AXI DMA moves lines; a short tail descriptor is never filled) */
+#else
 #define GDMA_DESC_MAX 4092                 /* bytes per descriptor (word aligned) */
+#endif
 
 enum { GDMA_SPI2 = 0, GDMA_SPI3 = 1, GDMA_UHCI0 = 2, GDMA_I2S0 = 3, GDMA_I2S1 = 4, GDMA_LCD_CAM = 5,
        GDMA_AES = 6, GDMA_SHA = 7, GDMA_ADC = 8, GDMA_RMT = 9, GDMA_M2M = 63 };

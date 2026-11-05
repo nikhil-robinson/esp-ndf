@@ -51,6 +51,11 @@ static inline void gpio_clr(int pin)
     if (pin < 32) GPIO_REG(0x0C) = BIT(pin); else GPIO_REG(0x18) = BIT(pin - 32);
 }
 static inline void gpio_write(int pin, bool v) { if (v) gpio_set(pin); else gpio_clr(pin); }
+/* true when the pad's output driver is on: an input function on such a pad (loopback on one pad) leaves it as configured */
+static inline bool gpio_is_output(int pin)
+{
+    return pin < 32 ? (GPIO_REG(0x20) >> pin) & 1 : (GPIO_REG(0x2C) >> (pin - 32)) & 1;
+}
 static inline bool gpio_read(int pin)
 {
     return pin < 32 ? (GPIO_REG(0x3C) >> pin) & 1 : (GPIO_REG(0x40) >> (pin - 32)) & 1;
