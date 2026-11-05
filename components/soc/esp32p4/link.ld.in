@@ -16,9 +16,10 @@
 #if NDF_P4_REV < 3                       /* v1.x ROM: image, .bss, stacks and heap all in 0x4FF00000-0x4FF2BBD0 (IDF bootloader.memory.ld.in, REV_LESS_V3) */
 #define ROM_LO  0x4FF00000
 #define ROM_HI  0x4FF2BBD0
-#define L2_FREE_LO 0x4FF00000
-#define BSS_REGION sram
-#define STACK_LIMIT ROM_HI
+#define L2_FREE_LO 0x4FF40000                /* SRAM_HIGH: plain memory once the L2 cache is 128 KB (soc_caps.h SOC_BOOT_ASM) */
+#define L2_FREE_HI 0x4FFA0000
+#define BSS_REGION sram_lo
+#define STACK_LIMIT L2_FREE_HI
 #elif NDF_BOOT_LOAD_ADDR                 /* BOOT_FAST: the ROM loads loader/loader.c, which copies the app (OTA slots); the loader keeps the top */
 #define ROM_LO  0x4FF80000
 #define ROM_HI  0x4FFB9000               /* SOC_LOADER_BASE (soc_caps.h) */
@@ -27,6 +28,9 @@
 #define ROM_LO  0x4FF80000
 #define ROM_HI  0x4FFBCFC0
 #define L2_FREE_LO 0x4FF20000      /* above a 128 KB L2 cache */
+#endif
+#ifndef L2_FREE_HI
+#define L2_FREE_HI ROM_LO
 #endif
 #ifndef BSS_REGION
 #define BSS_REGION sram_lo
@@ -37,7 +41,7 @@ ENTRY(_start0)
 MEMORY
 {
     sram (RWX) : ORIGIN = ROM_LO, LENGTH = ROM_HI - ROM_LO
-    sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = ROM_LO - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
+    sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = L2_FREE_HI - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
     xipwin (RX) : ORIGIN = 0x40000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE   /* code, then read-only data, in flash through the caches */
     tcm (RWX) : ORIGIN = 0x30100000, LENGTH = 0x2000   /* HP TCM: irq_entry with NDF_TCM_IRQ; not loaded by the ROM, copied at boot (sys.c) */
     lpram (RW) : ORIGIN = 0x50108000 + NDF_ULP_RESERVE + 0x40, LENGTH = 0x7A60 - NDF_ULP_RESERVE - 0x40   /* LP RAM below the loader note (0x5010FA60) and the LP ROM data (0x5010FA80); first 64 B: notes */
@@ -114,11 +118,7 @@ SECTIONS
     _heap_start = LOADADDR(.rtc.data) + SIZEOF(.rtc.data);
     _heap_end = ROM_HI;
     _heap2_start = _stack1_top;
-#if NDF_P4_REV < 3
-    _heap2_end = _heap2_start;                  /* one region only */
-#else
-    _heap2_end = ROM_LO;
-#endif
+    _heap2_end = L2_FREE_HI;
 
     /* RTC_DATA_ATTR: lives in LP RAM (kept through deep sleep); the ROM only loads L2MEM, so the initial values travel in the
      * image after .data (AT > sram) and sys_start0 copies them on every power-up / reset except a deep-sleep wake */

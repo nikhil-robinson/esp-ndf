@@ -4,7 +4,11 @@
  * "force alignment" mode: pointers must be 16-byte aligned, as the dsp.h contracts say. The assembler only takes
  * a0-a5, s0, s1, t3-t6, s8-s11 as register operands of esp.* instructions (rs1 field is bit 4 + bits 2:0).
  * Checked on the host with tools/p4_pie (instruction-level model of the TRM, same ELF); NOT run on silicon. */
+#if defined(NDF_P4_REV) && NDF_P4_REV < 3
+    .option arch, +xespv2p1                     /* PIE v2.1 on v1.x silicon: other encodings (IDF project_include.cmake) */
+#else
     .option arch, +xespv
+#endif
     .text
 
 /* int32 dsp_dot_s16(const int16_t *a, const int16_t *b, int n)   n multiple of 16 (here: of 8). 40-bit XACC, result

@@ -4,7 +4,11 @@
  * Requantisation is TFLite's: r = floor((acc * mult + 2^30) / 2^31); y = (r + rhalf + (r < 0 ? negm : 0)) >> rsh.
  * Registers the assembler takes as esp.* operands: a0-a5, s0, s1, t3-t6, s8-s11. No interrupt handler may use the
  * vector unit (nothing saves it). Checked on the host with tools/p4_pie; NOT run on silicon. */
+#if defined(NDF_P4_REV) && NDF_P4_REV < 3
+    .option arch, +xespv2p1                     /* PIE v2.1 on v1.x silicon: other encodings (IDF project_include.cmake) */
+#else
     .option arch, +xespv
+#endif
     .text
 
 #define Q_BIAS   0

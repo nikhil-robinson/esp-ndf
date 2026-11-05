@@ -10,7 +10,11 @@
 
 #ifndef NDF_NO_ACCEL
 #define SOC_CPU_HAS_FPU             1   /* RV32F */
-#define SOC_CPU_HAS_PIE             1   /* Xespv2p2 vector unit: lib/esp32p4/{dsp,nn}_pie.S, enabled per core in sys.c */
+#ifdef NDF_P4_REV
+#define SOC_CPU_HAS_PIE             (NDF_P4_REV >= 3)   /* Xespv2p2 vector unit: lib/esp32p4/{dsp,nn}_pie.S, enabled per core in sys.c; v1.x silicon traps on every PIE instruction */
+#else
+#define SOC_CPU_HAS_PIE             1
+#endif
 #define SOC_DSP_F32_ASM             0   /* float kernels: the compiler on the FPU (PIE has no float) */
 #define SOC_CPU_HAS_S32C1I          0   /* Xtensa only */
 #define SOC_CPU_HAS_AMO             1   /* Zaamo: amoswap / amoadd */
@@ -48,8 +52,10 @@
  * (bit 9 = 128 KB, rom/cache.h CACHE_SIZE_128K), one-hot line size at + 0x27C (bit 3 = 64 B). Internal L2MEM goes
  * through the L1 caches only, so nothing cached in L2 needs flushing (nothing external is mapped yet).
  * ponytail: no L2 invalidate - add the SYNC_CTRL sequence once flash / PSRAM are mapped through the cache. */
-#if NDF_P4_REV >= 3                     /* v1.x: the L2 cache stays as the ROM left it */
+#if NDF_P4_REV >= 3
 #define SOC_BOOT_ASM  li t0, 0x3FF10000; li t1, 0x200; sw t1, 0x278(t0); li t1, 8; sw t1, 0x27C(t0); fence
+#else                                   /* v1.x: ROM Cache_Set_L2_Cache_Mode(128K, 8 ways, 64 B) + Cache_Invalidate_All(L2), as IDF cache_hal_init_l2_cache */
+#define SOC_BOOT_ASM  li a0, 9; li a1, 8; li a2, 3; li t0, 0x4fc003d4; jalr t0; li a0, 0x20; li t0, 0x4fc00404; jalr t0
 #endif
 
 /* chip defaults for ndf_config.h */

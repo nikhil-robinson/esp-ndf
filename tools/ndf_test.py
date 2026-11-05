@@ -57,12 +57,15 @@ def port_ready(port, grace=20):
     return True
 
 
+MAKE_ARGS = []
+
+
 def run_one(app, kv, port, build=True):
     name = os.path.relpath(app, ROOT)
     if not port_ready(port):
         return 'NOPORT', f'{port} missing'
     if build:
-        r = subprocess.run(['make', '-C', app, '-j8', 'flash', f'PORT={port}'], capture_output=True, text=True, timeout=300)
+        r = subprocess.run(['make', '-C', app, '-j8', 'flash', f'PORT={port}'] + MAKE_ARGS, capture_output=True, text=True, timeout=300)
         if r.returncode:
             return 'BUILD', (r.stdout + r.stderr)[-600:]
     if kv.get('TEST_HOST'):                                 # two-board / host-driven test: the script judges by its exit code
@@ -114,9 +117,14 @@ def main():
     ap.add_argument('--kind', default='unit')
     ap.add_argument('--board', default=None, help='run only tests that need this board')
     ap.add_argument('--no-build', action='store_true', help='do not build / flash, run what is on the board')
+    ap.add_argument('--port', default=None, help='serial port of the board (overrides the board table), e.g. the ESP32-P4')
+    ap.add_argument('--make-args', default='', help='extra make arguments, e.g. "SOC=esp32p4 P4_REV=1 XIP=off"')
     ap.add_argument('--keep-going', action='store_true', default=True)
     a = ap.parse_args()
+    MAKE_ARGS[:] = a.make_args.split()
     b = boards()
+    if a.port:
+        b = {k: a.port for k in b}
     apps = discover(a.paths)
     rows = []
     for d in apps:
