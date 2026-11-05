@@ -7,6 +7,12 @@
 #include "cpu.h"
 
 #define WATCHES 3
+static int ntrig(void)                                      /* triggers the core implements: tselect reads back what was written */
+{
+    int n = 0;
+    for (; n < WATCHES; n++) { __asm__ volatile("csrw 0x7A0, %0" :: "r"(n)); uint32_t r; __asm__ volatile("csrr %0, 0x7A0" : "=r"(r)); if (r != (uint32_t)n) break; }
+    return n;
+}
 #define CSR_TSELECT 0x7A0
 #define CSR_TDATA1  0x7A1
 #define CSR_TDATA2  0x7A2
@@ -31,7 +37,7 @@ void perf_reset(int n)
 
 int watch_set(int n, const volatile void *addr, size_t len, int mode, watch_fn_t fn)
 {
-    if (n < 0 || n >= WATCHES || !len || len > 64 || (len & (len - 1)) || ((uint32_t)addr & (len - 1)) || !(mode & 3)) return -1;
+    if (n < 0 || n >= WATCHES || n >= ntrig() || !len || len > 64 || (len & (len - 1)) || ((uint32_t)addr & (len - 1)) || !(mode & 3)) return -1;
     uint32_t t1 = 2u << 28 | BIT(6) | (mode & WATCH_WRITE ? BIT(1) : 0) | (mode & WATCH_READ ? BIT(0) : 0);   /* type 2, M-mode, store / load */
     uint32_t t2 = (uint32_t)addr;
     if (len > 1) { t1 |= 1u << 7; t2 |= (len >> 1) - 1; }                                                     /* match 1: NAPOT range */

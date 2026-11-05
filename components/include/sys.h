@@ -14,7 +14,12 @@ uint32_t systimer_lo(void);                 /* free-running 16 MHz counter */
 void     cpu1_start(void (*fn)(void));
 bool     sys_cpu1_running(void);              /* cpu1_start was called */
 
-NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint32_t *frame, uint32_t sp);
+#if SOC_CPU_RISCV
+void ndf_fault(                                        /* returns after a data watchpoint was handled (debug.c): not noreturn */
+#else
+NORETURN void ndf_fault(
+#endif
+       uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint32_t *frame, uint32_t sp);
 /* Fatal-error report: reason, PC, registers (if frame), backtrace from a
  * stack scan (CALL0 has no frame chain: every word on the stack that is a
  * return address right after a call0/callx0 is listed; decode with
