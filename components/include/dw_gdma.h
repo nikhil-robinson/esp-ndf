@@ -27,6 +27,8 @@ int  dwg_init(void);
 void dwg_lli_fill(dw_lli_t *l, const dwg_block_t *b, dw_lli_t *next);
 /* channel 0..3: roles decide the flow (M2M / M2P / P2M, DMA as flow controller) and the hardware handshake */
 int  dwg_open(int ch, dwg_role_t src, dwg_role_t dst, int priority);
+int  dwg_set_flow(int ch, int tt_fc, uint32_t src_status_addr);            /* contiguous blocks; tt_fc 4 = peripheral (CSI) controls the length */
+int  dwg_run(int ch, const dwg_block_t *b);                                  /* one contiguous block through the channel registers */
 int  dwg_start(int ch, dw_lli_t *first);                                    /* run a linked list */
 int  dwg_wait(int ch, uint32_t timeout_us);                                /* full transfer done: 0 */
 uint32_t dwg_status(int ch);                                               /* channel interrupt status bits */

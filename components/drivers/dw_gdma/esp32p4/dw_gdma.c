@@ -39,15 +39,20 @@ int dwg_init(void)
 
 static uint32_t port_of(uint32_t addr) { return (addr == BRIDGE_DSI || addr == BRIDGE_CSI) ? MASTER_BRIDGE : MASTER_MEM; }
 
+static void ctl_words(const dwg_block_t *b, uint32_t *lo, uint32_t *hi)
+{
+    *lo = FV(DMAC_CH1_SMS, port_of(b->src)) | FV(DMAC_CH1_DMS, port_of(b->dst)) | FV(DMAC_CH1_SINC, b->src_fixed) | FV(DMAC_CH1_DINC, b->dst_fixed) |
+                FV(DMAC_CH1_SRC_TR_WIDTH, b->width) | FV(DMAC_CH1_DST_TR_WIDTH, b->width) | FV(DMAC_CH1_SRC_MSIZE, b->src_items) | FV(DMAC_CH1_DST_MSIZE, b->dst_items);
+    *hi = (b->burst_len ? FV(DMAC_CH1_ARLEN_EN, 1) | FV(DMAC_CH1_ARLEN, b->burst_len) | FV(DMAC_CH1_AWLEN_EN, 1) | FV(DMAC_CH1_AWLEN, b->burst_len) : 0) |
+                FV(DMAC_CH1_IOC_BLKTFR, b->irq) | FV(DMAC_CH1_SHADOWREG_OR_LLI_LAST, b->last) | FV(DMAC_CH1_SHADOWREG_OR_LLI_VALID, 1);
+}
+
 void dwg_lli_fill(dw_lli_t *l, const dwg_block_t *b, dw_lli_t *next)
 {
     memset(l, 0, sizeof *l);
     l->sar_lo = b->src; l->dar_lo = b->dst;
     l->block_ts = b->items - 1;
-    l->ctl_lo = FV(DMAC_CH1_SMS, port_of(b->src)) | FV(DMAC_CH1_DMS, port_of(b->dst)) | FV(DMAC_CH1_SINC, b->src_fixed) | FV(DMAC_CH1_DINC, b->dst_fixed) |
-                FV(DMAC_CH1_SRC_TR_WIDTH, b->width) | FV(DMAC_CH1_DST_TR_WIDTH, b->width) | FV(DMAC_CH1_SRC_MSIZE, b->src_items) | FV(DMAC_CH1_DST_MSIZE, b->dst_items);
-    l->ctl_hi = (b->burst_len ? FV(DMAC_CH1_ARLEN_EN, 1) | FV(DMAC_CH1_ARLEN, b->burst_len) | FV(DMAC_CH1_AWLEN_EN, 1) | FV(DMAC_CH1_AWLEN, b->burst_len) : 0) |
-                FV(DMAC_CH1_IOC_BLKTFR, b->irq) | FV(DMAC_CH1_SHADOWREG_OR_LLI_LAST, b->last) | FV(DMAC_CH1_SHADOWREG_OR_LLI_VALID, 1);
+    ctl_words(b, &l->ctl_lo, &l->ctl_hi);
     l->llp_lo = next ? (uint32_t)(uintptr_t)next >> 6 << DMAC_CH1_LOC0_S | FV(DMAC_CH1_LMS, MASTER_MEM) : 0;
     cache_dma_writeback(l, sizeof *l);
 }
@@ -76,6 +81,29 @@ int dwg_start(int ch, dw_lli_t *first)
     REG(CHR(ch, LLP0)) = ((uint32_t)(uintptr_t)first >> 6 << DMAC_CH1_LOC0_S) | FV(DMAC_CH1_LMS, MASTER_MEM);
     REG(CHR(ch, LLP1)) = 0;
     REG(DMAC_CHEN0_REG) = 0x101u << ch;                                        /* enable (+ write-enable bit) */
+    return 0;
+}
+
+int dwg_set_flow(int ch, int tt_fc, uint32_t src_status_addr)
+{
+    if ((unsigned)ch > 3 || !up) return -1;
+    CHF(ch, TT_FC, tt_fc);                                                    /* 0..7: M2M/M2P/P2M by the DMAC, then P2M_SRC = 4, P2P_SRC = 5, M2P_DST = 6, P2P_DST = 7 */
+    CHF(ch, SRC_MULTBLK_TYPE, MULTBLK_CONTIG); CHF(ch, DST_MULTBLK_TYPE, MULTBLK_CONTIG);
+    REG(CHR(ch, SSTATAR0)) = src_status_addr;
+    return 0;
+}
+
+int dwg_run(int ch, const dwg_block_t *b)
+{
+    if ((unsigned)ch > 3 || !b || !up) return -1;
+    uint32_t lo, hi;
+    ctl_words(b, &lo, &hi);
+    hi &= ~(FMASK(DMAC_CH1_SHADOWREG_OR_LLI_VALID) | FMASK(DMAC_CH1_SHADOWREG_OR_LLI_LAST));    /* contiguous: no list markers */
+    REG(CHR(ch, INTCLEAR0)) = 0xFFFFFFFFu;
+    REG(CHR(ch, SAR0)) = b->src; REG(CHR(ch, DAR0)) = b->dst;
+    REG(CHR(ch, BLOCK_TS0)) = b->items - 1;
+    REG(CHR(ch, CTL0)) = lo; REG(CHR(ch, CTL1)) = hi;
+    REG(DMAC_CHEN0_REG) = 0x101u << ch;
     return 0;
 }
 
