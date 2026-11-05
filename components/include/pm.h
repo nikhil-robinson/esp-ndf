@@ -5,7 +5,7 @@
 #pragma once
 #include "ndf.h"
 
-int  pm_config(uint32_t max_mhz, uint32_t min_mhz);   /* 240/160/80; starts at min if no lock is held */
+int  pm_config(uint32_t max_mhz, uint32_t min_mhz);   /* S3: 240/160/80, P4: 400/200/100; starts at min if no lock is held */
 void pm_lock(void);
 void pm_unlock(void);
 int  pm_locks(void);

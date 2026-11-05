@@ -24,7 +24,7 @@
 #define SOC_HAS_FLASH_CACHE         0
 #endif
 #define SOC_CPENABLE_BOOT           0
-/* crypto engines: the same register layout as the S3 (drivers/crypto/*.c are shared), P4 base addresses; CPU-fed only */
+/* crypto engines: the same register layout as the S3 (the shared drivers/crypto files), P4 base addresses; CPU-fed only */
 #define SOC_EFUSE_BASE              0x5012D000u   /* eFuse read registers (same block layout as the S3) */
 #define SOC_AES_BASE                0x50090000u
 #define SOC_SHA_BASE                0x50091000u
@@ -59,3 +59,10 @@
 #define PSRAM_VADDR            0x48000000u
 #define PSRAM_MMU_FIRST        0u
 #define SOC_GDMA_PSRAM_TX_OK   1
+
+/* pm.c: CPU frequencies of the clock tree (clk.c clk_cpu_set_mhz) */
+#define SOC_PM_MHZ_OK(m)       ((m) == 400 || (m) == 200 || (m) == 100)
+#define SOC_PM_MHZ_MAX         400
+#define SOC_ULP_MEM_BASE       0x50108000u              /* LP RAM: ulp_mem() words, LP core program */
+#define SOC_OTA_NOTE           0x5010FA60u              /* loader note: "OTAS", image flash offset, XIP flash offset (16 bytes at the top of the LP RAM window, link.ld.in) */
+#define SOC_LOADER_BASE        0x4FFB9000u              /* BOOT_FAST: ROM-loaded loader window 0x4FFB9000-0x4FFBCFC0; apps end below it */

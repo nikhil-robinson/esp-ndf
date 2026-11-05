@@ -37,6 +37,11 @@ PART_TABLE_ADDR ?= 0x80000    # partition table offset; the image must end below
 OTA_XIP_OFF     ?= 0x80000   # OTA slot layout: code window (xip.bin) at slot + this
 BOOT_FAST       ?= 1          # 1: the ROM loads a small loader that copies the app from BOOT_LOAD_ADDR (fast boot)
 BOOT_LOAD_ADDR  ?= 0x2000     # flash offset of the app image when BOOT_FAST = 1
+# loader build / flash layout (the chip's soc.mk overrides; the defaults are the S3's: loader at 0x0, RTC boot stage at 0x1000)
+LOADER_SRCS     ?= loader.S loader.c ../regi2c.c
+LOADER_ARCH     ?= -mabi=call0 -mtext-section-literals
+LOADER_EXTRA    ?= $(OUT)/rtcboot.bin
+LOADER_FLASH    ?= 0x0 $(OUT)/loader.bin 0x1000 $(OUT)/rtcboot.bin
 XIP             ?= lib        # code from flash: off (all in RAM) | lib (libraries in flash) | all (libraries, app, storage)
 XIP_ADDR        ?= 0x300000   # flash offset of the code blob (xip partition), 64 KB aligned
 XIP_SIZE        ?= 0x100000   # its size
@@ -72,7 +77,7 @@ FLAGS = $(ARCH_FLAGS) -O2 -g -ffreestanding -fno-builtin \
 CFG_SIG := $(FLAGS) $(STACK0_SIZE) $(STACK1_SIZE) $(FLASH_MODE) $(FLASH_FREQ) $(XIP) $(XIP_ADDR) $(XIP_SIZE) $(BOOT_FAST) $(BOOT_LOAD_ADDR)
 $(shell mkdir -p $(OUT); echo '$(CFG_SIG)' | cmp -s - $(OUT)/config.stamp || echo '$(CFG_SIG)' > $(OUT)/config.stamp)
 .DEFAULT_GOAL := all
-all: $(OUT)/app.bin $(if $(filter-out 0,$(LOAD_AT)),$(OUT)/loader.bin $(OUT)/rtcboot.bin)
+all: $(OUT)/app.bin $(if $(filter-out 0,$(LOAD_AT)),$(OUT)/loader.bin $(LOADER_EXTRA))
 .PHONY: all
 $(OBJS) $(OUT)/app.elf $(OUT)/app.bin: $(OUT)/config.stamp $(wildcard $(APP)/ndf_config.h)
 
@@ -87,10 +92,11 @@ $(OUT)/app.bin: $(OUT)/app.elf
 	@python3 -c "import sys; a=open('$@','rb').read(); x=open('$(OUT)/xip.bin','rb').read(); o=$(strip $(OTA_XIP_OFF)); assert len(a)<=o, 'app.bin larger than OTA_XIP_OFF'; open('$(OUT)/ota.bin','wb').write(a+b'\\xff'*(o-len(a))+x if x else a)"   # OTA image
 	@echo "built $@"
 
-$(OUT)/loader.bin: $(C)/soc/$(SOC)/loader/loader.S $(C)/soc/$(SOC)/loader/loader.c $(C)/soc/$(SOC)/loader/loader.ld $(C)/soc/$(SOC)/regi2c.c $(OUT)/config.stamp
-	@$(PFX)gcc -mabi=call0 -mtext-section-literals -Os -ffreestanding -nostdlib -ffunction-sections -fdata-sections $(INCS) $(CFG_FLAGS) \
+LOADER_FILES = $(addprefix $(C)/soc/$(SOC)/loader/,$(LOADER_SRCS))
+$(OUT)/loader.bin: $(LOADER_FILES) $(C)/soc/$(SOC)/loader/loader.ld $(OUT)/config.stamp
+	@$(PFX)gcc $(LOADER_ARCH) -Os -ffreestanding -nostdlib -ffunction-sections -fdata-sections $(INCS) $(CFG_FLAGS) \
 	    $(if $(BOOT_TRACE),-DNDF_BOOT_TRACE=1) -Wl,--gc-sections -T $(C)/soc/$(SOC)/loader/loader.ld -o $(OUT)/loader.elf \
-	    $(C)/soc/$(SOC)/loader/loader.S $(C)/soc/$(SOC)/loader/loader.c $(C)/soc/$(SOC)/regi2c.c   # analog-register access shared with the app
+	    $(LOADER_FILES)   # S3: analog-register access shared with the app
 	@esptool.py --chip $(SOC) elf2image --flash_mode $(strip $(FLASH_MODE)) --flash_freq $(strip $(FLASH_FREQ)) -o $@ $(OUT)/loader.elf >/dev/null
 	@echo "built $@ ($$(stat -c%s $@) bytes; the ROM loads only this)"
 
@@ -168,7 +174,7 @@ $(OUT)/app/%.S.o: $(APP)/%.S
 	@$(PFX)gcc $(FLAGS) -MMD -MP -c $< -o $@
 
 flash: all
-	esptool.py --chip $(SOC) -p $(PORT) write_flash $(if $(filter-out 0,$(LOAD_AT)),0x0 $(OUT)/loader.bin 0x1000 $(OUT)/rtcboot.bin $(LOAD_AT) $(OUT)/app.bin,$(FLASH_APP_ADDR) $(OUT)/app.bin) \
+	esptool.py --chip $(SOC) -p $(PORT) write_flash $(if $(filter-out 0,$(LOAD_AT)),$(LOADER_FLASH) $(LOAD_AT) $(OUT)/app.bin,$(FLASH_APP_ADDR) $(OUT)/app.bin) \
 	    $(if $(filter-out 0,$(XIP_NUM)),$(strip $(XIP_ADDR)) $(OUT)/xip.bin)
 
 PARTS ?= $(NDF)/tools/partitions.csv

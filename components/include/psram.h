@@ -14,3 +14,7 @@ uint32_t psram_init(int clk_div);        /* SRAM clock = 160 MHz / clk_div; retu
 uint32_t psram_size(void);
 void psram_writeback(void *p, size_t n); /* cache -> PSRAM */
 void psram_invalidate(void *p, size_t n);
+#ifdef SOC_GDMA_PSRAM_TX_OK                      /* P4: around light sleep the MPLL and the PSRAM clock are off */
+void psram_sleep_enter(void);
+void psram_sleep_exit(void);
+#endif

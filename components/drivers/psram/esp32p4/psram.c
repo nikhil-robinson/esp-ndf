@@ -253,3 +253,22 @@ uint32_t psram_init(int clk_div)
     cache_dma_wbinv((void *)PSRAM_VADDR, size_bytes);
     return size_bytes;
 }
+
+/* light sleep (pmu_sleep_start / pmu_sleep_finish): AXI traffic done, pads held, PSRAM clock to the crystal, MPLL off;
+ * back: MPLL on and re-calibrated, clock to MPLL, pads released (rev >= 3 can hold the MSPI pads) */
+#define SMEM_AXI_ADDR_CTRL  M0(0x178)
+#define LP_SYS_DED_PAD_HOLD (LPAON + 0x1CC)          /* ded_pad_rtc_hold_ctrl: 0x3FFFFC0 = all PSRAM pins */
+void psram_sleep_enter(void)
+{
+    cache_dma_writeback((void *)PSRAM_VADDR, size_bytes);
+    for (uint32_t t = ccount(); (REG(SMEM_AXI_ADDR_CTRL) & 0x3F) != 0x3F && ccount() - t < 4000000u; ) {}   /* all AXI FIFOs empty */
+    REG_SET(LP_SYS_DED_PAD_HOLD, 0x3FFFFC0u);
+    REG_FIELD(PERI_CLK_CTRL00, 12, 2, 0);            /* XTAL */
+    REG_CLR(PMU_RF_PWC, BIT(24));                    /* MPLL off (clk_ll_mpll_disable) */
+}
+void psram_sleep_exit(void)
+{
+    mpll_on(MPLL_MHZ);
+    REG_FIELD(PERI_CLK_CTRL00, 12, 2, 1);
+    REG_CLR(LP_SYS_DED_PAD_HOLD, 0x3FFFFC0u);
+}

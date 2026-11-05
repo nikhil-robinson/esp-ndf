@@ -115,10 +115,13 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     uint64_t t0 = time_ticks();
     for (uint32_t *p = _bss_start; p < _bss_end; p++) *p = 0;
     canary_init();
-    {   /* RTC_BSS_ATTR in LP RAM: zeroed except after a deep-sleep wake (cause 5) */
-        extern uint32_t _rtc_bss_start[], _rtc_bss_end[];
-        if (((REG(LP_CLKRST_RESET_CAUSE) >> 7) & 0x3F) != 5)
+    {   /* RTC_DATA_ATTR / RTC_BSS_ATTR in LP RAM: initialised except after a deep-sleep wake (cause 5) */
+        extern uint32_t _rtc_bss_start[], _rtc_bss_end[], _rtc_data_start[], _rtc_data_end[], _rtc_data_load[];
+        if (((REG(LP_CLKRST_RESET_CAUSE) >> 7) & 0x3F) != 5) {
             for (uint32_t *p = _rtc_bss_start; p < _rtc_bss_end; p++) *p = 0;
+            const uint32_t *src = _rtc_data_load;
+            for (uint32_t *p = _rtc_data_start; p < _rtc_data_end; p++) *p = *src++;
+        }
     }
     boot_t0 = t0;
     extern void sys_latch_reset_cause(void);
@@ -127,6 +130,12 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     wdt_off();
 #endif
     clk_cpu_set_mhz(NDF_CPU_MHZ);
+#if NDF_BROWNOUT                                  /* hardware reset on a brownout (no handler), as the S3 */
+    { extern void bod_reset_mode(int); bod_reset_mode(NDF_BROWNOUT); }
+#endif
+#if NDF_GLITCH_RESET
+    { extern void glitch_reset(bool); glitch_reset(true); }
+#endif
 #if NDF_XIP
     cache_xip_init();                       /* before any code in flash runs */
 #endif
@@ -134,6 +143,9 @@ __attribute__((no_stack_protector)) void sys_start0(void)
     console_init();
 #if NDF_STACK_GUARD
     guard_boot(0);
+#endif
+#if NDF_MEMPROT
+    { extern int memprot_init(bool); memprot_init(NDF_MEMPROT == 2); }
 #endif
     irq_enable_all();
 #if NDF_BOOT_BANNER
@@ -248,6 +260,8 @@ NORETURN void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vad
                                "breakpoint", "load address misaligned", "load access fault", "store address misaligned",
                                "store access fault", "ecall from U-mode", "?", "?", "ecall from M-mode" };
     char why[128];
+    extern bool memprot_fault(uint32_t cause, uint32_t addr);
+    if (kind == 1) memprot_fault(cause, vaddr);                       /* PMP violation: the registered handler runs, then the panic */
     if (kind == 2) snprintf(why, sizeof why, "unexpected non-vectored interrupt, id %lu", (unsigned long)cause);
     else snprintf(why, sizeof why, "exception, mcause %lu (%s), mtval 0x%08lx", (unsigned long)cause,
                   cause < sizeof c / sizeof c[0] ? c[cause] : "?", (unsigned long)vaddr);

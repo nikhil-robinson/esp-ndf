@@ -3,13 +3,17 @@
 #include "pm.h"
 #include "clk.h"
 #include "xcore.h"
-#include "xtensa.h"
+#include "cpu.h"
 
 static xc_spin_t lk;
 static volatile int count;
-static uint32_t fmax = 240, fmin = 240;
+#ifndef SOC_PM_MHZ_OK                       /* soc_caps.h: the CPU frequencies the clock tree offers */
+#define SOC_PM_MHZ_OK(m)  ((m) == 240 || (m) == 160 || (m) == 80)
+#define SOC_PM_MHZ_MAX    240
+#endif
+static uint32_t fmax = SOC_PM_MHZ_MAX, fmin = SOC_PM_MHZ_MAX;
 
-static bool ok_mhz(uint32_t m) { return m == 240 || m == 160 || m == 80; }
+static bool ok_mhz(uint32_t m) { return SOC_PM_MHZ_OK(m); }
 
 int pm_config(uint32_t max_mhz, uint32_t min_mhz)
 {

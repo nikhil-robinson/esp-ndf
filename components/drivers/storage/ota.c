@@ -9,7 +9,10 @@
 #include <string.h>
 
 typedef struct { uint32_t seq; uint8_t label[20]; uint32_t state; uint32_t crc; } sel_t;
-#define OTA_NOTE 0x50001FF0u          /* loader: "OTAS", image offset, XIP offset */
+#ifndef SOC_OTA_NOTE
+#define SOC_OTA_NOTE 0x50001FF0u      /* S3: RTC slow memory; P4: top of LP RAM (soc_caps.h) */
+#endif
+#define OTA_NOTE SOC_OTA_NOTE         /* loader: "OTAS", image offset, XIP offset */
 
 static const partition_t *otadata(void) { partition_load(); return partition_find(PART_DATA, 0x00, NULL); }
 static int slots(const partition_t **s)
@@ -32,7 +35,9 @@ static int active(const partition_t *od, sel_t e[2])              /* index of th
 }
 static int sel_put(const partition_t *od, int k, sel_t *e)
 {
+#if !SOC_CPU_RISCV
     REG(0x60008038u) |= 1u << 13;      /* next reset through the ROM + loader: it re-reads otadata (no warm stage) */
+#endif                                  /* P4: every reset goes through the ROM and the loader */
     e->crc = crc32_le(0xFFFFFFFFu, &e->seq, 4);
     if (partition_erase(od, 0x1000 * k, 0x1000)) return -1;
     return partition_write(od, 0x1000 * k, e, sizeof *e);

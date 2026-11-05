@@ -124,3 +124,12 @@
 #define AHB_DMA_BASE         (HPPERIPH0 + 0x85000)
 #define AXI_DMA_BASE         (HPPERIPH0 + 0x8A000)
 #define CACHE_CTRL_BASE      0x3FF10000u
+
+/* ---- USB 2.0 OTG high speed on the internal UTMI PHY (ESP-IDF v6.1 usb_utmi_ll.h, tinyusb dwc2_esp32.h) ---- */
+#define USB_OTG_BASE          HPPERIPH0                 /* DWC2 HS core; the FS core is at +0x40000 */
+#define USB_OTG_EPS           16
+#define USB_OTG_FIFO_WORDS    1024
+#define LP_AON_CLKRST_USB     (LP_CLKRST_BASE + 0x48)   /* b30 OTG20 PHY reference clock, b2 reset OTG20, b1 reset PHY */
+#define HP_SYSTEM_USBOTG20_CTRL (HP_SYS_BASE + 0x15C)   /* b21 SUSPENDM (software must set it, else detach is not seen) */
+#define USB_UTMI_FC_06        (HPPERIPH0 + 0x9C000 + 0x18)   /* b0 LS parallel enable, b3 LS keep-alive */
+#define LP_SYS_USB_PHY_CTRL   (LPAON + 0x204)           /* b1 DP pulldown, b2 DM pulldown (host only) */

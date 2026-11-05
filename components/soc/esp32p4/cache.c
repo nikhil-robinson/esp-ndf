@@ -31,6 +31,7 @@ static uint32_t xip_phys = NDF_XIP_ADDR;
 
 int cache_xip_init(void)
 {
+    if (REG(SOC_OTA_NOTE) == 0x5341544Fu) xip_phys = REG(SOC_OTA_NOTE + 8);   /* booted from an OTA slot (loader note) */
     for (uint32_t i = 0; i < (NDF_XIP_SIZE >> 16); i++) {
         REG(FL_MMU_INDEX) = (VWIN >> 16) + i;
         REG(FL_MMU_CONTENT) = ((xip_phys >> 16) + i) | FL_MMU_VALID;

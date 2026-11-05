@@ -6,9 +6,16 @@
  * 128 KB (cache.c) - before anything touches .bss or the stacks. Heap: the rest of both.
  * ponytail: TCM 0x30100000 (8 KB, zero wait) is unused; move irq_entry there (copied at boot, esptool must not see it
  * as a load segment) once the board shows L2 fetch latency in irq_latency. */
+#ifndef NDF_ULP_RESERVE
+#define NDF_ULP_RESERVE 0     /* bytes of LP RAM from 0x50108000 for an LP core program (ulp.h); two note words follow it */
+#endif
 #define XIP_VWIN 0x3F00000         /* code window: 1 MB at 0x43F00000 (flash MMU entries 1008-1023, cache.c) */
 #define ROM_LO  0x4FF80000
+#if NDF_BOOT_LOAD_ADDR                 /* BOOT_FAST: the ROM loads loader/loader.c, which copies the app (OTA slots); the loader keeps the top */
+#define ROM_HI  0x4FFB9000               /* SOC_LOADER_BASE (soc_caps.h) */
+#else
 #define ROM_HI  0x4FFBCFC0
+#endif
 #define L2_FREE_LO 0x4FF20000      /* above a 128 KB L2 cache */
 ENTRY(_start0)
 
@@ -17,7 +24,7 @@ MEMORY
     sram (RWX) : ORIGIN = ROM_LO, LENGTH = ROM_HI - ROM_LO
     sram_lo (RW) : ORIGIN = L2_FREE_LO, LENGTH = ROM_LO - L2_FREE_LO   /* not loaded by the ROM: zeroed / used after boot */
     xipwin (RX) : ORIGIN = 0x40000000 + XIP_VWIN, LENGTH = NDF_XIP_SIZE   /* code, then read-only data, in flash through the caches */
-    lpram (RW) : ORIGIN = 0x50108000 + 0x40, LENGTH = 0x7A80 - 0x40   /* LP RAM below the LP ROM data (0x5010FA80); first 64 B: notes */
+    lpram (RW) : ORIGIN = 0x50108000 + NDF_ULP_RESERVE + 0x40, LENGTH = 0x7A60 - NDF_ULP_RESERVE - 0x40   /* LP RAM below the loader note (0x5010FA60) and the LP ROM data (0x5010FA80); first 64 B: notes */
 }
 
 /* Same split as the S3 (esp32s3/link.ld.in): libraries never called from interrupts, flash operations or the panic
@@ -56,7 +63,7 @@ SECTIONS
     .text : {
         KEEP(*(.iram.text .iram.text.*))            /* entry and _trap_vec (64-byte aligned) */
         *(.text .text.*)
-        . = ALIGN(16);
+        . = ALIGN(128);                             /* PMP granule: the code / data split of memprot.c */
         _text_end = .;
     } > sram
 
@@ -84,12 +91,15 @@ SECTIONS
         . = ALIGN(16); _stack0_bot = .; . += NDF_STACK0_SIZE; _stack0_top = .;
         . = ALIGN(16); _stack1_bot = .; . += NDF_STACK1_SIZE; _stack1_top = .;
     } > sram_lo
-    _heap_start = _data_end;
+    _heap_start = _data_end + SIZEOF(.rtc.data);
     _heap_end = ROM_HI;
     _heap2_start = _stack1_top;
     _heap2_end = ROM_LO;
 
-    .rtc.data : { _rtc_data_start = .; *(.rtc.data .rtc.data.*) . = ALIGN(4); _rtc_data_end = .; } > lpram
+    /* RTC_DATA_ATTR: lives in LP RAM (kept through deep sleep); the ROM only loads L2MEM, so the initial values travel in the
+     * image after .data (AT > sram) and sys_start0 copies them on every power-up / reset except a deep-sleep wake */
+    .rtc.data : { _rtc_data_start = .; *(.rtc.data .rtc.data.*) . = ALIGN(4); _rtc_data_end = .; } > lpram AT > sram
+    _rtc_data_load = LOADADDR(.rtc.data);
     .rtc.bss (NOLOAD) : { _rtc_bss_start = .; *(.rtc.bss .rtc.bss.*) . = ALIGN(4); _rtc_bss_end = .; } > lpram
     .rtc.noinit (NOLOAD) : { *(.rtc.noinit .rtc.noinit.*) } > lpram
 
@@ -97,7 +107,6 @@ SECTIONS
 }
 
 ASSERT(_trap_vec % 64 == 0, "mtvec (CLIC mode) must be 64-byte aligned")
-ASSERT(_data_end <= ROM_HI, "RAM full: code + data exceed the ROM-loadable L2MEM window (0x4FF80000-0x4FFBCFC0)")
+ASSERT(_heap_start <= ROM_HI, "RAM full: code + data exceed the ROM-loadable L2MEM window (0x4FF80000-0x4FFBCFC0)")
 ASSERT(_stack1_top <= ROM_LO, "RAM full: .bss + stacks exceed 0x4FF20000-0x4FF80000")
-ASSERT(SIZEOF(.rtc.data) == 0, "P4: the ROM does not load LP RAM; RTC_DATA_ATTR is not supported yet (use RTC_BSS / RTC_NOINIT)")
 ASSERT(NDF_XIP_SIZE <= 0x100000, "XIP_SIZE: the code window is 1 MB (flash MMU entries 1008-1023)")

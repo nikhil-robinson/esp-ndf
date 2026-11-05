@@ -1,6 +1,9 @@
-/* USB OTG full-speed device, CDC-ACM (usb.h). DWC2 core in buffer-DMA mode (the core moves every packet between RAM
+/* USB OTG device, CDC-ACM (usb.h). DWC2 core in buffer-DMA mode (the core moves every packet between RAM
  * and its FIFOs; the CPU only programs transfers), polled.
- * Registers per TRM ch. 32 (DWC2 OTG_FS); PHY switch per ch. 10 (RTC_CNTL_USB_CONF) and ch. 33.
+ * S3: full speed, registers per TRM ch. 32 (DWC2 OTG_FS); PHY switch per ch. 10 (RTC_CNTL_USB_CONF) and ch. 33.
+ * P4: the HS controller (0x50000000) on the internal UTMI PHY, high speed (512-byte bulk packets); ESP-IDF v6.1
+ * usb_utmi_hal / usb_dwc_ll. It has its own pads, so USB Serial/JTAG stays up and no guard is needed. L2MEM is cached by
+ * the L1 D-cache: DMA buffers are 64-byte aligned and written back / invalidated around each transfer.
  * Endpoints: EP0 control, EP1 IN bulk (data to host), EP2 OUT bulk (data from host), EP3 IN interrupt (CDC
  * notifications; required by the class, never used). FIFO RAM 256 words: RX, EP0 TX, EP1 TX, EP3 TX, DMA endpoint info (see RXF_W).
  * DMA buffers are in internal SRAM, 4-byte aligned (no data cache there: nothing to flush). */
@@ -9,7 +12,10 @@
 #include "clk.h"
 #include "gpio.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
+#if SOC_CPU_RISCV
+#include "cache_p4.h"
+#endif
 #include <string.h>
 #include "wdt.h"
 
@@ -19,7 +25,45 @@
 #ifndef NDF_USB_GUARD_MS
 #define NDF_USB_GUARD_MS 3000
 #endif
+/* per-chip packet sizes, FIFO split (words) and DMA buffer handling; the S3 values are the original constants */
+#if SOC_CPU_RISCV
+#define USB_HS          1
+#define BMPS            512                     /* bulk packet size: high speed */
+#define IMPS            64                      /* interrupt endpoints */
+#define INT_IVL         8                       /* 2^7 x 125 us = 16 ms */
+#define HID_IVL         4                       /* 1 ms */
+#define USB_DMA_ALIGN   64
+#define TX_MAX          16384u
+#define RXB_SZ          8192u
+#define RXF_W           288u
+#define RXF_W_COMP      288u
+#define TXF1_W          400u
+#define TXF1_W_COMP     256u
+#define TXF3_W          256u
+#define TXF2_W          16u
+#define DMA_TO_DEV(p, n)   cache_dma_writeback((p), (n))
+#define DMA_FROM_DEV(p, n) cache_dma_wbinv((p), (n))
+#else
+#define USB_HS          0
+#define BMPS            64
+#define IMPS            64
+#define INT_IVL         16
+#define HID_IVL         1
+#define USB_DMA_ALIGN   4
+#define TX_MAX          8128u                   /* bytes per transfer: 127 packets (the packet count field is 7 bits) */
+#define RXB_SZ          2048u                   /* bulk OUT DMA buffer: 32 packets, two in ping-pong (4 KB: no gain) */
+#define RXF_W           104u                    /* FIFO RAM split (256 words): RX, EP0 TX 16, bulk IN TX, notify TX 8, */
+#define RXF_W_COMP      88u
+#define TXF1_W          112u                    /* and the top 2 x endpoints words for the core's DMA endpoint info (GDFIFOCFG) */
+#define TXF1_W_COMP     64u
+#define TXF3_W          64u
+#define TXF2_W          8u
+#define DMA_TO_DEV(p, n)   ((void)0)
+#define DMA_FROM_DEV(p, n) ((void)0)
+#endif
+#if NDF_USB_GUARD_MS
 static uint32_t guard_fed;
+#endif
 
 #define OTG             USB_OTG_BASE
 #define R(o)            REG(OTG + (o))
@@ -68,10 +112,7 @@ static uint32_t guard_fed;
 #define EP_OUT          2
 #define EP_NOTIFY       3
 #define MPS             64
-#define TX_MAX          8128u                   /* bytes per transfer: 127 packets (the packet count field is 7 bits) */
-#define RXB             2048u                   /* bulk OUT DMA buffer: 32 packets, two in ping-pong (4 KB: no gain) */
-#define RXF_W           104u                    /* FIFO RAM split (256 words): RX, EP0 TX 16, bulk IN TX, notify TX 8, */
-#define TXF1_W          112u                    /* and the top 2 x endpoints words for the core's DMA endpoint info (GDFIFOCFG) */
+#define RXB             RXB_SZ
 #define EPINFO_W        (2u * USB_OTG_EPS)      /* as TinyUSB's dwc2 driver */
 
 /* ---- descriptors ---- */
@@ -87,10 +128,10 @@ static const uint8_t cfg_desc[67] = {
     5, 0x24, 0x01, 0x00, 1,                     /* call management */
     4, 0x24, 0x02, 0x02,                        /* ACM: line coding + control line state */
     5, 0x24, 0x06, 0, 1,                        /* union: master 0, slave 1 */
-    7, 5, 0x80 | EP_NOTIFY, 0x03, 8, 0, 16,     /* notification: interrupt IN, 8 bytes, 16 ms */
+    7, 5, 0x80 | EP_NOTIFY, 0x03, 8, 0, INT_IVL,  /* notification: interrupt IN, 8 bytes, 16 ms */
     9, 4, 1, 0, 2, 0x0A, 0x00, 0x00, 0,         /* interface 1: CDC data */
-    7, 5, EP_OUT, 0x02, MPS, 0, 0,              /* bulk OUT */
-    7, 5, 0x80 | EP_IN, 0x02, MPS, 0, 0,        /* bulk IN */
+    7, 5, EP_OUT, 0x02, BMPS & 0xFF, BMPS >> 8, 0,              /* bulk OUT */
+    7, 5, 0x80 | EP_IN, 0x02, BMPS & 0xFF, BMPS >> 8, 0,        /* bulk IN */
 };
 static const char *const strings[] = { "esp-ndf", "esp-ndf CDC-ACM", "0001" };
 
@@ -99,8 +140,8 @@ static const uint8_t msc_dev_desc[18] = { 18, 1, 0x00, 0x02, 0, 0, 0, MPS, 0x09,
 static const uint8_t msc_cfg_desc[32] = {
     9, 2, 32, 0, 1, 1, 0, 0x80, 50,
     9, 4, 0, 0, 2, 0x08, 0x06, 0x50, 0,         /* mass storage, SCSI transparent, bulk-only */
-    7, 5, EP_OUT, 0x02, MPS, 0, 0,
-    7, 5, 0x80 | EP_IN, 0x02, MPS, 0, 0,
+    7, 5, EP_OUT, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
+    7, 5, 0x80 | EP_IN, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
 };
 static const uint8_t hid_report[] = {
     0x06, 0x00, 0xFF, 0x09, 0x01, 0xA1, 0x01,   /* vendor usage page, application collection */
@@ -114,8 +155,8 @@ static const uint8_t hid_cfg_desc[41] = {
     9, 2, 41, 0, 1, 1, 0, 0x80, 50,
     9, 4, 0, 0, 2, 0x03, 0, 0, 0,               /* HID, no boot protocol */
     9, 0x21, 0x11, 0x01, 0, 1, 0x22, sizeof hid_report, 0,
-    7, 5, 0x80 | EP_IN, 0x03, MPS, 0, 1,        /* interrupt IN, 1 ms */
-    7, 5, EP_OUT, 0x03, MPS, 0, 1,              /* interrupt OUT, 1 ms */
+    7, 5, 0x80 | EP_IN, 0x03, IMPS, 0, HID_IVL,  /* interrupt IN, 1 ms */
+    7, 5, EP_OUT, 0x03, IMPS, 0, HID_IVL,        /* interrupt OUT, 1 ms */
 };
 /* CDC + MSC composite: IAD around the two CDC interfaces (0, 1), MSC interface 2 on EP4 IN / EP5 OUT */
 #define EP_MSC_IN   4
@@ -126,13 +167,13 @@ static const uint8_t comp_cfg_desc[98] = {
     8, 0x0B, 0, 2, 0x02, 0x02, 0x01, 0,           /* IAD: interfaces 0-1 = CDC ACM */
     9, 4, 0, 0, 1, 0x02, 0x02, 0x01, 0,
     5, 0x24, 0x00, 0x10, 0x01, 5, 0x24, 0x01, 0x00, 1, 4, 0x24, 0x02, 0x02, 5, 0x24, 0x06, 0, 1,
-    7, 5, 0x80 | EP_NOTIFY, 0x03, 8, 0, 16,
+    7, 5, 0x80 | EP_NOTIFY, 0x03, 8, 0, INT_IVL,
     9, 4, 1, 0, 2, 0x0A, 0x00, 0x00, 0,
-    7, 5, EP_OUT, 0x02, MPS, 0, 0,
-    7, 5, 0x80 | EP_IN, 0x02, MPS, 0, 0,
+    7, 5, EP_OUT, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
+    7, 5, 0x80 | EP_IN, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
     9, 4, 2, 0, 2, 0x08, 0x06, 0x50, 0,           /* interface 2: mass storage */
-    7, 5, EP_MSC_OUT, 0x02, MPS, 0, 0,
-    7, 5, 0x80 | EP_MSC_IN, 0x02, MPS, 0, 0,
+    7, 5, EP_MSC_OUT, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
+    7, 5, 0x80 | EP_MSC_IN, 0x02, BMPS & 0xFF, BMPS >> 8, 0,
 };
 static int fn = USB_FN_CDC;
 void usb_dev_function(int f) { fn = f; }
@@ -140,25 +181,25 @@ int usb_dev_get_function(void) { return fn; }
 
 /* ---- state ---- */
 static uint8_t setup[8];
-static uint8_t setup_dma[8] __attribute__((aligned(4)));         /* DMA target: one SETUP */
-static uint8_t ep0_rx[MPS] __attribute__((aligned(4)));          /* control OUT data stage */
+static uint8_t setup_dma[USB_DMA_ALIGN > 4 ? 64 : 8] __attribute__((aligned(USB_DMA_ALIGN)));         /* DMA target: one SETUP */
+static uint8_t ep0_rx[MPS] __attribute__((aligned(USB_DMA_ALIGN)));          /* control OUT data stage */
 static uint8_t line_coding[7] = { 0x00, 0xC2, 0x01, 0x00, 0, 0, 8 };   /* 115200 8N1 (the host may set anything) */
-static uint8_t ep0_buf[256] __attribute__((aligned(4)));
+static uint8_t ep0_buf[256] __attribute__((aligned(USB_DMA_ALIGN)));
 static const uint8_t *ep0_src; static uint32_t ep0_left; static bool ep0_zlp, ep0_out_data;
 /* A pipe = one bulk IN + OUT endpoint pair with its buffers. Pipe 0: CDC (or the only function), pipe 1: MSC in the
  * composite. TX double buffer (one on the bus, one being filled); RX ping-pong (the core DMA-writes the armed one). */
 #define TX2 4096u
 typedef struct {
-    uint8_t in, out, fifo; bool zlp;               /* zlp: stream class, close a full-packet transfer with a ZLP */
+    uint8_t in, out, fifo; uint16_t mps; bool zlp;               /* zlp: stream class, close a full-packet transfer with a ZLP */
     uint8_t *txb[2], *rxb[2]; uint32_t txmax;
     uint32_t tx_len[2]; int tx_cur, tx_q; bool tx_full_end;
     uint32_t rx_len[2]; bool rx_full[2]; int rx_arm_b, rx_rd; uint32_t rx_pos;
 } pipe_t;
-static uint8_t tx_buf[2][TX_MAX] __attribute__((aligned(4))), rx_buf[2][RXB] __attribute__((aligned(4)));
-static uint8_t tx_buf2[2][TX2] __attribute__((aligned(4))), rx_buf2[2][RXB] __attribute__((aligned(4)));
+static uint8_t tx_buf[2][TX_MAX] __attribute__((aligned(USB_DMA_ALIGN))), rx_buf[2][RXB] __attribute__((aligned(USB_DMA_ALIGN)));
+static uint8_t tx_buf2[2][TX2] __attribute__((aligned(USB_DMA_ALIGN))), rx_buf2[2][RXB] __attribute__((aligned(USB_DMA_ALIGN)));
 static pipe_t pp[2] = {
-    { EP_IN, EP_OUT, 1, true, { tx_buf[0], tx_buf[1] }, { rx_buf[0], rx_buf[1] }, TX_MAX, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
-    { EP_MSC_IN, EP_MSC_OUT, 3, false, { tx_buf2[0], tx_buf2[1] }, { rx_buf2[0], rx_buf2[1] }, TX2, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
+    { EP_IN, EP_OUT, 1, BMPS, true, { tx_buf[0], tx_buf[1] }, { rx_buf[0], rx_buf[1] }, TX_MAX, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
+    { EP_MSC_IN, EP_MSC_OUT, 3, BMPS, false, { tx_buf2[0], tx_buf2[1] }, { rx_buf2[0], rx_buf2[1] }, TX2, .tx_cur = -1, .tx_q = -1, .rx_arm_b = -1 },
 };
 static int npipes(void) { return fn == USB_FN_CDC_MSC ? 2 : 1; }
 static void pipe_reset(pipe_t *q) { q->tx_cur = q->tx_q = -1; q->rx_full[0] = q->rx_full[1] = false; q->rx_rd = 0; q->rx_pos = 0; q->rx_arm_b = -1; }
@@ -175,11 +216,13 @@ static void ep0_out_arm(void)
 {
     if (R(DOEPCTL(0)) & EP_ENA) return;            /* already waiting (core rev >= 3.00a keeps it enabled) */
     R(DOEPTSIZ(0)) = 1u << 29 | 1u << 19 | 8;     /* one SETUP of 8 bytes */
+    DMA_FROM_DEV(setup_dma, sizeof setup_dma);
     R(DOEPDMA(0)) = (uint32_t)setup_dma;
     R(DOEPCTL(0)) |= EP_ENA | EP_CNAK;
 }
 static void ep0_out_data_arm(void)                /* control OUT data stage (SET_LINE_CODING) into ep0_rx */
 {
+    DMA_FROM_DEV(ep0_rx, sizeof ep0_rx);
     R(DOEPDMA(0)) = (uint32_t)ep0_rx;
     R(DOEPTSIZ(0)) = 1u << 19 | MPS;
     R(DOEPCTL(0)) |= EP_ENA | EP_CNAK;
@@ -197,6 +240,7 @@ static void ep0_send(const void *data, uint32_t len, uint32_t wlength)
 {
     if (len > wlength) len = wlength;
     memcpy(ep0_buf, data, len);
+    DMA_TO_DEV(ep0_buf, sizeof ep0_buf);
     ep0_src = ep0_buf; ep0_left = len; ep0_zlp = len < wlength && len % MPS == 0;
     ep0_chunk();
 }
@@ -209,8 +253,9 @@ static void ep0_stall(void) { R(DIEPCTL(0)) |= EP_STALL; R(DOEPCTL(0)) |= EP_STA
 static void rx_arm(pipe_t *q, int b)              /* hand one OUT buffer to the core */
 {
     q->rx_arm_b = b;
+    DMA_FROM_DEV(q->rxb[b], RXB);
     R(DOEPDMA(q->out)) = (uint32_t)q->rxb[b];
-    R(DOEPTSIZ(q->out)) = (RXB / MPS) << 19 | RXB;
+    R(DOEPTSIZ(q->out)) = (RXB / q->mps) << 19 | RXB;
     R(DOEPCTL(q->out)) |= EP_ENA | EP_CNAK;
 }
 static void rx_done(pipe_t *q)                     /* transfer complete (32 packets or a short one) */
@@ -218,6 +263,7 @@ static void rx_done(pipe_t *q)                     /* transfer complete (32 pack
     int b = q->rx_arm_b;
     uint32_t n = RXB - (R(DOEPTSIZ(q->out)) & 0x7FFFF);
     st.rx_bytes += n; q->rx_arm_b = -1;
+    DMA_FROM_DEV(q->rxb[b], RXB);
     if (!n) { rx_arm(q, b); return; }             /* zero-length packet: nothing to keep */
     q->rx_len[b] = n; q->rx_full[b] = true;
     if (!q->rx_full[1 - b]) rx_arm(q, 1 - b);     /* the other buffer at once; else NAK until read */
@@ -232,8 +278,9 @@ static void set_configuration(int cfg)
         R(DIEPCTL(EP_NOTIFY)) = EP_SD0PID | 2u << 22 | 3u << 18 | EP_ACTIVE | 8;   /* interrupt, TX FIFO 2 */
     for (int k = 0; k < npipes(); k++) {
         pipe_t *q = &pp[k];
-        R(DIEPCTL(q->in)) = EP_SD0PID | (uint32_t)q->fifo << 22 | ty << 18 | EP_ACTIVE | MPS;
-        R(DOEPCTL(q->out)) = EP_SD0PID | ty << 18 | EP_ACTIVE | MPS;
+        q->mps = fn == USB_FN_HID ? IMPS : BMPS;
+        R(DIEPCTL(q->in)) = EP_SD0PID | (uint32_t)q->fifo << 22 | ty << 18 | EP_ACTIVE | q->mps;
+        R(DOEPCTL(q->out)) = EP_SD0PID | ty << 18 | EP_ACTIVE | q->mps;
         pipe_reset(q); rx_arm(q, 0);
     }
 }
@@ -281,7 +328,14 @@ static void handle_setup(void)
             while (t[n] && n < 30) { s[2 + 2 * n] = (uint8_t)t[n]; s[3 + 2 * n] = 0; n++; }
             s[0] = (uint8_t)(2 + 2 * n); s[1] = 3; ep0_send(s, s[0], wlen); return;
         }
-        break;                                    /* device qualifier etc.: a full-speed-only device stalls */
+#if USB_HS
+        if (val >> 8 == 6) {                      /* device qualifier: the other speed (full speed) has the same class, EP0 64 */
+            const uint8_t *d = fn == USB_FN_MSC ? msc_dev_desc : fn == USB_FN_HID ? hid_dev_desc : fn == USB_FN_CDC_MSC ? comp_dev_desc : dev_desc;
+            const uint8_t q[10] = { 10, 6, 0x00, 0x02, d[4], d[5], d[6], MPS, 1, 0 };
+            ep0_send(q, 10, wlen); return;
+        }
+#endif
+        break;                                    /* other-speed configuration etc.: stall */
     case 0x08: { uint8_t c = configured; ep0_send(&c, 1, wlen); return; }       /* GET_CONFIGURATION */
     case 0x09: set_configuration(val & 0xFF); ep0_status_in(); return;          /* SET_CONFIGURATION */
     case 0x0A: { static const uint8_t z; ep0_send(&z, 1, wlen); return; }       /* GET_INTERFACE */
@@ -303,9 +357,10 @@ static void bus_reset(void)
 static void tx_start(pipe_t *q, int b)
 {
     uint32_t n = q->tx_len[b];
-    q->tx_cur = b; q->tx_full_end = n % MPS == 0 && q->zlp;
+    q->tx_cur = b; q->tx_full_end = n % q->mps == 0 && q->zlp;
+    DMA_TO_DEV(q->txb[b], (n + 63u) & ~63u);
     R(DIEPDMA(q->in)) = (uint32_t)q->txb[b];
-    R(DIEPTSIZ(q->in)) = (n + MPS - 1) / MPS << 19 | n;
+    R(DIEPTSIZ(q->in)) = (n + q->mps - 1) / q->mps << 19 | n;
     R(DIEPCTL(q->in)) |= EP_ENA | EP_CNAK;
 }
 
@@ -313,7 +368,9 @@ void usb_dev_poll(void)
 {
     if (!started) return;
     uint32_t c0 = ccount(), s = R(GINTSTS);
-    if (NDF_USB_GUARD_MS && c0 - guard_fed > 24000000u) { rtc_wdt_feed(); guard_fed = c0; }   /* every 100 ms */
+#if NDF_USB_GUARD_MS
+    if (c0 - guard_fed > 24000000u) { rtc_wdt_feed(); guard_fed = c0; }   /* every 100 ms */
+#endif
     if (!(s & (GINT_USBRST | GINT_ENUMDNE | GINT_IEPINT | GINT_OEPINT))) return;   /* nothing to do (not counted) */
     if (s & GINT_USBRST) { R(GINTSTS) = GINT_USBRST; bus_reset(); }
     if (s & GINT_ENUMDNE) { R(GINTSTS) = GINT_ENUMDNE; R(DIEPCTL(0)) &= ~3u; ep0_out_arm(); }   /* EP0 64 bytes */
@@ -367,8 +424,21 @@ void usb_dev_poll(void)
 int usb_dev_start(void)
 {
     if (started) return 0;
-    if (NDF_USB_GUARD_MS && rtc_wdt_start(NDF_USB_GUARD_MS, true)) return -1;   /* before the PHY leaves USB-JTAG */
+#if SOC_CPU_RISCV
+    /* UTMI PHY on: OTG20 system clock, PHY reference clock, reset pulse, "suspendm" high (else detach is not seen),
+     * 16-bit low-speed parallel path (usb_utmi_hal_init), data pulldowns off (device) */
+    REG_SET(HP_CLKRST_BASE + 0x18, BIT(16));
+    REG_SET(LP_AON_CLKRST_USB, BIT(30));
+    REG_SET(LP_AON_CLKRST_USB, BIT(1) | BIT(2));
+    REG_CLR(LP_AON_CLKRST_USB, BIT(1) | BIT(2));
+    REG_SET(HP_SYSTEM_USBOTG20_CTRL, BIT(21));
+    REG_SET(USB_UTMI_FC_06, BIT(0) | BIT(3));
+    REG_CLR(LP_SYS_USB_PHY_CTRL, BIT(1) | BIT(2));
+#else
+#if NDF_USB_GUARD_MS
+    if (rtc_wdt_start(NDF_USB_GUARD_MS, true)) return -1;   /* before the PHY leaves USB-JTAG */
     guard_fed = ccount();
+#endif
     periph_enable(PERIPH_USB);
     REG(USB_WRAP_CONF) = BIT(31) | BIT(18) | BIT(0);   /* reg clock, pad enable, internal PHY, session-end forced low */
     gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_IDDIG, false);     /* B-device */
@@ -377,10 +447,15 @@ int usb_dev_start(void)
     gpio_in_signal(GPIO_MATRIX_ONE, SIG_USB_VBUSVALID, false);
     gpio_in_signal(GPIO_MATRIX_ZERO, SIG_USB_SESSEND, false);
     REG(RTC_USB_CONF) |= BIT(20) | BIT(19);           /* PHY to OTG: USB Serial/JTAG leaves the bus here */
+#endif
 
     uint64_t t = time_us();                           /* every wait below is bounded: 10 ms */
     while (!(R(GRSTCTL) & BIT(31))) if (time_us() - t > 10000) return -1;   /* AHB idle */
+#if SOC_CPU_RISCV
+    R(GUSBCFG) = (R(GUSBCFG) & ~(0xFu << 10 | BIT(6) | BIT(4))) | BIT(30) | BIT(3) | 5u << 10;   /* force device mode, UTMI+ 16-bit (PHYIf), turnaround 5 */
+#else
     R(GUSBCFG) = (R(GUSBCFG) & ~(0xFu << 10)) | BIT(30) | BIT(6) | 5u << 10;   /* force device mode, full-speed serial PHY, turnaround 5 (3..9 measured: no effect) */
+#endif
     R(GRSTCTL) |= BIT(0);                             /* core soft reset */
     for (t = time_us(); R(GRSTCTL) & BIT(0); ) if (time_us() - t > 10000) return -2;
     for (t = time_us(); !(R(GRSTCTL) & BIT(31)); ) if (time_us() - t > 10000) return -3;
@@ -388,13 +463,13 @@ int usb_dev_start(void)
     R(GOTGCTL) |= BIT(7) | BIT(6);                    /* B-session valid override */
     R(PCGCCTL) = 0;
     R(DCTL) |= BIT(1);                                /* stay disconnected while configuring */
-    R(DCFG) = (R(DCFG) & ~0x7FFu) | 3u;               /* full speed, internal 48 MHz PHY; address 0 */
-    uint32_t rxw = fn == USB_FN_CDC_MSC ? 88 : RXF_W, t1 = fn == USB_FN_CDC_MSC ? 64 : TXF1_W;   /* composite: room for FIFO 3 */
+    R(DCFG) = (R(DCFG) & ~0x7FFu) | (USB_HS ? 0u : 3u);   /* high speed (P4) / full speed, internal 48 MHz PHY (S3); address 0 */
+    uint32_t rxw = fn == USB_FN_CDC_MSC ? RXF_W_COMP : RXF_W, t1 = fn == USB_FN_CDC_MSC ? TXF1_W_COMP : TXF1_W;   /* composite: room for FIFO 3 */
     R(GRXFSIZ) = rxw;
     R(GNPTXFSIZ) = 16u << 16 | rxw;
     R(DIEPTXF(1)) = t1 << 16 | (rxw + 16);
-    R(DIEPTXF(2)) = 8u << 16 | (rxw + 16 + t1);
-    R(DIEPTXF(3)) = 64u << 16 | (rxw + 16 + t1 + 8);
+    R(DIEPTXF(2)) = TXF2_W << 16 | (rxw + 16 + t1);
+    R(DIEPTXF(3)) = TXF3_W << 16 | (rxw + 16 + t1 + TXF2_W);
     R(GDFIFOCFG) = (USB_OTG_FIFO_WORDS - EPINFO_W) << 16 | (USB_OTG_FIFO_WORDS - EPINFO_W);   /* DMA info area at the top; before DMAEN */
     fifo_flush();
     R(GINTSTS) = 0xFFFFFFFFu;
@@ -412,9 +487,16 @@ void usb_dev_stop(void)
     R(DCTL) |= BIT(1);                                /* disconnect */
     delay_ms(20);
     started = false; configured = false;
+#if SOC_CPU_RISCV
+    REG_CLR(HP_CLKRST_BASE + 0x18, BIT(16));          /* OTG20 system clock and PHY reference off (own pads: nothing to hand back) */
+    REG_CLR(LP_AON_CLKRST_USB, BIT(30));
+#else
     REG(RTC_USB_CONF) &= ~(BIT(20) | BIT(19));        /* PHY back to USB Serial/JTAG (eFuse default) */
     periph_disable(PERIPH_USB);
-    if (NDF_USB_GUARD_MS) rtc_wdt_stop();             /* the link is back: guard off */
+#if NDF_USB_GUARD_MS
+    rtc_wdt_stop();                                   /* the link is back: guard off */
+#endif
+#endif
 }
 
 bool usb_cdc_ready(void) { return configured; }
@@ -437,6 +519,7 @@ size_t usb_pipe_read(int k, void *buf, size_t max)
             continue;
         }
         uint32_t m = avail - q->rx_pos; if (m > max - n) m = (uint32_t)(max - n);
+        DMA_FROM_DEV(q->rxb[b] + (q->rx_pos & ~63u), (m + (q->rx_pos & 63u) + 63u) & ~63u);   /* lines the core just wrote */
         memcpy(p + n, q->rxb[b] + q->rx_pos, m); q->rx_pos += m; n += m;
     }
     if (n) st.poll_cycles += ccount() - c0;
