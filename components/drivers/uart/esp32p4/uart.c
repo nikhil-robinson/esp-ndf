@@ -13,6 +13,7 @@
 #include "sys.h"
 #include "soc.h"
 #include "gdma.h"
+#include "cache_p4.h"
 
 #define NPORT          5
 #define U_BASE(p)      (UART_BASE(p))
@@ -139,7 +140,7 @@ uint32_t uart_init(int p, const uart_cfg_t *c)
         gpio_out_signal(c->tx_pin, 10 + 3 * p, false);       /* UARTn_TXD_PAD_OUT_IDX */
     }
     if (c->rx_pin >= 0) {
-        gpio_config(c->rx_pin, GPIO_INPUT | GPIO_PULLUP | (p == 0 ? GPIO_FORCE : 0));
+        if (!gpio_is_output(c->rx_pin)) gpio_config(c->rx_pin, GPIO_INPUT | GPIO_PULLUP | (p == 0 ? GPIO_FORCE : 0));   /* RX on the TX pad: loopback without a jumper */
         gpio_in_signal(c->rx_pin, 10 + 3 * p, false);        /* UARTn_RXD_PAD_IN_IDX */
     }
     REG(INT_CLR(p)) = ~0u;
@@ -328,11 +329,12 @@ int uart_dma_read_start(int p, void *buf, size_t max)
 int uart_dma_read_done(int p)                         /* bytes once the frame ended (idle / full), -1 before */
 {
     if (p != uh_port) return -1;
+    cache_dma_wbinv(uh_rxd, sizeof uh_rxd);           /* the DMA wrote the descriptors (and the buffer) behind the CPU's cache */
     if (!gdma_in_eof(uh_ch)) {                        /* the buffer filling up also ends it */
         gdma_desc_t *d = uh_rxd; while (d->next) d = d->next;
         if (d->owner) return -1;
     }
     int n = 0;
-    for (gdma_desc_t *d = uh_rxd; d && !d->owner; d = d->next) n += d->length;
+    for (gdma_desc_t *d = uh_rxd; d && !d->owner; d = d->next) { n += d->length; cache_dma_wbinv(d->buf, d->size); }
     return n;
 }

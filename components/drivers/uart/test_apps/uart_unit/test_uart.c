@@ -8,7 +8,7 @@ static uint8_t tx[LEN], rx[LEN];
 
 static void run_baud(uint32_t baud)
 {
-    uart_cfg_t c = { .baud = baud, .tx_pin = 12, .rx_pin = 13 };
+    uart_cfg_t c = { .baud = baud, .tx_pin = 12, .rx_pin = test_far(12, 13) };
     uint32_t got = uart_init(1, &c);
     uint32_t s = 12345;
     for (int i = 0; i < LEN; i++) { s = s * 1103515245 + 12345; tx[i] = s >> 16; }
@@ -27,7 +27,7 @@ static void run_baud(uint32_t baud)
 /* UHCI DMA, 4 KB each way at 5 Mbaud over the same jumper; CPU time = cycles inside the driver calls */
 static void dma(void)
 {
-    uart_cfg_t c = { .baud = 5000000, .tx_pin = 12, .rx_pin = 13 };
+    uart_cfg_t c = { .baud = 5000000, .tx_pin = 12, .rx_pin = test_far(12, 13) };
     uart_init(1, &c);
     CHECK(uart_dma_start(1, 0) == 0);
     for (int i = 0; i < LEN; i++) { tx[i] = i * 7 + 3; rx[i] = 0; }

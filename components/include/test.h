@@ -36,3 +36,5 @@ static inline bool test_jumper(int a, int b)
     return hi && !lo;
 }
 #define NEED_JUMPER(a, b) do { if (!test_jumper((a), (b))) { printf("    SKIP: no jumper GPIO%d <-> GPIO%d on this board\n", (a), (b)); return; } } while (0)
+/* The far end of a jumper A -> B, or A itself when the board has none (a pad reads back what it drives). */
+static inline int test_far(int a, int b) { return test_jumper(a, b) ? b : a; }
