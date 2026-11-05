@@ -4,10 +4,16 @@
 #include "gpio.h"
 #include "clk.h"
 #include "irq.h"
-#include "xtensa.h"
+#include "cpu.h"
 #include "sys.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: the same SJA1000-style TWAI (controller 0 of 3), clocked from XTAL 40 MHz */
+#define T_BASE   0x500D7000
+#define TWAI_CLK_HZ 40000000u
+#else
 #define T_BASE   0x6002B000
+#define TWAI_CLK_HZ 80000000u
+#endif
 #define MOD      (T_BASE + 0x00)   /* b0 reset b1 listen b2 self-test b3 single filter */
 #define CMR      (T_BASE + 0x04)   /* b0 tx req b1 abort b2 release rx b3 clr overrun b4 self rx req */
 #define SR       (T_BASE + 0x08)   /* b0 rx buf b2 tx buf free b3 tx complete b7 bus off */
@@ -19,9 +25,15 @@
 #define TXERR    (T_BASE + 0x3C)
 #define BUF(i)   (T_BASE + 0x40 + 4 * (i))   /* frame buffer / ACR0-3, AMR0-3 in reset mode */
 #define CDR      (T_BASE + 0x7C)
+#if SOC_CPU_RISCV
+#define SIG_TX   80
+#define SIG_RX   80
+#define SRC_TWAI 40
+#else
 #define SIG_TX   116
 #define SIG_RX   116
 #define SRC_TWAI 37
+#endif
 
 #define RING 16
 static twai_frame_t ring[RING];
@@ -79,9 +91,9 @@ RAM_FN static void twai_isr(void *arg)
 
 int twai_init(int tx, int rx, uint32_t bitrate, twai_mode_t mode)
 {
-    /* 20 tq per bit: tseg1 15, tseg2 4 (80 % sample point); tq = brp / 80 MHz */
-    if (!bitrate || 80000000 % (bitrate * 20)) return -1;
-    uint32_t brp = 80000000 / (bitrate * 20);
+    /* 20 tq per bit: tseg1 15, tseg2 4 (80 % sample point); tq = brp / source clock */
+    if (!bitrate || TWAI_CLK_HZ % (bitrate * 20)) return -1;
+    uint32_t brp = TWAI_CLK_HZ / (bitrate * 20);
     if (brp < 2 || brp > 16384 || (brp & 1)) return -1;
     periph_enable(PERIPH_TWAI);
     reset_mode(true);

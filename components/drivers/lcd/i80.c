@@ -5,9 +5,18 @@
 #include "clk.h"
 #include "irq.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: the same LCD_CAM register block; source / signals / clock select differ */
+#include "soc.h"
+#define LCD_BASE      0x500DC000
+#define LCD_CLK_SRC   do { REG_FIELD(HP_CLKRST_BASE + 0x64, 29, 2, 1); } while (0)   /* PERI_CLK_CTRL19: PLL_F160M */
+#define LCD_CLK_SEL   0u
+#else
 #define LCD_BASE      0x60041000
+#define LCD_CLK_SRC   do {} while (0)
+#define LCD_CLK_SEL   (3u << 29)                 /* PLL160 */
+#endif
 #define LCD_CLOCK     (LCD_BASE + 0x00)  /* b5:0 clkcnt_n b6 equ_sysclk b7 ck_idle b8 ck_out_edge b16:9 div_num
                                             b22:17 div_b b28:23 div_a b30:29 clk_sel (3 = PLL160) b31 clk_en */
 #define LCD_RGB_YUV   (LCD_BASE + 0x10)  /* b31 conv_bypass: 1 = converter ON */
@@ -24,6 +33,15 @@
 #define INT_RAW       (LCD_BASE + 0x68)
 #define INT_ST        (LCD_BASE + 0x6C)
 #define INT_CLR       (LCD_BASE + 0x70)
+#if SOC_CPU_RISCV
+#define SIG_DATA0     154
+#define SIG_CS        144
+#define SIG_DE        151
+#define SIG_HSYNC     152
+#define SIG_VSYNC     153
+#define SIG_DC        145
+#define SIG_PCLK      149
+#else
 #define SIG_DATA0     133
 #define SIG_CS        132
 #define SIG_DE        150
@@ -32,6 +50,7 @@
 #define SIG_DC        153
 #define SIG_PCLK      154
 #define SRC_LCD_CAM   24
+#endif
 
 int lcd_cam_dma = -1;                       /* one GDMA channel: LCD uses its OUT half, the camera its IN half */
 #define dma lcd_cam_dma
@@ -60,7 +79,8 @@ static uint32_t clock_set(uint32_t hz)
     if (p < 1) p = 1;
     if (p > 64) p = 64;
     if (p < 2) p = 2;                                       /* erratum LCD-239: never CLK_EQU_SYSCLK (divider 1) */
-    REG(LCD_CLOCK) = (p - 1) | BIT(7) | g << 9 | 3u << 29 | BIT(31);   /* pclk idles high */
+    LCD_CLK_SRC;
+    REG(LCD_CLOCK) = (p - 1) | BIT(7) | g << 9 | LCD_CLK_SEL | BIT(31);   /* pclk idles high */
     return 160000000u / g / p;
 }
 

@@ -4,20 +4,37 @@
 #include "gdma.h"
 #include "clk.h"
 #include "sys.h"
-#include "xtensa.h"
+#include "cpu.h"
 
+#if SOC_CPU_RISCV    /* ESP32-P4: the same LCD_CAM register block */
+#include "soc.h"
+#define LCD_BASE      0x500DC000
+#define CAM_CLK_SRC   do { REG_FIELD(HP_CLKRST_BASE + 0x8C, 27, 2, 1); } while (0)   /* PERI_CLK_CTRL119: PLL_F160M */
+#define CAM_CLK_SEL   0u
+#else
 #define LCD_BASE      0x60041000
+#define CAM_CLK_SRC   do {} while (0)
+#define CAM_CLK_SEL   (3u << 29)
+#endif
 #define CAM_CTRL      (LCD_BASE + 0x04)  /* b0 stop_en b3:1 vsync filt b4 update b5 byte order b6 bit order b7 line int
                                             b8 vs_eof b16:9 div_num b22:17 div_b b28:23 div_a b30:29 clk_sel */
 #define CAM_CTRL1     (LCD_BASE + 0x08)  /* b15:0 rec bytes-1 b21:16 line int num b22 clk_inv b23 vsync filt en
                                             b24 2byte b25 de_inv b26 hsync_inv b27 vsync_inv b28 vh_de_mode b29 start
                                             b30 reset b31 afifo_reset */
 #define CAM_RGB_YUV   (LCD_BASE + 0x0C)  /* b31 conv_bypass: 1 = converter ON (as on the LCD side) */
+#if SOC_CPU_RISCV
+#define SIG_D0        162
+#define SIG_PCLK      158
+#define SIG_DE        159
+#define SIG_VSYNC     161
+#define SIG_XCLK      150                /* CAM_CLK out */
+#else
 #define SIG_D0        133
 #define SIG_PCLK      149
 #define SIG_DE        150
 #define SIG_VSYNC     152
 #define SIG_XCLK      149                /* CAM_CLK out */
+#endif
 
 extern int lcd_cam_dma;                    /* shared with the LCD half (i80.c): camera = IN half */
 #define dma lcd_cam_dma
@@ -34,7 +51,8 @@ int cam_init(const cam_cfg_t *c)
     if (g < 2) g = 2;
     if (g > 255) g = 255;
     /* IDF cam_hal_init: no stop signal, VSYNC ends the DMA frame, no inversions, DE mode, converter off */
-    REG(CAM_CTRL) = BIT(8) | g << 9 | 3u << 29;
+    CAM_CLK_SRC;
+    REG(CAM_CTRL) = BIT(8) | g << 9 | CAM_CLK_SEL;
     REG(CAM_CTRL1) = (c->bits == 16 ? BIT(24) : 0) | 0xFFFF;
     REG(CAM_RGB_YUV) = 0;
     REG_SET(CAM_CTRL, BIT(4));
