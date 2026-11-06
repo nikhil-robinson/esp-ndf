@@ -1046,3 +1046,24 @@ clock (`clk_sec`, PERI_CLK_CTRL25 bits 13:12) was left on XTAL while IDF's `esp_
 of 26 cycles and the engine ran 3.3x slower: it speeds up every engine); AES block modes and SHA ran register-fed per block instead of by AXI-GDMA; GCM did
 GHASH in software, it now runs the engine's GCM mode (H, CTR, GHASH, tag in hardware, 96-bit IV; other IV lengths keep the software path). The ECC engine
 was on the same slow clock (point multiplication 29.5 ms, now 4.9 ms): P-256 ECDH and signature verification now run on the ECC / ECDSA engines.
+
+### P4 libc / lib functions (`components/lib/test_apps/{lib_p4,mem_p4}` vs `bench/idf_p4_lib`, `bench/idf_mem`, same board, cycles, best of 8, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 | gain |
+|---|---|---|---|
+| snprintf "%d" | 781 | 1,382 | 1.8x |
+| snprintf "%.3f" | 935 | 4,949 | 5.3x |
+| snprintf "%s %5d %x" | 1,091 | 1,661 | 1.5x |
+| strtod "3.14159265" | 911 | 1,265 | 1.4x |
+| qsort 1000 ints | 214,727 | 254,001 | 1.18x |
+| malloc + free 64 B / 4 KB | 325 / 324 | 1,742 / 1,740 | 5.4x |
+| crc32 4 KB | 28,211 (was 45,084) | 38,947 (ROM table) | 1.4x |
+| md5 4 KB | 60,725 (was 152,679) | 58,779 | 0.97x (parity) |
+| strtol "123456" | 202 (was 483) | 169 | 0.84x (IDF faster) |
+| flash read 4 KB / 64 KB (us) | 490 / 7,864 (was 1,739 / 27,827) | 516 / 7,816 | 1.05x / 0.99x |
+| flash erase 4 KB / 64 KB (us) | 12,022 / 22,750 | 12,999 / 30,408 | 1.08x / 1.34x |
+| flash write 4 KB / 64 KB (us) | 5,833 / 91,179 | 8,645 / 135,809 | 1.5x |
+| PSRAM 200 MHz write / read (MB/s) | 92 / 120 | 82 / 108 | 1.12x / 1.11x |
+
+The crc32 slice-by-8, the unrolled md5 and the strtol fast path are RISC-V-only code (the S3 build is byte-identical). Flash reads go through a 64 KB MMU window
+and the L2 cache like code fetches (`cache_flash_read`), instead of one 64-byte SPI1 command per read.

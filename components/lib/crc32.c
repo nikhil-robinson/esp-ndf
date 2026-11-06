@@ -2,6 +2,7 @@
  * uses: crc32_le(0xffffffff, ...) == standard CRC of the data with seed 0 inverted.
  * Byte table (1 KB, generated): one lookup per byte, ~8x the bitwise loop. */
 #include "crc32.h"
+#include "soc_caps.h"
 
 static const uint32_t tab[256] = {
     0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
@@ -38,6 +39,37 @@ static const uint32_t tab[256] = {
     0xB3667A2E, 0xC4614AB8, 0x5D681B02, 0x2A6F2B94, 0xB40BBE37, 0xC30C8EA1, 0x5A05DF1B, 0x2D02EF8D,
 };
 
+#if SOC_CPU_RISCV
+/* slice-by-8: eight bytes per step through eight 1 KB tables, built from `tab` on the first call (the byte loop was 11 cycles per byte) */
+static uint32_t slice[8][256];
+static volatile int slice_ready;
+static void slice_init(void)
+{
+    for (int i = 0; i < 256; i++) slice[0][i] = tab[i];
+    for (int i = 0; i < 256; i++)
+        for (int k = 1; k < 8; k++) slice[k][i] = (slice[k - 1][i] >> 8) ^ slice[0][slice[k - 1][i] & 0xFF];
+    __atomic_store_n(&slice_ready, 1, __ATOMIC_RELEASE);
+}
+
+uint32_t crc32_le(uint32_t crc, const void *buf, size_t len)
+{
+    const uint8_t *p = buf;
+    if (!__atomic_load_n(&slice_ready, __ATOMIC_ACQUIRE)) { if (len < 32) goto bytes; slice_init(); }
+    crc = ~crc;
+    while (len && ((uintptr_t)p & 3)) { crc = (crc >> 8) ^ tab[(crc ^ *p++) & 0xFF]; len--; }
+    for (; len >= 8; len -= 8, p += 8) {
+        uint32_t a = ((const uint32_t *)p)[0] ^ crc, b = ((const uint32_t *)p)[1];
+        crc = slice[7][a & 0xFF] ^ slice[6][a >> 8 & 0xFF] ^ slice[5][a >> 16 & 0xFF] ^ slice[4][a >> 24] ^
+              slice[3][b & 0xFF] ^ slice[2][b >> 8 & 0xFF] ^ slice[1][b >> 16 & 0xFF] ^ slice[0][b >> 24];
+    }
+    while (len--) crc = (crc >> 8) ^ tab[(crc ^ *p++) & 0xFF];
+    return ~crc;
+bytes:
+    crc = ~crc;
+    while (len--) crc = (crc >> 8) ^ tab[(crc ^ *p++) & 0xFF];
+    return ~crc;
+}
+#else
 uint32_t crc32_le(uint32_t crc, const void *buf, size_t len)
 {
     const uint8_t *p = buf;
@@ -45,3 +77,4 @@ uint32_t crc32_le(uint32_t crc, const void *buf, size_t len)
     while (len--) crc = (crc >> 8) ^ tab[(crc ^ *p++) & 0xFF];
     return ~crc;
 }
+#endif

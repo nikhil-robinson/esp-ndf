@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <string.h>
+#include "soc_caps.h"
 
 static int isspace_(int c) { return c == ' ' || (c >= '\t' && c <= '\r'); }
 static int digit_(int c, int base)
@@ -25,6 +26,13 @@ static uint64_t parse_u(const char *s, char **end, int base, bool *neg, uint64_t
     else if (base == 0) base = 10;
     if (base < 2 || base > 36) { if (end) *end = (char *)s; return 0; }
     uint64_t v = 0; const char *start = p; int d;
+#if SOC_CPU_RISCV
+    if (base == 10) {                                  /* up to nine digits cannot overflow: no 64-bit division (a libgcc call on RV32) per digit */
+        uint32_t acc = 0;
+        for (int n = 0; n < 9 && (unsigned)(*p - '0') < 10; n++, p++) acc = acc * 10 + (uint32_t)(*p - '0');
+        v = acc;
+    }
+#endif
     while ((d = digit_(*p, base)) >= 0) {
         if (v > (max - (uint64_t)d) / (uint64_t)base) *ovf = true; else v = v * (uint64_t)base + (uint64_t)d;
         p++;
