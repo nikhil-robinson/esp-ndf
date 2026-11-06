@@ -26,7 +26,8 @@
 #define FREQ_PARA    AP(0x12C)                         /* b6:0 dcap_lpf b8:7 dres_lpf b12:9 drv_ls b17:13 drv_hs b22:18 dbias */
 #define MUX0         AP(0x13C)                         /* b9:8 data_sel b11:10 freq_sel b28 done_force b29 fsm_en b30 start_en b31 start_force */
 #define APPR_MEAS    AP(0xFC)                          /* b29:20 approach_meas_num0 */
-#define THN(n)       AP(0x14C + 12 * (n))              /* b31:16 threshold, sample config 0 */
+#define MUX1         AP(0x140)                         /* b14:0 start (one-shot channel mask) b29:15 xpd (channel power) */
+#define THN(n)       AP(0x144 + 12 * (n))              /* touch_padx_thn[n].thresh[0] (b31:16), sample config 0 */
 #define T_CHN_ST     LT(0x10)                          /* b14:0 pad_active */
 #define T_CHN_DATA(n) LT(0x14 + 4 * (n))               /* b15:0 pad_data */
 #define T_APPR_DATA  LT(0x54)                          /* b23:16 pad0 b15:8 pad1 b7:0 pad2 */
@@ -65,6 +66,7 @@ int touch_init(uint16_t mask)
         REG(IO_MUX_BASE + 4 + 4 * gpio) = 0;
     }
     for (int n = 1; n <= 14; n++) REG_FIELD(THN(n), 16, 16, 0xFFFF);  /* no events until touch_threshold() */
+    REG_FIELD(MUX1, 15, 15, mask);                        /* power the channels on (touch_ll_channel_power_on) */
     REG_FIELD(SCAN1, 2, 15, mask);                        /* scan exactly these pads */
     REG_FIELD(FILTER2, 15, 15, mask);                     /* outputs enabled */
     if (dn_grade >= 0) {                                  /* IDF touch_filter_set_denoise_level: 0 = always update benchmark */
