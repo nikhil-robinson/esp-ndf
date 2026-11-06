@@ -19,7 +19,7 @@ static void IRAM_ATTR sw_isr(void *arg)
 {
     uint32_t now = esp_cpu_get_cycle_count();
     lat_t *l = arg;
-    REG_WRITE(HP_SYSTEM_CPU_INT_FROM_CPU_0_REG, 0);
+    REG_WRITE(HP_SYSTEM_CPU_INT_FROM_CPU_2_REG, 0);
     uint32_t d = now - l->t0;
     if (d < l->min) l->min = d;
     if (d > l->max) l->max = d;
@@ -33,16 +33,16 @@ void app_main(void)
     esp_clk_tree_src_get_freq_hz(SOC_MOD_CLK_CPU, ESP_CLK_TREE_SRC_FREQ_PRECISION_EXACT, &hz);
     uint32_t mhz = hz / 1000000;
     vTaskDelay(10);
-    printf("\nESP-IDF interrupt latency, FROM_CPU0 (%d samples per level, cycles @ %lu MHz)\n", N, mhz);
+    printf("\nESP-IDF interrupt latency, FROM_CPU2 (%d samples per level, cycles @ %lu MHz)\n", N, mhz);
     for (int k = 0; k < 2; k++) {
         lat_t *l = &lat[k];
         l->min = ~0u;
         intr_handle_t h;
-        ESP_ERROR_CHECK(esp_intr_alloc(ETS_FROM_CPU_INTR0_SOURCE, flags[k], sw_isr, l, &h));
+        ESP_ERROR_CHECK(esp_intr_alloc(ETS_FROM_CPU_INTR2_SOURCE, flags[k], sw_isr, l, &h));
         for (int i = 0; i < N; i++) {
             l->done = 0;
             l->t0 = esp_cpu_get_cycle_count();
-            REG_WRITE(HP_SYSTEM_CPU_INT_FROM_CPU_0_REG, 1);
+            REG_WRITE(HP_SYSTEM_CPU_INT_FROM_CPU_2_REG, 1);
             while (!l->done) {}
         }
         esp_intr_free(h);

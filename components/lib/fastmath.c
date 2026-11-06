@@ -105,7 +105,11 @@ float fm_rsqrtf(float x)
 #endif
     return r;
 }
+#if defined(__riscv) && defined(__riscv_flen)
+float fm_sqrtf(float x) { return x > 0 ? __builtin_sqrtf(x) : 0; }          /* RISC-V FPU: fsqrt.s is exact and faster than the Newton steps */
+#else
 float fm_sqrtf(float x) { return x > 0 ? x * fm_rsqrtf(x) : 0; }
+#endif
 
 /* vector forms: four independent elements per step so the 4-cycle FPU latency is covered */
 void fm_sinf_v(const float *restrict x, float *restrict y, int n)
