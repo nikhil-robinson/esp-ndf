@@ -1092,3 +1092,12 @@ RSA on the P4 (`rsa_test` vs `bench/idf_rsa` built for the P4 with IDF v6.1, sam
 | double -> int | 30,079 | 21,910 | 0.73x (open) |
 
 The 64-bit divide helper (`__udivmoddi4`) now uses the 32-bit divider (Hacker's Delight divlu) on RISC-V; the S3 build is unchanged (shift-subtract, bounded).
+
+### P4 kernel services (`components/lib/test_apps/sys_p4` vs `bench/idf_p4_sys`, cycles per operation, same board, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 | gain |
+|---|---|---|---|
+| GPIO write | 99 | 132 | 1.3x |
+| critical section enter + exit | 28 | 272 | 9.7x |
+| time read (microseconds since boot) | 228 | 270 | 1.2x |
+| ring buffer put + get, 64-byte item | 304 | 1,361 | 4.5x |
