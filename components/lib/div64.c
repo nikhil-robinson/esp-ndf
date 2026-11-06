@@ -4,6 +4,49 @@
 #include <stdint.h>
 #include "soc_caps.h"
 
+#if SOC_CPU_RISCV
+/* RV32 with the M extension: the 64-bit quotient from the 32-bit divider (Hacker's Delight divlu / udivdi3), a handful of divisions
+ * instead of 64 shift-subtract steps (1350 cycles per division before). */
+static uint32_t divlu(uint32_t u1, uint32_t u0, uint32_t v)       /* (u1:u0) / v, u1 < v, v != 0 */
+{
+    const uint32_t b = 65536;
+    int s = __builtin_clz(v);
+    v <<= s;
+    uint32_t vn1 = v >> 16, vn0 = v & 0xFFFF;
+    uint32_t un32 = s ? (u1 << s) | (u0 >> (32 - s)) : u1;
+    uint32_t un10 = u0 << s;
+    uint32_t un1 = un10 >> 16, un0 = un10 & 0xFFFF;
+    uint32_t q1 = un32 / vn1, rhat = un32 - q1 * vn1;
+    while (q1 >= b || q1 * vn0 > b * rhat + un1) { q1--; rhat += vn1; if (rhat >= b) break; }
+    uint32_t un21 = un32 * b + un1 - q1 * v;
+    uint32_t q0 = un21 / vn1; rhat = un21 - q0 * vn1;
+    while (q0 >= b || q0 * vn0 > b * rhat + un0) { q0--; rhat += vn1; if (rhat >= b) break; }
+    return q1 * b + q0;
+}
+
+uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
+{
+    uint64_t q;
+    if (d == 0) { if (rem) *rem = 0; return ~0ull; }   /* no trap: saturate */
+    uint32_t nh = (uint32_t)(n >> 32), nl = (uint32_t)n, dh = (uint32_t)(d >> 32), dl = (uint32_t)d;
+    if (!dh) {
+        if (!nh) q = nl / dl;
+        else if (nh < dl) q = divlu(nh, nl, dl);
+        else { uint32_t qh = nh / dl, r = nh - qh * dl; q = (uint64_t)qh << 32 | divlu(r, nl, dl); }
+    } else {                                           /* quotient < 2^32 */
+        int s = __builtin_clz(dh);
+        uint32_t v1 = (uint32_t)((d << s) >> 32);
+        uint64_t u1 = n >> 1;
+        uint32_t q1 = divlu((uint32_t)(u1 >> 32), (uint32_t)u1, v1);   /* u1 < 2^63, v1 >= 2^31: u1 / 2^32 < v1 */
+        uint32_t q0 = (uint32_t)(((uint64_t)q1 << s) >> 31);
+        if (q0) q0--;
+        if (n - (uint64_t)q0 * d >= d) q0++;
+        q = q0;
+    }
+    if (rem) *rem = n - q * d;
+    return q;
+}
+#else
 uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
 {
     uint64_t q = 0, r = 0;
@@ -20,6 +63,8 @@ uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
     if (rem) *rem = r;
     return q;
 }
+
+#endif
 
 uint64_t __udivdi3(uint64_t n, uint64_t d) { return __udivmoddi4(n, d, 0); }
 uint64_t __umoddi3(uint64_t n, uint64_t d) { uint64_t r; __udivmoddi4(n, d, &r); return r; }

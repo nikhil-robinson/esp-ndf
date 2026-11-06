@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_cpu.h"
@@ -28,6 +29,17 @@ void app_main(void)
     BEST("strtod 3.14159265", sink += (uint32_t)strtod("3.14159265", 0));
     BEST("strtol 123456", sink += strtol("123456", 0, 10));
     BEST("qsort 1000 ints", (memcpy(arr, arr0, sizeof arr), qsort(arr, 1000, sizeof arr[0], cmp)));
+    { volatile double da = 1.2345678901, db = 9.8765432109; volatile float fa = 1.2345f, fb = 9.8765f; volatile int64_t la = 1234567890123456789ll, lb = 987654321ll; volatile uint32_t ua = 123456789u, ub = 12345u; volatile double dr;
+    BEST("double add x100", for (int i = 0; i < 100; i++) dr = da + db);
+    BEST("double mul x100", for (int i = 0; i < 100; i++) dr = da * db);
+    BEST("double div x100", for (int i = 0; i < 100; i++) dr = da / db);
+    BEST("double sqrt x100", for (int i = 0; i < 100; i++) dr = sqrt(da));
+    BEST("double sin x100", for (int i = 0; i < 100; i++) dr = sin(da + i));
+    BEST("double exp x100", for (int i = 0; i < 100; i++) dr = exp(da + i * 0.01));
+    BEST("double->int x100", for (int i = 0; i < 100; i++) sink += (int)(da * i));
+    BEST("float div x100", for (int i = 0; i < 100; i++) sink += (int)(fa / fb));
+    BEST("int64 div x100", for (int i = 0; i < 100; i++) sink += (uint32_t)(la / (lb + i)));
+    BEST("uint32 div x100", for (int i = 0; i < 100; i++) sink += ua / (ub + i)); }
     printf("idf_p4_lib done\n");
     for (;;) vTaskDelay(1000);
 }

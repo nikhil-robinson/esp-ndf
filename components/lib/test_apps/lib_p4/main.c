@@ -6,14 +6,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #define NOW() ccount()
 #define CRC32(b, n) crc32_le(0, b, n)
 #define MD5(b, n) do { uint8_t d_[16]; md5(b, n, d_); } while (0)
 #define PRINT(name, v) printf("  %-22s %6lu cycles\n", name, (unsigned long)(v))
 static int cmp(const void *a, const void *b) { return *(const int *)a - *(const int *)b; }
+static uint64_t ref_div(uint64_t n, uint64_t d, uint64_t *rem)      /* shift-subtract, what the library did before */
+{
+    uint64_t q = 0, r = 0;
+    for (int i = 63; i >= 0; i--) { r = r << 1 | ((n >> i) & 1); if (r >= d) { r -= d; q |= 1ull << i; } }
+    *rem = r; return q;
+}
 static int check(void)
 {
     int bad = 0;
+    { uint64_t x = 88172645463325252ull;               /* 64-bit division and remainder against shift-subtract, operands of every magnitude */
+      for (int i = 0; i < 20000; i++) {
+          x ^= x << 13; x ^= x >> 7; x ^= x << 17; uint64_t n = x;
+          x ^= x << 13; x ^= x >> 7; x ^= x << 17; uint64_t d = x;
+          n >>= (i >> 3) & 63; d >>= (i * 7 >> 2) & 63; if (!d) d = 1; if (i % 11 == 0) n = ~0ull; if (i % 13 == 0) d = ~0ull >> (i & 63);
+          if (!d) d = 1;
+          uint64_t r, q = ref_div(n, d, &r);
+          volatile uint64_t vn = n, vd = d;
+          if (vn / vd != q || vn % vd != r) bad++;
+          volatile int64_t sn = (int64_t)n, sd = (int64_t)d | 1;
+          int64_t sq = sn / sd, sr = sn % sd; if (sq * sd + sr != sn) bad++;
+      } }
     static uint8_t b[300]; for (int i = 0; i < 300; i++) b[i] = i * 13 + 5;
     for (int off = 0; off < 4; off++)                 /* crc32 against the bitwise definition, lengths 0..70 and 100..300 at four alignments */
         for (int n = 0; n < 300; n += (n < 70 ? 1 : 29)) {
@@ -48,6 +67,17 @@ int main(void)
     BEST("strtod 3.14159265", sink += (uint32_t)strtod("3.14159265", 0));
     BEST("strtol 123456", sink += strtol("123456", 0, 10));
     BEST("qsort 1000 ints", (memcpy(arr, arr0, sizeof arr), qsort(arr, 1000, sizeof arr[0], cmp)));
+    { volatile double da = 1.2345678901, db = 9.8765432109; volatile float fa = 1.2345f, fb = 9.8765f; volatile int64_t la = 1234567890123456789ll, lb = 987654321ll; volatile uint32_t ua = 123456789u, ub = 12345u; volatile double dr;
+    BEST("double add x100", for (int i = 0; i < 100; i++) dr = da + db);
+    BEST("double mul x100", for (int i = 0; i < 100; i++) dr = da * db);
+    BEST("double div x100", for (int i = 0; i < 100; i++) dr = da / db);
+    BEST("double sqrt x100", for (int i = 0; i < 100; i++) dr = sqrt(da));
+    BEST("double sin x100", for (int i = 0; i < 100; i++) dr = sin(da + i));
+    BEST("double exp x100", for (int i = 0; i < 100; i++) dr = exp(da + i * 0.01));
+    BEST("double->int x100", for (int i = 0; i < 100; i++) sink += (int)(da * i));
+    BEST("float div x100", for (int i = 0; i < 100; i++) sink += (int)(fa / fb));
+    BEST("int64 div x100", for (int i = 0; i < 100; i++) sink += (uint32_t)(la / (lb + i)));
+    BEST("uint32 div x100", for (int i = 0; i < 100; i++) sink += ua / (ub + i)); }
     printf(bad ? "lib_p4 FAILED\n" : "lib_p4 done\n");
     for (;;) ;
 }

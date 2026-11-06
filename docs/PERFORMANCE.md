@@ -1079,3 +1079,16 @@ RSA on the P4 (`rsa_test` vs `bench/idf_rsa` built for the P4 with IDF v6.1, sam
 | scale 2x, 128x64 RGB565 | 371 | 451 | 1.22x |
 | rotate 90, 128x64 RGB565 | 135 | 189 | 1.40x |
 | blend 128x64 ARGB8888 | 149 | 213 | 1.43x |
+
+### P4 integer / double arithmetic (`lib_p4` vs `bench/idf_p4_lib`, cycles per 100 operations, same board, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 | gain |
+|---|---|---|---|
+| int64 / int64 division | 18,532 (was 134,755) | 10,196 | 0.55x (IDF faster; was 13x behind) |
+| uint32 / uint32, float division | 1,706 / 2,805 | 1,706 / 2,805 | 1.0x (the hardware divider) |
+| double add / mul / div | 11,250 / 9,106 / 23,207 | 9,302 / 8,502 / 30,303 | 0.83x / 0.93x / 1.31x |
+| double sqrt / exp | 78,306 / 274,833 | 82,295 / 290,756 | 1.05x / 1.06x |
+| double sin | 441,894 | 312,892 | 0.71x (open) |
+| double -> int | 30,079 | 21,910 | 0.73x (open) |
+
+The 64-bit divide helper (`__udivmoddi4`) now uses the 32-bit divider (Hacker's Delight divlu) on RISC-V; the S3 build is unchanged (shift-subtract, bounded).
