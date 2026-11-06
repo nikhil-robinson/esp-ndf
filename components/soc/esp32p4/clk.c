@@ -266,6 +266,7 @@ void periph_enable(periph_t p)
 {
     const gate_t *g = gate(p);
     if (!g) return;
+    if (g->en[1].reg == 0xA8) REG_FIELD(HPC(0xA8), 12, 2, 2);        /* crypto engines (PERI_CLK_CTRL25): clk_sec from the 240 MHz PLL output, as esp_crypto_clk_init; the reset value is XTAL */
     uint32_t t = irq_lock();
     for (int i = 0; i < 4; i++) if (g->en[i].reg) REG_SET(HPC(g->en[i].reg), g->en[i].mask);
     if (g->rst_reg) REG_CLR(HPC(g->rst_reg), g->rst);

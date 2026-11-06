@@ -8,3 +8,11 @@ add 4096 160188 | relu6 4096 4751 | softmax 86895 | model end-to-end 6504592  (a
 dsp ours dsp_lib: fft_f32 1024 80387, 4096 375681, rfft 1024 47019, fft_s16 1024 70002, hann 20631, blackman 29861, flattop 48302
 dsp IDF esp-dsp: fft4r 1024 98512, fft2r 158508, 4096 475277/743910, rfft 1024 76481, fft2r_sc16 1024 34075, hann 520943, blackman 1038735, flattop 2091484
 irq: ours level1/3/5 sw interrupt 88 cycles, through the matrix 108-111; IDF esp_intr_alloc IRAM handler level1 min 242 avg 253 max 4060, level3 min 242 avg 249 max 1672
+
+crypto (2026-11-06; IDF v6.1 bench/idf_p4_crypto, hardware AES/SHA with GDMA, 360 MHz; ours 400 MHz; cycles, GCM and P-256 in us)
+AES-128-CBC 16/256/4096/65536 B: ours 1624/7194/21774/250813  IDF 3518/9465/42904/258136   (before: ours 2656/30566/478254/7641348)
+SHA-256 64/1024/4096/65536 B: ours 2671/6681/14391/158321  IDF 9295/14474/23079/176465   (before: 5941/34451/125656/1949996)
+SHA-512 64/1024/4096/65536 B: ours 2512/7121/11801/108416  IDF 5784/15108/21839/138527   (before: 5206/32261/109771/1660546)
+GCM-128 len 64/1000/16384: ours 29/47/193 us  IDF 110/145/303 us (before: 53/413/6245 us)
+P-256 pubkey/ecdh/sign/verify us: ours 5622/17923/11371/24199  IDF 5017/5252/13063/23968 (PSA, p256-m)
+cause of the crypto gap: HP_SYS_CLKRST PERI_CLK_CTRL25 bits 13:12 (clk_sec) left at XTAL; IDF esp_crypto_clk_init selects the 240 MHz PLL (value 2)

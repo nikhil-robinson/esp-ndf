@@ -8,6 +8,9 @@
 #include "clk.h"
 #include "cpu.h"
 #include "gdma.h"
+#if SOC_CPU_RISCV
+#include "cache_p4.h"
+#endif
 #include <string.h>
 
 #ifndef SOC_SHA_BASE
@@ -48,13 +51,23 @@ static void blocks(sha_ctx_t *c, const uint8_t *p, size_t n)       /* n whole bl
         for (unsigned i = 0; i < hw; i++) REG(SHA_H(i)) = c->h[i];
     REG(SHA_MODE) = c->type;
     int ch = -1;                                          /* a GDMA channel only for this run: 5 for the whole chip */
-#ifndef SOC_CRYPTO_NO_DMA
-    if (n >= NDF_SHA_DMA_MIN && (uintptr_t)p >= 0x3FC88000u && (uintptr_t)p + n * w * 4 <= 0x3FD00000u &&
+#if !defined(SOC_CRYPTO_NO_DMA) || SOC_SHA_DMA
+#if SOC_CPU_RISCV
+#define DMA_RAM_OK(p, len) ((uintptr_t)(p) >= SOC_VEC_RAM_LO && (uintptr_t)(p) + (len) <= SOC_VEC_RAM_HI)
+#define DESC_ALIGN __attribute__((aligned(64)))        /* descriptors never share a cache line with other data */
+#else
+#define DMA_RAM_OK(p, len) ((uintptr_t)(p) >= 0x3FC88000u && (uintptr_t)(p) + (len) <= 0x3FD00000u)
+#define DESC_ALIGN
+#endif
+    if (n >= NDF_SHA_DMA_MIN && DMA_RAM_OK(p, n * w * 4) &&
         !((uintptr_t)p & 3) && (ch = gdma_alloc()) >= 0) {
-        static gdma_desc_t d[2];
+        static gdma_desc_t d[2] DESC_ALIGN;
         gdma_connect(ch, GDMA_SHA);
         while (n) {
             unsigned k = n > 63 ? 63 : n;                             /* BLOCK_NUM is 6 bits */
+#if SOC_CPU_RISCV
+            cache_dma_wbinv(p, k * w * 4);                            /* the message in memory, not in the data cache */
+#endif
             gdma_chain(d, 2, (void *)p, k * w * 4, true);
             gdma_out_start(ch, d);
             REG(SHA_BLKNUM) = k;

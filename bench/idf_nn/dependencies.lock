@@ -12,9 +12,9 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.3.5
+    version: 6.1.0
 direct_dependencies:
 - espressif/esp-nn
 manifest_hash: dea969ddd7a6d964000c78bde11d213b86331d50b8a7384fade250e805c3d3a0
-target: esp32s3
-version: 2.0.0
+target: esp32p4
+version: 3.0.0

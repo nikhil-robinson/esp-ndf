@@ -1027,3 +1027,20 @@ All NN outputs are bit-identical to esp-nn. The PIE kernels need the v2.1 instru
 | memmove overlapping (either way) | same as IDF | | 1.0x |
 
 The copy / set kernels are the PIE ones (128-bit), used outside interrupt handlers only: `mintstatus.mil` is zero, the unit is on, no watchpoint handler runs on top of the code (`ndf_vec_block`), internal RAM. Interrupt handlers and early boot take the scalar path (tested). memcmp and strlen go a word at a time on the P4.
+
+### P4 crypto engines (`components/drivers/crypto/test_apps/{aes,sha,gcm}_test` vs `bench/idf_p4_crypto`, same board, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 | gain |
+|---|---|---|---|
+| AES-128-CBC / CTR 16 B (cycles) | 1,624 | 3,518 | 2.2x |
+| AES-128-CBC 256 B / 4 KB / 64 KB | 7,194 / 21,774 / 250,813 | 9,465 / 42,904 / 258,136 | 1.3x / 2.0x / 1.03x |
+| SHA-256 64 B / 1 KB / 4 KB / 64 KB | 2,671 / 6,681 / 14,391 / 158,321 | 9,295 / 14,474 / 23,079 / 176,465 | 3.5x / 2.2x / 1.6x / 1.1x |
+| SHA-512 64 B / 1 KB / 4 KB / 64 KB | 2,512 / 7,121 / 11,801 / 108,416 | 5,784 / 15,108 / 21,839 / 138,527 | 2.3x / 2.1x / 1.9x / 1.3x |
+| AES-128-GCM 64 B / 1000 B / 16 KB (us) | 29 / 47 / 193 | 110 / 145 / 303 | 3.8x / 3.1x / 1.6x |
+| P-256 pubkey / sign / verify (us) | 5,622 / 11,371 / 24,199 | 5,017 / 13,063 / 23,968 | 0.9x / 1.15x / 1.0x |
+| P-256 ECDH (us) | 17,923 | 5,252 (p256-m) | 0.29x (IDF faster; open) |
+
+Before this work the P4 engines ran 3-30x slower than these (AES-CBC 64 KB 7.6 M cycles, SHA-256 64 KB 1.95 M, GCM 16 KB 6.2 ms). Causes: the crypto
+clock (`clk_sec`, PERI_CLK_CTRL25 bits 13:12) was left on XTAL while IDF's `esp_crypto_clk_init` selects the 240 MHz PLL (the engine registers read 61 instead
+of 26 cycles and the engine ran 3.3x slower: it speeds up every engine); AES block modes and SHA ran register-fed per block instead of by AXI-GDMA; GCM did
+GHASH in software, it now runs the engine's GCM mode (H, CTR, GHASH, tag in hardware, 96-bit IV; other IV lengths keep the software path).

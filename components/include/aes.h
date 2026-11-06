@@ -18,6 +18,13 @@ void aes_xts(const uint8_t key[64], uint32_t tweak, bool encrypt, const void *in
 enum { AES_ECB = 0, AES_CBC = 1, AES_OFB = 2, AES_CTR = 3, AES_CFB128 = 5 };
 int aes_crypt(int mode, const uint8_t *key, int key_len, bool encrypt, uint8_t iv[16], const void *in, void *out, size_t len);
 
+#if SOC_AES_GCM_HW
+/* The engine's GCM mode (96-bit IV, aad <= 1 KB, len 1..64 KB, buffers 4-byte aligned in internal RAM): writes the computed tag
+ * (encrypt and decrypt) and the output. Returns -2 when the request does not fit, nothing done. */
+int aes_gcm_hw(const uint8_t *key, int key_len, bool encrypt, const uint8_t iv[12], const void *aad, size_t aad_len,
+               const void *in, void *out, size_t len, uint8_t tag[16]);
+#endif
+
 /* AES-GCM (SP 800-38D), one shot: CTR on the engine + GHASH in software (8-bit table). Any IV length (12 is the fast
  * path). Encrypt writes tag; decrypt checks it (constant time) and returns -1, output zeroed, on mismatch. in may be out. */
 int aes_gcm(const uint8_t *key, int key_len, bool encrypt, const uint8_t *iv, size_t iv_len, const void *aad, size_t aad_len,

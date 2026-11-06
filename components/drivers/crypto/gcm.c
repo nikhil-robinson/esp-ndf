@@ -55,6 +55,19 @@ int aes_gcm(const uint8_t *key, int key_len, bool encrypt, const uint8_t *iv, si
 {
     static ghash_t g;                                           /* 4 KB, not on the stack: guarded by the AES engine lock */
     if (!iv || !iv_len || (key_len != 16 && key_len != 32)) return -1;
+#if SOC_AES_GCM_HW
+    if (iv_len == 12) {
+        uint8_t ht[16];
+        int hr = aes_gcm_hw(key, key_len, encrypt, iv, aad, aad_len, in, out, len, ht);
+        if (hr != -2) {
+            if (hr) return -1;
+            if (encrypt) { memcpy(tag, ht, 16); return 0; }
+            uint8_t d = 0; for (int i = 0; i < 16; i++) d |= ht[i] ^ tag[i];
+            if (d) { memset(out, 0, len); return -1; }
+            return 0;
+        }
+    }
+#endif
     uint8_t h[16] = { 0 }, j0[16], ctr[16], ek[16], lens[16];
     int r = 0;
     uint32_t st = aes_lock();
