@@ -325,6 +325,7 @@ NORETURN void ndf_panic(const char *why, uint32_t pc, const uint32_t *frame, uin
 }
 
 /* kind 1: exception (mcause < 16), 2: interrupt that was not CLIC-vectored */
+extern volatile uint32_t ndf_vec_block;                      /* string.c */
 void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint32_t *frame, uint32_t sp)
 {
     static const char *c[] = { "instruction address misaligned", "instruction access fault", "illegal instruction (FPU in an ISR?)",
@@ -341,7 +342,12 @@ void ndf_fault(uint32_t kind, uint32_t cause, uint32_t pc, uint32_t vaddr, uint3
     char why[128];
     extern bool memprot_fault(uint32_t cause, uint32_t addr);
     extern bool ndf_watch_hit(uint32_t pc);
-    if (kind == 1 && cause == 3 && ndf_watch_hit(pc)) return;         /* a data watchpoint: the handler ran, resume the access */
+    if (kind == 1 && cause == 3) {                                      /* a data watchpoint: the handler runs, then resume the access */
+        ndf_vec_block++;                                                /* the interrupted code may be mid-kernel on q0-q7: no PIE memcpy meanwhile */
+        bool hit = ndf_watch_hit(pc);
+        ndf_vec_block--;
+        if (hit) return;
+    }
     if (kind == 1) memprot_fault(cause, vaddr);                       /* PMP violation: the registered handler runs, then the panic */
     if (kind == 2) snprintf(why, sizeof why, "unexpected non-vectored interrupt, id %lu", (unsigned long)cause);
     else snprintf(why, sizeof why, "exception, mcause %lu (%s), mtval 0x%08lx", (unsigned long)cause,

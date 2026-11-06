@@ -11,6 +11,8 @@
 #ifndef NDF_NO_ACCEL
 #define SOC_CPU_HAS_FPU             1   /* RV32F */
 #define SOC_CPU_HAS_PIE             1   /* vector unit: lib/esp32p4/{dsp,nn}_pie.S, enabled per core in sys.c (v1.x silicon: the v2.1 encodings, soc.mk -march ..._xespv2p1) */
+#define SOC_VEC_RAM_LO              0x4FF00000u   /* internal RAM the vector copy / set paths may touch */
+#define SOC_VEC_RAM_HI              0x4FFC0000u
 #define SOC_DSP_F32_ASM             0   /* float kernels: the compiler on the FPU (PIE has no float) */
 #define SOC_CPU_HAS_S32C1I          0   /* Xtensa only */
 #define SOC_CPU_HAS_AMO             1   /* Zaamo: amoswap / amoadd */

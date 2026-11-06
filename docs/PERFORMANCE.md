@@ -1013,3 +1013,17 @@ IDF cannot run this silicon (rev < 3) above 360 MHz; cycle counts are comparable
 | NN model end to end | 6,496,586 (16.2 ms) | 7,226,888 (20.1 ms) | 1.11x cycles, 1.24x time |
 
 All NN outputs are bit-identical to esp-nn. The PIE kernels need the v2.1 instruction encodings on v1.x silicon (`-march=..._xespv2p1`, soc.mk).
+
+### P4 memcpy / memset (`components/lib/test_apps/mem_p4` vs `bench/idf_mem`, same board, cycles, warm, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| memcpy 8 KB aligned | 1,646 (2.0 GB/s) | 5,289 | 3.2x |
+| memcpy 1 KB aligned | 302 | 708 | 2.3x |
+| memcpy 256 B | 171 | 199 | 1.16x |
+| memcpy 8 KB mixed alignment | 3,910 | 9,173 | 2.3x |
+| memset 8 KB / 1 KB | 1,162 / 236 | 3,112 / 423 | 2.7x / 1.8x |
+| memcpy 16 / 64 B | 76 / 121 | 52 / 95 | 0.7-0.8x (IDF faster; the timer reads are a large part of these) |
+| memmove overlapping (either way) | same as IDF | | 1.0x |
+
+The copy / set kernels are the PIE ones (128-bit), used outside interrupt handlers only: `mintstatus.mil` is zero, the unit is on, no watchpoint handler runs on top of the code (`ndf_vec_block`), internal RAM. Interrupt handlers and early boot take the scalar path (tested). memcmp and strlen go a word at a time on the P4.

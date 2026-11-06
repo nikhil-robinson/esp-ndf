@@ -8,13 +8,26 @@ void dsp_copy128(void *dst, const void *src, size_t n);
 void dsp_set128(void *dst, const void *pattern16, size_t n);
 void dsp_copy128u(void *dst, const void *src, size_t n);
 
+#if SOC_CPU_RISCV
+volatile uint32_t ndf_vec_block;                  /* >0 while a fault handler runs on top of possibly vector-using code */
+#endif
+
 /* 128-bit vector path: internal DRAM only, and only when the PIE unit is on
  * (it is off inside interrupt handlers, which may also call memcpy) */
 static inline int vec_ok(uintptr_t a, uintptr_t b, size_t n, size_t min)
 {
-#if !SOC_CPU_HAS_PIE || SOC_CPU_RISCV
+#if !SOC_CPU_HAS_PIE
     (void)a; (void)b; (void)n; (void)min;
-    return 0;                                     /* portable build: word/byte paths only; P4: q0-q7 are not saved on a trap, handlers call memcpy */
+    return 0;                                     /* portable build: word/byte paths only */
+#elif SOC_CPU_RISCV
+    /* q0-q7 are not saved on a trap: not inside an interrupt handler (mintstatus.mil), not before the unit is on (state CSR),
+     * not in a watchpoint handler that interrupted a kernel; internal RAM only (the unaligned kernel reads 32 B ahead) */
+    if (n < min) return 0;                        /* the CSR reads are slow: only for sizes that could use the kernel */
+    uint32_t pie, mis;
+    __asm__ volatile("csrr %0, 0x7f2" : "=r"(pie));
+    __asm__ volatile("csrr %0, 0x346" : "=r"(mis));
+    return pie && !(mis >> 24) && !ndf_vec_block && a >= SOC_VEC_RAM_LO && a + n <= SOC_VEC_RAM_HI &&
+           b >= SOC_VEC_RAM_LO && b + n + 32 <= SOC_VEC_RAM_HI;
 #else
     uint32_t cp;
     __asm__ volatile("rsr.cpenable %0" : "=r"(cp));
@@ -66,6 +79,11 @@ void *memmove(void *d, const void *s, size_t n)
 {
     uint8_t *dp = d; const uint8_t *sp = s;
     if (dp <= sp || dp >= sp + n) return memcpy(d, s, n);
+#if SOC_CPU_RISCV
+    if (((uintptr_t)dp ^ (uintptr_t)sp) & 3) { while (n--) dp[n] = sp[n]; return d; }
+    while (n && ((uintptr_t)(dp + n) & 3)) { n--; dp[n] = sp[n]; }
+    while (n >= 4) { n -= 4; *(uint32_t *)(dp + n) = *(const uint32_t *)(sp + n); }
+#endif
     while (n--) dp[n] = sp[n];                    /* overlap, copy backwards */
     return d;
 }
@@ -89,6 +107,10 @@ void *memset(void *d, int c, size_t n)
 int memcmp(const void *a, const void *b, size_t n)
 {
     const uint8_t *x = a, *y = b;
+#if SOC_CPU_RISCV
+    if (!(((uintptr_t)x | (uintptr_t)y) & 3))
+        while (n >= 4 && *(const uint32_t *)x == *(const uint32_t *)y) { x += 4; y += 4; n -= 4; }
+#endif
     for (; n; n--, x++, y++) if (*x != *y) return *x - *y;
     return 0;
 }
@@ -96,6 +118,10 @@ int memcmp(const void *a, const void *b, size_t n)
 size_t strlen(const char *s)
 {
     const char *p = s;
+#if SOC_CPU_RISCV
+    while ((uintptr_t)p & 3) { if (!*p) return p - s; p++; }
+    for (;;) { uint32_t w = *(const uint32_t *)p; if ((w - 0x01010101u) & ~w & 0x80808080u) break; p += 4; }   /* a zero byte in the word */
+#endif
     while (*p) p++;
     return p - s;
 }
