@@ -163,7 +163,7 @@ uint64_t i2s_init(int port, const i2s_cfg_t *c)
                     (!pdm ? BIT(19) : BIT(20)) |             /* tdm_en | pdm_en */
                     (!dir && duplex ? BIT(30) : 0) |         /* sig_loopback: RX slave on TX's BCK / WS */
                     (pdm && !dir ? BIT(9) : 0);
-        if (pdm && dir) REG(PDM2PCM(port)) = BIT(19) | (c->dout >= 0 ? BIT(20) : 0);
+        if (pdm && dir) { REG_SET(PDM2PCM(port), BIT(19)); if (c->dout >= 0) REG_SET(PDM2PCM(port), BIT(20)); else REG_CLR(PDM2PCM(port), BIT(20)); }   /* keep the reset values of the gain (amplify 1) and the IIR high-pass multipliers */
         REG(tdm) = pdm ? (dir ? 3 : 0xFFFF) : mask | (ns - 1) << 16;
     }
     if (pdm && port == 0) {
