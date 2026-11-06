@@ -1070,3 +1070,12 @@ and the L2 cache like code fetches (`cache_flash_read`), instead of one 64-byte 
 
 RSA on the P4 (`rsa_test` vs `bench/idf_rsa` built for the P4 with IDF v6.1, same board): x^d 1024 / 2048 / 4096 = 21.5 / 162.5 / 1,274 ms on both; x^65537
 0.31 / 1.05 / 4.05 ms on both (ours 0.28 / 1.05 / 4.05): the same engine, so the floor.
+
+### P4 PPA (`components/drivers/ppa/test_apps/ppa_bench` vs `bench/idf_p4_ppa` with esp_driver_ppa, blocking calls, internal RAM, same board, us, best of 8, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 | gain |
+|---|---|---|---|
+| fill 256x128 RGB565 | 175 | 228 | 1.30x |
+| scale 2x, 128x64 RGB565 | 371 | 451 | 1.22x |
+| rotate 90, 128x64 RGB565 | 135 | 189 | 1.40x |
+| blend 128x64 ARGB8888 | 149 | 213 | 1.43x |
