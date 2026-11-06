@@ -1067,3 +1067,6 @@ was on the same slow clock (point multiplication 29.5 ms, now 4.9 ms): P-256 ECD
 
 The crc32 slice-by-8, the unrolled md5 and the strtol fast path are RISC-V-only code (the S3 build is byte-identical). Flash reads go through a 64 KB MMU window
 and the L2 cache like code fetches (`cache_flash_read`), instead of one 64-byte SPI1 command per read.
+
+RSA on the P4 (`rsa_test` vs `bench/idf_rsa` built for the P4 with IDF v6.1, same board): x^d 1024 / 2048 / 4096 = 21.5 / 162.5 / 1,274 ms on both; x^65537
+0.31 / 1.05 / 4.05 ms on both (ours 0.28 / 1.05 / 4.05): the same engine, so the floor.
