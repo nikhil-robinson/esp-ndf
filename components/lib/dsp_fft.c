@@ -163,7 +163,8 @@ int dsp_fft_s16(int16_t *x, int n)
                 int16_t *a = p + 2 * i, *m = a + 2 * n2;
                 int32_t tr = c * m[0] + s * m[1], ti = c * m[1] - s * m[0];
                 int32_t ar = a[0], ai = a[1];
-                m[0] = bf(ar, -tr); m[1] = bf(ai, -ti); a[0] = bf(ar, tr); a[1] = bf(ai, ti);
+                int32_t hr = ar * 32767 + 0x7FFF, hi = ai * 32767 + 0x7FFF;      /* the same sums as bf(): the a * 32767 product once for both outputs */
+                m[0] = (int16_t)((hr - tr) >> 16); m[1] = (int16_t)((hi - ti) >> 16); a[0] = (int16_t)((hr + tr) >> 16); a[1] = (int16_t)((hi + ti) >> 16);
             }
         }
     swaps(n, lg);

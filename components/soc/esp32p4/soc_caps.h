@@ -10,11 +10,7 @@
 
 #ifndef NDF_NO_ACCEL
 #define SOC_CPU_HAS_FPU             1   /* RV32F */
-#ifdef NDF_P4_REV
-#define SOC_CPU_HAS_PIE             (NDF_P4_REV >= 3)   /* Xespv2p2 vector unit: lib/esp32p4/{dsp,nn}_pie.S, enabled per core in sys.c; v1.x silicon traps on every PIE instruction */
-#else
-#define SOC_CPU_HAS_PIE             1
-#endif
+#define SOC_CPU_HAS_PIE             1   /* vector unit: lib/esp32p4/{dsp,nn}_pie.S, enabled per core in sys.c (v1.x silicon: the v2.1 encodings, soc.mk -march ..._xespv2p1) */
 #define SOC_DSP_F32_ASM             0   /* float kernels: the compiler on the FPU (PIE has no float) */
 #define SOC_CPU_HAS_S32C1I          0   /* Xtensa only */
 #define SOC_CPU_HAS_AMO             1   /* Zaamo: amoswap / amoadd */

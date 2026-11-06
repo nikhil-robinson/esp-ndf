@@ -989,3 +989,27 @@ End to end over the air (`tools/wl/test_https.py`, IDF `esp_http_client` / `esp_
 
 Before: 148/s (282 kbit/s). The core ends an event once the exchanges add up to CS+0x20 slots, and we had put the RX ring size (48) there (30 ms); the TX chain was also only
 refilled at event end. Now the slot limit follows the interval and the RX interrupt refills the chain. Details in `bench/idf_wl_peer/data/gatts_burst.txt`.
+
+
+## ESP32-P4 vs ESP-IDF v6.1: interrupts, math / DSP, AI (v1.3 board, esp-ndf 400 MHz vs IDF 360 MHz, same board, 2026-11-06)
+
+IDF cannot run this silicon (rev < 3) above 360 MHz; cycle counts are comparable, wall-clock gains get another 1.11x from the clock. Data: `bench/data/p4_vs_idf.txt`, twins `bench/idf_p4_irq`, `bench/idf_nn`, `bench/idf_dsplib`, `bench/idf_math`.
+
+| case | esp-ndf | ESP-IDF | gain |
+|---|---|---|---|
+| interrupt latency, level 1/3/5 software interrupt (cycles, min / avg) | 88 / 88 (220 ns) | 242 / 253 (672 ns) | 2.75x |
+| same through the interrupt matrix (FROM_CPU) | 108-111 (270 ns) | 242-253 | 2.2x |
+| worst case seen (jitter) | 89-118 | 1672-4060 | 14-35x |
+| sinf / cosf / atan2f / expf / logf (cycles) | 88 / 81 / 127 / 91 / 100 | 182 / 181 / 223 / 150 / 170 | 1.7-2.2x |
+| fft_f32 1024 / 4096 | 80,387 / 375,681 | 98,512 / 475,277 (fft4r) | 1.23-1.27x |
+| rfft_f32 1024 | 47,019 | 76,481 | 1.63x |
+| window hann / blackman / flat-top 1024 | 20.6k / 29.9k / 48.3k | 521k / 1.04M / 2.09M | 25-43x |
+| fft_s16 1024 | 70,002 | 34,075 | 0.49x (IDF faster, open) |
+| NN conv3x3 16x16x16->32 | 843,814 | 898,578 | 1.06x |
+| NN depthwise 3x3 32x32x32, stride 1 / 2 | 1,398,348 / 351,158 | 1,890,226 / 472,980 | 1.35x |
+| NN max / avg pool 2x2 32x32x16 | 10,853 / 63,905 | 21,608 / 102,503 | 2.0x / 1.6x |
+| NN add 4096 / softmax 100x10 | 160,188 / 86,895 | 216,716 / 157,531 | 1.35x / 1.8x |
+| NN fully connected 512->64 / relu6 4096 | 15,940 / 4,751 | 14,908 / 4,160 | 0.94x / 0.88x (IDF faster) |
+| NN model end to end | 6,504,592 (16.3 ms) | 7,226,888 (20.1 ms) | 1.11x cycles, 1.23x time |
+
+All NN outputs are bit-identical to esp-nn. The PIE kernels need the v2.1 instruction encodings on v1.x silicon (`-march=..._xespv2p1`, soc.mk). Open: fft_s16 (C path), fc and relu6 are 6-12 % behind esp-nn.

@@ -1,0 +1,10 @@
+ESP32-P4 v1.3 board, esp-ndf 400 MHz vs ESP-IDF v6.1 360 MHz (max IDF supports on rev<3), same board, cycles per call, 2026-11-06.
+IDF nn (esp-nn, PIE assembly), idf_nn bench:
+conv3x3 16x16x16->32 p1 898578 | dwconv3x3 s1 1890226 | dwconv3x3 s2 472980 | fc 512->64 14908 | maxpool 21608 | avgpool 102503
+add 4096 216716 | relu6 4096 4160 | softmax 100x10 157531 | model end-to-end 7226888
+ours nn_lib (PIE v2.1, xespv2p1):
+conv3x3 843814 | dwconv3x3 s1 1398348 | dwconv3x3 s2 351158 | fc 15940 | maxpool 10853 | avgpool 63905
+add 4096 160188 | relu6 4096 4751 | softmax 86895 | model end-to-end 6504592  (all sums identical to IDF)
+dsp ours dsp_lib: fft_f32 1024 80387, 4096 375681, rfft 1024 47019, fft_s16 1024 70002, hann 20631, blackman 29861, flattop 48302
+dsp IDF esp-dsp: fft4r 1024 98512, fft2r 158508, 4096 475277/743910, rfft 1024 76481, fft2r_sc16 1024 34075, hann 520943, blackman 1038735, flattop 2091484
+irq: ours level1/3/5 sw interrupt 88 cycles, through the matrix 108-111; IDF esp_intr_alloc IRAM handler level1 min 242 avg 253 max 4060, level3 min 242 avg 249 max 1672
