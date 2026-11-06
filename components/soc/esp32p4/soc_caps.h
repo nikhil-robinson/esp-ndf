@@ -35,6 +35,7 @@
 #define SOC_CRYPTO_NO_DMA           1   /* the engines with a DMA mode on the P4 say so below */
 #define SOC_SHA_DMA                 1   /* SHA blocks by AXI-GDMA (sha.c) */
 #define SOC_AES_DMA                 1   /* AES block modes by AXI-GDMA (aes.c) */
+#define SOC_ECC_HW                  1   /* ECC and ECDSA engines: P-256 ECDH and signature verification (lib/ecc.c) */
 #define SOC_AES_GCM_HW              1   /* the engine's GCM mode (GHASH and tag in hardware) */
 
 /* Silicon revision of the target: 3 (v3.x, ROM data at the top of L2MEM, image at 0x4FF80000) or 1 (v1.x "eco2" ROM, as on the

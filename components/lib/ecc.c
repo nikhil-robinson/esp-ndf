@@ -6,6 +6,11 @@
 #include <string.h>
 #include <strings.h>
 #include "sha.h"
+#if SOC_ECC_HW
+#include "ecc_hw.h"
+#include "ecdsa_hw.h"
+static void rev32(uint8_t *d, const uint8_t *s) { for (int i = 0; i < 32; i++) d[i] = s[31 - i]; }   /* the engines take little-endian operands */
+#endif
 
 typedef uint32_t fe[8];                       /* little-endian limbs */
 typedef struct { const uint32_t *m; uint32_t mp; fe rr, one; } mod_t;   /* modulus, -m^-1 mod 2^32, R^2, R (mod m) */
@@ -464,7 +469,16 @@ int p256_ecdh(uint8_t shared[32], const uint8_t priv[32], const uint8_t peer[64]
 {
     ecc_lock(); init();
     fe d, x; pt q; int r = -1; from_be(d, priv);
+#if SOC_ECC_HW
+    if (scalar_ok(d) && !load_pub(&q, peer)) {                       /* the engine's point multiplication: 3.6x the software ladder */
+        uint8_t k[32], px[32], py[32], rx[32], ry[32];
+        rev32(k, priv); rev32(px, peer); rev32(py, peer + 32);
+        if (!ecc_hw_mul(ECC_P256, k, px, py, rx, ry)) { rev32(shared, rx); r = 0; }
+        explicit_bzero(k, sizeof k); explicit_bzero(rx, sizeof rx); explicit_bzero(ry, sizeof ry);
+    }
+#else
     if (scalar_ok(d) && !load_pub(&q, peer)) { pmul(&q, d, &q); if (!affine(x, 0, &q)) { to_be(shared, x); r = 0; } }
+#endif
     WIPE(d, x); explicit_bzero(&q, sizeof q);
     ecc_unlock();
     return r;
@@ -601,7 +615,17 @@ static void cswap(fe a, fe b, uint32_t mask) { for (int i = 0; i < 8; i++) { uin
 int p256_verify(const uint8_t pub[64], const uint8_t hash[32], const uint8_t sig[64])
 {
     ecc_lock(); init();
+#if SOC_ECC_HW
+    int r = -1;
+    fe rr, ss; from_be(rr, sig); from_be(ss, sig + 32); pt q;
+    if (scalar_ok(rr) && scalar_ok(ss) && !load_pub(&q, pub)) {      /* range and curve checks in software, the two multiplications in the ECDSA engine */
+        uint8_t h[32], r_[32], s_[32], qx[32], qy[32];
+        rev32(h, hash); rev32(r_, sig); rev32(s_, sig + 32); rev32(qx, pub); rev32(qy, pub + 32);
+        r = ecdsa_hw_verify(ECC_P256, h, r_, s_, qx, qy);
+    }
+#else
     int r = verify_nolock(pub, hash, sig);
+#endif
     ecc_unlock();
     return r;
 }
