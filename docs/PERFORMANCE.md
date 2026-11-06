@@ -1101,3 +1101,21 @@ The 64-bit divide helper (`__udivmoddi4`) now uses the 32-bit divider (Hacker's 
 | critical section enter + exit | 28 | 272 | 9.7x |
 | time read (microseconds since boot) | 228 | 270 | 1.2x |
 | ring buffer put + get, 64-byte item | 304 | 1,361 | 4.5x |
+
+### P4 double precision and 64-bit division (after the second pass, `lib_p4` vs `bench/idf_p4_lib`, cycles per 100 operations, 2026-11-06)
+
+| case | esp-ndf | ESP-IDF v6.1 (ROM soft-float) | gain |
+|---|---|---|---|
+| double add / mul / div | 8,606 / 8,406 / 23,807 | 9,302 / 8,502 / 30,303 | 1.08x / 1.01x / 1.27x |
+| double -> int | 15,778 | 21,910 | 1.39x |
+| double sqrt / exp / log / atan / pow / tan | 73.5k / 227k / 255k / 297k / 732k / 450k | 82.3k / 291k / 288k / 299k / 995k / 456k | 1.1x / 1.3x / 1.13x / 1.0x / 1.36x / 1.01x |
+| double floor (+ ceil, trunc, round, rint) | 16,910 (was 77,337) | 21,900 | 1.3x |
+| double sin small / cos / sin | 162.5k / 326k / 328k | 162.6k / 311k / 313k | 1.0x / 0.95x / 0.95x (open) |
+| int64 division | 10,901 | 10,196 | 0.94x (unsigned 99 vs 102 cycles: 1.03x) |
+| strtol "123456" | 124 (was 483) | 169 | 1.36x |
+| md5 4 KB | 54.8k | 58.8k | 1.07x |
+| P-256 public key (us) | 4,926 | 5,017 | 1.02x |
+
+The double add / sub / multiply / compare / int conversions on RV32 now work on 32-bit limbs; the sin and cos kernels use the fdlibm Horner forms (fewer operations
+than musl's); floor / ceil / trunc / round / rint use masks on the bit pattern. All checked against the general reference paths (60,000 random operand pairs including
+cancellation, denormal results, overflow) and against glibc results (sin / cos within 1 ulp).

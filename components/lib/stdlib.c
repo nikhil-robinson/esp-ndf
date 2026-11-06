@@ -55,6 +55,17 @@ unsigned long long strtoull(const char *s, char **end, int base)
 }
 long strtol(const char *s, char **end, int base)
 {
+#if SOC_CPU_RISCV
+    if (base == 10) {                                  /* the common case on one short path: up to nine digits cannot overflow */
+        const char *p = s;
+        while (*p == ' ') p++;
+        int neg = 0;
+        if (*p == '-' || *p == '+') neg = *p++ == '-';
+        uint32_t v = 0; const char *d0 = p;
+        while ((unsigned)(*p - '0') < 10 && p - d0 < 9) v = v * 10 + (uint32_t)(*p++ - '0');
+        if ((unsigned)(*p - '0') >= 10 && p != d0) { if (end) *end = (char *)p; return neg ? -(long)v : (long)v; }
+    }
+#endif
     bool neg, ovf; uint64_t v = parse_u(s, end, base, &neg, (uint64_t)LONG_MAX + 1, &ovf);
     if (ovf || (!neg && v > (uint64_t)LONG_MAX)) return neg ? LONG_MIN : LONG_MAX;
     return neg ? (long)(0 - v) : (long)v;

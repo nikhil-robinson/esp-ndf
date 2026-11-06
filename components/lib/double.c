@@ -5,6 +5,7 @@
  * add/sub/mul fast paths are in components/lib/double.S. Checked bit-exact against host
  * IEEE results in components/lib/test_apps/libc_test. */
 #include <stdint.h>
+#include "soc_caps.h"
 
 typedef union { double d; uint64_t u; } du_t;
 #define SIGN  0x8000000000000000ull
@@ -153,7 +154,7 @@ static inline __attribute__((always_inline)) uint64_t add_fast(uint64_t a, uint6
 
 #ifdef __XTENSA__                 /* add/sub/mul fast paths: components/lib/double.S, which jumps here otherwise */
 double ndf_dadd_slow(double x, double y) { return add_mag(bits(x), bits(y), 0); }
-#else
+#elif !SOC_CPU_RISCV
 double __adddf3(double x, double y)
 {
     uint64_t r = add_fast(bits(x), bits(y));
@@ -219,7 +220,7 @@ static double mul_general(uint64_t a, uint64_t b)
 
 #ifdef __XTENSA__
 double ndf_dmul_slow(double x, double y) { return mul_general(bits(x), bits(y)); }
-#else
+#elif !SOC_CPU_RISCV
 double __muldf3(double x, double y)
 {
     uint64_t r = mul_fast(bits(x), bits(y));
@@ -290,6 +291,141 @@ static double div_general(uint64_t a, uint64_t b)
     return round_pack(s, e + 2, q, r != 0);              /* round_pack wants weight of bit 63 */
 }
 
+
+#if SOC_CPU_RISCV
+/* ---- RV32: the same arithmetic on 32-bit limbs (the 64-bit helpers above cost a branch and a carry fix-up per shift / compare / add) ---- */
+static inline double mk2(uint32_t hi, uint32_t lo) { return mk((uint64_t)hi << 32 | lo); }
+static inline int clz32_(uint32_t x) { x &= ~(x >> 1); union { float f; uint32_t u; } c = { .f = (float)x }; return 158 - (int)(c.u >> 23); }   /* x != 0, FPU */
+
+/* add / sub of normal operands with a normal result; 0xFFFFFFFF in *ok = 0 means "take the general path" */
+static inline __attribute__((always_inline)) int add32(uint32_t ah, uint32_t al, uint32_t bh, uint32_t bl, uint32_t *rh, uint32_t *rl)
+{
+    uint32_t ea = ah >> 20 & 0x7FF, eb = bh >> 20 & 0x7FF;
+    if (ea - 1u >= 2046u || eb - 1u >= 2046u) return 0;
+    if (ea < eb || (ea == eb && ((ah ^ bh) >> 31) && ((ah & 0xFFFFFu) < (bh & 0xFFFFFu) || ((ah & 0xFFFFFu) == (bh & 0xFFFFFu) && al < bl)))) {
+        uint32_t t = ah; ah = bh; bh = t; t = al; al = bl; bl = t; t = ea; ea = eb; eb = t;      /* a is the larger magnitude (same sign and equal exponents: either order) */
+    }
+    uint32_t d = ea - eb;
+    if (d > 54) { *rh = ah; *rl = al; return 1; }
+    uint32_t sg = ah & 0x80000000u, same = ~(ah ^ bh) >> 31;
+    uint32_t mh = (ah & 0xFFFFFu) | 0x100000u, ml = al, nh = (bh & 0xFFFFFu) | 0x100000u, nl = bl;
+    mh = mh << 3 | ml >> 29; ml <<= 3; nh = nh << 3 | nl >> 29; nl <<= 3;        /* three guard bits: leading bit 55 */
+    uint32_t sticky = 0;
+    if (d) {
+        if (d < 32) { sticky = nl << (32 - d); nl = nl >> d | nh << (32 - d); nh >>= d; }
+        else if (d == 32) { sticky = nl; nl = nh; nh = 0; }
+        else if (d < 64) { sticky = nl | nh << (64 - d); nl = nh >> (d - 32); nh = 0; }
+        sticky = sticky != 0;
+    }
+    int e = (int)ea;
+    uint32_t rh_, rl_;
+    if (same) {
+        rl_ = ml + nl; rh_ = mh + nh + (rl_ < ml);
+        if (rh_ >> 24) { sticky |= rl_ & 1; rl_ = rl_ >> 1 | rh_ << 31; rh_ >>= 1; e++; }
+    } else {
+        uint32_t bw = nl + sticky; uint32_t c = bw < nl;                          /* lost bits of b borrow one */
+        rl_ = ml - bw; uint32_t b1 = ml < bw;
+        rh_ = mh - nh - c - b1;
+        if (!(rh_ | rl_)) { *rh = 0; *rl = 0; return 1; }                          /* exact cancellation: +0 */
+        int lz = (rh_ ? clz32_(rh_) : 32 + clz32_(rl_)) - 8;
+        if (lz > 0) {
+            if (lz >= 32) { rh_ = rl_ << (lz - 32); rl_ = 0; } else { rh_ = rh_ << lz | rl_ >> (32 - lz); rl_ <<= lz; }
+            e -= lz;
+        }
+    }
+    uint32_t kh = rh_ >> 3, kl = rl_ >> 3 | rh_ << 29, rem = rl_ & 7;
+    if (rem > 4 || (rem == 4 && (sticky || (kl & 1)))) { kl++; kh += kl == 0; }
+    if ((uint32_t)e - 1u >= 2046u) return 0;
+    *rh = sg | (((uint32_t)(e - 1) << 20) + kh); *rl = kl;
+    return 1;
+}
+double __adddf3(double x, double y)
+{
+    uint64_t a = bits(x), b = bits(y); uint32_t rh, rl;
+    if (add32(a >> 32, (uint32_t)a, b >> 32, (uint32_t)b, &rh, &rl)) return mk2(rh, rl);
+    return add_mag(a, b, 0);
+}
+double __subdf3(double x, double y)
+{
+    uint64_t a = bits(x), b = bits(y); uint32_t rh, rl;
+    if (add32(a >> 32, (uint32_t)a, (b >> 32) ^ 0x80000000u, (uint32_t)b, &rh, &rl)) return mk2(rh, rl);
+    return add_mag(a, b, 1);
+}
+double __muldf3(double x, double y)
+{
+    uint64_t a = bits(x), b = bits(y);
+    uint32_t ah = a >> 32, al = (uint32_t)a, bh = b >> 32, bl = (uint32_t)b;
+    uint32_t ea = ah >> 20 & 0x7FF, eb = bh >> 20 & 0x7FF;
+    if (ea - 1u >= 2046u || eb - 1u >= 2046u) {
+        if ((!(ah << 1 | al) && eb != 0x7FF) || (!(bh << 1 | bl) && ea != 0x7FF)) return mk2((ah ^ bh) & 0x80000000u, 0);   /* 0 * finite */
+        return mul_general(a, b);
+    }
+    uint32_t mh = (ah & 0xFFFFFu) | 0x100000u, nh = (bh & 0xFFFFFu) | 0x100000u;
+    uint32_t llh = (uint32_t)(((uint64_t)al * bl) >> 32), w0 = al * bl;
+    uint32_t lhh = (uint32_t)(((uint64_t)al * nh) >> 32), lhl = al * nh;
+    uint32_t hlh = (uint32_t)(((uint64_t)mh * bl) >> 32), hll = mh * bl;
+    uint32_t hhh = (uint32_t)(((uint64_t)mh * nh) >> 32), hhl = mh * nh;
+    uint32_t w1 = llh + lhl; uint32_t c1 = w1 < llh; w1 += hll; c1 += w1 < hll;
+    uint32_t w2 = lhh + hlh; uint32_t c2 = w2 < lhh; w2 += hhl; c2 += w2 < hhl; w2 += c1; c2 += w2 < c1;
+    uint32_t w3 = hhh + c2;
+    int e = (int)(ea + eb) - 1023;
+    if (w3 >> 9) e++;                                   /* product >= 2^105 */
+    else { w3 = w3 << 1 | w2 >> 31; w2 = w2 << 1 | w1 >> 31; w1 = w1 << 1 | w0 >> 31; w0 <<= 1; }
+    uint32_t kh = w3 << 11 | w2 >> 21, kl = w2 << 11 | w1 >> 21;
+    uint32_t guard = w1 >> 20 & 1, sticky = (w1 & 0xFFFFFu) | w0;
+    if (guard && (sticky || (kl & 1))) { kl++; kh += kl == 0; }
+    if ((uint32_t)e - 1u >= 2046u) return mul_general(a, b);
+    return mk2(((ah ^ bh) & 0x80000000u) | (((uint32_t)(e - 1) << 20) + kh), kl);
+}
+
+static inline int cmp32(double x, double y, int unordered)
+{
+    uint64_t a = bits(x), b = bits(y);
+    uint32_t ah = a >> 32, al = (uint32_t)a, bh = b >> 32, bl = (uint32_t)b;
+    uint32_t am = ah & 0x7FFFFFFFu, bm = bh & 0x7FFFFFFFu;
+    if (am > 0x7FF00000u || (am == 0x7FF00000u && al) || bm > 0x7FF00000u || (bm == 0x7FF00000u && bl)) return unordered;
+    if (!(am | al | bm | bl)) return 0;                  /* +0 == -0 */
+    if ((ah ^ bh) >> 31) return ah >> 31 ? -1 : 1;      /* signs differ */
+    int gt = am > bm || (am == bm && al > bl), lt = am < bm || (am == bm && al < bl);
+    int r = gt - lt;
+    return ah >> 31 ? -r : r;
+}
+int __eqdf2(double a, double b) { return cmp32(a, b, 1); }
+int __nedf2(double a, double b) { return cmp32(a, b, 1); }
+int __ltdf2(double a, double b) { return cmp32(a, b, 1); }
+int __ledf2(double a, double b) { return cmp32(a, b, 1); }
+int __gtdf2(double a, double b) { return cmp32(a, b, -1); }
+int __gedf2(double a, double b) { return cmp32(a, b, -1); }
+
+double __floatsidf(int32_t v)
+{
+    if (!v) return mk(0);
+    uint32_t sg = (uint32_t)v & 0x80000000u, u = v < 0 ? -(uint32_t)v : (uint32_t)v;
+    int lz = clz32_(u);
+    uint32_t m = u << lz;                                /* leading bit 31 */
+    return mk2(sg | ((uint32_t)(1023 + 31 - lz) << 20) | (m << 1) >> 12, m << 21);
+}
+double __floatunsidf(uint32_t u)
+{
+    if (!u) return mk(0);
+    int lz = clz32_(u);
+    uint32_t m = u << lz;
+    return mk2(((uint32_t)(1023 + 31 - lz) << 20) | (m << 1) >> 12, m << 21);
+}
+int32_t __fixdfsi(double d)
+{
+    uint64_t u = bits(d); uint32_t h = u >> 32, l = (uint32_t)u;
+    int e = (int)(h >> 20 & 0x7FF) - 1023;
+    int neg = h >> 31;
+    if ((h & 0x7FFFFFFFu) > 0x7FF00000u || ((h & 0x7FFFFFFFu) == 0x7FF00000u && l)) return 0;   /* NaN */
+    if (e < 0) return 0;
+    if (e > 30) return neg ? INT32_MIN : INT32_MAX;
+    uint32_t m = (h & 0xFFFFFu) << 11 | 1u << 31 | l >> 21;     /* the 53-bit mantissa, top 32 bits */
+    uint32_t v = m >> (31 - e);
+    return neg ? -(int32_t)v : (int32_t)v;
+}
+#endif
+
 /* ---- compares (libgcc contract) ------------------------------------------ */
 static int cmp(uint64_t a, uint64_t b, int unordered)
 {
@@ -299,12 +435,14 @@ static int cmp(uint64_t a, uint64_t b, int unordered)
     int64_t ib = (b & SIGN) ? -(int64_t)(b & ~SIGN) : (int64_t)b;
     return ia < ib ? -1 : ia > ib;
 }
+#if !SOC_CPU_RISCV
 int __eqdf2(double a, double b) { return cmp(bits(a), bits(b), 1); }
 int __nedf2(double a, double b) { return cmp(bits(a), bits(b), 1); }
 int __ltdf2(double a, double b) { return cmp(bits(a), bits(b), 1); }
 int __ledf2(double a, double b) { return cmp(bits(a), bits(b), 1); }
 int __gtdf2(double a, double b) { return cmp(bits(a), bits(b), -1); }
 int __gedf2(double a, double b) { return cmp(bits(a), bits(b), -1); }
+#endif
 int __unorddf2(double a, double b) { return isnan_(bits(a)) || isnan_(bits(b)); }
 
 /* ---- integer conversions --------------------------------------------------- */
@@ -313,8 +451,10 @@ static double from_u64(uint64_t sign, uint64_t v)
     if (!v) return mk(0);
     return round_pack(sign, 63, v, 0);
 }
+#if !SOC_CPU_RISCV
 double __floatsidf(int32_t v)   { return v < 0 ? from_u64(SIGN, -(uint64_t)(int64_t)v) : from_u64(0, (uint64_t)v); }
 double __floatunsidf(uint32_t v) { return from_u64(0, v); }
+#endif
 double __floatdidf(int64_t v)   { return v < 0 ? from_u64(SIGN, -(uint64_t)v) : from_u64(0, (uint64_t)v); }
 double __floatundidf(uint64_t v) { return from_u64(0, v); }
 
@@ -329,12 +469,14 @@ static uint64_t to_u64(uint64_t u, int *neg, int *big)
     uint64_t m = (u & MANM) | (1ull << 52);
     return e >= 52 ? shl(m, e - 52) : shr(m, 52 - e);
 }
+#if !SOC_CPU_RISCV
 int32_t __fixdfsi(double d)
 {
     int n, b; uint64_t v = to_u64(bits(d), &n, &b);
     if (n) return v > 0x80000000ull ? INT32_MIN : (int32_t)(0u - (uint32_t)v);
     return v > 0x7FFFFFFF ? INT32_MAX : (int32_t)v;
 }
+#endif
 uint32_t __fixunsdfsi(double d) { int n, b; uint64_t v = to_u64(bits(d), &n, &b); return n ? 0 : v > 0xFFFFFFFFull ? 0xFFFFFFFFu : (uint32_t)v; }
 int64_t __fixdfdi(double d)
 {

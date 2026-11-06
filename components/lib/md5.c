@@ -26,9 +26,9 @@ static const uint8_t R[64] = {
 #define STEP(f, a, b, c, d, g, k, s) do { (a) += f(b, c, d) + w[g] + (k); (a) = (b) + (((a) << (s)) | ((a) >> (32 - (s)))); } while (0)
 static void block(uint32_t h[4], const uint8_t *p)
 {
-    uint32_t w[16], a = h[0], b = h[1], c = h[2], d = h[3];
-    if (!((uintptr_t)p & 3)) for (int i = 0; i < 16; i++) w[i] = ((const uint32_t *)p)[i];
-    else for (int i = 0; i < 16; i++) w[i] = p[i * 4] | p[i * 4 + 1] << 8 | p[i * 4 + 2] << 16 | (uint32_t)p[i * 4 + 3] << 24;
+    uint32_t wb[16], a = h[0], b = h[1], c = h[2], d = h[3];
+    const uint32_t *w = (const uint32_t *)p;           /* aligned input is read in place */
+    if ((uintptr_t)p & 3) { for (int i = 0; i < 16; i++) wb[i] = p[i * 4] | p[i * 4 + 1] << 8 | p[i * 4 + 2] << 16 | (uint32_t)p[i * 4 + 3] << 24; w = wb; }
     STEP(F1, a, b, c, d, 0, 0xd76aa478, 7);  STEP(F1, d, a, b, c, 1, 0xe8c7b756, 12); STEP(F1, c, d, a, b, 2, 0x242070db, 17); STEP(F1, b, c, d, a, 3, 0xc1bdceee, 22);
     STEP(F1, a, b, c, d, 4, 0xf57c0faf, 7);  STEP(F1, d, a, b, c, 5, 0x4787c62a, 12); STEP(F1, c, d, a, b, 6, 0xa8304613, 17); STEP(F1, b, c, d, a, 7, 0xfd469501, 22);
     STEP(F1, a, b, c, d, 8, 0x698098d8, 7);  STEP(F1, d, a, b, c, 9, 0x8b44f7af, 12); STEP(F1, c, d, a, b, 10, 0xffff5bb1, 17); STEP(F1, b, c, d, a, 11, 0x895cd7be, 22);

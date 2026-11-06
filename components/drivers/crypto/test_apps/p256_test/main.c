@@ -15,6 +15,7 @@ int main(void)
 {
     delay_ms(200);
     uint8_t pub[64], sh[32], sig[64], pr[32], pu[64];
+    p256_pubkey(pub, v_priv2);   /* warm-up: engine clock and tables, as the IDF twin */
     tic(); int ok1 = !p256_pubkey(pub, v_priv) && !memcmp(pub, v_pub, 64); unsigned long t1 = toc();
     tic(); int ok2 = !p256_ecdh(sh, v_priv, v_pub2) && !memcmp(sh, v_shared, 32); unsigned long t2 = toc();
     tic(); int ok3 = !p256_sign_k(sig, v_priv, v_hash, v_k) && !memcmp(sig, v_sig_k, 64); unsigned long t3 = toc();

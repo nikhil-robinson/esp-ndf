@@ -15,7 +15,7 @@ ARCH_FLAGS = -march=rv32imafc_zicsr_zifencei_zaamo_zalrsc$(P4_PIE_EXT) -mabi=ilp
 # P4 boot path) and the crypto engines
 SOC_DRIVER_SRCS = $(wildcard $(C)/lib/esp32p4/*.c $(C)/lib/esp32p4/*.S) $(wildcard $(C)/drivers/*/esp32p4/*.c $(C)/drivers/*/esp32p4/*.S) $(wildcard $(C)/drivers/storage/*.c) $(wildcard $(C)/drivers/crypto/*.c) $(C)/soc/esp32s3/time.c $(C)/soc/esp32s3/efuse.c $(C)/drivers/pcnt/pcnt.c $(C)/drivers/mcpwm/mcpwm.c $(C)/drivers/rmt/rmt.c $(C)/drivers/i2c/i2c.c $(C)/drivers/spi/spi.c $(C)/drivers/xcore/xcore.c $(C)/drivers/sdm/sdm.c $(C)/drivers/twai/twai.c $(C)/drivers/lcd/lcd.c $(C)/drivers/lcd/gt911.c $(C)/drivers/lcd/i80.c $(C)/drivers/lcd/cam.c $(C)/drivers/usb/usb_dev.c $(C)/drivers/usb/usb_msc.c $(C)/soc/esp32s3/pm.c
 # Xtensa assembly in components/lib (and dsp.c, its portable twin) is replaced by lib/esp32p4: PIE kernels + C
-SOC_LIB_EXCLUDE = double.S dsp.S dsp_f32.S fpu.S nn_s8.S
+SOC_LIB_EXCLUDE = double.S dsp.S dsp_f32.S fpu.S nn_s8.S musl/floor.c musl/ceil.c musl/trunc.c musl/round.c musl/rint.c musl/__sin.c musl/__cos.c   # lib/esp32p4/dmath.c replaces the musl ones that add 2^52
 # the P4 ROM reads the first image at 0x2000
 FLASH_APP_ADDR = 0x2000
 # BOOT_FAST=0: the ROM loads the app directly. BOOT_FAST=1: the ROM loads loader/loader.c (OTA slots, image check) which

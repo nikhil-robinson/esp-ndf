@@ -452,7 +452,18 @@ static int pubkey_nolock(uint8_t pub[64], const uint8_t priv[32])
 int p256_pubkey(uint8_t pub[64], const uint8_t priv[32])
 {
     ecc_lock(); init();
+#if SOC_ECC_HW
+    int r = -1; fe d; from_be(d, priv);
+    if (scalar_ok(d)) {                                              /* k G on the ECC engine: no 61 KB comb walk */
+        uint8_t k[32], gx[32], gy[32], rx[32], ry[32];
+        rev32(k, priv); rev32(gx, GX_BE); rev32(gy, GY_BE);
+        if (!ecc_hw_mul(ECC_P256, k, gx, gy, rx, ry)) { rev32(pub, rx); rev32(pub + 32, ry); r = 0; }
+        explicit_bzero(k, sizeof k);
+    }
+    WIPE(d);
+#else
     int r = pubkey_nolock(pub, priv);
+#endif
     ecc_unlock();
     return r;
 }

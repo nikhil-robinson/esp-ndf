@@ -40,6 +40,16 @@ void app_main(void)
     BEST("float div x100", for (int i = 0; i < 100; i++) sink += (int)(fa / fb));
     BEST("int64 div x100", for (int i = 0; i < 100; i++) sink += (uint32_t)(la / (lb + i)));
     BEST("uint32 div x100", for (int i = 0; i < 100; i++) sink += ua / (ub + i)); }
+    { volatile double da = 1.2345678901, db = 9.8765432109; volatile double dr;
+    BEST("dbl sin small x100", for (int i = 0; i < 100; i++) dr = sin(0.5 + i * 0.001));
+    BEST("dbl cos x100", for (int i = 0; i < 100; i++) dr = cos(da + i));
+    BEST("dbl tan x100", for (int i = 0; i < 100; i++) dr = tan(0.5 + i * 0.01));
+    BEST("dbl atan x100", for (int i = 0; i < 100; i++) dr = atan(da + i));
+    BEST("dbl log x100", for (int i = 0; i < 100; i++) dr = log(da + i));
+    BEST("dbl pow x100", for (int i = 0; i < 100; i++) dr = pow(da + i, 0.37));
+    BEST("dbl fmod x100", for (int i = 0; i < 100; i++) dr = fmod(db * (i + 1), da));
+    BEST("dbl floor x100", for (int i = 0; i < 100; i++) dr = floor(db * i));
+    BEST("dbl sqrt x100 (again)", for (int i = 0; i < 100; i++) dr = sqrt(db + i)); (void)dr; }
     printf("idf_p4_lib done\n");
     for (;;) vTaskDelay(1000);
 }

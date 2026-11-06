@@ -50,9 +50,77 @@ static int check(void)
     char *e; if (strtol("12ab", &e, 10) != 12 || *e != 'a') bad++;
     return bad;
 }
+extern double ndf_dadd_ref(double, double), ndf_dmul_ref(double, double);
+static uint64_t bt(double d) { union { double d; uint64_t u; } c = { d }; return c.u; }
+static double fb(uint64_t u) { union { double d; uint64_t u; } c; c.u = u; return c.d; }
+#include "sincos_ref.h"
+static int check_sincos(void)                          /* sin / cos against glibc: at most 1 ulp apart, never worse */
+{
+    int bad = 0;
+    for (unsigned i = 0; i < sizeof sc_ref / sizeof sc_ref[0]; i++) {
+        double x = fb(sc_ref[i][0]);
+        int64_t ds = (int64_t)bt(sin(x)) - (int64_t)sc_ref[i][1], dc = (int64_t)bt(cos(x)) - (int64_t)sc_ref[i][2];
+        if (ds > 1 || ds < -1 || dc > 1 || dc < -1) bad++;
+    }
+    return bad;
+}
+static int check_round(void)
+{
+    int bad = 0; uint64_t x = 0x1234567ull;
+    for (int i = 0; i < 40000; i++) {
+        x ^= x << 13; x ^= x >> 7; x ^= x << 17;
+        uint64_t u = x; int sh = i % 12;
+        if (sh < 8) u = (u & 0x800FFFFFFFFFFFFFull) | (uint64_t)(1023 - 3 + (int)(u % 60)) << 52;        /* 2^-3 .. 2^56 */
+        else if (sh == 8) u = (u & 0x800FFFFFFFFFFFFFull) | (uint64_t)(1010 + (u % 20)) << 52;
+        else if (sh == 9) u = (u & 0xFFF0000000000000ull) | (u & 3);                                      /* x.0 / x.5-ish on tiny mantissas */
+        else if (sh == 10) { volatile double h = (double)(int32_t)(u >> 40) + 0.5; u = bt(h); }
+        volatile double d = fb(u);
+        if (!(d == d) || bt(d) << 1 >> 53 == 0x7FF) continue;
+        double t = fb(u);
+        if (((u >> 52) & 0x7FF) >= 1023 + 62 || ((u >> 52) & 0x7FF) <= 1000) { if (d != floor(d) && ((u >> 52) & 0x7FF) >= 1023 + 52) bad++; continue; }
+        t = (double)(int64_t)d;                                    /* trunc */
+        double fl = t - (t > d), ce = t + (t < d);
+        double a = d < 0 ? -d : d, ta = t < 0 ? -t : t, fr = a - ta;
+        double rd = fr >= 0.5 ? ta + 1 : ta; if (d < 0) rd = -rd;
+        double ri = fr > 0.5 ? ta + 1 : fr < 0.5 ? ta : (((int64_t)ta & 1) ? ta + 1 : ta); if (d < 0) ri = -ri;
+        if (floor(d) != fl || ceil(d) != ce || trunc(d) != t || round(d) != rd || rint(d) != ri) bad++;
+    }
+    { volatile double nz = -0.0, pz = 0.0; if (bt(floor(nz)) != bt(nz) || bt(ceil(nz)) != bt(nz) || bt(trunc(-0.3)) != bt(-0.0) || bt(ceil(-0.3)) != bt(-0.0) || bt(floor(0.3)) != bt(pz) || bt(rint(-0.5)) != bt(-0.0) || bt(rint(0.5)) != bt(pz) ||
+        floor(-0.3) != -1.0 || ceil(0.3) != 1.0 || rint(1.5) != 2.0 || rint(2.5) != 2.0 || round(2.5) != 3.0 || round(-2.5) != -3.0 || round(0.49999999999999994) != 0.0) bad++; }
+    return bad;
+}
+static int check_double(void)
+{
+    int bad = check_round() + check_sincos(); uint64_t x = 0x9E3779B97F4A7C15ull;
+    for (int i = 0; i < 60000; i++) {
+        x ^= x << 13; x ^= x >> 7; x ^= x << 17; uint64_t a = x;
+        x ^= x << 13; x ^= x >> 7; x ^= x << 17; uint64_t b = x;
+        int mode = i % 6;
+        if (mode == 1) b = (b & ~0x7FF0000000000000ull) | ((a & 0x7FF0000000000000ull) + ((uint64_t)((int)(b & 63) - 32) << 52));       /* close exponents */
+        if (mode == 2) b = a ^ (b & 0x000000000000FFFFull);                                        /* near-equal values: cancellation */
+        if (mode == 3) { a &= ~0x7FF0000000000000ull; a |= (uint64_t)(1000 + (a & 40)) << 52; b = (b & ~0x7FF0000000000000ull) | (uint64_t)(1000 + (b & 40)) << 52; }   /* moderate exponents */
+        if (mode == 4) { a = (a & ~0x7FF0000000000000ull) | (uint64_t)(1 + (a & 3)) << 52; }       /* tiny: denormal results */
+        if (mode == 5 && i % 12 == 5) { a = (a & ~0x7FF0000000000000ull) | 0x7FE0000000000000ull; b = (b & ~0x7FF0000000000000ull) | 0x7FD0000000000000ull; }   /* overflow */
+        volatile double da = fb(a), db = fb(b);
+        double r;
+        r = da + db; if (bt(r) != bt(ndf_dadd_ref(da, db)) && (r == r)) bad++;
+        r = da - db; if (bt(r) != bt(ndf_dadd_ref(da, -db)) && (r == r)) bad++;
+        r = da * db; if (bt(r) != bt(ndf_dmul_ref(da, db)) && (r == r)) bad++;
+        int lt = da < db, gt = da > db, eq = da == db;
+        if (da == da && db == db) { int64_t ia = (int64_t)a, ib = (int64_t)b; if (ia < 0) ia = INT64_MIN - ia; if (ib < 0) ib = INT64_MIN - ib; if (!(da == 0 && db == 0) && (lt != (ia < ib) || gt != (ia > ib) || eq != (ia == ib))) bad++; }
+    }
+    for (int k = 0; k < 3000; k++) {
+        int32_t v = (int32_t)(x = x * 6364136223846793005ull + 1442695040888963407ull >> 16) >> (k & 31);
+        volatile double dv = (double)v; if ((int32_t)dv != v) bad++;
+        volatile double h = dv + (v >= 0 ? 0.5 : -0.5); if ((int32_t)h != v) bad++;
+        uint32_t u = (uint32_t)(x >> 7) >> (k & 31); volatile double du = (double)u; if ((uint32_t)du != u) bad++;
+    }
+    { volatile double big = 3e9, nb = -3e9, nan = 0.0; nan = nan / nan; if ((int32_t)big != INT32_MAX || (int32_t)nb != INT32_MIN || (int32_t)nan != 0) bad++; }
+    return bad;
+}
 int main(void)
 {
-    int bad = check();
+    int bad = check() + check_double();
     printf("\nlib_p4: crc32 / md5 / strtol checks: %d wrong\n", bad);
     printf("\nlib_p4 (cycles, best of 8)\n");
     static uint8_t buf[4096]; for (int i = 0; i < 4096; i++) buf[i] = i * 7 + (i >> 8);
@@ -77,7 +145,21 @@ int main(void)
     BEST("double->int x100", for (int i = 0; i < 100; i++) sink += (int)(da * i));
     BEST("float div x100", for (int i = 0; i < 100; i++) sink += (int)(fa / fb));
     BEST("int64 div x100", for (int i = 0; i < 100; i++) sink += (uint32_t)(la / (lb + i)));
+    BEST("uint64 div x100 (hi<d)", for (int i = 0; i < 100; i++) sink += (uint32_t)((uint64_t)la / (uint64_t)(lb + i)));
+    BEST("uint64 div x100 (d<2^16)", for (int i = 0; i < 100; i++) sink += (uint32_t)((uint64_t)la / (uint64_t)(ub + i)));
+    BEST("uint64 div x100 (d>2^32)", for (int i = 0; i < 100; i++) sink += (uint32_t)((uint64_t)la / (uint64_t)(lb * 7 + i)));
+    { volatile uint32_t dd = 7; uint32_t x = 0xFFFFFFF0u; BEST("uint32 div dependent x100", for (int i = 0; i < 100; i++) x = (x / (dd + (x & 3))) + 0xFFFFFF00u); sink += x; }
     BEST("uint32 div x100", for (int i = 0; i < 100; i++) sink += ua / (ub + i)); }
+    { volatile double da = 1.2345678901, db = 9.8765432109; volatile double dr;
+    BEST("dbl sin small x100", for (int i = 0; i < 100; i++) dr = sin(0.5 + i * 0.001));
+    BEST("dbl cos x100", for (int i = 0; i < 100; i++) dr = cos(da + i));
+    BEST("dbl tan x100", for (int i = 0; i < 100; i++) dr = tan(0.5 + i * 0.01));
+    BEST("dbl atan x100", for (int i = 0; i < 100; i++) dr = atan(da + i));
+    BEST("dbl log x100", for (int i = 0; i < 100; i++) dr = log(da + i));
+    BEST("dbl pow x100", for (int i = 0; i < 100; i++) dr = pow(da + i, 0.37));
+    BEST("dbl fmod x100", for (int i = 0; i < 100; i++) dr = fmod(db * (i + 1), da));
+    BEST("dbl floor x100", for (int i = 0; i < 100; i++) dr = floor(db * i));
+    BEST("dbl sqrt x100 (again)", for (int i = 0; i < 100; i++) dr = sqrt(db + i)); (void)dr; }
     printf(bad ? "lib_p4 FAILED\n" : "lib_p4 done\n");
     for (;;) ;
 }

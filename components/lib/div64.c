@@ -7,44 +7,68 @@
 #if SOC_CPU_RISCV
 /* RV32 with the M extension: the 64-bit quotient from the 32-bit divider (Hacker's Delight divlu / udivdi3), a handful of divisions
  * instead of 64 shift-subtract steps (1350 cycles per division before). */
-static uint32_t divlu(uint32_t u1, uint32_t u0, uint32_t v)       /* (u1:u0) / v, u1 < v, v != 0 */
+static inline __attribute__((always_inline)) int clz32(uint32_t x)      /* x != 0: through the FPU, no call */
+{
+    x &= ~(x >> 1);                                   /* no two adjacent ones: the conversion cannot round up to the next power of two */
+    union { float f; uint32_t u; } c = { .f = (float)x };
+    return 158 - (int)(c.u >> 23);
+}
+#define CLZ clz32
+static inline __attribute__((always_inline)) uint32_t divlu(uint32_t u1, uint32_t u0, uint32_t v)       /* (u1:u0) / v, u1 < v, v != 0 */
 {
     const uint32_t b = 65536;
-    int s = __builtin_clz(v);
+    int s = clz32(v);
     v <<= s;
     uint32_t vn1 = v >> 16, vn0 = v & 0xFFFF;
     uint32_t un32 = s ? (u1 << s) | (u0 >> (32 - s)) : u1;
     uint32_t un10 = u0 << s;
     uint32_t un1 = un10 >> 16, un0 = un10 & 0xFFFF;
-    uint32_t q1 = un32 / vn1, rhat = un32 - q1 * vn1;
+    uint32_t q1 = un32 / vn1; __asm__("" : "+r"(q1)); uint32_t rhat = un32 - q1 * vn1;   /* not a second divide (remu) */
     while (q1 >= b || q1 * vn0 > b * rhat + un1) { q1--; rhat += vn1; if (rhat >= b) break; }
     uint32_t un21 = un32 * b + un1 - q1 * v;
-    uint32_t q0 = un21 / vn1; rhat = un21 - q0 * vn1;
+    uint32_t q0 = un21 / vn1; __asm__("" : "+r"(q0)); rhat = un21 - q0 * vn1;
     while (q0 >= b || q0 * vn0 > b * rhat + un0) { q0--; rhat += vn1; if (rhat >= b) break; }
     return q1 * b + q0;
 }
 
-uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
+static inline __attribute__((always_inline)) uint64_t udiv_q(uint64_t n, uint64_t d)
 {
-    uint64_t q;
-    if (d == 0) { if (rem) *rem = 0; return ~0ull; }   /* no trap: saturate */
     uint32_t nh = (uint32_t)(n >> 32), nl = (uint32_t)n, dh = (uint32_t)(d >> 32), dl = (uint32_t)d;
     if (!dh) {
-        if (!nh) q = nl / dl;
-        else if (nh < dl) q = divlu(nh, nl, dl);
-        else { uint32_t qh = nh / dl, r = nh - qh * dl; q = (uint64_t)qh << 32 | divlu(r, nl, dl); }
-    } else {                                           /* quotient < 2^32 */
-        int s = __builtin_clz(dh);
-        uint32_t v1 = (uint32_t)((d << s) >> 32);
-        uint64_t u1 = n >> 1;
-        uint32_t q1 = divlu((uint32_t)(u1 >> 32), (uint32_t)u1, v1);   /* u1 < 2^63, v1 >= 2^31: u1 / 2^32 < v1 */
-        uint32_t q0 = (uint32_t)(((uint64_t)q1 << s) >> 31);
-        if (q0) q0--;
-        if (n - (uint64_t)q0 * d >= d) q0++;
-        q = q0;
+        if (!nh) return dl ? nl / dl : ~0ull;           /* no trap: saturate */
+        if (nh < dl) return divlu(nh, nl, dl);
+        uint32_t qh = nh / dl, r = nh - qh * dl;
+        return (uint64_t)qh << 32 | divlu(r, nl, dl);
     }
+    int s = clz32(dh);                              /* quotient < 2^32 */
+    uint32_t v1 = (uint32_t)((d << s) >> 32);
+    uint64_t u1 = n >> 1;
+    uint32_t q1 = divlu((uint32_t)(u1 >> 32), (uint32_t)u1, v1);   /* u1 < 2^63, v1 >= 2^31: u1 / 2^32 < v1 */
+    uint32_t q0 = (uint32_t)(((uint64_t)q1 << s) >> 31);
+    if (q0) q0--;
+    if (n - (uint64_t)q0 * d >= d) q0++;
+    return q0;
+}
+uint64_t __udivdi3(uint64_t n, uint64_t d) { return udiv_q(n, d); }
+uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
+{
+    if (d == 0) { if (rem) *rem = 0; return ~0ull; }
+    uint64_t q = udiv_q(n, d);
     if (rem) *rem = n - q * d;
     return q;
+}
+uint64_t __umoddi3(uint64_t n, uint64_t d) { if (!d) return 0; return n - udiv_q(n, d) * d; }
+int64_t __divdi3(int64_t n, int64_t d)
+{
+    int neg = (n < 0) ^ (d < 0);
+    uint64_t q = udiv_q(n < 0 ? -(uint64_t)n : (uint64_t)n, d < 0 ? -(uint64_t)d : (uint64_t)d);
+    return neg ? -(int64_t)q : (int64_t)q;
+}
+int64_t __moddi3(int64_t n, int64_t d)
+{
+    uint64_t un = n < 0 ? -(uint64_t)n : (uint64_t)n, ud = d < 0 ? -(uint64_t)d : (uint64_t)d;
+    uint64_t r = ud ? un - udiv_q(un, ud) * ud : 0;
+    return n < 0 ? -(int64_t)r : (int64_t)r;
 }
 #else
 uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
@@ -66,6 +90,7 @@ uint64_t __udivmoddi4(uint64_t n, uint64_t d, uint64_t *rem)
 
 #endif
 
+#if !SOC_CPU_RISCV
 uint64_t __udivdi3(uint64_t n, uint64_t d) { return __udivmoddi4(n, d, 0); }
 uint64_t __umoddi3(uint64_t n, uint64_t d) { uint64_t r; __udivmoddi4(n, d, &r); return r; }
 
@@ -81,6 +106,8 @@ int64_t __moddi3(int64_t n, int64_t d)
     uint64_t r = __umoddi3(n < 0 ? -(uint64_t)n : (uint64_t)n, d < 0 ? -(uint64_t)d : (uint64_t)d);
     return n < 0 ? -(int64_t)r : (int64_t)r;
 }
+
+#endif
 
 /* 64-bit shifts by a variable count */
 uint64_t __ashldi3(uint64_t a, int b)
@@ -108,6 +135,13 @@ int64_t __ashrdi3(int64_t a, int b)
 #if SOC_CPU_RISCV
 /* count leading zeros without a clz instruction (RV32 without Zbb; Xtensa has nsau and never calls these) */
 int __clzsi2(uint32_t x)
+{
+    if (!x) return 32;
+    x &= ~(x >> 1);                                   /* no two adjacent ones: the float conversion cannot round up to the next power of two */
+    union { float f; uint32_t u; } c = { .f = (float)x };
+    return 158 - (int)(c.u >> 23);
+}
+int __clzsi2_slow(uint32_t x)
 {
     int n = 0;
     if (!x) return 32;
