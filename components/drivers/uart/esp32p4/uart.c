@@ -146,6 +146,14 @@ uint32_t uart_init(int p, const uart_cfg_t *c)
     REG(INT_CLR(p)) = ~0u;
     if (!u->irq_on) u->irq_on = irq_attach(SRC_UART0 + p, 1, uart_isr, (void *)p) >= 0;
     REG(INT_ENA(p)) = I_RXFULL | I_RXTOUT | I_RXOVF;
+    if (c->rx_pin >= 0) {   /* switching the pads on makes the receiver see a low for a moment: a stray byte (measured). Let a frame time pass, then drop it */
+        uint32_t baud = (uint32_t)((uint64_t)SCLK_HZ * 16 / div16), us = 12u * 1000000u / (baud ? baud : 1);
+        delay_us(us > 300 ? 300 : us + 1);
+        uint32_t ps = irq_lock();
+        REG_SET(CONF0(p), C0_RXRST); REG_CLR(CONF0(p), C0_RXRST); update(p);
+        REG(INT_CLR(p)) = ~0u; u->rh = u->rt = 0; u->ovf = 0;
+        irq_unlock(ps);
+    }
     return (uint32_t)((uint64_t)SCLK_HZ * 16 / div16);
 }
 
@@ -230,9 +238,9 @@ int uart_set_mode(int p, int mode, int de_pin)
     REG_CLR(CONF0(p), C0_IRDA | C0_IRDA_TX | C0_SW_RTS);
     REG_CLR(INT_ENA(p), I_CLASH | I_TXDONE);
     switch (mode) {                                         /* register sets as IDF uart_ll_set_mode_* */
-    case UART_MODE_RS485:   REG_SET(CONF0(p), C0_SW_RTS); REG(RS485(p)) = BIT(0) | BIT(4); break;
+    case UART_MODE_RS485:   REG_SET(CONF0(p), C0_SW_RTS); REG(RS485(p)) = BIT(0) | BIT(1) | BIT(2); break;       /* uart_ll_set_mode_rs485_half_duplex: en, dl0, dl1; the receiver is blind while TX runs */
     case UART_MODE_RS485_CD:
-        REG(RS485(p)) = BIT(0) | BIT(3) | BIT(4);
+        REG(RS485(p)) = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4);                 /* uart_ll_set_mode_collision_detect */
         REG(INT_CLR(p)) = I_CLASH; REG_SET(INT_ENA(p), I_CLASH); break;
     case UART_MODE_IRDA:    REG_SET(CONF0(p), C0_IRDA); break;   /* half duplex: RX blind while TX */
     default: mode = UART_MODE_UART;
