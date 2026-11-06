@@ -7,3 +7,4 @@
 #include "ndf.h"
 void cache_dma_writeback(const void *addr, size_t len);
 void cache_dma_wbinv(const void *addr, size_t len);
+int cache_flash_read(uint32_t flash_addr, void *dst, size_t len);   /* flash contents through the cache window; -1 before the cache runs */

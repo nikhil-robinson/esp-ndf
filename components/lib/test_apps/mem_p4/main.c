@@ -6,6 +6,7 @@
 #include "sys.h"
 #include "soc.h"
 #include <string.h>
+#include <stdlib.h>
 
 static uint8_t A[8192 + 64] __attribute__((aligned(16))), B[8192 + 64] __attribute__((aligned(16)));
 static volatile int isr_ok;
@@ -76,6 +77,11 @@ int main(void)
     for (int n = 0; n < 40; n++)
         for (int o = 0; o < 5; o++) { memset(B, 'x', 100); B[o + n] = 0; if (strlen((char *)B + o) != (size_t)n) bad++; }
     printf("  exhaustive copy / set / move / compare / strlen: %d wrong\n", bad);
+    for (int k = 0; k < 2; k++) {                      /* malloc + free, best of 16 */
+        size_t n = k ? 4096 : 64; uint32_t best = ~0u;
+        for (int i = 0; i < 16; i++) { uint32_t t = ccount(); void *p = malloc(n); free(p); t = ccount() - t; if (t < best) best = t; }
+        printf("  malloc+free %u B: %lu cycles\n", (unsigned)n, (unsigned long)best);
+    }
     irq_install(1, isr, 0);
     volatile uint8_t *c = &CLIC_IP(1);
     c[3] = (uint8_t)CLIC_LVL_BYTE(1);

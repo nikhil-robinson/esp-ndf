@@ -8,6 +8,7 @@
 #include "soc.h"
 #include "cpu.h"
 #include "sys.h"
+#include "cache_p4.h"
 
 #define S1         FLASH_SPI1_BASE
 #define CMD        (S1 + 0x00)   /* b18 usr start */
@@ -107,6 +108,7 @@ int flash_read(uint32_t addr, void *buf, size_t len)
 {
     flash_info();
     if (!in_flash(addr, len)) return -1;
+    if (!cache_flash_read(addr, buf, len)) return 0;                 /* through the cache window once it runs; SPI1 commands before */
     uint8_t *b = buf;
     while (len) {
         size_t n = len > 64 ? 64 : len;
