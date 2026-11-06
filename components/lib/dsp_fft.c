@@ -13,7 +13,8 @@ void dsp_r4first_f32(float *x, int groups);
 #endif
 #if SOC_CPU_HAS_PIE
 void dsp_fft_s16_stage(int16_t *x, int n2, int blocks, const int16_t *wbr);
-void dsp_fft_s16_last2(int16_t *x, int n, const int16_t *wbr);
+void dsp_fft_s16_stage2(int16_t *x, int n, const int16_t *wbr);
+void dsp_fft_s16_stage1(int16_t *x, int n, const int16_t *wbr);
 #endif
 
 #define FFT_MAX 4096
@@ -152,7 +153,8 @@ int dsp_fft_s16(int16_t *x, int n)
 #if SOC_CPU_HAS_PIE
     if (!((uintptr_t)x & 15) && n >= 8) {
         for (; n2 >= 4; n2 /= 2, blocks *= 2) dsp_fft_s16_stage(x, n2, blocks, tws);
-        dsp_fft_s16_last2(x, n, tws); n2 = 0;
+        dsp_fft_s16_stage2(x, n, tws);
+        dsp_fft_s16_stage1(x, n, tws); n2 = 0;
     }
 #endif
     for (; n2 >= 1; n2 /= 2, blocks *= 2)

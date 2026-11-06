@@ -295,3 +295,70 @@ dsp_fft_s16_stage:
     addi        a2, a2, -1
     bnez        a2, 1b
     ret
+
+/* The last two stages of dsp_fft_s16 (n >= 8, x and wbr 16-aligned), same arithmetic as dsp_fft_s16_stage.
+ * void dsp_fft_s16_stage2(int16_t *x, int n, const int16_t *wbr) - half-blocks of 2 complex: two blocks per step, the
+ * tops / bottoms as 64-bit halves of one vector, w of the two blocks spread over (w0, w0, w1, w1) with VZIP. */
+    .global dsp_fft_s16_stage2
+    .align 2
+dsp_fft_s16_stage2:
+    addi        sp, sp, -16
+    li          t0, 32767
+    sh          t0, 0(sp)
+    mv          a4, sp
+    esp.vldbc.16.ip q6, a4, 0
+    addi        sp, sp, 16
+    li          t3, 16
+    esp.movx.w.sar t3
+    srli        t0, a1, 3                 /* two blocks (32 bytes) per step */
+    mv          a3, a0
+1:  esp.vld.l.64.ip q2, a0, 8             /* tops of block j, bottoms of block j, tops / bottoms of block j + 1 */
+    esp.vld.l.64.ip q0, a0, 8
+    esp.vld.h.64.ip q2, a0, 8
+    esp.vld.h.64.ip q0, a0, 8
+    esp.vld.l.64.ip q5, a2, 0
+    esp.vld.l.64.ip q4, a2, 8
+    esp.vzip.32 q5, q4
+    esp.cmul.s16 q1, q5, q0, 2
+    esp.vmul.s16 q2, q2, q6
+    esp.cmul.s16 q1, q5, q0, 3
+    esp.vsub.s16 q3, q2, q1
+    esp.vadd.s16 q4, q2, q1
+    esp.vst.l.64.ip q4, a3, 8
+    esp.vst.l.64.ip q3, a3, 8
+    esp.vst.h.64.ip q4, a3, 8
+    esp.vst.h.64.ip q3, a3, 8
+    addi        t0, t0, -1
+    bnez        t0, 1b
+    ret
+
+/* void dsp_fft_s16_stage1(int16_t *x, int n, const int16_t *wbr) - blocks of one top and one bottom complex: eight
+ * complex (four blocks) per step, VUNZIP splits tops from bottoms, four consecutive w are one vector, VZIP puts them back. */
+    .global dsp_fft_s16_stage1
+    .align 2
+dsp_fft_s16_stage1:
+    addi        sp, sp, -16
+    li          t0, 32767
+    sh          t0, 0(sp)
+    mv          a4, sp
+    esp.vldbc.16.ip q6, a4, 0
+    addi        sp, sp, 16
+    li          t3, 16
+    esp.movx.w.sar t3
+    srli        t0, a1, 3
+    mv          a3, a0
+1:  esp.vld.128.ip q0, a0, 16
+    esp.vld.128.ip q1, a0, 16
+    esp.vld.128.ip q5, a2, 16
+    esp.vunzip.32 q0, q1                  /* q0 tops, q1 bottoms */
+    esp.cmul.s16 q2, q5, q1, 2
+    esp.vmul.s16 q0, q0, q6
+    esp.cmul.s16 q2, q5, q1, 3
+    esp.vadd.s16 q3, q0, q2
+    esp.vsub.s16 q4, q0, q2
+    esp.vzip.32 q3, q4
+    esp.vst.128.ip q3, a3, 16
+    esp.vst.128.ip q4, a3, 16
+    addi        t0, t0, -1
+    bnez        t0, 1b
+    ret

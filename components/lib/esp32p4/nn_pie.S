@@ -217,16 +217,22 @@ nn_fc_dot_s8:
     esp.zero.xacc
     esp.vld.128.ip q7, a3, 0
     beqz        a2, 2f
-1:  esp.vld.128.ip q0, a0, 16
+    esp.vld.128.ip q0, a0, 16
     esp.vld.128.ip q1, a1, 16
-    esp.vld.128.ip q2, a0, 16
+    addi        a2, a2, -1
+    beqz        a2, 4f
+1:  esp.vmulas.s8.xacc.ld.ip q2, a0, 16, q0, q1       /* the next loads ride on the multiply-accumulates */
+    esp.vmulas.s8.xacc.ld.ip q3, a1, 16, q7, q1
+    esp.vmulas.s8.xacc.ld.ip q0, a0, 16, q2, q3
+    esp.vmulas.s8.xacc.ld.ip q1, a1, 16, q7, q3
+    addi        a2, a2, -1
+    bnez        a2, 1b
+4:  esp.vld.128.ip q2, a0, 16                          /* last 32 bytes: no load past the end */
     esp.vld.128.ip q3, a1, 16
     esp.vmulas.s8.xacc q0, q1
     esp.vmulas.s8.xacc q7, q1
     esp.vmulas.s8.xacc q2, q3
     esp.vmulas.s8.xacc q7, q3
-    addi        a2, a2, -1
-    bnez        a2, 1b
 2:  li          t3, 0
     esp.srs.s.xacc a0, t3
     ret
@@ -243,6 +249,29 @@ nn_relu6_v:
     esp.vldbc.8.ip q7, a2, 0              /* 6 */
     addi        sp, sp, 16
     esp.xorq    q6, q6, q6
+    srli        t1, a1, 2                 /* groups of four vectors */
+    andi        a1, a1, 3
+    beqz        t1, 3f
+2:  esp.vld.128.ip q0, a0, 16
+    esp.vld.128.ip q1, a0, 16
+    esp.vld.128.ip q2, a0, 16
+    esp.vld.128.ip q3, a0, 16
+    addi        a0, a0, -64
+    esp.vmax.s8 q0, q0, q6
+    esp.vmax.s8 q1, q1, q6
+    esp.vmax.s8 q2, q2, q6
+    esp.vmax.s8 q3, q3, q6
+    esp.vmin.s8 q0, q0, q7
+    esp.vmin.s8 q1, q1, q7
+    esp.vmin.s8 q2, q2, q7
+    esp.vmin.s8 q3, q3, q7
+    esp.vst.128.ip q0, a0, 16
+    esp.vst.128.ip q1, a0, 16
+    esp.vst.128.ip q2, a0, 16
+    esp.vst.128.ip q3, a0, 16
+    addi        t1, t1, -1
+    bnez        t1, 2b
+3:  beqz        a1, 9f
 1:  esp.vld.128.ip q0, a0, 0
     esp.vmax.s8 q0, q0, q6
     esp.vmin.s8 q0, q0, q7

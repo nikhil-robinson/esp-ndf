@@ -1004,12 +1004,12 @@ IDF cannot run this silicon (rev < 3) above 360 MHz; cycle counts are comparable
 | fft_f32 1024 / 4096 | 80,387 / 375,681 | 98,512 / 475,277 (fft4r) | 1.23-1.27x |
 | rfft_f32 1024 | 47,019 | 76,481 | 1.63x |
 | window hann / blackman / flat-top 1024 | 20.6k / 29.9k / 48.3k | 521k / 1.04M / 2.09M | 25-43x |
-| fft_s16 1024 | 70,002 | 34,075 | 0.49x (IDF faster, open) |
+| fft_s16 1024 | 24,775 | 34,075 | 1.38x (was 177,870 on the C path; the last two stages now run on PIE: VUNZIP / VZIP / 64-bit half loads) |
 | NN conv3x3 16x16x16->32 | 843,814 | 898,578 | 1.06x |
 | NN depthwise 3x3 32x32x32, stride 1 / 2 | 1,398,348 / 351,158 | 1,890,226 / 472,980 | 1.35x |
 | NN max / avg pool 2x2 32x32x16 | 10,853 / 63,905 | 21,608 / 102,503 | 2.0x / 1.6x |
 | NN add 4096 / softmax 100x10 | 160,188 / 86,895 | 216,716 / 157,531 | 1.35x / 1.8x |
-| NN fully connected 512->64 / relu6 4096 | 15,940 / 4,751 | 14,908 / 4,160 | 0.94x / 0.88x (IDF faster) |
-| NN model end to end | 6,504,592 (16.3 ms) | 7,226,888 (20.1 ms) | 1.11x cycles, 1.23x time |
+| NN fully connected 512->64 / relu6 4096 | 12,669 / 4,180 | 14,908 / 4,160 | 1.18x / 0.99x (loads fused into the multiply-accumulates; relu6 unrolled by four) |
+| NN model end to end | 6,496,586 (16.2 ms) | 7,226,888 (20.1 ms) | 1.11x cycles, 1.24x time |
 
-All NN outputs are bit-identical to esp-nn. The PIE kernels need the v2.1 instruction encodings on v1.x silicon (`-march=..._xespv2p1`, soc.mk). Open: fft_s16 (C path), fc and relu6 are 6-12 % behind esp-nn.
+All NN outputs are bit-identical to esp-nn. The PIE kernels need the v2.1 instruction encodings on v1.x silicon (`-march=..._xespv2p1`, soc.mk).
